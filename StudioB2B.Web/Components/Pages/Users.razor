@@ -2,131 +2,132 @@
 @attribute [Authorize]
 @rendermode InteractiveServer
 @using StudioB2B.Application.Common.Interfaces
-@using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using Microsoft.EntityFrameworkCore
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
 @inject ITenantDbContextFactory DbContextFactory
-@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
 <PageTitle>Пользователи - StudioB2B</PageTitle>
 
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Пользователи</h1>
-        @if (TenantProvider.IsResolved)
-        {
-            <span class="badge bg-info">@_tenantName</span>
-        }
-    </div>
+<MudText Typo="Typo.h3" GutterBottom="true">
+    Пользователи
+    @if (TenantProvider.IsResolved && _tenantName != null)
+    {
+        <MudChip T="string" Color="Color.Info" Size="Size.Medium" Class="ml-2">@_tenantName</MudChip>
+    }
+</MudText>
 
-    @if (!TenantProvider.IsResolved)
-    {
-        <div class="alert alert-warning">
-            <strong>Тенант не определён.</strong>
-            <p>Перейдите по адресу вашей компании (например, demo.localhost:5184).</p>
-        </div>
-    }
-    else if (_loading)
-    {
-        <div class="d-flex justify-content-center">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Загрузка...</span>
-            </div>
-        </div>
-    }
-    else if (_error != null)
-    {
-        <div class="alert alert-danger">
-            <strong>Ошибка:</strong> @_error
-        </div>
-    }
-    else
-    {
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span>Список пользователей (@_users.Count)</span>
-                    <button class="btn btn-light btn-sm" @onclick="LoadUsers">
-                        Обновить
-                    </button>
-                </div>
-            </div>
-            <div class="card-body p-0">
-                @if (_users.Count == 0)
-                {
-                    <div class="alert alert-info m-3">
-                        Пользователи не найдены.
-                    </div>
-                }
-                else
-                {
-                    <table class="table table-striped table-hover mb-0">
-                        <thead class="table-dark">
-                        <tr>
-                            <th>Email</th>
-                            <th>Имя</th>
-                            <th>Статус</th>
-                            <th>Создан</th>
-                            <th>Последний вход</th>
-                            <th>Действия</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach (var user in _users)
+@if (!TenantProvider.IsResolved)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">
+        <MudText Typo="Typo.subtitle1"><b>Тенант не определён.</b></MudText>
+        <MudText>Перейдите по адресу вашей компании (например, demo.localhost:5184).</MudText>
+    </MudAlert>
+}
+else if (_loading)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mt-4" />
+}
+else if (_error != null)
+{
+    <MudAlert Severity="Severity.Error" Class="mt-4">
+        <MudText Typo="Typo.subtitle1"><b>Ошибка:</b></MudText>
+        <MudText>@_error</MudText>
+    </MudAlert>
+}
+else
+{
+    <MudPaper Elevation="2" Class="mt-4">
+        <MudToolBar>
+            <MudText Typo="Typo.h6">Список пользователей (@_users.Count)</MudText>
+            <MudSpacer />
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh"
+                          Color="Color.Primary"
+                          OnClick="LoadUsers"
+                          AriaLabel="Обновить" />
+        </MudToolBar>
+
+        <MudDataGrid T="UserViewModel"
+                     Items="@_users"
+                     Filterable="true"
+                     FilterMode="DataGridFilterMode.ColumnFilterRow"
+                     SortMode="SortMode.Multiple"
+                     Dense="true"
+                     Hover="true"
+                     Striped="true">
+            <Columns>
+                <PropertyColumn Property="x => x.Email" Title="Email">
+                    <CellTemplate>
+                        <MudText Typo="Typo.body2"><code>@context.Item.Email</code></MudText>
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <PropertyColumn Property="x => x.FullName" Title="Имя">
+                    <CellTemplate>
+                        <MudText>@(context.Item.FullName ?? "—")</MudText>
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <PropertyColumn Property="x => x.IsActive" Title="Статус">
+                    <CellTemplate>
+                        @if (context.Item.IsActive)
                         {
-                            <tr>
-                                <td>
-                                    <code>@user.Email</code>
-                                </td>
-                                <td>@(user.FullName ?? "—")</td>
-                                <td>
-                                    @if (user.IsActive)
-                                    {
-                                        <span class="badge bg-success">Активен</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-secondary">Неактивен</span>
-                                    }
-                                </td>
-                                <td>@user.CreatedAtUtc.ToString("dd.MM.yyyy HH:mm")</td>
-                                <td>
-                                    @if (user.LastLoginAtUtc.HasValue)
-                                    {
-                                        @user.LastLoginAtUtc.Value.ToString("dd.MM.yyyy HH:mm")
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">—</span>
-                                    }
-                                </td>
-                                <td>
-                                    @if (user.IsActive)
-                                    {
-                                        <button class="btn btn-outline-danger btn-sm"
-                                                @onclick="() => ToggleUserStatus(user)">
-                                            Деактивировать
-                                        </button>
-                                    }
-                                    else
-                                    {
-                                        <button class="btn btn-outline-success btn-sm"
-                                                @onclick="() => ToggleUserStatus(user)">
-                                            Активировать
-                                        </button>
-                                    }
-                                </td>
-                            </tr>
+                            <MudChip Color="Color.Success" Size="Size.Small">Активен</MudChip>
                         }
-                        </tbody>
-                    </table>
-                }
-            </div>
-        </div>
-    }
-</div>
+                        else
+                        {
+                            <MudChip Color="Color.Default" Size="Size.Small">Неактивен</MudChip>
+                        }
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <PropertyColumn Property="x => x.CreatedAtUtc" Title="Создан" Format="dd.MM.yyyy HH:mm" />
+
+                <PropertyColumn Property="x => x.LastLoginAtUtc" Title="Последний вход">
+                    <CellTemplate>
+                        @if (context.Item.LastLoginAtUtc.HasValue)
+                        {
+                            <MudText>@context.Item.LastLoginAtUtc.Value.ToString("dd.MM.yyyy HH:mm")</MudText>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Default">—</MudText>
+                        }
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <TemplateColumn Title="Действия" Sortable="false" Filterable="false">
+                    <CellTemplate>
+                        @if (context.Item.IsActive)
+                        {
+                            <MudButton Size="Size.Small"
+                                      Variant="Variant.Outlined"
+                                      Color="Color.Error"
+                                      OnClick="() => ToggleUserStatus(context.Item)">
+                                Деактивировать
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudButton Size="Size.Small"
+                                      Variant="Variant.Outlined"
+                                      Color="Color.Success"
+                                      OnClick="() => ToggleUserStatus(context.Item)">
+                                Активировать
+                            </MudButton>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+
+            <NoRecordsContent>
+                <MudText Class="pa-4">Пользователи не найдены.</MudText>
+            </NoRecordsContent>
+        </MudDataGrid>
+    </MudPaper>
+}
 
 @code {
     private List<UserViewModel> _users = new();
@@ -156,7 +157,6 @@
             _error = null;
             StateHasChanged();
 
-            // Получаем TenantDbContext через фабрику
             using var db = DbContextFactory.CreateDbContext();
 
             _users = await db.Users
@@ -172,10 +172,13 @@
                     LastLoginAtUtc = u.LastLoginAtUtc
                 })
                 .ToListAsync();
+
+            Snackbar.Add($"Загружено пользователей: {_users.Count}", Severity.Success);
         }
         catch (Exception ex)
         {
             _error = ex.Message;
+            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -195,18 +198,21 @@
                 dbUser.IsActive = !dbUser.IsActive;
                 await db.SaveChangesAsync();
                 user.IsActive = dbUser.IsActive;
+
+                var status = user.IsActive ? "активирован" : "деактивирован";
+                Snackbar.Add($"Пользователь {user.Email} {status}", Severity.Success);
             }
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
         }
     }
 
-    private class UserViewModel
+    public class UserViewModel
     {
         public Guid Id { get; set; }
-        public string Email { get; set; } = string.Empty;
+        public string Email { get; set; } = null!;
         public string? FullName { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAtUtc { get; set; }

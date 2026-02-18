@@ -1,5 +1,19 @@
 ﻿@page "/not-found"
-@layout MainLayout
+@layout EmptyLayout
 
-<h3>Not Found</h3>
-<p>Sorry, the content you are looking for does not exist.</p>
+<PageTitle>Страница не найдена - StudioB2B</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudPaper Elevation="4" Class="pa-6 text-center">
+        <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="font-size: 6rem;" />
+
+        <MudText Typo="Typo.h3" GutterBottom="true">404</MudText>
+        <MudText Typo="Typo.h5" GutterBottom="true">Страница не найдена</MudText>
+        <MudText Typo="Typo.body1" Class="mb-4">Запрошенная страница не существует.</MudText>
+
+        <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large">
+            Вернуться на главную
+        </MudButton>
+    </MudPaper>
+</MudContainer>
+

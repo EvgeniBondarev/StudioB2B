@@ -1,108 +1,125 @@
 @page "/register"
 @rendermode InteractiveServer
+@layout EmptyLayout
 @using StudioB2B.Application.Common.Interfaces
+@using System.ComponentModel.DataAnnotations
 @inject ITenantService TenantService
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
 <PageTitle>Регистрация компании - StudioB2B</PageTitle>
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6 col-lg-5">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Регистрация компании</h4>
-                </div>
-                <div class="card-body">
-                    @if (!string.IsNullOrEmpty(_errorMessage))
-                    {
-                        <div class="alert alert-danger">@_errorMessage</div>
-                    }
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudPaper Elevation="4" Class="pa-6">
+        <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">
+            Регистрация компании
+        </MudText>
+        <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4">
+            Создайте свою multi-tenant базу для управления заказами
+        </MudText>
 
-                    @if (_isSuccess)
+        @if (_success)
+        {
+            <MudAlert Severity="Severity.Success" Class="my-4">
+                <MudText Typo="Typo.subtitle1"><b>Регистрация успешна!</b></MudText>
+                <MudText Typo="Typo.body2">Перенаправление на страницу входа...</MudText>
+            </MudAlert>
+        }
+        else
+        {
+            <EditForm Model="@_model" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+
+                <MudTextField T="string"
+                    Label="Название компании"
+                    @bind-Value="_model.CompanyName"
+                    For="@(() => _model.CompanyName)"
+                    Variant="Variant.Outlined"
+                    Class="mb-4"
+                    FullWidth="true" />
+
+                <MudTextField T="string"
+                    Label="Субдомен"
+                    @bind-Value="_model.Subdomain"
+                    For="@(() => _model.Subdomain)"
+                    Variant="Variant.Outlined"
+                    HelperText="Только латиница, цифры и дефис (3-30 символов)"
+                    Adornment="Adornment.End"
+                    AdornmentText=".studiob2b.local"
+                    Class="mb-4"
+                    FullWidth="true" />
+
+                <MudTextField T="string"
+                    Label="Email администратора"
+                    @bind-Value="_model.AdminEmail"
+                    For="@(() => _model.AdminEmail)"
+                    Variant="Variant.Outlined"
+                    InputType="InputType.Email"
+                    Class="mb-4"
+                    FullWidth="true" />
+
+                <MudTextField T="string"
+                    Label="Пароль"
+                    @bind-Value="_model.Password"
+                    For="@(() => _model.Password)"
+                    Variant="Variant.Outlined"
+                    InputType="InputType.Password"
+                    HelperText="Минимум 6 символов"
+                    Class="mb-4"
+                    FullWidth="true" />
+
+                <MudTextField T="string"
+                    Label="Подтверждение пароля"
+                    @bind-Value="_model.ConfirmPassword"
+                    For="@(() => _model.ConfirmPassword)"
+                    Variant="Variant.Outlined"
+                    InputType="InputType.Password"
+                    Class="mb-4"
+                    FullWidth="true" />
+
+                <MudButton
+                    ButtonType="ButtonType.Submit"
+                    Variant="Variant.Filled"
+                    Color="Color.Success"
+                    FullWidth="true"
+                    Size="Size.Large"
+                    Disabled="@_loading">
+                    @if (_loading)
                     {
-                        <div class="alert alert-success">
-                            <h5>Регистрация успешна!</h5>
-                            <p>Ваша компания зарегистрирована. Войдите в систему.</p>
-                            <a href="/login" class="btn btn-primary">Войти</a>
-                        </div>
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>Регистрация...</span>
                     }
                     else
                     {
-                        <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="register">
-                            <DataAnnotationsValidator />
-
-                            <div class="mb-3">
-                                <label class="form-label">Название компании</label>
-                                <InputText @bind-Value="_model.CompanyName" class="form-control" placeholder="ООО Ромашка" />
-                                <ValidationMessage For="() => _model.CompanyName" class="text-danger" />
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Субдомен</label>
-                                <div class="input-group">
-                                    <InputText @bind-Value="_model.Subdomain" class="form-control" placeholder="romashka" />
-                                    <span class="input-group-text">.studiob2b.com</span>
-                                </div>
-                                <small class="text-muted">Только буквы, цифры и дефисы (3-30 символов)</small>
-                                <ValidationMessage For="() => _model.Subdomain" class="text-danger" />
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Email администратора</label>
-                                <InputText @bind-Value="_model.AdminEmail" class="form-control" type="email" placeholder="admin@company.com" />
-                                <ValidationMessage For="() => _model.AdminEmail" class="text-danger" />
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Пароль</label>
-                                <InputText @bind-Value="_model.Password" class="form-control" type="password" />
-                                <small class="text-muted">Минимум 6 символов, включая цифры и буквы</small>
-                                <ValidationMessage For="() => _model.Password" class="text-danger" />
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">Подтвердите пароль</label>
-                                <InputText @bind-Value="_model.ConfirmPassword" class="form-control" type="password" />
-                                <ValidationMessage For="() => _model.ConfirmPassword" class="text-danger" />
-                            </div>
-
-                            <button type="submit" class="btn btn-primary w-100" disabled="@_isLoading">
-                                @if (_isLoading)
-                                {
-                                    <span class="spinner-border spinner-border-sm me-2"></span>
-                                }
-                                Зарегистрировать компанию
-                            </button>
-                        </EditForm>
-
-                        <hr />
-                        <p class="text-center mb-0">
-                            Уже есть аккаунт? <a href="/login">Войти</a>
-                        </p>
+                        <span>Зарегистрировать компанию</span>
                     }
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                </MudButton>
+
+                <ValidationSummary />
+            </EditForm>
+
+            <MudDivider Class="my-4" />
+
+            <MudText Align="Align.Center">
+                Уже есть аккаунт? <MudLink Href="/login" Color="Color.Primary">Войти</MudLink>
+            </MudText>
+        }
+    </MudPaper>
+</MudContainer>
 
 @code {
     private RegisterModel _model = new();
-    private bool _isLoading;
-    private bool _isSuccess;
-    private string? _errorMessage;
+    private bool _loading;
+    private bool _success;
 
     private async Task HandleSubmit()
     {
-        _isLoading = true;
-        _errorMessage = null;
-
+        _loading = true;
         try
         {
             if (_model.Password != _model.ConfirmPassword)
             {
-                _errorMessage = "Пароли не совпадают";
+                Snackbar.Add("Пароли не совпадают", Severity.Error);
                 return;
             }
 
@@ -114,43 +131,45 @@
 
             if (result.Success)
             {
-                _isSuccess = true;
+                _success = true;
+                Snackbar.Add("Компания успешно зарегистрирована!", Severity.Success);
+                await Task.Delay(2000);
+                Navigation.NavigateTo($"http://{_model.Subdomain}.studiob2b.local/login", true);
             }
             else
             {
-                _errorMessage = result.Error ?? "Ошибка регистрации";
+                Snackbar.Add(result.Error ?? "Ошибка регистрации", Severity.Error);
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            _errorMessage = "Произошла ошибка. Попробуйте позже.";
+            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
         }
         finally
         {
-            _isLoading = false;
+            _loading = false;
         }
     }
 
-    private class RegisterModel
+    public class RegisterModel
     {
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Введите название компании")]
-        [System.ComponentModel.DataAnnotations.StringLength(100, MinimumLength = 2, ErrorMessage = "От 2 до 100 символов")]
+        [Required(ErrorMessage = "Введите название компании")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "От 2 до 100 символов")]
         public string CompanyName { get; set; } = "";
 
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Введите субдомен")]
-        [System.ComponentModel.DataAnnotations.RegularExpression(@"^[a-z0-9][a-z0-9\-]*[a-z0-9]$|^[a-z0-9]$", ErrorMessage = "Только буквы, цифры и дефисы")]
-        [System.ComponentModel.DataAnnotations.StringLength(30, MinimumLength = 3, ErrorMessage = "От 3 до 30 символов")]
+        [Required(ErrorMessage = "Введите субдомен")]
+        [RegularExpression(@"^[a-z0-9-]{3,30}$", ErrorMessage = "Только латиница, цифры и дефис (3-30 символов)")]
         public string Subdomain { get; set; } = "";
 
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Введите email")]
-        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Некорректный email")]
+        [Required(ErrorMessage = "Введите email")]
+        [EmailAddress(ErrorMessage = "Некорректный email")]
         public string AdminEmail { get; set; } = "";
 
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Введите пароль")]
-        [System.ComponentModel.DataAnnotations.MinLength(6, ErrorMessage = "Минимум 6 символов")]
+        [Required(ErrorMessage = "Введите пароль")]
+        [MinLength(6, ErrorMessage = "Минимум 6 символов")]
         public string Password { get; set; } = "";
 
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Подтвердите пароль")]
+        [Required(ErrorMessage = "Подтвердите пароль")]
         public string ConfirmPassword { get; set; } = "";
     }
 }

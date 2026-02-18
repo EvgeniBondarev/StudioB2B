@@ -9664,3 +9664,1018 @@ LIMIT 1
 2026-02-18 19:42:17.811 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
 2026-02-18 19:42:17.811 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP POST /_blazor/disconnect responded 200 in 62.8255 ms
 2026-02-18 19:42:17.811 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 POST http://demo2.localhost:5184/_blazor/disconnect - 200 0 null 63.7852ms
+2026-02-18 20:41:12.218 +03:00 [INF] Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager: User profile is available. Using '/Users/korol/.aspnet/DataProtection-Keys' as key repository; keys will not be encrypted at rest.
+2026-02-18 20:41:12.300 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Environment: Development, ApplyMigrationsOnStartup: true, Database: StudioB2B_Master_Dev
+2026-02-18 20:41:12.301 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Applying database migrations...
+2026-02-18 20:41:13.195 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (36ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='StudioB2B_Master_Dev' AND TABLE_NAME='__EFMigrationsHistory';
+2026-02-18 20:41:13.227 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT `MigrationId`, `ProductVersion`
+FROM `__EFMigrationsHistory`
+ORDER BY `MigrationId`;
+2026-02-18 20:41:13.236 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: No pending migrations found
+2026-02-18 20:41:13.647 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (31ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND (`t`.`Subdomain` = @__subdomain_0)
+LIMIT 1
+2026-02-18 20:41:13.660 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Demo tenant 'demo' already exists
+2026-02-18 20:41:13.787 +03:00 [FTL] Microsoft.AspNetCore.Hosting.Diagnostics: Application startup exception
+System.InvalidOperationException: An error occurred when configuring the exception handler middleware. Either the 'ExceptionHandlingPath' or the 'ExceptionHandler' property must be set in 'UseExceptionHandler()'. Alternatively, set one of the aforementioned properties in 'Startup.ConfigureServices' as follows: 'services.AddExceptionHandler(options => { ... });' or configure to generate a 'ProblemDetails' response in 'service.AddProblemDetails()'.
+   at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl..ctor(RequestDelegate next, ILoggerFactory loggerFactory, IOptions`1 options, DiagnosticListener diagnosticListener, IEnumerable`1 exceptionHandlers, IMeterFactory meterFactory, IProblemDetailsService problemDetailsService)
+   at Microsoft.AspNetCore.Builder.ExceptionHandlerExtensions.<>c__DisplayClass5_0.<SetExceptionHandlerMiddleware>b__0(RequestDelegate next)
+   at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+2026-02-18 20:41:13.794 +03:00 [ERR] Microsoft.Extensions.Hosting.Internal.Host: Hosting failed to start
+System.InvalidOperationException: An error occurred when configuring the exception handler middleware. Either the 'ExceptionHandlingPath' or the 'ExceptionHandler' property must be set in 'UseExceptionHandler()'. Alternatively, set one of the aforementioned properties in 'Startup.ConfigureServices' as follows: 'services.AddExceptionHandler(options => { ... });' or configure to generate a 'ProblemDetails' response in 'service.AddProblemDetails()'.
+   at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl..ctor(RequestDelegate next, ILoggerFactory loggerFactory, IOptions`1 options, DiagnosticListener diagnosticListener, IEnumerable`1 exceptionHandlers, IMeterFactory meterFactory, IProblemDetailsService problemDetailsService)
+   at Microsoft.AspNetCore.Builder.ExceptionHandlerExtensions.<>c__DisplayClass5_0.<SetExceptionHandlerMiddleware>b__0(RequestDelegate next)
+   at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+2026-02-18 20:41:13.799 +03:00 [FTL] : Application terminated unexpectedly
+System.InvalidOperationException: An error occurred when configuring the exception handler middleware. Either the 'ExceptionHandlingPath' or the 'ExceptionHandler' property must be set in 'UseExceptionHandler()'. Alternatively, set one of the aforementioned properties in 'Startup.ConfigureServices' as follows: 'services.AddExceptionHandler(options => { ... });' or configure to generate a 'ProblemDetails' response in 'service.AddProblemDetails()'.
+   at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl..ctor(RequestDelegate next, ILoggerFactory loggerFactory, IOptions`1 options, DiagnosticListener diagnosticListener, IEnumerable`1 exceptionHandlers, IMeterFactory meterFactory, IProblemDetailsService problemDetailsService)
+   at Microsoft.AspNetCore.Builder.ExceptionHandlerExtensions.<>c__DisplayClass5_0.<SetExceptionHandlerMiddleware>b__0(RequestDelegate next)
+   at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.ApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Hosting.GenericWebHostService.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.Internal.Host.<StartAsync>b__14_1(IHostedService service, CancellationToken token)
+   at Microsoft.Extensions.Hosting.Internal.Host.ForeachService[T](IEnumerable`1 services, CancellationToken token, Boolean concurrent, Boolean abortOnFirstException, List`1 exceptions, Func`3 operation)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(CancellationToken cancellationToken)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.RunAsync(IHost host, CancellationToken token)
+   at Microsoft.Extensions.Hosting.HostingAbstractionsHostExtensions.Run(IHost host)
+   at Program.<Main>$(String[] args) in /Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/Program.cs:line 62
+2026-02-18 20:41:58.513 +03:00 [INF] Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager: User profile is available. Using '/Users/korol/.aspnet/DataProtection-Keys' as key repository; keys will not be encrypted at rest.
+2026-02-18 20:41:58.622 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Environment: Development, ApplyMigrationsOnStartup: true, Database: StudioB2B_Master_Dev
+2026-02-18 20:41:58.624 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Applying database migrations...
+2026-02-18 20:41:59.591 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (27ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='StudioB2B_Master_Dev' AND TABLE_NAME='__EFMigrationsHistory';
+2026-02-18 20:41:59.632 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT `MigrationId`, `ProductVersion`
+FROM `__EFMigrationsHistory`
+ORDER BY `MigrationId`;
+2026-02-18 20:41:59.641 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: No pending migrations found
+2026-02-18 20:42:00.166 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (22ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND (`t`.`Subdomain` = @__subdomain_0)
+LIMIT 1
+2026-02-18 20:42:00.178 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Demo tenant 'demo' already exists
+2026-02-18 20:42:00.313 +03:00 [INF] Microsoft.Hosting.Lifetime: Now listening on: http://localhost:5184
+2026-02-18 20:42:00.316 +03:00 [INF] Microsoft.Hosting.Lifetime: Application started. Press Ctrl+C to shut down.
+2026-02-18 20:42:00.316 +03:00 [INF] Microsoft.Hosting.Lifetime: Hosting environment: Development
+2026-02-18 20:42:00.316 +03:00 [INF] Microsoft.Hosting.Lifetime: Content root path: /Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web
+2026-02-18 20:42:00.659 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/ - null null
+2026-02-18 20:42:00.710 +03:00 [WRN] Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware: Failed to determine the https port for redirect.
+2026-02-18 20:42:00.759 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:42:00.760 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:42:00.772 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 20:42:00.946 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 20:42:00.949 +03:00 [ERR] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 500 in 238.7741 ms
+System.InvalidOperationException: Cannot provide a value for property 'PopoverService' on type 'MudBlazor.MudPopoverProvider'. There is no registered service of type 'MudBlazor.IPopoverService'.
+   at Microsoft.AspNetCore.Components.ComponentFactory.<>c__DisplayClass11_0.<CreatePropertyInjector>g__Initialize|1(IServiceProvider serviceProvider, IComponent component)
+   at Microsoft.AspNetCore.Components.ComponentFactory.InstantiateComponent(IServiceProvider serviceProvider, Type componentType, IComponentRenderMode callerSpecifiedRenderMode, Nullable`1 parentComponentId)
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.InstantiateChildComponentOnFrame(RenderTreeFrame[] frames, Int32 frameIndex, Int32 parentComponentId)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.InitializeNewComponentFrame(DiffContext& diffContext, Int32 frameIndex)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.InitializeNewSubtree(DiffContext& diffContext, Int32 frameIndex)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.InsertNewFrame(DiffContext& diffContext, Int32 newFrameIndex)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.AppendDiffEntriesForRange(DiffContext& diffContext, Int32 oldStartIndex, Int32 oldEndIndexExcl, Int32 newStartIndex, Int32 newEndIndexExcl)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.ComputeDiff(Renderer renderer, RenderBatchBuilder batchBuilder, Int32 componentId, ArrayRange`1 oldTree, ArrayRange`1 newTree)
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.RenderIntoBatch(RenderBatchBuilder batchBuilder, RenderFragment renderFragment, Exception& renderFragmentException)
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.ProcessRenderQueue()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.ProcessRenderQueue()
+   at Microsoft.AspNetCore.Components.ComponentBase.StateHasChanged()
+   at Microsoft.AspNetCore.Components.ComponentBase.CallOnParametersSetAsync()
+   at Microsoft.AspNetCore.Components.ComponentBase.RunInitAndSetParametersAsync()
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.SetDirectParameters(ParameterView parameters)
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.RenderRootComponentAsync(Int32 componentId, ParameterView initialParameters)
+   at Microsoft.AspNetCore.Components.HtmlRendering.Infrastructure.StaticHtmlRenderer.BeginRenderingComponent(IComponent component, ParameterView initialParameters)
+   at Microsoft.AspNetCore.Components.Endpoints.EndpointHtmlRenderer.RenderEndpointComponent(HttpContext httpContext, Type rootComponentType, ParameterView parameters, Boolean waitForQuiescence)
+   at Microsoft.AspNetCore.Components.Endpoints.RazorComponentEndpointInvoker.RenderComponentCore(HttpContext context)
+   at Microsoft.AspNetCore.Components.Endpoints.RazorComponentEndpointInvoker.RenderComponentCore(HttpContext context)
+   at Microsoft.AspNetCore.Components.Rendering.RendererSynchronizationContext.<>c.<<InvokeAsync>b__10_0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Builder.ServerRazorComponentsEndpointConventionBuilderExtensions.<>c__DisplayClass1_1.<<AddInteractiveServerRenderMode>b__1>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Routing.EndpointMiddleware.<Invoke>g__AwaitRequestTask|7_0(Endpoint endpoint, Task requestTask, ILogger logger)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware.InvokeAsync(HttpContext context, TenantProvider tenantProvider, MasterDbContext masterDb, IOptions`1 options) in /Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Infrastructure/MultiTenancy/TenantMiddleware.cs:line 39
+   at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+2026-02-18 20:42:00.961 +03:00 [ERR] Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddleware: An unhandled exception has occurred while executing the request.
+System.InvalidOperationException: Cannot provide a value for property 'PopoverService' on type 'MudBlazor.MudPopoverProvider'. There is no registered service of type 'MudBlazor.IPopoverService'.
+   at Microsoft.AspNetCore.Components.ComponentFactory.<>c__DisplayClass11_0.<CreatePropertyInjector>g__Initialize|1(IServiceProvider serviceProvider, IComponent component)
+   at Microsoft.AspNetCore.Components.ComponentFactory.InstantiateComponent(IServiceProvider serviceProvider, Type componentType, IComponentRenderMode callerSpecifiedRenderMode, Nullable`1 parentComponentId)
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.InstantiateChildComponentOnFrame(RenderTreeFrame[] frames, Int32 frameIndex, Int32 parentComponentId)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.InitializeNewComponentFrame(DiffContext& diffContext, Int32 frameIndex)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.InitializeNewSubtree(DiffContext& diffContext, Int32 frameIndex)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.InsertNewFrame(DiffContext& diffContext, Int32 newFrameIndex)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.AppendDiffEntriesForRange(DiffContext& diffContext, Int32 oldStartIndex, Int32 oldEndIndexExcl, Int32 newStartIndex, Int32 newEndIndexExcl)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.ComputeDiff(Renderer renderer, RenderBatchBuilder batchBuilder, Int32 componentId, ArrayRange`1 oldTree, ArrayRange`1 newTree)
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.RenderIntoBatch(RenderBatchBuilder batchBuilder, RenderFragment renderFragment, Exception& renderFragmentException)
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.ProcessRenderQueue()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.ProcessRenderQueue()
+   at Microsoft.AspNetCore.Components.ComponentBase.StateHasChanged()
+   at Microsoft.AspNetCore.Components.ComponentBase.CallOnParametersSetAsync()
+   at Microsoft.AspNetCore.Components.ComponentBase.RunInitAndSetParametersAsync()
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.SetDirectParameters(ParameterView parameters)
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.RenderRootComponentAsync(Int32 componentId, ParameterView initialParameters)
+   at Microsoft.AspNetCore.Components.HtmlRendering.Infrastructure.StaticHtmlRenderer.BeginRenderingComponent(IComponent component, ParameterView initialParameters)
+   at Microsoft.AspNetCore.Components.Endpoints.EndpointHtmlRenderer.RenderEndpointComponent(HttpContext httpContext, Type rootComponentType, ParameterView parameters, Boolean waitForQuiescence)
+   at Microsoft.AspNetCore.Components.Endpoints.RazorComponentEndpointInvoker.RenderComponentCore(HttpContext context)
+   at Microsoft.AspNetCore.Components.Endpoints.RazorComponentEndpointInvoker.RenderComponentCore(HttpContext context)
+   at Microsoft.AspNetCore.Components.Rendering.RendererSynchronizationContext.<>c.<<InvokeAsync>b__10_0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Builder.ServerRazorComponentsEndpointConventionBuilderExtensions.<>c__DisplayClass1_1.<<AddInteractiveServerRenderMode>b__1>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Routing.EndpointMiddleware.<Invoke>g__AwaitRequestTask|7_0(Endpoint endpoint, Task requestTask, ILogger logger)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware.InvokeAsync(HttpContext context, TenantProvider tenantProvider, MasterDbContext masterDb, IOptions`1 options) in /Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Infrastructure/MultiTenancy/TenantMiddleware.cs:line 39
+   at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+   at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
+2026-02-18 20:42:00.986 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/ - 500 null text/html; charset=utf-8 329.0241ms
+2026-02-18 20:42:01.353 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/favicon.ico - null null
+2026-02-18 20:42:01.424 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:42:01.425 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:42:01.477 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:42:01.478 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:42:01.480 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/not-found (/not-found)'
+2026-02-18 20:42:01.489 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/not-found (/not-found)'
+2026-02-18 20:42:01.490 +03:00 [ERR] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /favicon.ico responded 500 in 134.2599 ms
+System.InvalidOperationException: Cannot provide a value for property 'PopoverService' on type 'MudBlazor.MudPopoverProvider'. There is no registered service of type 'MudBlazor.IPopoverService'.
+   at Microsoft.AspNetCore.Components.ComponentFactory.<>c__DisplayClass11_0.<CreatePropertyInjector>g__Initialize|1(IServiceProvider serviceProvider, IComponent component)
+   at Microsoft.AspNetCore.Components.ComponentFactory.InstantiateComponent(IServiceProvider serviceProvider, Type componentType, IComponentRenderMode callerSpecifiedRenderMode, Nullable`1 parentComponentId)
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.InstantiateChildComponentOnFrame(RenderTreeFrame[] frames, Int32 frameIndex, Int32 parentComponentId)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.InitializeNewComponentFrame(DiffContext& diffContext, Int32 frameIndex)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.InitializeNewSubtree(DiffContext& diffContext, Int32 frameIndex)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.InsertNewFrame(DiffContext& diffContext, Int32 newFrameIndex)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.AppendDiffEntriesForRange(DiffContext& diffContext, Int32 oldStartIndex, Int32 oldEndIndexExcl, Int32 newStartIndex, Int32 newEndIndexExcl)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.ComputeDiff(Renderer renderer, RenderBatchBuilder batchBuilder, Int32 componentId, ArrayRange`1 oldTree, ArrayRange`1 newTree)
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.RenderIntoBatch(RenderBatchBuilder batchBuilder, RenderFragment renderFragment, Exception& renderFragmentException)
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.ProcessRenderQueue()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.ProcessRenderQueue()
+   at Microsoft.AspNetCore.Components.ComponentBase.StateHasChanged()
+   at Microsoft.AspNetCore.Components.ComponentBase.CallOnParametersSetAsync()
+   at Microsoft.AspNetCore.Components.ComponentBase.RunInitAndSetParametersAsync()
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.SetDirectParameters(ParameterView parameters)
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.RenderRootComponentAsync(Int32 componentId, ParameterView initialParameters)
+   at Microsoft.AspNetCore.Components.HtmlRendering.Infrastructure.StaticHtmlRenderer.BeginRenderingComponent(IComponent component, ParameterView initialParameters)
+   at Microsoft.AspNetCore.Components.Endpoints.EndpointHtmlRenderer.RenderEndpointComponent(HttpContext httpContext, Type rootComponentType, ParameterView parameters, Boolean waitForQuiescence)
+   at Microsoft.AspNetCore.Components.Endpoints.RazorComponentEndpointInvoker.RenderComponentCore(HttpContext context)
+   at Microsoft.AspNetCore.Components.Endpoints.RazorComponentEndpointInvoker.RenderComponentCore(HttpContext context)
+   at Microsoft.AspNetCore.Components.Rendering.RendererSynchronizationContext.<>c.<<InvokeAsync>b__10_0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Builder.ServerRazorComponentsEndpointConventionBuilderExtensions.<>c__DisplayClass1_1.<<AddInteractiveServerRenderMode>b__1>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Routing.EndpointMiddleware.<Invoke>g__AwaitRequestTask|7_0(Endpoint endpoint, Task requestTask, ILogger logger)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware.InvokeAsync(HttpContext context, TenantProvider tenantProvider, MasterDbContext masterDb, IOptions`1 options) in /Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Infrastructure/MultiTenancy/TenantMiddleware.cs:line 39
+   at Microsoft.AspNetCore.Builder.StatusCodePagesExtensions.<>c__DisplayClass8_0.<<CreateHandler>b__0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Builder.StatusCodePagesExtensions.<>c__DisplayClass8_0.<<CreateHandler>b__0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+2026-02-18 20:42:01.492 +03:00 [ERR] Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddleware: An unhandled exception has occurred while executing the request.
+System.InvalidOperationException: Cannot provide a value for property 'PopoverService' on type 'MudBlazor.MudPopoverProvider'. There is no registered service of type 'MudBlazor.IPopoverService'.
+   at Microsoft.AspNetCore.Components.ComponentFactory.<>c__DisplayClass11_0.<CreatePropertyInjector>g__Initialize|1(IServiceProvider serviceProvider, IComponent component)
+   at Microsoft.AspNetCore.Components.ComponentFactory.InstantiateComponent(IServiceProvider serviceProvider, Type componentType, IComponentRenderMode callerSpecifiedRenderMode, Nullable`1 parentComponentId)
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.InstantiateChildComponentOnFrame(RenderTreeFrame[] frames, Int32 frameIndex, Int32 parentComponentId)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.InitializeNewComponentFrame(DiffContext& diffContext, Int32 frameIndex)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.InitializeNewSubtree(DiffContext& diffContext, Int32 frameIndex)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.InsertNewFrame(DiffContext& diffContext, Int32 newFrameIndex)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.AppendDiffEntriesForRange(DiffContext& diffContext, Int32 oldStartIndex, Int32 oldEndIndexExcl, Int32 newStartIndex, Int32 newEndIndexExcl)
+   at Microsoft.AspNetCore.Components.RenderTree.RenderTreeDiffBuilder.ComputeDiff(Renderer renderer, RenderBatchBuilder batchBuilder, Int32 componentId, ArrayRange`1 oldTree, ArrayRange`1 newTree)
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.RenderIntoBatch(RenderBatchBuilder batchBuilder, RenderFragment renderFragment, Exception& renderFragmentException)
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.ProcessRenderQueue()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.ProcessRenderQueue()
+   at Microsoft.AspNetCore.Components.ComponentBase.StateHasChanged()
+   at Microsoft.AspNetCore.Components.ComponentBase.CallOnParametersSetAsync()
+   at Microsoft.AspNetCore.Components.ComponentBase.RunInitAndSetParametersAsync()
+   at Microsoft.AspNetCore.Components.Rendering.ComponentState.SetDirectParameters(ParameterView parameters)
+   at Microsoft.AspNetCore.Components.RenderTree.Renderer.RenderRootComponentAsync(Int32 componentId, ParameterView initialParameters)
+   at Microsoft.AspNetCore.Components.HtmlRendering.Infrastructure.StaticHtmlRenderer.BeginRenderingComponent(IComponent component, ParameterView initialParameters)
+   at Microsoft.AspNetCore.Components.Endpoints.EndpointHtmlRenderer.RenderEndpointComponent(HttpContext httpContext, Type rootComponentType, ParameterView parameters, Boolean waitForQuiescence)
+   at Microsoft.AspNetCore.Components.Endpoints.RazorComponentEndpointInvoker.RenderComponentCore(HttpContext context)
+   at Microsoft.AspNetCore.Components.Endpoints.RazorComponentEndpointInvoker.RenderComponentCore(HttpContext context)
+   at Microsoft.AspNetCore.Components.Rendering.RendererSynchronizationContext.<>c.<<InvokeAsync>b__10_0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Builder.ServerRazorComponentsEndpointConventionBuilderExtensions.<>c__DisplayClass1_1.<<AddInteractiveServerRenderMode>b__1>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Routing.EndpointMiddleware.<Invoke>g__AwaitRequestTask|7_0(Endpoint endpoint, Task requestTask, ILogger logger)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware.InvokeAsync(HttpContext context, TenantProvider tenantProvider, MasterDbContext masterDb, IOptions`1 options) in /Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Infrastructure/MultiTenancy/TenantMiddleware.cs:line 39
+   at Microsoft.AspNetCore.Builder.StatusCodePagesExtensions.<>c__DisplayClass8_0.<<CreateHandler>b__0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Builder.StatusCodePagesExtensions.<>c__DisplayClass8_0.<<CreateHandler>b__0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+   at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
+2026-02-18 20:42:01.496 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/favicon.ico - 500 null text/plain; charset=utf-8 143.4427ms
+2026-02-18 20:42:01.497 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request reached the end of the middleware pipeline without being handled by application code. Request path: GET http://localhost:5184/favicon.ico, Response status code: 500
+2026-02-18 20:42:42.790 +03:00 [INF] Microsoft.Hosting.Lifetime: Application is shutting down...
+2026-02-18 20:43:46.789 +03:00 [INF] Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager: User profile is available. Using '/Users/korol/.aspnet/DataProtection-Keys' as key repository; keys will not be encrypted at rest.
+2026-02-18 20:43:46.872 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Environment: Development, ApplyMigrationsOnStartup: true, Database: StudioB2B_Master_Dev
+2026-02-18 20:43:46.873 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Applying database migrations...
+2026-02-18 20:43:47.724 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (28ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='StudioB2B_Master_Dev' AND TABLE_NAME='__EFMigrationsHistory';
+2026-02-18 20:43:47.763 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT `MigrationId`, `ProductVersion`
+FROM `__EFMigrationsHistory`
+ORDER BY `MigrationId`;
+2026-02-18 20:43:47.771 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: No pending migrations found
+2026-02-18 20:43:48.187 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (26ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND (`t`.`Subdomain` = @__subdomain_0)
+LIMIT 1
+2026-02-18 20:43:48.199 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Demo tenant 'demo' already exists
+2026-02-18 20:43:48.338 +03:00 [INF] Microsoft.Hosting.Lifetime: Now listening on: http://localhost:5184
+2026-02-18 20:43:48.341 +03:00 [INF] Microsoft.Hosting.Lifetime: Application started. Press Ctrl+C to shut down.
+2026-02-18 20:43:48.341 +03:00 [INF] Microsoft.Hosting.Lifetime: Hosting environment: Development
+2026-02-18 20:43:48.341 +03:00 [INF] Microsoft.Hosting.Lifetime: Content root path: /Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web
+2026-02-18 20:43:49.028 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/ - null null
+2026-02-18 20:43:49.078 +03:00 [WRN] Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware: Failed to determine the https port for redirect.
+2026-02-18 20:43:49.125 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:49.127 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:49.140 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 20:43:49.399 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:49.418 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (5ms) [Parameters=[@__tenantId_0='?' (DbType = Guid)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND (`t`.`Id` = @__tenantId_0)
+LIMIT 1
+2026-02-18 20:43:49.449 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:49.453 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:49.465 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:49.480 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:49.510 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:49.549 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:49.549 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:49.580 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 20:43:49.583 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 200 in 505.2443 ms
+2026-02-18 20:43:49.611 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/Components/Layout/ReconnectModal.w97mql0d9w.razor.js - null null
+2026-02-18 20:43:49.611 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/app.w7mf952350.css - null null
+2026-02-18 20:43:49.635 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/_content/MudBlazor/MudBlazor.min.js - null null
+2026-02-18 20:43:49.642 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/_framework/blazor.web.j8lzlu28q6.js - null null
+2026-02-18 20:43:49.643 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/StudioB2B.Web.i1tah9q1qh.styles.css - null null
+2026-02-18 20:43:49.662 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/ - 200 null text/html; charset=utf-8 636.1911ms
+2026-02-18 20:43:49.663 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/_content/MudBlazor/MudBlazor.min.css - null null
+2026-02-18 20:43:49.763 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:49.764 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:49.765 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:49.779 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'app.w7mf952350.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/zzq9lfi4a2-{0}-w7mf952350-w7mf952350.gz'
+2026-02-18 20:43:49.779 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:49.780 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /app.w7mf952350.css responded 200 in 141.1448 ms
+2026-02-18 20:43:49.780 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/app.w7mf952350.css - 200 2874 text/css 168.8941ms
+2026-02-18 20:43:49.795 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:49.795 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:49.797 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:49.798 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:49.799 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:49.799 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:49.800 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:49.800 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:49.799 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:49.801 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:49.801 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:49.802 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:49.801 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:49.803 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:49.801 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:49.804 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'StudioB2B.Web.i1tah9q1qh.styles.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/eqnw73w432-{0}-i1tah9q1qh-i1tah9q1qh.gz'
+2026-02-18 20:43:49.806 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'Components/Layout/ReconnectModal.w97mql0d9w.razor.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/azackjkb8j-{0}-w97mql0d9w-w97mql0d9w.gz'
+2026-02-18 20:43:49.807 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:49.807 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /Components/Layout/ReconnectModal.w97mql0d9w.razor.js responded 200 in 171.6348 ms
+2026-02-18 20:43:49.808 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/Components/Layout/ReconnectModal.w97mql0d9w.razor.js - 200 2334 text/javascript 196.6731ms
+2026-02-18 20:43:49.806 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:49.812 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /StudioB2B.Web.i1tah9q1qh.styles.css responded 200 in 167.9256 ms
+2026-02-18 20:43:49.812 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/StudioB2B.Web.i1tah9q1qh.styles.css - 200 9997 text/css 168.859ms
+2026-02-18 20:43:49.817 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: '_content/MudBlazor/MudBlazor.min.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/0wz98yz2xy-{0}-u9015k2po7-u9015k2po7.gz'
+2026-02-18 20:43:49.817 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: '_framework/blazor.web.j8lzlu28q6.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/xy9tff70ph-{0}-j8lzlu28q6-j8lzlu28q6.gz'
+2026-02-18 20:43:49.817 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: '_content/MudBlazor/MudBlazor.min.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/tzxjg6is5z-{0}-du7z45fy1o-du7z45fy1o.gz'
+2026-02-18 20:43:49.818 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:49.818 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:49.818 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:49.818 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_content/MudBlazor/MudBlazor.min.js responded 200 in 177.7972 ms
+2026-02-18 20:43:49.818 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_framework/blazor.web.j8lzlu28q6.js responded 200 in 175.4395 ms
+2026-02-18 20:43:49.818 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/_content/MudBlazor/MudBlazor.min.js - 200 11465 text/javascript 183.4537ms
+2026-02-18 20:43:49.818 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_content/MudBlazor/MudBlazor.min.css responded 200 in 144.3954 ms
+2026-02-18 20:43:49.819 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/_content/MudBlazor/MudBlazor.min.css - 200 64451 text/css 155.5939ms
+2026-02-18 20:43:49.819 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/_framework/blazor.web.j8lzlu28q6.js - 200 55629 text/javascript 176.7382ms
+2026-02-18 20:43:53.181 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/register - null null
+2026-02-18 20:43:53.213 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:53.214 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:53.215 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/register (/register)'
+2026-02-18 20:43:53.397 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/register (/register)'
+2026-02-18 20:43:53.397 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /register responded 200 in 214.4452 ms
+2026-02-18 20:43:53.409 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/register - 200 null text/html; charset=utf-8 228.9821ms
+2026-02-18 20:43:53.410 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/_blazor/initializers - null null
+2026-02-18 20:43:53.430 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:53.431 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:53.431 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:53.434 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:53.435 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_blazor/initializers responded 200 in 24.4532 ms
+2026-02-18 20:43:53.435 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/_blazor/initializers - 200 null application/json; charset=utf-8 24.9816ms
+2026-02-18 20:43:53.439 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 POST http://localhost:5184/_blazor/negotiate?negotiateVersion=1 - null 0
+2026-02-18 20:43:53.460 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:53.460 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:53.461 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:53.465 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:53.465 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP POST /_blazor/negotiate responded 200 in 25.5429 ms
+2026-02-18 20:43:53.465 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 POST http://localhost:5184/_blazor/negotiate?negotiateVersion=1 - 200 316 application/json 26.6228ms
+2026-02-18 20:43:53.468 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/_blazor?id=9_XhJwD-E8pBpaRi52tydg - null null
+2026-02-18 20:43:53.488 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:53.488 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:53.488 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:53.619 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:53.620 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantCircuitHandler: Circuit AlVu9RpfRpPn3DiMdfjPixt7UX8DR_WtLSwWfkkXFvg tenant set: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:56.233 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/ - null null
+2026-02-18 20:43:56.271 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (8ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:56.271 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:56.272 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 20:43:56.283 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:56.285 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:56.285 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:56.285 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:56.286 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:56.286 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__tenantId_0='?' (DbType = Guid)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND (`t`.`Id` = @__tenantId_0)
+LIMIT 1
+2026-02-18 20:43:56.287 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:56.288 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:56.288 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:43:56.290 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 20:43:56.290 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 200 in 56.9862 ms
+2026-02-18 20:43:56.292 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/ - 200 null text/html; charset=utf-8 58.856ms
+2026-02-18 20:43:58.313 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 POST http://localhost:5184/_blazor/disconnect - multipart/form-data; boundary=----WebKitFormBoundaryiGFdY9aRBhofRVW3 359
+2026-02-18 20:43:58.320 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:58.321 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_blazor responded 101 in 4852.6429 ms
+2026-02-18 20:43:58.321 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/_blazor?id=9_XhJwD-E8pBpaRi52tydg - 101 null null 4853.2086ms
+2026-02-18 20:43:58.335 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:43:58.336 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:43:58.336 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:58.351 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:43:58.351 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP POST /_blazor/disconnect responded 200 in 38.3043 ms
+2026-02-18 20:43:58.352 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 POST http://localhost:5184/_blazor/disconnect - 200 0 null 39.0561ms
+2026-02-18 20:44:02.145 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/login - null null
+2026-02-18 20:44:02.172 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:02.172 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:02.172 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/login (/login)'
+2026-02-18 20:44:02.192 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/login (/login)'
+2026-02-18 20:44:02.192 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /login responded 200 in 44.1377 ms
+2026-02-18 20:44:02.195 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/login - 200 null text/html; charset=utf-8 50.2736ms
+2026-02-18 20:44:02.198 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 POST http://localhost:5184/_blazor/negotiate?negotiateVersion=1 - null 0
+2026-02-18 20:44:02.221 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:02.222 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:02.222 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:02.222 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:02.222 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP POST /_blazor/negotiate responded 200 in 24.3032 ms
+2026-02-18 20:44:02.222 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 POST http://localhost:5184/_blazor/negotiate?negotiateVersion=1 - 200 316 application/json 24.6056ms
+2026-02-18 20:44:02.224 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/_blazor?id=eE938wO5riPaCQP-5cS6BQ - null null
+2026-02-18 20:44:02.243 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:02.243 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:02.243 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:02.267 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:02.268 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantCircuitHandler: Circuit Z8286jS6IbuXcwFInjk7JWQfzgynQFN2SBQ4DAULrc4 tenant set: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:04.375 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/ - null null
+2026-02-18 20:44:04.400 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (3ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:04.400 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:04.401 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 20:44:04.403 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:04.404 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:04.404 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:04.404 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:04.404 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:04.404 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:04.406 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__tenantId_0='?' (DbType = Guid)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND (`t`.`Id` = @__tenantId_0)
+LIMIT 1
+2026-02-18 20:44:04.406 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:04.407 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:04.408 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 20:44:04.408 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 200 in 31.8352 ms
+2026-02-18 20:44:04.409 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/ - 200 null text/html; charset=utf-8 34.2086ms
+2026-02-18 20:44:05.266 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/login - null null
+2026-02-18 20:44:05.295 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:05.296 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:05.296 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/login (/login)'
+2026-02-18 20:44:05.301 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/login (/login)'
+2026-02-18 20:44:05.301 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /login responded 200 in 33.9073 ms
+2026-02-18 20:44:05.301 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/login - 200 null text/html; charset=utf-8 34.8631ms
+2026-02-18 20:44:06.382 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/ - null null
+2026-02-18 20:44:06.397 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:06.397 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:06.398 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 20:44:06.399 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:06.400 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:06.400 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:06.401 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:06.401 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:06.401 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:06.402 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__tenantId_0='?' (DbType = Guid)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND (`t`.`Id` = @__tenantId_0)
+LIMIT 1
+2026-02-18 20:44:06.403 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:06.403 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:06.404 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 20:44:06.404 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 200 in 22.1630 ms
+2026-02-18 20:44:06.405 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/ - 200 null text/html; charset=utf-8 23.4443ms
+2026-02-18 20:44:07.902 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/login - null null
+2026-02-18 20:44:07.929 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (3ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:07.930 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:07.930 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/login (/login)'
+2026-02-18 20:44:07.932 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/login (/login)'
+2026-02-18 20:44:07.932 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /login responded 200 in 29.3855 ms
+2026-02-18 20:44:07.933 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/login - 200 null text/html; charset=utf-8 30.4002ms
+2026-02-18 20:44:09.768 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/ - null null
+2026-02-18 20:44:09.791 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:09.791 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:09.791 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 20:44:09.793 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:09.793 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:09.793 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:09.793 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:09.794 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:09.794 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:09.795 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__tenantId_0='?' (DbType = Guid)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND (`t`.`Id` = @__tenantId_0)
+LIMIT 1
+2026-02-18 20:44:09.795 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:09.796 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:09.796 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 20:44:09.796 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 200 in 28.4516 ms
+2026-02-18 20:44:09.797 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/ - 200 null text/html; charset=utf-8 28.9878ms
+2026-02-18 20:44:11.806 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 POST http://localhost:5184/_blazor/disconnect - multipart/form-data; boundary=----WebKitFormBoundaryKupf7S2Em5hi268Z 359
+2026-02-18 20:44:11.808 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:11.808 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_blazor responded 101 in 9583.5120 ms
+2026-02-18 20:44:11.808 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/_blazor?id=eE938wO5riPaCQP-5cS6BQ - 101 null null 9583.8962ms
+2026-02-18 20:44:11.846 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (3ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:11.847 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:11.847 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:11.847 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:11.847 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP POST /_blazor/disconnect responded 200 in 40.9525 ms
+2026-02-18 20:44:11.848 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 POST http://localhost:5184/_blazor/disconnect - 200 0 null 41.3628ms
+2026-02-18 20:44:22.117 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/ - null null
+2026-02-18 20:44:22.146 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:22.146 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:22.147 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 20:44:22.148 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:22.149 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:22.149 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:22.149 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:22.149 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:22.150 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:22.151 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__tenantId_0='?' (DbType = Guid)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND (`t`.`Id` = @__tenantId_0)
+LIMIT 1
+2026-02-18 20:44:22.151 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:22.151 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:22.152 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 20:44:22.152 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 200 in 34.0563 ms
+2026-02-18 20:44:22.153 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/ - 200 null text/html; charset=utf-8 35.573ms
+2026-02-18 20:44:22.163 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/_content/MudBlazor/MudBlazor.min.css - null null
+2026-02-18 20:44:22.164 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/app.w7mf952350.css - null null
+2026-02-18 20:44:22.183 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:22.183 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:22.184 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:22.185 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'app.w7mf952350.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/zzq9lfi4a2-{0}-w7mf952350-w7mf952350.gz'
+2026-02-18 20:44:22.185 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:22.185 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /app.w7mf952350.css responded 200 in 20.0930 ms
+2026-02-18 20:44:22.185 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:22.185 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/app.w7mf952350.css - 200 2874 text/css 20.4737ms
+2026-02-18 20:44:22.185 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:22.185 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:22.187 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: '_content/MudBlazor/MudBlazor.min.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/tzxjg6is5z-{0}-du7z45fy1o-du7z45fy1o.gz'
+2026-02-18 20:44:22.187 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:22.187 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_content/MudBlazor/MudBlazor.min.css responded 200 in 22.4265 ms
+2026-02-18 20:44:22.187 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/_content/MudBlazor/MudBlazor.min.css - 200 64451 text/css 24.0883ms
+2026-02-18 20:44:22.418 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/Components/Layout/ReconnectModal.w97mql0d9w.razor.js - null null
+2026-02-18 20:44:22.418 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/StudioB2B.Web.i1tah9q1qh.styles.css - null null
+2026-02-18 20:44:22.443 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:22.443 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:22.443 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:22.443 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:22.443 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:22.444 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:22.444 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'StudioB2B.Web.i1tah9q1qh.styles.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/eqnw73w432-{0}-i1tah9q1qh-i1tah9q1qh.gz'
+2026-02-18 20:44:22.444 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'Components/Layout/ReconnectModal.w97mql0d9w.razor.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/azackjkb8j-{0}-w97mql0d9w-w97mql0d9w.gz'
+2026-02-18 20:44:22.444 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:22.444 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /StudioB2B.Web.i1tah9q1qh.styles.css responded 200 in 25.7831 ms
+2026-02-18 20:44:22.444 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:22.445 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/StudioB2B.Web.i1tah9q1qh.styles.css - 200 9997 text/css 26.36ms
+2026-02-18 20:44:22.445 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /Components/Layout/ReconnectModal.w97mql0d9w.razor.js responded 200 in 25.0999 ms
+2026-02-18 20:44:22.446 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/Components/Layout/ReconnectModal.w97mql0d9w.razor.js - 200 2334 text/javascript 27.764ms
+2026-02-18 20:44:22.458 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/_content/MudBlazor/MudBlazor.min.js - null null
+2026-02-18 20:44:22.458 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/_framework/blazor.web.j8lzlu28q6.js - null null
+2026-02-18 20:44:22.477 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:22.478 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:22.478 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:22.478 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:22.478 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:22.478 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:22.479 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: '_content/MudBlazor/MudBlazor.min.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/0wz98yz2xy-{0}-u9015k2po7-u9015k2po7.gz'
+2026-02-18 20:44:22.479 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:22.479 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_content/MudBlazor/MudBlazor.min.js responded 200 in 20.5065 ms
+2026-02-18 20:44:22.479 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/_content/MudBlazor/MudBlazor.min.js - 200 11465 text/javascript 20.8511ms
+2026-02-18 20:44:22.479 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: '_framework/blazor.web.j8lzlu28q6.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/xy9tff70ph-{0}-j8lzlu28q6-j8lzlu28q6.gz'
+2026-02-18 20:44:22.479 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:22.479 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_framework/blazor.web.j8lzlu28q6.js responded 200 in 18.5276 ms
+2026-02-18 20:44:22.480 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/_framework/blazor.web.j8lzlu28q6.js - 200 55629 text/javascript 21.1892ms
+2026-02-18 20:44:23.071 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo2.localhost:5184/ - null null
+2026-02-18 20:44:23.100 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:23.100 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719f-9bbc-76ac-a922-5eebcb28905c" (demo2)
+2026-02-18 20:44:23.505 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 20:44:23.507 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__tenantId_0='?' (DbType = Guid)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND (`t`.`Id` = @__tenantId_0)
+LIMIT 1
+2026-02-18 20:44:23.514 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 20:44:23.514 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 200 in 442.4964 ms
+2026-02-18 20:44:23.515 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo2.localhost:5184/ - 200 null text/html; charset=utf-8 443.8512ms
+2026-02-18 20:44:23.549 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo2.localhost:5184/_content/MudBlazor/MudBlazor.min.js - null null
+2026-02-18 20:44:23.550 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo2.localhost:5184/_content/MudBlazor/MudBlazor.min.css - null null
+2026-02-18 20:44:23.550 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo2.localhost:5184/app.w7mf952350.css - null null
+2026-02-18 20:44:23.551 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo2.localhost:5184/StudioB2B.Web.i1tah9q1qh.styles.css - null null
+2026-02-18 20:44:23.558 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo2.localhost:5184/Components/Layout/ReconnectModal.w97mql0d9w.razor.js - null null
+2026-02-18 20:44:23.563 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo2.localhost:5184/_framework/blazor.web.j8lzlu28q6.js - null null
+2026-02-18 20:44:23.578 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:23.578 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719f-9bbc-76ac-a922-5eebcb28905c" (demo2)
+2026-02-18 20:44:23.586 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:23.586 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719f-9bbc-76ac-a922-5eebcb28905c" (demo2)
+2026-02-18 20:44:23.587 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:23.587 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719f-9bbc-76ac-a922-5eebcb28905c" (demo2)
+2026-02-18 20:44:23.590 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:23.590 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:23.591 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719f-9bbc-76ac-a922-5eebcb28905c" (demo2)
+2026-02-18 20:44:23.591 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719f-9bbc-76ac-a922-5eebcb28905c" (demo2)
+2026-02-18 20:44:23.593 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:23.594 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719f-9bbc-76ac-a922-5eebcb28905c" (demo2)
+2026-02-18 20:44:23.600 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:23.600 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: '_content/MudBlazor/MudBlazor.min.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/0wz98yz2xy-{0}-u9015k2po7-u9015k2po7.gz'
+2026-02-18 20:44:23.601 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:23.601 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_content/MudBlazor/MudBlazor.min.js responded 200 in 50.8273 ms
+2026-02-18 20:44:23.601 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo2.localhost:5184/_content/MudBlazor/MudBlazor.min.js - 200 11465 text/javascript 51.9349ms
+2026-02-18 20:44:23.608 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:23.608 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:23.609 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: '_content/MudBlazor/MudBlazor.min.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/tzxjg6is5z-{0}-du7z45fy1o-du7z45fy1o.gz'
+2026-02-18 20:44:23.609 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'Components/Layout/ReconnectModal.w97mql0d9w.razor.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/azackjkb8j-{0}-w97mql0d9w-w97mql0d9w.gz'
+2026-02-18 20:44:23.609 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:23.609 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:23.609 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_content/MudBlazor/MudBlazor.min.css responded 200 in 57.7683 ms
+2026-02-18 20:44:23.609 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /Components/Layout/ReconnectModal.w97mql0d9w.razor.js responded 200 in 51.3719 ms
+2026-02-18 20:44:23.609 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo2.localhost:5184/_content/MudBlazor/MudBlazor.min.css - 200 64451 text/css 59.8056ms
+2026-02-18 20:44:23.609 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo2.localhost:5184/Components/Layout/ReconnectModal.w97mql0d9w.razor.js - 200 2334 text/javascript 51.8324ms
+2026-02-18 20:44:23.613 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:23.613 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:23.613 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'app.w7mf952350.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/zzq9lfi4a2-{0}-w7mf952350-w7mf952350.gz'
+2026-02-18 20:44:23.613 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: '_framework/blazor.web.j8lzlu28q6.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/xy9tff70ph-{0}-j8lzlu28q6-j8lzlu28q6.gz'
+2026-02-18 20:44:23.613 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:23.614 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /app.w7mf952350.css responded 200 in 61.0839 ms
+2026-02-18 20:44:23.613 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:23.614 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_framework/blazor.web.j8lzlu28q6.js responded 200 in 51.1752 ms
+2026-02-18 20:44:23.614 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo2.localhost:5184/_framework/blazor.web.j8lzlu28q6.js - 200 55629 text/javascript 51.6354ms
+2026-02-18 20:44:23.614 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo2.localhost:5184/app.w7mf952350.css - 200 2874 text/css 64.0232ms
+2026-02-18 20:44:23.615 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:23.617 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'StudioB2B.Web.i1tah9q1qh.styles.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/eqnw73w432-{0}-i1tah9q1qh-i1tah9q1qh.gz'
+2026-02-18 20:44:23.617 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:23.617 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /StudioB2B.Web.i1tah9q1qh.styles.css responded 200 in 61.7024 ms
+2026-02-18 20:44:23.617 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo2.localhost:5184/StudioB2B.Web.i1tah9q1qh.styles.css - 200 9997 text/css 66.0792ms
+2026-02-18 20:44:34.011 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/ - null null
+2026-02-18 20:44:34.038 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:34.038 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:34.038 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 20:44:34.039 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:34.040 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:34.040 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:34.040 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:34.040 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:34.040 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:34.041 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__tenantId_0='?' (DbType = Guid)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND (`t`.`Id` = @__tenantId_0)
+LIMIT 1
+2026-02-18 20:44:34.041 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:34.042 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:34.042 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 20:44:34.043 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 200 in 31.3093 ms
+2026-02-18 20:44:34.043 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/ - 200 null text/html; charset=utf-8 32.2207ms
+2026-02-18 20:44:34.055 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/_content/MudBlazor/MudBlazor.min.css - null null
+2026-02-18 20:44:34.055 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/app.w7mf952350.css - null null
+2026-02-18 20:44:34.073 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:34.073 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:34.073 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:34.074 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:34.074 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:34.074 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:34.074 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'app.w7mf952350.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/zzq9lfi4a2-{0}-w7mf952350-w7mf952350.gz'
+2026-02-18 20:44:34.074 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:34.074 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /app.w7mf952350.css responded 200 in 18.4644 ms
+2026-02-18 20:44:34.074 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: The file _content/MudBlazor/MudBlazor.min.css was not modified
+2026-02-18 20:44:34.076 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:34.076 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_content/MudBlazor/MudBlazor.min.css responded 304 in 20.1275 ms
+2026-02-18 20:44:34.076 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/_content/MudBlazor/MudBlazor.min.css - 304 null text/css 20.7825ms
+2026-02-18 20:44:34.074 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/app.w7mf952350.css - 200 2874 text/css 19.0814ms
+2026-02-18 20:44:34.306 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/StudioB2B.Web.i1tah9q1qh.styles.css - null null
+2026-02-18 20:44:34.307 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/Components/Layout/ReconnectModal.w97mql0d9w.razor.js - null null
+2026-02-18 20:44:34.307 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/_framework/blazor.web.j8lzlu28q6.js - null null
+2026-02-18 20:44:34.330 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:34.330 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:34.330 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:34.331 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:34.330 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:34.331 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:34.331 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'StudioB2B.Web.i1tah9q1qh.styles.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/eqnw73w432-{0}-i1tah9q1qh-i1tah9q1qh.gz'
+2026-02-18 20:44:34.331 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:34.331 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'Components/Layout/ReconnectModal.w97mql0d9w.razor.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/azackjkb8j-{0}-w97mql0d9w-w97mql0d9w.gz'
+2026-02-18 20:44:34.331 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:34.332 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /Components/Layout/ReconnectModal.w97mql0d9w.razor.js responded 200 in 24.5992 ms
+2026-02-18 20:44:34.332 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/Components/Layout/ReconnectModal.w97mql0d9w.razor.js - 200 2334 text/javascript 24.846ms
+2026-02-18 20:44:34.331 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /StudioB2B.Web.i1tah9q1qh.styles.css responded 200 in 24.9778 ms
+2026-02-18 20:44:34.332 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/StudioB2B.Web.i1tah9q1qh.styles.css - 200 9997 text/css 26.3925ms
+2026-02-18 20:44:34.334 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:34.335 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:34.335 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:34.335 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: The file _framework/blazor.web.j8lzlu28q6.js was not modified
+2026-02-18 20:44:34.335 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:34.335 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_framework/blazor.web.j8lzlu28q6.js responded 304 in 27.6864 ms
+2026-02-18 20:44:34.335 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/_framework/blazor.web.j8lzlu28q6.js - 304 null text/javascript 28.2715ms
+2026-02-18 20:44:34.346 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo.localhost:5184/_content/MudBlazor/MudBlazor.min.js - null null
+2026-02-18 20:44:34.361 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:34.362 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant resolved: "019c719b-72b3-755c-926c-ad430fc678f1" (demo)
+2026-02-18 20:44:34.362 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:34.362 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: The file _content/MudBlazor/MudBlazor.min.js was not modified
+2026-02-18 20:44:34.362 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:34.362 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_content/MudBlazor/MudBlazor.min.js responded 304 in 15.6425 ms
+2026-02-18 20:44:34.362 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo.localhost:5184/_content/MudBlazor/MudBlazor.min.js - 304 null text/javascript 15.9624ms
+2026-02-18 20:44:35.311 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo1.localhost:5184/ - null null
+2026-02-18 20:44:35.331 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:35.331 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant not found for subdomain: demo1
+2026-02-18 20:44:35.331 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 20:44:35.332 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:35.333 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:35.333 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:35.333 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:35.333 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:35.334 +03:00 [INF] Microsoft.AspNetCore.Authorization.DefaultAuthorizationService: Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-18 20:44:35.335 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 20:44:35.335 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 200 in 23.9378 ms
+2026-02-18 20:44:35.336 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo1.localhost:5184/ - 200 null text/html; charset=utf-8 24.9538ms
+2026-02-18 20:44:35.371 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo1.localhost:5184/_content/MudBlazor/MudBlazor.min.css - null null
+2026-02-18 20:44:35.372 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo1.localhost:5184/_content/MudBlazor/MudBlazor.min.js - null null
+2026-02-18 20:44:35.374 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo1.localhost:5184/StudioB2B.Web.i1tah9q1qh.styles.css - null null
+2026-02-18 20:44:35.372 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo1.localhost:5184/app.w7mf952350.css - null null
+2026-02-18 20:44:35.375 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo1.localhost:5184/_framework/blazor.web.j8lzlu28q6.js - null null
+2026-02-18 20:44:35.374 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://demo1.localhost:5184/Components/Layout/ReconnectModal.w97mql0d9w.razor.js - null null
+2026-02-18 20:44:35.401 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:35.402 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant not found for subdomain: demo1
+2026-02-18 20:44:35.402 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:35.402 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: '_content/MudBlazor/MudBlazor.min.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/tzxjg6is5z-{0}-du7z45fy1o-du7z45fy1o.gz'
+2026-02-18 20:44:35.402 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:35.402 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_content/MudBlazor/MudBlazor.min.css responded 200 in 30.9592 ms
+2026-02-18 20:44:35.402 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo1.localhost:5184/_content/MudBlazor/MudBlazor.min.css - 200 64451 text/css 32.1426ms
+2026-02-18 20:44:35.402 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:35.403 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant not found for subdomain: demo1
+2026-02-18 20:44:35.403 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:35.403 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'StudioB2B.Web.i1tah9q1qh.styles.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/eqnw73w432-{0}-i1tah9q1qh-i1tah9q1qh.gz'
+2026-02-18 20:44:35.403 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:35.403 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /StudioB2B.Web.i1tah9q1qh.styles.css responded 200 in 28.2838 ms
+2026-02-18 20:44:35.404 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo1.localhost:5184/StudioB2B.Web.i1tah9q1qh.styles.css - 200 9997 text/css 31.0274ms
+2026-02-18 20:44:35.408 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:35.409 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant not found for subdomain: demo1
+2026-02-18 20:44:35.410 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:35.410 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: '_content/MudBlazor/MudBlazor.min.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/0wz98yz2xy-{0}-u9015k2po7-u9015k2po7.gz'
+2026-02-18 20:44:35.411 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:35.411 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_content/MudBlazor/MudBlazor.min.js responded 200 in 37.7742 ms
+2026-02-18 20:44:35.411 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo1.localhost:5184/_content/MudBlazor/MudBlazor.min.js - 200 11465 text/javascript 38.7842ms
+2026-02-18 20:44:35.412 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:35.413 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant not found for subdomain: demo1
+2026-02-18 20:44:35.413 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:35.413 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:35.414 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'Components/Layout/ReconnectModal.w97mql0d9w.razor.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/azackjkb8j-{0}-w97mql0d9w-w97mql0d9w.gz'
+2026-02-18 20:44:35.414 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:35.415 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /Components/Layout/ReconnectModal.w97mql0d9w.razor.js responded 200 in 39.1978 ms
+2026-02-18 20:44:35.415 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant not found for subdomain: demo1
+2026-02-18 20:44:35.415 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo1.localhost:5184/Components/Layout/ReconnectModal.w97mql0d9w.razor.js - 200 2334 text/javascript 40.7358ms
+2026-02-18 20:44:35.415 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:35.416 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (2ms) [Parameters=[@__subdomain_0='?' (Size = 100)], CommandType='"Text"', CommandTimeout='30']
+SELECT `t`.`Id`, `t`.`ConnectionString`, `t`.`CreatedAtUtc`, `t`.`CreatedBy`, `t`.`DeletedAtUtc`, `t`.`DeletedBy`, `t`.`IsActive`, `t`.`IsDeleted`, `t`.`LogoUrl`, `t`.`ModifiedAtUtc`, `t`.`ModifiedBy`, `t`.`Name`, `t`.`Subdomain`, `t`.`Tariff`, `t`.`TrialExpiresAtUtc`
+FROM `Tenants` AS `t`
+WHERE NOT (`t`.`IsDeleted`) AND ((`t`.`Subdomain` = @__subdomain_0) AND `t`.`IsActive`)
+LIMIT 1
+2026-02-18 20:44:35.416 +03:00 [DBG] StudioB2B.Infrastructure.MultiTenancy.TenantMiddleware: Tenant not found for subdomain: demo1
+2026-02-18 20:44:35.416 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:35.416 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: '_framework/blazor.web.j8lzlu28q6.js'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/xy9tff70ph-{0}-j8lzlu28q6-j8lzlu28q6.gz'
+2026-02-18 20:44:35.416 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:35.416 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_framework/blazor.web.j8lzlu28q6.js responded 200 in 41.0890 ms
+2026-02-18 20:44:35.416 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo1.localhost:5184/_framework/blazor.web.j8lzlu28q6.js - 200 55629 text/javascript 41.3993ms
+2026-02-18 20:44:35.416 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'app.w7mf952350.css'. Physical path: '/Users/korol/Documents/files/StudioB2B/StudioB2B/StudioB2B.Web/obj/Debug/net10.0/compressed/zzq9lfi4a2-{0}-w7mf952350-w7mf952350.gz'
+2026-02-18 20:44:35.417 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 20:44:35.417 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /app.w7mf952350.css responded 200 in 42.3333 ms
+2026-02-18 20:44:35.418 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://demo1.localhost:5184/app.w7mf952350.css - 200 2874 text/css 45.1352ms
+2026-02-18 20:44:44.336 +03:00 [INF] Microsoft.Hosting.Lifetime: Application is shutting down...

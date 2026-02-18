@@ -1,81 +1,92 @@
 @page "/login"
 @rendermode InteractiveServer
+@layout EmptyLayout
 @using StudioB2B.Application.Common.Interfaces
 @inject ITenantProvider TenantProvider
-@inject NavigationManager Navigation
 
 <PageTitle>Вход - StudioB2B</PageTitle>
 
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-5 col-lg-4">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Вход в систему</h4>
-                </div>
-                <div class="card-body">
-                    @if (!TenantProvider.IsResolved)
-                    {
-                        <div class="alert alert-warning">
-                            <strong>Тенант не определён.</strong>
-                            <p class="mb-0">Перейдите по адресу вашей компании (например, demo.studiob2b.local).</p>
-                        </div>
-                    }
-                    else
-                    {
-                        @if (_error == "invalid")
-                        {
-                            <div class="alert alert-danger">Неверный email или пароль</div>
-                        }
-                        else if (_error == "inactive")
-                        {
-                            <div class="alert alert-danger">Аккаунт деактивирован</div>
-                        }
-                        else if (_error == "error")
-                        {
-                            <div class="alert alert-danger">Произошла ошибка при входе</div>
-                        }
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudPaper Elevation="4" Class="pa-6">
+        <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">
+            Вход в систему
+        </MudText>
 
-                        <form method="post" action="/account/login">
-                            <input type="hidden" name="returnUrl" value="@_returnUrl" />
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Email</label>
-                                <input type="email" name="email" class="form-control" placeholder="user@company.com" required />
-                            </div>
+        @if (!TenantProvider.IsResolved)
+        {
+            <MudAlert Severity="Severity.Warning" Class="my-4">
+                <MudText Typo="Typo.subtitle1"><b>Тенант не определён.</b></MudText>
+                <MudText Typo="Typo.body2">Перейдите по адресу вашей компании (например, demo.studiob2b.local).</MudText>
+            </MudAlert>
+        }
+        else
+        {
+            @if (Error == "invalid")
+            {
+                <MudAlert Severity="Severity.Error" Class="my-4">Неверный email или пароль</MudAlert>
+            }
+            else if (Error == "inactive")
+            {
+                <MudAlert Severity="Severity.Error" Class="my-4">Аккаунт деактивирован</MudAlert>
+            }
+            else if (Error == "error")
+            {
+                <MudAlert Severity="Severity.Error" Class="my-4">Произошла ошибка при входе</MudAlert>
+            }
 
-                            <div class="mb-3">
-                                <label class="form-label">Пароль</label>
-                                <input type="password" name="password" class="form-control" required />
-                            </div>
+            <form method="post" action="/account/login">
+                <input type="hidden" name="returnUrl" value="@ReturnUrl" />
 
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" name="rememberMe" value="true" class="form-check-input" id="rememberMe" />
-                                <label class="form-check-label" for="rememberMe">Запомнить меня</label>
-                            </div>
+                <MudTextField T="string"
+                    Label="Email"
+                    Variant="Variant.Outlined"
+                    InputType="InputType.Email"
+                    Name="email"
+                    Required="true"
+                    Class="mb-4"
+                    FullWidth="true" />
 
-                            <button type="submit" class="btn btn-primary w-100">
-                                Войти
-                            </button>
-                        </form>
+                <MudTextField T="string"
+                    Label="Пароль"
+                    Variant="Variant.Outlined"
+                    InputType="InputType.Password"
+                    Name="password"
+                    Required="true"
+                    Class="mb-4"
+                    FullWidth="true" />
 
-                        <hr />
-                        <p class="text-center mb-0">
-                            Нет аккаунта? <a href="/register">Зарегистрировать компанию</a>
-                        </p>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                <MudCheckBox T="bool"
+                    @bind-Value="@_rememberMe"
+                    Label="Запомнить меня"
+                    Color="Color.Primary"
+                    Class="mb-4" />
+                <input type="hidden" name="rememberMe" value="@_rememberMe" />
+
+                <MudButton
+                    ButtonType="ButtonType.Submit"
+                    Variant="Variant.Filled"
+                    Color="Color.Primary"
+                    FullWidth="true"
+                    Size="Size.Large">
+                    Войти
+                </MudButton>
+            </form>
+
+            <MudDivider Class="my-4" />
+
+            <MudText Align="Align.Center">
+                Нет аккаунта? <MudLink Href="/register" Color="Color.Primary">Зарегистрировать компанию</MudLink>
+            </MudText>
+        }
+    </MudPaper>
+</MudContainer>
 
 @code {
-    [SupplyParameterFromQuery]
-    public string? error { get => _error; set => _error = value; }
-    private string? _error;
+    private bool _rememberMe = true;
 
-    [SupplyParameterFromQuery] 
-    public string? returnUrl { get => _returnUrl; set => _returnUrl = value; }
-    private string? _returnUrl;
+    [SupplyParameterFromQuery]
+    public string? Error { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
 }

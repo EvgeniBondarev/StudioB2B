@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
+using MudBlazor.Services;
 using Serilog;
 using StudioB2B.Infrastructure;
 using StudioB2B.Infrastructure.MultiTenancy;
@@ -14,7 +15,7 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.Host.UseSerilog((context, services, configuration) =>
+    builder.Host.UseSerilog((context, _, configuration) =>
         configuration.ReadFrom.Configuration(context.Configuration));
 
     StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
@@ -22,6 +23,9 @@ try
     builder.Services.AddHttpContextAccessor();
 
     builder.Services.AddInfrastructure(builder.Configuration);
+
+    // Add MudBlazor services
+    builder.Services.AddMudServices();
 
     builder.Services.AddControllers();
 
@@ -41,7 +45,7 @@ try
     app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
     app.UseHttpsRedirection();
 
-    // Tenant resolution (must be before Authentication) sdfsdf
+    // Tenant resolution (must be before Authentication)
     app.UseTenantResolution();
 
     app.UseAuthentication();

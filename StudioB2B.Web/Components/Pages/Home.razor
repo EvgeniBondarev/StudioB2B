@@ -1,159 +1,165 @@
 ﻿@page "/"
 @using StudioB2B.Application.Common.Interfaces
-@using Microsoft.AspNetCore.Components.Authorization
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
-@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>StudioB2B</PageTitle>
 
-<div class="container mt-4">
-    <h1>StudioB2B</h1>
-    <p class="lead">Multi-Tenant Order Management System</p>
+<MudText Typo="Typo.h3" GutterBottom="true">StudioB2B</MudText>
+<MudText Typo="Typo.subtitle1" Class="mb-4">Multi-Tenant Order Management System</MudText>
 
-    <hr />
-
-    <div class="row">
-        <!-- Информация о пользователе -->
-        <div class="col-md-6 mb-3">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">Текущий пользователь</h5>
-                </div>
-                <div class="card-body">
-                    <AuthorizeView>
-                        <Authorized>
-                            <table class="table table-sm mb-2">
-                                <tr>
-                                    <th>Статус:</th>
-                                    <td><span class="badge bg-success">Авторизован</span></td>
-                                </tr>
-                                <tr>
-                                    <th>Email:</th>
-                                    <td><code>@context.User.Identity?.Name</code></td>
-                                </tr>
-                                @if (context.User.IsInRole("Admin"))
-                                {
-                                    <tr>
-                                        <th>Роль:</th>
-                                        <td><span class="badge bg-danger">Admin</span></td>
-                                    </tr>
-                                }
-                            </table>
-                            <a href="/account/logout" class="btn btn-outline-danger btn-sm">
-                                Выйти
-                            </a>
-                        </Authorized>
-                        <NotAuthorized>
-                            <div class="alert alert-info mb-0">
-                                <strong>Вы не авторизованы.</strong>
-                                <p class="mb-2">Войдите в систему для доступа к функциям.</p>
-                                <a href="/login" class="btn btn-primary btn-sm">Войти</a>
-                            </div>
-                        </NotAuthorized>
-                    </AuthorizeView>
-                </div>
-            </div>
-        </div>
-
-        <!-- Информация о тенанте -->
-        <div class="col-md-6 mb-3">
-            <div class="card">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">Информация о тенанте</h5>
-                </div>
-                <div class="card-body">
-                    @if (TenantProvider.IsResolved)
-                    {
-                        <table class="table table-sm mb-0">
-                            <tr>
-                                <th>Статус:</th>
-                                <td><span class="badge bg-success">Подключён</span></td>
-                            </tr>
-                            <tr>
-                                <th>Субдомен:</th>
-                                <td><code>@TenantProvider.Subdomain</code></td>
-                            </tr>
-                            <tr>
-                                <th>Tenant ID:</th>
-                                <td><code style="font-size: 0.75em;">@TenantProvider.TenantId</code></td>
-                            </tr>
-                            @if (_tenant != null)
+<MudGrid>
+    <!-- Информация о пользователе -->
+    <MudItem xs="12" md="6">
+        <MudCard Elevation="2">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">
+                        <MudIcon Icon="@Icons.Material.Filled.Person" Class="mr-2" />
+                        Текущий пользователь
+                    </MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <AuthorizeView>
+                    <Authorized>
+                        <MudList T="string" Dense="true">
+                            <MudListItem T="string">
+                                <MudText><strong>Статус:</strong></MudText>
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small">Авторизован</MudChip>
+                            </MudListItem>
+                            <MudListItem T="string">
+                                <MudText><strong>Email:</strong> <code>@context.User.Identity?.Name</code></MudText>
+                            </MudListItem>
+                            @if (context.User.IsInRole("Admin"))
                             {
-                                <tr>
-                                    <th>Компания:</th>
-                                    <td><strong>@_tenant.Name</strong></td>
-                                </tr>
-                                <tr>
-                                    <th>Тариф:</th>
-                                    <td>
-                                        <span class="badge bg-primary">@_tenant.Tariff</span>
-                                        @if (_tenant.IsTrialExpired())
-                                        {
-                                            <span class="badge bg-danger ms-1">Истёк</span>
-                                        }
-                                    </td>
-                                </tr>
-                                @if (_tenant.TrialExpiresAtUtc.HasValue)
-                                {
-                                    <tr>
-                                        <th>Триал до:</th>
-                                        <td>@_tenant.TrialExpiresAtUtc.Value.ToString("dd.MM.yyyy HH:mm")</td>
-                                    </tr>
-                                }
-                                <tr>
-                                    <th>Создан:</th>
-                                    <td>@_tenant.CreatedAtUtc.ToString("dd.MM.yyyy HH:mm")</td>
-                                </tr>
+                                <MudListItem T="string">
+                                    <MudText><strong>Роль:</strong></MudText>
+                                    <MudChip T="string" Color="Color.Error" Size="Size.Small">Admin</MudChip>
+                                </MudListItem>
                             }
-                        </table>
-                    }
-                    else
-                    {
-                        <div class="alert alert-warning mb-0">
-                            <strong>Тенант не определён.</strong>
-                            <p class="mb-0">Перейдите по адресу вашей компании.</p>
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
+                        </MudList>
+                        <MudButton
+                            Href="/account/logout"
+                            Variant="Variant.Outlined"
+                            Color="Color.Error"
+                            Size="Size.Small"
+                            Class="mt-2">
+                            Выйти
+                        </MudButton>
+                    </Authorized>
+                    <NotAuthorized>
+                        <MudAlert Severity="Severity.Info">
+                            <MudText Typo="Typo.subtitle2"><b>Вы не авторизованы.</b></MudText>
+                            <MudText Typo="Typo.body2" Class="mb-2">Войдите в систему для доступа к функциям.</MudText>
+                            <MudButton Href="/login" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">
+                                Войти
+                            </MudButton>
+                        </MudAlert>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+
+    <!-- Информация о тенанте -->
+    <MudItem xs="12" md="6">
+        <MudCard Elevation="2">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">
+                        <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" />
+                        Информация о тенанте
+                    </MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                @if (TenantProvider.IsResolved)
+                {
+                    <MudList T="string" Dense="true">
+                        <MudListItem T="string">
+                            <MudText><strong>Статус:</strong></MudText>
+                            <MudChip T="string" Color="Color.Success" Size="Size.Small">Подключён</MudChip>
+                        </MudListItem>
+                        <MudListItem T="string">
+                            <MudText><strong>Субдомен:</strong> <code>@TenantProvider.Subdomain</code></MudText>
+                        </MudListItem>
+                        <MudListItem T="string">
+                            <MudText><strong>Tenant ID:</strong> <code style="font-size: 0.75em;">@TenantProvider.TenantId</code></MudText>
+                        </MudListItem>
+                        @if (_tenant != null)
+                        {
+                            <MudListItem T="string">
+                                <MudText><strong>Компания:</strong> @_tenant.Name</MudText>
+                            </MudListItem>
+                            <MudListItem T="string">
+                                <MudText><strong>Тариф:</strong></MudText>
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Small">@_tenant.Tariff</MudChip>
+                                @if (_tenant.IsTrialExpired())
+                                {
+                                    <MudChip T="string" Color="Color.Error" Size="Size.Small" Class="ml-1">Истёк</MudChip>
+                                }
+                            </MudListItem>
+                            @if (_tenant.TrialExpiresAtUtc.HasValue)
+                            {
+                                <MudListItem T="string">
+                                    <MudText><strong>Триал до:</strong> @_tenant.TrialExpiresAtUtc.Value.ToString("dd.MM.yyyy HH:mm")</MudText>
+                                </MudListItem>
+                            }
+                            <MudListItem T="string">
+                                <MudText><strong>Создан:</strong> @_tenant.CreatedAtUtc.ToString("dd.MM.yyyy HH:mm")</MudText>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Warning">
+                        <MudText Typo="Typo.subtitle2"><b>Тенант не определён.</b></MudText>
+                        <MudText Typo="Typo.body2">Перейдите по адресу вашей компании.</MudText>
+                    </MudAlert>
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
 
     <!-- Быстрые ссылки -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0">Быстрые ссылки</h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex gap-2 flex-wrap">
-                        <AuthorizeView>
-                            <NotAuthorized>
-                                @if (TenantProvider.IsResolved)
-                                {
-                                    <a href="/login" class="btn btn-primary">
-                                        Войти в систему
-                                    </a>
-                                }
-                            </NotAuthorized>
-                        </AuthorizeView>
-                        <a href="/register" class="btn btn-success">
-                            Зарегистрировать компанию
-                        </a>
-                        <a href="/health" class="btn btn-outline-secondary">
-                            Health Check
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+    <MudItem xs="12">
+        <MudCard Elevation="2">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">
+                        <MudIcon Icon="@Icons.Material.Filled.Link" Class="mr-2" />
+                        Быстрые ссылки
+                    </MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudStack Row="true" Spacing="2">
+                    <AuthorizeView>
+                        <NotAuthorized>
+                            @if (TenantProvider.IsResolved)
+                            {
+                                <MudButton Href="/login" Variant="Variant.Filled" Color="Color.Primary">
+                                    Войти в систему
+                                </MudButton>
+                            }
+                        </NotAuthorized>
+                    </AuthorizeView>
+                    <MudButton Href="/register" Variant="Variant.Filled" Color="Color.Success">
+                        Зарегистрировать компанию
+                    </MudButton>
+                    <MudButton Href="/health" Variant="Variant.Outlined" Color="Color.Default">
+                        Health Check
+                    </MudButton>
+                </MudStack>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
 
 @code {
-    private StudioB2B.Domain.Entities.Tenants.Tenant? _tenant;
+    private Domain.Entities.Tenants.Tenant? _tenant;
 
     protected override async Task OnInitializedAsync()
     {
@@ -163,3 +169,4 @@
         }
     }
 }
+

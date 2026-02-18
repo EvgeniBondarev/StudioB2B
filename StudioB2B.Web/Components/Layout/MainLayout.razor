@@ -1,23 +1,60 @@
 ﻿@inherits LayoutComponentBase
+@using StudioB2B.Application.Common.Interfaces
+@inject ITenantProvider TenantProvider
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu/>
-    </div>
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <MudText Typo="Typo.h6" Class="ml-3">StudioB2B</MudText>
+        <MudSpacer />
+        @if (TenantProvider.IsResolved)
+        {
+            <MudChip T="string" Color="Color.Info" Size="Size.Small">@TenantProvider.Subdomain</MudChip>
+        }
+        <AuthorizeView>
+            <Authorized>
+                <MudText Typo="Typo.body2" Class="mx-3">@context.User.Identity?.Name</MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" Href="/account/logout" />
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Href="/login" Color="Color.Inherit" Variant="Variant.Text">Войти</MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudAppBar>
 
-        <article class="content px-4">
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <MudNavMenu>
+            <MudNavLink Href="/" Icon="@Icons.Material.Filled.Home" Match="NavLinkMatch.All">Главная</MudNavLink>
+            <AuthorizeView>
+                <Authorized>
+                    <MudNavLink Href="/users" Icon="@Icons.Material.Filled.People" Match="NavLinkMatch.Prefix">Пользователи</MudNavLink>
+                    <MudNavLink Href="/orders" Icon="@Icons.Material.Filled.ShoppingCart" Match="NavLinkMatch.Prefix">Заказы</MudNavLink>
+                    <MudNavLink Href="/transactions" Icon="@Icons.Material.Filled.Payment" Match="NavLinkMatch.Prefix">Транзакции</MudNavLink>
+                </Authorized>
+            </AuthorizeView>
+            <MudDivider Class="my-2" />
+            <MudNavLink Href="/register" Icon="@Icons.Material.Filled.Business" Match="NavLinkMatch.Prefix">Регистрация компании</MudNavLink>
+        </MudNavMenu>
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">
             @Body
-        </article>
-    </main>
-</div>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
 
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
-</div>
+@code {
+    private bool _drawerOpen = true;
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}
+
