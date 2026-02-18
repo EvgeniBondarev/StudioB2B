@@ -6,13 +6,14 @@ using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Domain.Entities.Tenants;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using System.Text.RegularExpressions;
 
 namespace StudioB2B.Infrastructure.MultiTenancy;
 
 /// <summary>
 /// Сервис управления тенантами
 /// </summary>
-public class TenantService : ITenantService
+public partial class TenantService : ITenantService
 {
     private readonly MasterDbContext _masterDb;
     private readonly ILogger<TenantService> _logger;
@@ -129,10 +130,11 @@ public class TenantService : ITenantService
         if (subdomain.Length < 3 || subdomain.Length > 30) return false;
 
         // Only letters, numbers, hyphens. Must start/end with letter or number.
-        return System.Text.RegularExpressions.Regex.IsMatch(
-            subdomain,
-            @"^[a-z0-9][a-z0-9\-]*[a-z0-9]$|^[a-z0-9]$");
+        return SubdomainRegex().IsMatch(subdomain);
     }
+
+    [GeneratedRegex(@"^[a-z0-9][a-z0-9\-]*[a-z0-9]$|^[a-z0-9]$")]
+    private static partial Regex SubdomainRegex();
 
     private async Task CreateTenantDatabaseAsync(string connectionString, CancellationToken ct)
     {

@@ -39,7 +39,7 @@ public class TenantMiddleware
         await _next(context);
     }
 
-    private string? ResolveSubdomain(HostString host, MultiTenancyOptions options)
+    private static string? ResolveSubdomain(HostString host, MultiTenancyOptions options)
     {
         var hostValue = host.Host;
 
@@ -47,7 +47,7 @@ public class TenantMiddleware
         if (hostValue.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase))
         {
             var subdomain = hostValue[..^".localhost".Length];
-            if (!string.IsNullOrEmpty(subdomain) && 
+            if (!string.IsNullOrEmpty(subdomain) &&
                 !options.ReservedSubdomains.Contains(subdomain, StringComparer.OrdinalIgnoreCase))
             {
                 return subdomain.ToLowerInvariant();
