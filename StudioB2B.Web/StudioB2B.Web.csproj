@@ -12,4 +12,19 @@
       <Folder Include="Components\Controllers\" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.*">
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        <PrivateAssets>all</PrivateAssets>
+      </PackageReference>
+      <PackageReference Include="Serilog.AspNetCore" Version="9.0.*" />
+      <PackageReference Include="Serilog.Sinks.Console" Version="6.0.*" />
+      <PackageReference Include="Serilog.Sinks.File" Version="6.0.*" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\StudioB2B.Infrastructure\StudioB2B.Infrastructure.csproj" />
+      <ProjectReference Include="..\StudioB2B.Application\StudioB2B.Application.csproj" />
+    </ItemGroup>
+
 </Project>

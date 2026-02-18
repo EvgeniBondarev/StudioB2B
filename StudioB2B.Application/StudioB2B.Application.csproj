@@ -14,4 +14,9 @@
       <Folder Include="Common\Interfaces\" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\StudioB2B.Domain\StudioB2B.Domain.csproj" />
+      <ProjectReference Include="..\StudioB2B.Shared\StudioB2B.Shared.csproj" />
+    </ItemGroup>
+
 </Project>

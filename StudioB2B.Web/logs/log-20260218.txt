@@ -1,0 +1,183 @@
+2026-02-18 10:08:18.594 +03:00 [INF] Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager: User profile is available. Using 'C:\Users\evgen\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-02-18 10:08:18.694 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Environment: Development, ApplyMigrationsOnStartup: true, Database: StudioB2B_Master_Dev
+2026-02-18 10:08:18.704 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Applying database migrations...
+2026-02-18 10:08:19.859 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (21ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='StudioB2B_Master_Dev' AND TABLE_NAME='__EFMigrationsHistory';
+2026-02-18 10:08:19.915 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (5ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT `MigrationId`, `ProductVersion`
+FROM `__EFMigrationsHistory`
+ORDER BY `MigrationId`;
+2026-02-18 10:08:19.930 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: No pending migrations found
+2026-02-18 10:08:20.132 +03:00 [INF] Microsoft.Hosting.Lifetime: Now listening on: http://localhost:5184
+2026-02-18 10:08:20.140 +03:00 [INF] Microsoft.Hosting.Lifetime: Application started. Press Ctrl+C to shut down.
+2026-02-18 10:08:20.144 +03:00 [INF] Microsoft.Hosting.Lifetime: Hosting environment: Development
+2026-02-18 10:08:20.146 +03:00 [INF] Microsoft.Hosting.Lifetime: Content root path: D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web
+2026-02-18 10:08:20.454 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/ - null null
+2026-02-18 10:08:20.523 +03:00 [WRN] Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware: Failed to determine the https port for redirect.
+2026-02-18 10:08:20.528 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 10:08:20.670 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 10:08:20.680 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 200 in 157.6464 ms
+2026-02-18 10:08:20.685 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css - null null
+2026-02-18 10:08:20.685 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/app.khy4lop6wu.css - null null
+2026-02-18 10:08:20.686 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/StudioB2B.Web.rhgao51g4r.styles.css - null null
+2026-02-18 10:08:20.687 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/_framework/blazor.web.wmp8iwak4q.js - null null
+2026-02-18 10:08:20.687 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/Components/Layout/ReconnectModal.13ja33weya.razor.js - null null
+2026-02-18 10:08:20.695 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/ - 200 null text/html; charset=utf-8 248.5081ms
+2026-02-18 10:08:20.708 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:08:20.710 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:08:20.715 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:08:20.723 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:08:20.724 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:08:20.742 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: The file _framework/blazor.web.wmp8iwak4q.js was not modified
+2026-02-18 10:08:20.746 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:08:20.750 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'StudioB2B.Web.rhgao51g4r.styles.css'. Physical path: 'D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web\obj\Debug\net10.0\compressed\eqnw73w432-{0}-rhgao51g4r-rhgao51g4r.gz'
+2026-02-18 10:08:20.750 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'Components/Layout/ReconnectModal.13ja33weya.razor.js'. Physical path: 'D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web\obj\Debug\net10.0\compressed\azackjkb8j-{0}-13ja33weya-13ja33weya.gz'
+2026-02-18 10:08:20.750 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'app.khy4lop6wu.css'. Physical path: 'D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web\obj\Debug\net10.0\compressed\zzq9lfi4a2-{0}-khy4lop6wu-khy4lop6wu.gz'
+2026-02-18 10:08:20.751 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_framework/blazor.web.wmp8iwak4q.js responded 304 in 27.4903 ms
+2026-02-18 10:08:20.751 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css'. Physical path: 'D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web\obj\Debug\net10.0\compressed\jb83hzilc6-{0}-43atpzeawx-43atpzeawx.gz'
+2026-02-18 10:08:20.756 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:08:20.764 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:08:20.770 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:08:20.779 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/_framework/blazor.web.wmp8iwak4q.js - 304 null text/javascript 91.427ms
+2026-02-18 10:08:20.785 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:08:20.791 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /StudioB2B.Web.rhgao51g4r.styles.css responded 200 in 76.0537 ms
+2026-02-18 10:08:20.796 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /Components/Layout/ReconnectModal.13ja33weya.razor.js responded 200 in 72.1888 ms
+2026-02-18 10:08:20.802 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /app.khy4lop6wu.css responded 200 in 91.5635 ms
+2026-02-18 10:08:20.819 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css responded 200 in 110.7678 ms
+2026-02-18 10:08:20.826 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/StudioB2B.Web.rhgao51g4r.styles.css - 200 10360 text/css 139.769ms
+2026-02-18 10:08:20.833 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/Components/Layout/ReconnectModal.13ja33weya.razor.js - 200 2397 text/javascript 145.3238ms
+2026-02-18 10:08:20.841 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/app.khy4lop6wu.css - 200 2933 text/css 155.5909ms
+2026-02-18 10:08:20.847 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css - 200 232876 text/css 163.1425ms
+2026-02-18 10:08:54.384 +03:00 [INF] Microsoft.Hosting.Lifetime: Application is shutting down...
+2026-02-18 10:09:09.722 +03:00 [INF] Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager: User profile is available. Using 'C:\Users\evgen\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-02-18 10:09:09.790 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Environment: Development, ApplyMigrationsOnStartup: true, Database: StudioB2B_Master_Dev
+2026-02-18 10:09:09.797 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Applying database migrations...
+2026-02-18 10:09:10.562 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Found 1 pending migrations: 20260218063720_InitialMaster
+2026-02-18 10:09:10.755 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (16ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+CREATE DATABASE `StudioB2B_Master_Dev`;
+2026-02-18 10:09:10.815 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (6ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT GET_LOCK('__StudioB2B_Master_Dev_EFMigrationsLock', 259200)
+2026-02-18 10:09:10.936 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (35ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+CREATE TABLE IF NOT EXISTS `__EFMigrationsHistory` (
+    `MigrationId` varchar(150) CHARACTER SET utf8mb4 NOT NULL,
+    `ProductVersion` varchar(32) CHARACTER SET utf8mb4 NOT NULL,
+    CONSTRAINT `PK___EFMigrationsHistory` PRIMARY KEY (`MigrationId`)
+) CHARACTER SET=utf8mb4;
+2026-02-18 10:09:10.969 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='StudioB2B_Master_Dev' AND TABLE_NAME='__EFMigrationsHistory';
+2026-02-18 10:09:10.983 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (4ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT `MigrationId`, `ProductVersion`
+FROM `__EFMigrationsHistory`
+ORDER BY `MigrationId`;
+2026-02-18 10:09:10.996 +03:00 [INF] Microsoft.EntityFrameworkCore.Migrations: Applying migration '20260218063720_InitialMaster'.
+2026-02-18 10:09:11.017 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (5ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+ALTER DATABASE CHARACTER SET utf8mb4;
+2026-02-18 10:09:11.043 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (23ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+CREATE TABLE `Tenants` (
+    `Id` char(36) COLLATE ascii_general_ci NOT NULL,
+    `Name` varchar(200) CHARACTER SET utf8mb4 NOT NULL,
+    `Subdomain` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+    `ConnectionString` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+    `IsActive` tinyint(1) NOT NULL,
+    `LogoUrl` varchar(500) CHARACTER SET utf8mb4 NULL,
+    `Tariff` varchar(50) CHARACTER SET utf8mb4 NOT NULL,
+    `TrialExpiresAtUtc` datetime(6) NULL,
+    `CreatedAtUtc` datetime(6) NOT NULL,
+    `CreatedBy` char(36) COLLATE ascii_general_ci NULL,
+    `ModifiedAtUtc` datetime(6) NULL,
+    `ModifiedBy` char(36) COLLATE ascii_general_ci NULL,
+    `IsDeleted` tinyint(1) NOT NULL,
+    `DeletedAtUtc` datetime(6) NULL,
+    `DeletedBy` char(36) COLLATE ascii_general_ci NULL,
+    CONSTRAINT `PK_Tenants` PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;
+2026-02-18 10:09:11.066 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (20ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+CREATE UNIQUE INDEX `IX_Tenants_Subdomain` ON `Tenants` (`Subdomain`);
+2026-02-18 10:09:11.073 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (3ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+INSERT INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`)
+VALUES ('20260218063720_InitialMaster', '9.0.13');
+2026-02-18 10:09:11.081 +03:00 [INF] Microsoft.EntityFrameworkCore.Database.Command: Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT RELEASE_LOCK('__StudioB2B_Master_Dev_EFMigrationsLock')
+2026-02-18 10:09:11.088 +03:00 [INF] StudioB2B.Infrastructure.Services.DatabaseMigrationService: Database migrations applied successfully
+2026-02-18 10:09:11.301 +03:00 [INF] Microsoft.Hosting.Lifetime: Now listening on: http://localhost:5184
+2026-02-18 10:09:11.309 +03:00 [INF] Microsoft.Hosting.Lifetime: Application started. Press Ctrl+C to shut down.
+2026-02-18 10:09:11.313 +03:00 [INF] Microsoft.Hosting.Lifetime: Hosting environment: Development
+2026-02-18 10:09:11.315 +03:00 [INF] Microsoft.Hosting.Lifetime: Content root path: D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web
+2026-02-18 10:09:11.788 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/ - null null
+2026-02-18 10:09:11.833 +03:00 [WRN] Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware: Failed to determine the https port for redirect.
+2026-02-18 10:09:11.836 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 10:09:11.925 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 10:09:11.932 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 200 in 98.7404 ms
+2026-02-18 10:09:11.938 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css - null null
+2026-02-18 10:09:11.940 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/app.khy4lop6wu.css - null null
+2026-02-18 10:09:11.940 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/ - 200 null text/html; charset=utf-8 157.463ms
+2026-02-18 10:09:11.952 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:11.952 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:11.958 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/StudioB2B.Web.rhgao51g4r.styles.css - null null
+2026-02-18 10:09:11.967 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:11.973 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'StudioB2B.Web.rhgao51g4r.styles.css'. Physical path: 'D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web\obj\Debug\net10.0\compressed\eqnw73w432-{0}-rhgao51g4r-rhgao51g4r.gz'
+2026-02-18 10:09:11.973 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css'. Physical path: 'D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web\obj\Debug\net10.0\compressed\jb83hzilc6-{0}-43atpzeawx-43atpzeawx.gz'
+2026-02-18 10:09:11.973 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'app.khy4lop6wu.css'. Physical path: 'D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web\obj\Debug\net10.0\compressed\zzq9lfi4a2-{0}-khy4lop6wu-khy4lop6wu.gz'
+2026-02-18 10:09:11.976 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:11.980 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:11.982 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:11.983 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /StudioB2B.Web.rhgao51g4r.styles.css responded 200 in 15.8048 ms
+2026-02-18 10:09:11.984 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css responded 200 in 32.9489 ms
+2026-02-18 10:09:11.986 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /app.khy4lop6wu.css responded 200 in 34.6755 ms
+2026-02-18 10:09:11.989 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/StudioB2B.Web.rhgao51g4r.styles.css - 200 10360 text/css 30.4793ms
+2026-02-18 10:09:11.992 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css - 200 232876 text/css 53.9027ms
+2026-02-18 10:09:11.994 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/app.khy4lop6wu.css - 200 2933 text/css 54.5687ms
+2026-02-18 10:09:11.999 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/_framework/blazor.web.wmp8iwak4q.js - null null
+2026-02-18 10:09:12.002 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/Components/Layout/ReconnectModal.13ja33weya.razor.js - null null
+2026-02-18 10:09:12.010 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:12.013 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:12.015 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: The file _framework/blazor.web.wmp8iwak4q.js was not modified
+2026-02-18 10:09:12.017 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'Components/Layout/ReconnectModal.13ja33weya.razor.js'. Physical path: 'D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web\obj\Debug\net10.0\compressed\azackjkb8j-{0}-13ja33weya-13ja33weya.gz'
+2026-02-18 10:09:12.020 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:12.022 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:12.023 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_framework/blazor.web.wmp8iwak4q.js responded 304 in 13.3172 ms
+2026-02-18 10:09:12.025 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /Components/Layout/ReconnectModal.13ja33weya.razor.js responded 200 in 11.8203 ms
+2026-02-18 10:09:12.028 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/_framework/blazor.web.wmp8iwak4q.js - 304 null text/javascript 28.9192ms
+2026-02-18 10:09:12.030 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/Components/Layout/ReconnectModal.13ja33weya.razor.js - 200 2397 text/javascript 27.8396ms
+2026-02-18 10:09:39.285 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/ - null null
+2026-02-18 10:09:39.297 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
+2026-02-18 10:09:39.313 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
+2026-02-18 10:09:39.317 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET / responded 200 in 20.7179 ms
+2026-02-18 10:09:39.326 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/ - 200 null text/html; charset=utf-8 41.5594ms
+2026-02-18 10:09:39.332 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/app.khy4lop6wu.css - null null
+2026-02-18 10:09:39.332 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/Components/Layout/ReconnectModal.13ja33weya.razor.js - null null
+2026-02-18 10:09:39.332 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/StudioB2B.Web.rhgao51g4r.styles.css - null null
+2026-02-18 10:09:39.334 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/_framework/blazor.web.wmp8iwak4q.js - null null
+2026-02-18 10:09:39.336 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css - null null
+2026-02-18 10:09:39.345 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:39.352 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:39.359 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:39.369 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:39.375 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:39.378 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'app.khy4lop6wu.css'. Physical path: 'D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web\obj\Debug\net10.0\compressed\zzq9lfi4a2-{0}-khy4lop6wu-khy4lop6wu.gz'
+2026-02-18 10:09:39.382 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'Components/Layout/ReconnectModal.13ja33weya.razor.js'. Physical path: 'D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web\obj\Debug\net10.0\compressed\azackjkb8j-{0}-13ja33weya-13ja33weya.gz'
+2026-02-18 10:09:39.386 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'StudioB2B.Web.rhgao51g4r.styles.css'. Physical path: 'D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web\obj\Debug\net10.0\compressed\eqnw73w432-{0}-rhgao51g4r-rhgao51g4r.gz'
+2026-02-18 10:09:39.389 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: The file _framework/blazor.web.wmp8iwak4q.js was not modified
+2026-02-18 10:09:39.398 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:39.403 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:39.405 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: Sending file. Request path: 'lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css'. Physical path: 'D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web\obj\Debug\net10.0\compressed\jb83hzilc6-{0}-43atpzeawx-43atpzeawx.gz'
+2026-02-18 10:09:39.408 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:39.412 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:39.414 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /app.khy4lop6wu.css responded 200 in 69.6437 ms
+2026-02-18 10:09:39.417 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /Components/Layout/ReconnectModal.13ja33weya.razor.js responded 200 in 65.1034 ms
+2026-02-18 10:09:39.423 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:39.426 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /StudioB2B.Web.rhgao51g4r.styles.css responded 200 in 67.5094 ms
+2026-02-18 10:09:39.430 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /_framework/blazor.web.wmp8iwak4q.js responded 304 in 61.0593 ms
+2026-02-18 10:09:39.435 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/app.khy4lop6wu.css - 200 2933 text/css 102.7955ms
+2026-02-18 10:09:39.442 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/Components/Layout/ReconnectModal.13ja33weya.razor.js - 200 2397 text/javascript 109.0451ms
+2026-02-18 10:09:39.447 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css responded 200 in 71.8073 ms
+2026-02-18 10:09:39.451 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/StudioB2B.Web.rhgao51g4r.styles.css - 200 10360 text/css 118.5435ms
+2026-02-18 10:09:39.457 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/_framework/blazor.web.wmp8iwak4q.js - 304 null text/javascript 122.8934ms
+2026-02-18 10:09:39.485 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css - 200 232876 text/css 148.3121ms
+2026-02-18 10:09:39.501 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/favicon.png - null null
+2026-02-18 10:09:39.519 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:39.524 +03:00 [INF] Microsoft.AspNetCore.StaticAssets.StaticAssetsInvoker: The file favicon.png was not modified
+2026-02-18 10:09:39.527 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint 'Microsoft.AspNetCore.Routing.RouteEndpoint'
+2026-02-18 10:09:39.531 +03:00 [INF] Serilog.AspNetCore.RequestLoggingMiddleware: HTTP GET /favicon.png responded 304 in 12.3747 ms
+2026-02-18 10:09:39.537 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request finished HTTP/1.1 GET http://localhost:5184/favicon.png - 304 null image/png 35.172ms
+2026-02-18 10:09:41.592 +03:00 [INF] Microsoft.Hosting.Lifetime: Application is shutting down...

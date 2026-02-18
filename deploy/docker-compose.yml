@@ -1,0 +1,62 @@
+# StudioB2B Production Docker Compose
+# Usage:
+#   docker-compose up -d
+#
+# Environment variables (set in .env file or pass directly):
+#   MYSQL_ROOT_PASSWORD - MySQL root password
+#   MYSQL_DATABASE - Master database name  
+#   STUDIOB2B_MASTER_DOMAIN - Master domain (e.g., studiob2b.com)
+
+version: '3.8'
+
+services:
+  studiob2b:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: studiob2b-web
+    restart: unless-stopped
+    ports:
+      - "80:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__MasterDb=Server=mysql;Database=${MYSQL_DATABASE:-StudioB2B_Master};User=root;Password=${MYSQL_ROOT_PASSWORD};Allow User Variables=true;AllowPublicKeyRetrieval=True;
+      - MultiTenancy__MasterDomain=${STUDIOB2B_MASTER_DOMAIN:-studiob2b.com}
+      - MultiTenancy__DefaultSubdomain=demo
+      - Database__ApplyMigrationsOnStartup=true
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - studiob2b-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mysql:
+    image: mysql:8.0
+    container_name: studiob2b-mysql
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-StrongPassword123!}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-StudioB2B_Master}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - studiob2b-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  studiob2b-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
