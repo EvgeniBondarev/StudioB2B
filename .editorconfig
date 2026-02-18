@@ -145,6 +145,10 @@ dotnet_analyzer_diagnostic.category-security.severity = error
 dotnet_analyzer_diagnostic.category-style.severity = suggestion
 dotnet_analyzer_diagnostic.category-usage.severity = warning
 
+# Suppress logging performance warnings - we use simple logging for clarity
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none
+
 # Organize usings
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = false

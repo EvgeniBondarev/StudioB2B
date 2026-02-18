@@ -12,7 +12,7 @@ ORDER BY `MigrationId`;
 2026-02-18 10:08:20.140 +03:00 [INF] Microsoft.Hosting.Lifetime: Application started. Press Ctrl+C to shut down.
 2026-02-18 10:08:20.144 +03:00 [INF] Microsoft.Hosting.Lifetime: Hosting environment: Development
 2026-02-18 10:08:20.146 +03:00 [INF] Microsoft.Hosting.Lifetime: Content root path: D:\.NETProject\StudioB2B\src\StudioB2B\StudioB2B.Web
-2026-02-18 10:08:20.454 +03:00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/ - null null
+2026-02-18 10:08:20.454 +03:выаываываыа00 [INF] Microsoft.AspNetCore.Hosting.Diagnostics: Request starting HTTP/1.1 GET http://localhost:5184/ - null null
 2026-02-18 10:08:20.523 +03:00 [WRN] Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware: Failed to determine the https port for redirect.
 2026-02-18 10:08:20.528 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executing endpoint '/ (/)'
 2026-02-18 10:08:20.670 +03:00 [INF] Microsoft.AspNetCore.Routing.EndpointMiddleware: Executed endpoint '/ (/)'
