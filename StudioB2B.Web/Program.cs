@@ -41,7 +41,7 @@ try
     app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
     app.UseHttpsRedirection();
 
-    // Tenant resolution (must be before Authentication)
+    // Tenant resolution (must be before Authentication) sdfsdf
     app.UseTenantResolution();
 
     app.UseAuthentication();
