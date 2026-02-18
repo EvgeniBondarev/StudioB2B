@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Folder Include="Common\Features\Integrations\" />
+      <Folder Include="Common\Features\Orders\" />
+      <Folder Include="Common\Features\Tenants\" />
+      <Folder Include="Common\Features\Transactions\" />
+      <Folder Include="Common\Interfaces\" />
+    </ItemGroup>
+
+</Project>

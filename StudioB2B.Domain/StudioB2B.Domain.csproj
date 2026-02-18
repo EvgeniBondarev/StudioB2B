@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Folder Include="Entities\Common\" />
+      <Folder Include="Entities\Enums\" />
+      <Folder Include="Entities\Orders\" />
+      <Folder Include="Entities\Tenants\" />
+      <Folder Include="Entities\Transactions\" />
+      <Folder Include="Entities\ValueObjects\" />
+    </ItemGroup>
+
+</Project>

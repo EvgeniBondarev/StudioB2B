@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Folder Include="BackgroundJobs\" />
+      <Folder Include="Integrations\Marketplaces\Ozon\" />
+      <Folder Include="Persistence\Configurations\" />
+      <Folder Include="Persistence\Master\" />
+      <Folder Include="Persistence\Tenant\" />
+      <Folder Include="Services\" />
+    </ItemGroup>
+
+</Project>
