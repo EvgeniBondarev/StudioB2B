@@ -1,0 +1,215 @@
+@page "/users"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
+@using Microsoft.EntityFrameworkCore
+@inject ITenantProvider TenantProvider
+@inject ITenantService TenantService
+@inject ITenantDbContextFactory DbContextFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Пользователи - StudioB2B</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Пользователи</h1>
+        @if (TenantProvider.IsResolved)
+        {
+            <span class="badge bg-info">@_tenantName</span>
+        }
+    </div>
+
+    @if (!TenantProvider.IsResolved)
+    {
+        <div class="alert alert-warning">
+            <strong>Тенант не определён.</strong>
+            <p>Перейдите по адресу вашей компании (например, demo.localhost:5184).</p>
+        </div>
+    }
+    else if (_loading)
+    {
+        <div class="d-flex justify-content-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+        </div>
+    }
+    else if (_error != null)
+    {
+        <div class="alert alert-danger">
+            <strong>Ошибка:</strong> @_error
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Список пользователей (@_users.Count)</span>
+                    <button class="btn btn-light btn-sm" @onclick="LoadUsers">
+                        Обновить
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                @if (_users.Count == 0)
+                {
+                    <div class="alert alert-info m-3">
+                        Пользователи не найдены.
+                    </div>
+                }
+                else
+                {
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-dark">
+                        <tr>
+                            <th>Email</th>
+                            <th>Имя</th>
+                            <th>Статус</th>
+                            <th>Создан</th>
+                            <th>Последний вход</th>
+                            <th>Действия</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var user in _users)
+                        {
+                            <tr>
+                                <td>
+                                    <code>@user.Email</code>
+                                </td>
+                                <td>@(user.FullName ?? "—")</td>
+                                <td>
+                                    @if (user.IsActive)
+                                    {
+                                        <span class="badge bg-success">Активен</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Неактивен</span>
+                                    }
+                                </td>
+                                <td>@user.CreatedAtUtc.ToString("dd.MM.yyyy HH:mm")</td>
+                                <td>
+                                    @if (user.LastLoginAtUtc.HasValue)
+                                    {
+                                        @user.LastLoginAtUtc.Value.ToString("dd.MM.yyyy HH:mm")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (user.IsActive)
+                                    {
+                                        <button class="btn btn-outline-danger btn-sm"
+                                                @onclick="() => ToggleUserStatus(user)">
+                                            Деактивировать
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-outline-success btn-sm"
+                                                @onclick="() => ToggleUserStatus(user)">
+                                            Активировать
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<UserViewModel> _users = new();
+    private string? _tenantName;
+    private bool _loading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (TenantProvider.IsResolved)
+        {
+            var tenant = await TenantService.GetByIdAsync(TenantProvider.TenantId!.Value);
+            _tenantName = tenant?.Name;
+            await LoadUsers();
+        }
+        else
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            _loading = true;
+            _error = null;
+            StateHasChanged();
+
+            // Получаем TenantDbContext через фабрику
+            using var db = DbContextFactory.CreateDbContext();
+
+            _users = await db.Users
+                .AsNoTracking()
+                .OrderByDescending(u => u.CreatedAtUtc)
+                .Select(u => new UserViewModel
+                {
+                    Id = u.Id,
+                    Email = u.Email!,
+                    FullName = u.FullName,
+                    IsActive = u.IsActive,
+                    CreatedAtUtc = u.CreatedAtUtc,
+                    LastLoginAtUtc = u.LastLoginAtUtc
+                })
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ToggleUserStatus(UserViewModel user)
+    {
+        try
+        {
+            using var db = DbContextFactory.CreateDbContext();
+
+            var dbUser = await db.Users.FindAsync(user.Id);
+            if (dbUser != null)
+            {
+                dbUser.IsActive = !dbUser.IsActive;
+                await db.SaveChangesAsync();
+                user.IsActive = dbUser.IsActive;
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private class UserViewModel
+    {
+        public Guid Id { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string? FullName { get; set; }
+        public bool IsActive { get; set; }
+        public DateTime CreatedAtUtc { get; set; }
+        public DateTime? LastLoginAtUtc { get; set; }
+    }
+}

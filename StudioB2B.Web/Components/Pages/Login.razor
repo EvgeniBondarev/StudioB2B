@@ -1,0 +1,81 @@
+@page "/login"
+@rendermode InteractiveServer
+@using StudioB2B.Application.Common.Interfaces
+@inject ITenantProvider TenantProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Вход - StudioB2B</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5 col-lg-4">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Вход в систему</h4>
+                </div>
+                <div class="card-body">
+                    @if (!TenantProvider.IsResolved)
+                    {
+                        <div class="alert alert-warning">
+                            <strong>Тенант не определён.</strong>
+                            <p class="mb-0">Перейдите по адресу вашей компании (например, demo.studiob2b.local).</p>
+                        </div>
+                    }
+                    else
+                    {
+                        @if (_error == "invalid")
+                        {
+                            <div class="alert alert-danger">Неверный email или пароль</div>
+                        }
+                        else if (_error == "inactive")
+                        {
+                            <div class="alert alert-danger">Аккаунт деактивирован</div>
+                        }
+                        else if (_error == "error")
+                        {
+                            <div class="alert alert-danger">Произошла ошибка при входе</div>
+                        }
+
+                        <form method="post" action="/account/login">
+                            <input type="hidden" name="returnUrl" value="@_returnUrl" />
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-control" placeholder="user@company.com" required />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Пароль</label>
+                                <input type="password" name="password" class="form-control" required />
+                            </div>
+
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" name="rememberMe" value="true" class="form-check-input" id="rememberMe" />
+                                <label class="form-check-label" for="rememberMe">Запомнить меня</label>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100">
+                                Войти
+                            </button>
+                        </form>
+
+                        <hr />
+                        <p class="text-center mb-0">
+                            Нет аккаунта? <a href="/register">Зарегистрировать компанию</a>
+                        </p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? error { get => _error; set => _error = value; }
+    private string? _error;
+
+    [SupplyParameterFromQuery] 
+    public string? returnUrl { get => _returnUrl; set => _returnUrl = value; }
+    private string? _returnUrl;
+}

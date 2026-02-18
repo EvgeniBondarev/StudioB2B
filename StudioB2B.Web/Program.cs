@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Serilog;
 using StudioB2B.Infrastructure;
+using StudioB2B.Infrastructure.MultiTenancy;
 using StudioB2B.Web.Components;
 
 Log.Logger = new LoggerConfiguration()
@@ -22,6 +23,8 @@ try
 
     builder.Services.AddInfrastructure(builder.Configuration);
 
+    builder.Services.AddControllers();
+
     builder.Services.AddRazorComponents()
         .AddInteractiveServerComponents();
 
@@ -38,8 +41,15 @@ try
     app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
     app.UseHttpsRedirection();
 
+    // Tenant resolution (must be before Authentication)
+    app.UseTenantResolution();
+
+    app.UseAuthentication();
+    app.UseAuthorization();
+
     app.UseAntiforgery();
 
+    app.MapControllers();
     app.MapStaticAssets();
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode();

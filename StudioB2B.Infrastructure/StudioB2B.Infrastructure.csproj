@@ -7,6 +7,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
       <Folder Include="BackgroundJobs\" />
       <Folder Include="Integrations\Marketplaces\Ozon\" />
       <Folder Include="Persistence\Configurations\" />
@@ -18,15 +22,12 @@
     <ItemGroup>
       <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.*" />
       <PackageReference Include="Mapster" Version="7.4.*" />
-      <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.*" />
       <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.*" />
       <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.*" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.*">
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         <PrivateAssets>all</PrivateAssets>
       </PackageReference>
-      <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.*" />
-      <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.*" />
       <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.*" />
     </ItemGroup>
 
