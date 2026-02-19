@@ -1,92 +1,16 @@
 @page "/login"
-@rendermode InteractiveServer
-@layout EmptyLayout
-@using StudioB2B.Application.Common.Interfaces
-@inject ITenantProvider TenantProvider
-
-<PageTitle>Вход - StudioB2B</PageTitle>
-
-<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
-    <MudPaper Elevation="4" Class="pa-6">
-        <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">
-            Вход в систему
-        </MudText>
-
-        @if (!TenantProvider.IsResolved)
-        {
-            <MudAlert Severity="Severity.Warning" Class="my-4">
-                <MudText Typo="Typo.subtitle1"><b>Тенант не определён.</b></MudText>
-                <MudText Typo="Typo.body2">Перейдите по адресу вашей компании (например, demo.studiob2b.local).</MudText>
-            </MudAlert>
-        }
-        else
-        {
-            @if (Error == "invalid")
-            {
-                <MudAlert Severity="Severity.Error" Class="my-4">Неверный email или пароль</MudAlert>
-            }
-            else if (Error == "inactive")
-            {
-                <MudAlert Severity="Severity.Error" Class="my-4">Аккаунт деактивирован</MudAlert>
-            }
-            else if (Error == "error")
-            {
-                <MudAlert Severity="Severity.Error" Class="my-4">Произошла ошибка при входе</MudAlert>
-            }
-
-            <form method="post" action="/account/login">
-                <input type="hidden" name="returnUrl" value="@ReturnUrl" />
-
-                <MudTextField T="string"
-                    Label="Email"
-                    Variant="Variant.Outlined"
-                    InputType="InputType.Email"
-                    Name="email"
-                    Required="true"
-                    Class="mb-4"
-                    FullWidth="true" />
-
-                <MudTextField T="string"
-                    Label="Пароль"
-                    Variant="Variant.Outlined"
-                    InputType="InputType.Password"
-                    Name="password"
-                    Required="true"
-                    Class="mb-4"
-                    FullWidth="true" />
-
-                <MudCheckBox T="bool"
-                    @bind-Value="@_rememberMe"
-                    Label="Запомнить меня"
-                    Color="Color.Primary"
-                    Class="mb-4" />
-                <input type="hidden" name="rememberMe" value="@_rememberMe" />
-
-                <MudButton
-                    ButtonType="ButtonType.Submit"
-                    Variant="Variant.Filled"
-                    Color="Color.Primary"
-                    FullWidth="true"
-                    Size="Size.Large">
-                    Войти
-                </MudButton>
-            </form>
-
-            <MudDivider Class="my-4" />
-
-            <MudText Align="Align.Center">
-                Нет аккаунта? <MudLink Href="/register" Color="Color.Primary">Зарегистрировать компанию</MudLink>
-            </MudText>
-        }
-    </MudPaper>
-</MudContainer>
+@inject NavigationManager Navigation
 
 @code {
-    private bool _rememberMe = true;
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
 
-    [SupplyParameterFromQuery]
-    public string? Error { get; set; }
-
-    [SupplyParameterFromQuery]
-    public string? ReturnUrl { get; set; }
+    protected override void OnInitialized()
+    {
+        var query = new System.Text.StringBuilder("?");
+        if (!string.IsNullOrEmpty(Error)) query.Append($"error={Uri.EscapeDataString(Error)}&");
+        if (!string.IsNullOrEmpty(ReturnUrl)) query.Append($"returnUrl={Uri.EscapeDataString(ReturnUrl)}&");
+        var qs = query.ToString().TrimEnd('&', '?');
+        Navigation.NavigateTo("/" + (qs.Length > 0 ? qs : ""), replace: true);
+    }
 }

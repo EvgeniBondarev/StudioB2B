@@ -27,6 +27,7 @@ try
     // Add MudBlazor services
     builder.Services.AddMudServices();
 
+
     builder.Services.AddControllers();
 
     builder.Services.AddRazorComponents()
@@ -38,7 +39,15 @@ try
 
     if (!app.Environment.IsDevelopment())
     {
-        app.UseExceptionHandler("/Error", createScopeForErrors: true);
+        app.UseExceptionHandler(errorApp =>
+        {
+            errorApp.Run(async context =>
+            {
+                context.Response.StatusCode = 500;
+                context.Response.ContentType = "text/plain";
+                await context.Response.WriteAsync("Произошла внутренняя ошибка сервера.");
+            });
+        });
         app.UseHsts();
     }
 

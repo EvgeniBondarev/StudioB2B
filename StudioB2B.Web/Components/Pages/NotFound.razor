@@ -1,19 +1,15 @@
 ﻿@page "/not-found"
-@layout EmptyLayout
 
 <PageTitle>Страница не найдена - StudioB2B</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
-    <MudPaper Elevation="4" Class="pa-6 text-center">
-        <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="font-size: 6rem;" />
-
-        <MudText Typo="Typo.h3" GutterBottom="true">404</MudText>
-        <MudText Typo="Typo.h5" GutterBottom="true">Страница не найдена</MudText>
-        <MudText Typo="Typo.body1" Class="mb-4">Запрошенная страница не существует.</MudText>
-
-        <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large">
-            Вернуться на главную
-        </MudButton>
-    </MudPaper>
-</MudContainer>
-
+<MudGrid Justify="Justify.Center" Class="mt-8">
+    <MudItem xs="12" sm="8" md="5">
+        <MudPaper Outlined="true" Class="pa-8 d-flex flex-column align-center">
+            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="font-size:6rem;" />
+            <MudText Typo="Typo.h3" GutterBottom="true">404</MudText>
+            <MudText Typo="Typo.h5" GutterBottom="true">Страница не найдена</MudText>
+            <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-5">Запрошенная страница не существует.</MudText>
+            <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary">Вернуться на главную</MudButton>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
