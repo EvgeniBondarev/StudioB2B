@@ -11,7 +11,6 @@
       <Folder Include="Common\Features\Orders\" />
       <Folder Include="Common\Features\Tenants\" />
       <Folder Include="Common\Features\Transactions\" />
-      <Folder Include="Common\Interfaces\" />
     </ItemGroup>
 
     <ItemGroup>

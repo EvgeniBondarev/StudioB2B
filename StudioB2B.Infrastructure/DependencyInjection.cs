@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StudioB2B.Application.Common.Interfaces;
+using StudioB2B.Infrastructure.BackgroundJobs;
+using StudioB2B.Infrastructure.Features.Roles;
+using StudioB2B.Infrastructure.Features.Users;
 using StudioB2B.Infrastructure.MultiTenancy;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
@@ -105,6 +108,27 @@ public static class DependencyInjection
             options.ExpireTimeSpan = TimeSpan.FromDays(7);
             options.SlidingExpiration = true;
         });
+
+        // ── Role Sync Background Job ──────────────────────────────────────────
+        services.AddSingleton<RoleSyncChannel>();
+        services.AddSingleton<IRoleSyncPublisher, RoleSyncPublisher>();
+        services.AddHostedService<RoleSyncWorker>();
+
+        // ── Role Feature Classes (Scoped — используют MasterDbContext) ────────
+        services.AddScoped<GetRoles>();
+        services.AddScoped<GetRoleById>();
+        services.AddScoped<CreateRole>();
+        services.AddScoped<UpdateRole>();
+        services.AddScoped<DeleteRole>();
+
+        // ── User Management Feature Classes (Scoped — используют TenantDbContext) ──
+        services.AddScoped<GetUsers>();
+        services.AddScoped<GetUserById>();
+        services.AddScoped<GetAvailableRoles>();
+        services.AddScoped<CreateUser>();
+        services.AddScoped<UpdateUser>();
+        services.AddScoped<ChangeUserPassword>();
+        services.AddScoped<DeleteUser>();
 
         return services;
     }

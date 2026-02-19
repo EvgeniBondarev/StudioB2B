@@ -160,6 +160,30 @@ public partial class TenantService : ITenantService
 
         await using var context = new TenantDbContext(optionsBuilder.Options);
 
+        // Загружаем все роли из мастер-базы
+        var masterRoles = await _masterDb.Roles.AsNoTracking().ToListAsync(ct);
+
+        // Копируем роли в базу тенанта (если их ещё нет)
+        foreach (var masterRole in masterRoles)
+        {
+            var exists = await context.Roles.AnyAsync(r => r.Id == masterRole.Id, ct);
+            if (!exists)
+            {
+                context.Roles.Add(new ApplicationRole
+                {
+                    Id = masterRole.Id,
+                    Name = masterRole.Name,
+                    NormalizedName = masterRole.NormalizedName,
+                    ConcurrencyStamp = Guid.NewGuid().ToString(),
+                    Description = masterRole.Description,
+                    IsSystemRole = masterRole.IsSystemRole,
+                    CreatedAtUtc = masterRole.CreatedAtUtc
+                });
+            }
+        }
+
+        await context.SaveChangesAsync(ct);
+
         // Создаём UserManager вручную (т.к. мы вне DI scope)
         var userStore = new Microsoft.AspNetCore.Identity.EntityFrameworkCore.UserStore<ApplicationUser, ApplicationRole, TenantDbContext, Guid>(context);
         var hasher = new PasswordHasher<ApplicationUser>();
@@ -203,7 +227,8 @@ public partial class TenantService : ITenantService
             throw new InvalidOperationException($"Failed to create admin user: {errors}");
         }
 
-        // Создаём роль Admin
+        // Назначаем пользователю роль Admin
+        // Если в мастер-базе нет роли Admin — создаём её в базе тенанта как резервный вариант
         var roleStore = new Microsoft.AspNetCore.Identity.EntityFrameworkCore.RoleStore<ApplicationRole, TenantDbContext, Guid>(context);
         using var roleManager = new RoleManager<ApplicationRole>(
             roleStore,
@@ -212,16 +237,14 @@ public partial class TenantService : ITenantService
             new IdentityErrorDescriber(),
             new Microsoft.Extensions.Logging.Abstractions.NullLogger<RoleManager<ApplicationRole>>());
 
-        var adminRole = new ApplicationRole
-        {
-            Name = "Admin",
-            Description = "Administrator with full access",
-            IsSystemRole = true
-        };
-
         if (!await roleManager.RoleExistsAsync("Admin"))
         {
-            await roleManager.CreateAsync(adminRole);
+            await roleManager.CreateAsync(new ApplicationRole
+            {
+                Name = "Admin",
+                Description = "Administrator with full access",
+                IsSystemRole = true
+            });
         }
 
         await userManager.AddToRoleAsync(admin, "Admin");
