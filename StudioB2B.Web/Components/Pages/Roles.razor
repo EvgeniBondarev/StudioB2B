@@ -1,0 +1,142 @@
+@page "/roles"
+@inject GetRoles GetRoles
+@inject CreateRole CreateRole
+@inject UpdateRole UpdateRole
+@inject DeleteRole DeleteRole
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Роли — StudioB2B</PageTitle>
+
+<MasterOnlyGuard>
+    <MudText Typo="Typo.h5" GutterBottom="true" Style="font-weight:700;">Роли</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-5">
+        Роли хранятся в мастер-базе и автоматически копируются в базы всех тенантов.
+    </MudText>
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add"
+               OnClick="OpenCreateDialog" Class="mb-4">
+        Создать роль
+    </MudButton>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Class="mb-4" />
+    }
+
+    <MudPaper Outlined="true">
+        <MudTable Items="@_roles" Hover="true" Dense="true" Loading="@_loading"
+                  LoadingProgressColor="Color.Primary" Elevation="0">
+            <HeaderContent>
+                <MudTh>Название</MudTh>
+                <MudTh>Описание</MudTh>
+                <MudTh>Системная</MudTh>
+                <MudTh>Создана</MudTh>
+                <MudTh Style="width:120px"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Название">
+                    <MudText Style="font-weight:500;">@context.Name</MudText>
+                </MudTd>
+                <MudTd DataLabel="Описание">
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@(context.Description ?? "—")</MudText>
+                </MudTd>
+                <MudTd DataLabel="Системная">
+                    @if (context.IsSystemRole)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Системная</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Создана">
+                    <MudText Typo="Typo.body2">@context.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy")</MudText>
+                </MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small"
+                                   OnClick="@(() => OpenEditDialog(context))" />
+                    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
+                                   OnClick="@(() => ConfirmDelete(context))" />
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4">Ролей пока нет</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+</MasterOnlyGuard>
+
+@code {
+    private List<RoleDto> _roles = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRolesAsync();
+    }
+
+    private async Task LoadRolesAsync()
+    {
+        _loading = true;
+        _roles = await GetRoles.HandleAsync();
+        _loading = false;
+    }
+
+    // ── Create ────────────────────────────────────────────────────────────────
+
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters<RoleFormDialog>
+        {
+            { x => x.Title, "Создать роль" },
+            { x => x.Model, new RoleFormModel() }
+        };
+
+        var dialog = await DialogService.ShowAsync<RoleFormDialog>("Создать роль", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: RoleFormModel model })
+        {
+            await CreateRole.HandleAsync(new CreateRoleRequest(model.Name, model.Description, model.IsSystemRole));
+            Snackbar.Add("Роль создана", Severity.Success);
+            await LoadRolesAsync();
+        }
+    }
+
+    // ── Edit ──────────────────────────────────────────────────────────────────
+
+    private async Task OpenEditDialog(RoleDto role)
+    {
+        var parameters = new DialogParameters<RoleFormDialog>
+        {
+            { x => x.Title, "Редактировать роль" },
+            { x => x.Model, new RoleFormModel { Name = role.Name, Description = role.Description, IsSystemRole = role.IsSystemRole } }
+        };
+
+        var dialog = await DialogService.ShowAsync<RoleFormDialog>("Редактировать роль", parameters);
+        var result = await dialog.Result;
+
+        if (result is { Canceled: false, Data: RoleFormModel model })
+        {
+            await UpdateRole.HandleAsync(role.Id, new UpdateRoleRequest(model.Name, model.Description, model.IsSystemRole));
+            Snackbar.Add("Роль обновлена", Severity.Success);
+            await LoadRolesAsync();
+        }
+    }
+
+    // ── Delete ────────────────────────────────────────────────────────────────
+
+    private async Task ConfirmDelete(RoleDto role)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Удаление роли",
+            $"Удалить роль «{role.Name}»? Она будет удалена из всех тенантов.",
+            yesText: "Удалить", cancelText: "Отмена");
+
+        if (result == true)
+        {
+            await DeleteRole.HandleAsync(role.Id);
+            Snackbar.Add("Роль удалена", Severity.Success);
+            await LoadRolesAsync();
+        }
+    }
+}
+

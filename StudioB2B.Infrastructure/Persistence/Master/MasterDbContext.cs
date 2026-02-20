@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StudioB2B.Domain.Entities.Tenants;
 using TenantEntity = StudioB2B.Domain.Entities.Tenants.Tenant;
 
 namespace StudioB2B.Infrastructure.Persistence.Master;
@@ -13,6 +14,7 @@ public class MasterDbContext : DbContext
     }
 
     public DbSet<TenantEntity> Tenants => Set<TenantEntity>();
+    public DbSet<MasterRole> Roles => Set<MasterRole>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

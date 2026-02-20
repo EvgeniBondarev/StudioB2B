@@ -1,0 +1,168 @@
+@page "/users"
+@attribute [Authorize(Roles = "Admin")]
+@using StudioB2B.Application.Common.Interfaces
+@inject GetUsers GetUsers
+@inject GetAvailableRoles GetAvailableRoles
+@inject CreateUser CreateUser
+@inject UpdateUser UpdateUser
+@inject DeleteUser DeleteUser
+@inject ITenantProvider TenantProvider
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+<PageTitle>Пользователи</PageTitle>
+@if (!TenantProvider.IsResolved)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">
+        Раздел доступен только внутри тенанта
+    </MudAlert>
+}
+else
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-5">
+        <MudText Typo="Typo.h5" Style="font-weight:700;">Пользователи</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Outlined.PersonAdd"
+                   OnClick="OpenCreateDialog">
+            Добавить пользователя
+        </MudButton>
+    </MudStack>
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Class="mb-4" />
+    }
+    <MudPaper Outlined="true">
+        <MudTable Items="@_users" Hover="true" Dense="true" Loading="@_loading"
+                  LoadingProgressColor="Color.Primary" Elevation="0">
+            <HeaderContent>
+                <MudTh>Пользователь</MudTh>
+                <MudTh>Email</MudTh>
+                <MudTh>Роли</MudTh>
+                <MudTh>Статус</MudTh>
+                <MudTh>Создан</MudTh>
+                <MudTh Style="width:130px"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Пользователь">
+                    <MudText Style="font-weight:500;">
+                        @context.LastName @context.FirstName@(context.MiddleName is not null ? $" {context.MiddleName}" : "")
+                    </MudText>
+                </MudTd>
+                <MudTd DataLabel="Email">
+                    <MudText Typo="Typo.body2">@context.Email</MudText>
+                </MudTd>
+                <MudTd DataLabel="Роли">
+                    <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                        @foreach (var role in context.Roles)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary"
+                                     Variant="Variant.Outlined">@role</MudChip>
+                        }
+                    </MudStack>
+                </MudTd>
+                <MudTd DataLabel="Статус">
+                    @if (context.IsActive)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Активен</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">Отключён</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Создан">
+                    <MudText Typo="Typo.body2">@context.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy")</MudText>
+                </MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small"
+                                   Title="Редактировать" OnClick="@(() => OpenEditDialog(context))" />
+                    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small"
+                                   Color="Color.Error" Title="Удалить"
+                                   OnClick="@(() => ConfirmDelete(context))" />
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4">Пользователей пока нет</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+}
+@code {
+    private List<UserListDto> _users = [];
+    private List<string> _availableRoles = [];
+    private bool _loading = true;
+    protected override async Task OnInitializedAsync()
+    {
+        if (TenantProvider.IsResolved)
+            await LoadAsync();
+        else
+            _loading = false;
+    }
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _availableRoles = await GetAvailableRoles.HandleAsync();
+        _users = await GetUsers.HandleAsync();
+        _loading = false;
+    }
+    private async Task OpenCreateDialog()
+    {
+        var parameters = new DialogParameters<UserFormDialog>
+        {
+            { x => x.Title, "Добавить пользователя" },
+            { x => x.Model, new UserFormModel() },
+            { x => x.AvailableRoles, _availableRoles },
+            { x => x.IsEdit, false }
+        };
+        var dialog = await DialogService.ShowAsync<UserFormDialog>("Добавить пользователя", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UserFormModel m })
+        {
+            var (ok, error) = await CreateUser.HandleAsync(
+                new CreateUserRequest(m.Email, m.FirstName, m.LastName, m.MiddleName, m.Password, m.SelectedRoles));
+            if (ok) { Snackbar.Add("Пользователь создан", Severity.Success); await LoadAsync(); }
+            else Snackbar.Add(error ?? "Ошибка создания", Severity.Error);
+        }
+    }
+    private async Task OpenEditDialog(UserListDto user)
+    {
+        var model = new UserFormModel
+        {
+            Email         = user.Email,
+            FirstName     = user.FirstName,
+            LastName      = user.LastName,
+            MiddleName    = user.MiddleName,
+            IsActive      = user.IsActive,
+            SelectedRoles = [..user.Roles]
+        };
+        var parameters = new DialogParameters<UserFormDialog>
+        {
+            { x => x.Title, "Редактировать пользователя" },
+            { x => x.Model, model },
+            { x => x.AvailableRoles, _availableRoles },
+            { x => x.IsEdit, true }
+        };
+        var dialog = await DialogService.ShowAsync<UserFormDialog>("Редактировать пользователя", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: UserFormModel m })
+        {
+            var (ok, error) = await UpdateUser.HandleAsync(user.Id,
+                new UpdateUserRequest(m.FirstName, m.LastName, m.MiddleName, m.IsActive, m.SelectedRoles));
+            if (ok) { Snackbar.Add("Пользователь обновлён", Severity.Success); await LoadAsync(); }
+            else Snackbar.Add(error ?? "Ошибка обновления", Severity.Error);
+        }
+    }
+    private async Task ConfirmDelete(UserListDto user)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Удаление пользователя",
+            $"Удалить пользователя «{user.LastName} {user.FirstName}»? Действие необратимо.",
+            yesText: "Удалить", cancelText: "Отмена");
+        if (confirmed == true)
+        {
+            var (ok, error) = await DeleteUser.HandleAsync(user.Id);
+            if (ok) { Snackbar.Add("Пользователь удалён", Severity.Success); await LoadAsync(); }
+            else Snackbar.Add(error ?? "Ошибка удаления", Severity.Error);
+        }
+    }
+}
