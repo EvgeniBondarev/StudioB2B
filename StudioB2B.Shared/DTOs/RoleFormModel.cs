@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace StudioB2B.Web.Components.Common;
+namespace StudioB2B.Shared.DTOs;
 
 /// <summary>
 /// Модель формы для создания/редактирования роли

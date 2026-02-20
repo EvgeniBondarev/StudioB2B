@@ -38,11 +38,44 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                 table: "Roles",
                 column: "NormalizedName",
                 unique: true);
+
+            migrationBuilder.InsertData(
+                table: "Roles",
+                columns: ["Id", "Name", "NormalizedName", "ConcurrencyStamp", "Description", "IsSystemRole", "CreatedAtUtc"],
+                values: new object[,]
+                {
+                    {
+                        new Guid("00000000-0000-0000-0000-000000000001"),
+                        "Admin",
+                        "ADMIN",
+                        "00000000-0000-0000-0000-000000000001",
+                        "Администратор",
+                        true,
+                        new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                    },
+                    {
+                        new Guid("00000000-0000-0000-0000-000000000002"),
+                        "User",
+                        "USER",
+                        "00000000-0000-0000-0000-000000000002",
+                        "Пользователь",
+                        false,
+                        new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                    }
+                });
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DeleteData(
+                table: "Roles",
+                keyColumn: "Id",
+                keyValues: [
+                    new Guid("00000000-0000-0000-0000-000000000001"),
+                    new Guid("00000000-0000-0000-0000-000000000002")
+                ]);
+
             migrationBuilder.DropTable(
                 name: "Roles");
         }

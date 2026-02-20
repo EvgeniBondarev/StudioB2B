@@ -1,23 +1,20 @@
+using AutoMapper;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
+using StudioB2B.Shared.DTOs;
+
 namespace StudioB2B.Infrastructure.Features.Users;
-public record UserListDto(
-    Guid Id, string Email, string FirstName, string LastName, string? MiddleName,
-    bool IsActive, DateTime CreatedAtUtc, DateTime? LastLoginAtUtc, List<string> Roles);
-public record CreateUserRequest(
-    string Email, string FirstName, string LastName, string? MiddleName,
-    string Password, List<string> Roles);
-public record UpdateUserRequest(
-    string FirstName, string LastName, string? MiddleName, bool IsActive, List<string> Roles);
-public record ChangePasswordRequest(string NewPassword);
+
+
 public static class UserQueryExtensions
 {
     public static IQueryable<ApplicationUser> OrderByLastName(this IQueryable<ApplicationUser> q)
         => q.OrderBy(u => u.LastName).ThenBy(u => u.FirstName);
 }
-public class GetUsers(ITenantDbContextFactory factory)
+
+public class GetUsers(ITenantDbContextFactory factory, IMapper mapper)
 {
     public async Task<List<UserListDto>> HandleAsync(CancellationToken ct = default)
     {
@@ -30,13 +27,14 @@ public class GetUsers(ITenantDbContextFactory factory)
                 .Where(ur => ur.UserId == u.Id)
                 .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name!)
                 .ToListAsync(ct);
-            result.Add(new UserListDto(u.Id, u.Email, u.FirstName, u.LastName, u.MiddleName,
-                u.IsActive, u.CreatedAtUtc, u.LastLoginAtUtc, roles));
+            var dto = mapper.Map<UserListDto>(u) with { Roles = roles };
+            result.Add(dto);
         }
         return result;
     }
 }
-public class GetUserById(ITenantDbContextFactory factory)
+
+public class GetUserById(ITenantDbContextFactory factory, IMapper mapper)
 {
     public async Task<UserListDto?> HandleAsync(Guid id, CancellationToken ct = default)
     {
@@ -47,10 +45,10 @@ public class GetUserById(ITenantDbContextFactory factory)
             .Where(ur => ur.UserId == u.Id)
             .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name!)
             .ToListAsync(ct);
-        return new UserListDto(u.Id, u.Email, u.FirstName, u.LastName, u.MiddleName,
-            u.IsActive, u.CreatedAtUtc, u.LastLoginAtUtc, roles);
+        return mapper.Map<UserListDto>(u) with { Roles = roles };
     }
 }
+
 public class GetAvailableRoles(ITenantDbContextFactory factory)
 {
     public async Task<List<string>> HandleAsync(CancellationToken ct = default)
@@ -59,23 +57,15 @@ public class GetAvailableRoles(ITenantDbContextFactory factory)
         return await db.Roles.AsNoTracking().OrderBy(r => r.Name).Select(r => r.Name!).ToListAsync(ct);
     }
 }
-public class CreateUser(ITenantDbContextFactory factory)
+
+public class CreateUser(ITenantDbContextFactory factory, IMapper mapper)
 {
     public async Task<(bool Success, string? Error)> HandleAsync(
         CreateUserRequest request, CancellationToken ct = default)
     {
         using var db = factory.CreateDbContext();
         using var um = UserManagerFactory.Create(db);
-        var user = new ApplicationUser
-        {
-            UserName = request.Email.Trim().ToLowerInvariant(),
-            Email = request.Email.Trim().ToLowerInvariant(),
-            EmailConfirmed = true,
-            FirstName = request.FirstName.Trim(),
-            LastName = request.LastName.Trim(),
-            MiddleName = request.MiddleName?.Trim(),
-            IsActive = true
-        };
+        var user = mapper.Map<ApplicationUser>(request);
         var result = await um.CreateAsync(user, request.Password);
         if (!result.Succeeded)
             return (false, string.Join(", ", result.Errors.Select(e => e.Description)));
@@ -85,7 +75,8 @@ public class CreateUser(ITenantDbContextFactory factory)
         return (true, null);
     }
 }
-public class UpdateUser(ITenantDbContextFactory factory)
+
+public class UpdateUser(ITenantDbContextFactory factory, IMapper mapper)
 {
     public async Task<(bool Success, string? Error)> HandleAsync(
         Guid id, UpdateUserRequest request, CancellationToken ct = default)
@@ -93,10 +84,9 @@ public class UpdateUser(ITenantDbContextFactory factory)
         using var db = factory.CreateDbContext();
         var user = await db.Users.FindAsync([id], ct);
         if (user is null) return (false, "Пользователь не найден");
-        user.FirstName = request.FirstName.Trim();
-        user.LastName = request.LastName.Trim();
-        user.MiddleName = request.MiddleName?.Trim();
-        user.IsActive = request.IsActive;
+
+        mapper.Map(request, user);
+
         using var um = UserManagerFactory.Create(db);
         var current = await um.GetRolesAsync(user);
         var toRemove = current.Except(request.Roles).ToList();
@@ -111,22 +101,8 @@ public class UpdateUser(ITenantDbContextFactory factory)
             : (false, string.Join(", ", result.Errors.Select(e => e.Description)));
     }
 }
-public class ChangeUserPassword(ITenantDbContextFactory factory)
-{
-    public async Task<(bool Success, string? Error)> HandleAsync(
-        Guid id, ChangePasswordRequest request, CancellationToken ct = default)
-    {
-        using var db = factory.CreateDbContext();
-        var user = await db.Users.FindAsync([id], ct);
-        if (user is null) return (false, "Пользователь не найден");
-        using var um = UserManagerFactory.Create(db);
-        var token = await um.GeneratePasswordResetTokenAsync(user);
-        var result = await um.ResetPasswordAsync(user, token, request.NewPassword);
-        return result.Succeeded
-            ? (true, null)
-            : (false, string.Join(", ", result.Errors.Select(e => e.Description)));
-    }
-}
+
+
 public class DeleteUser(ITenantDbContextFactory factory)
 {
     public async Task<(bool Success, string? Error)> HandleAsync(
@@ -142,6 +118,7 @@ public class DeleteUser(ITenantDbContextFactory factory)
             : (false, string.Join(", ", result.Errors.Select(e => e.Description)));
     }
 }
+
 internal static class UserManagerFactory
 {
     internal static UserManager<ApplicationUser> Create(TenantDbContext db)
@@ -160,3 +137,5 @@ internal static class UserManagerFactory
             Microsoft.Extensions.Logging.Abstractions.NullLogger<UserManager<ApplicationUser>>.Instance);
     }
 }
+
+
