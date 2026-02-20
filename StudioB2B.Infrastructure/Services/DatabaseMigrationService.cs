@@ -33,22 +33,13 @@ public class DatabaseMigrationService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        // Читаем настройку напрямую из конфигурации (учитывает appsettings.Development.json)
-        var applyMigrations = _configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
-        var connectionString = _configuration.GetConnectionString("MasterDb") ?? "";
-        
-        _logger.LogInformation("Environment: {Environment}, ApplyMigrationsOnStartup: {ApplyMigrations}, Database: {Database}",
-            _environment.EnvironmentName, 
-            applyMigrations,
-            connectionString.Contains("Database=") 
-                ? connectionString.Split("Database=")[1].Split(";")[0] 
-                : "unknown");
 
-        if (!applyMigrations)
-        {
-            _logger.LogInformation("Database migrations are disabled in configuration. Skipping...");
-            return;
-        }
+        var connectionString = _configuration.GetConnectionString("MasterDb") ?? "";
+        _logger.LogInformation("Environment: {Environment}, Database: {Database}",
+            _environment.EnvironmentName,
+            connectionString.Contains("Database=")
+                ? connectionString.Split("Database=")[1].Split(";")[0]
+                : "unknown");
 
         _logger.LogInformation("Applying database migrations...");
 

@@ -9,7 +9,6 @@
 
     <ItemGroup>
       <Folder Include="Components\Common\" />
-      <Folder Include="Components\Controllers\" />
     </ItemGroup>
 
     <ItemGroup>
