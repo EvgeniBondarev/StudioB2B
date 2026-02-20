@@ -40,7 +40,7 @@
                                       @bind-Value="_reg.Subdomain" For="@(() => _reg.Subdomain)"
                                       Variant="Variant.Outlined" Margin="Margin.Dense"
                                       Adornment="Adornment.End" AdornmentText=".localhost"
-                                      HelperText="Только a-z, 0-9, дефис (3–30 символов)"
+                                      HelperText="Только a-z, 0-9, дефис (3–5 символов)"
                                       Class="mb-3" FullWidth="true" />
 
                         <MudTextField T="string" Label="Email администратора"
@@ -291,7 +291,7 @@ else
         public string CompanyName { get; set; } = "";
 
         [Required(ErrorMessage = "Введите субдомен")]
-        [RegularExpression(@"^[a-z0-9-]{3,30}$", ErrorMessage = "Только a-z, 0-9, дефис (3–30 символов)")]
+        [RegularExpression(@"^[a-z0-9-]{3,5}$", ErrorMessage = "Только a-z, 0-9, дефис (3–5 символов)")]
         public string Subdomain { get; set; } = "";
 
         [Required(ErrorMessage = "Введите email")]
