@@ -1,7 +1,10 @@
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Domain.Entities.Tenants;
 using StudioB2B.Infrastructure.Persistence.Master;
+using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Features.Roles;
 
@@ -20,90 +23,68 @@ public static class RoleQueryExtensions
         => query.OrderBy(r => r.Name);
 }
 
-// ─── DTOs ────────────────────────────────────────────────────────────────────
-
-public record RoleDto(
-    Guid Id,
-    string Name,
-    string? Description,
-    bool IsSystemRole,
-    DateTime CreatedAtUtc);
-
-public record CreateRoleRequest(string Name, string? Description, bool IsSystemRole);
-public record UpdateRoleRequest(string Name, string? Description, bool IsSystemRole);
 
 // ─── GetRoles ─────────────────────────────────────────────────────────────────
 
-public class GetRoles(MasterDbContext db)
+public class GetRoles(MasterDbContext db, IMapper mapper)
 {
     public async Task<List<RoleDto>> HandleAsync(CancellationToken ct = default)
     {
         return await db.Roles
             .AsNoTracking()
             .OrderByName()
-            .Select(r => new RoleDto(r.Id, r.Name, r.Description, r.IsSystemRole, r.CreatedAtUtc))
+            .ProjectTo<RoleDto>(mapper.ConfigurationProvider)
             .ToListAsync(ct);
     }
 }
 
 // ─── GetRoleById ──────────────────────────────────────────────────────────────
 
-public class GetRoleById(MasterDbContext db)
+public class GetRoleById(MasterDbContext db, IMapper mapper)
 {
     public async Task<RoleDto?> HandleAsync(Guid id, CancellationToken ct = default)
     {
         return await db.Roles
             .AsNoTracking()
             .Where(r => r.Id == id)
-            .Select(r => new RoleDto(r.Id, r.Name, r.Description, r.IsSystemRole, r.CreatedAtUtc))
+            .ProjectTo<RoleDto>(mapper.ConfigurationProvider)
             .FirstOrDefaultAsync(ct);
     }
 }
 
 // ─── CreateRole ───────────────────────────────────────────────────────────────
 
-public class CreateRole(MasterDbContext db, IRoleSyncPublisher sync)
+public class CreateRole(MasterDbContext db, IMapper mapper, IRoleSyncPublisher sync)
 {
     public async Task<RoleDto> HandleAsync(CreateRoleRequest request, CancellationToken ct = default)
     {
-        var role = new MasterRole
-        {
-            Name = request.Name.Trim(),
-            NormalizedName = request.Name.Trim().ToUpperInvariant(),
-            ConcurrencyStamp = Guid.NewGuid().ToString(),
-            Description = request.Description?.Trim(),
-            IsSystemRole = request.IsSystemRole
-        };
+        var role = mapper.Map<MasterRole>(request);
 
         db.Roles.Add(role);
         await db.SaveChangesAsync(ct);
 
         sync.Publish(role.Id, role.Name, role.Description, role.IsSystemRole, RoleSyncAction.Upsert);
 
-        return new RoleDto(role.Id, role.Name, role.Description, role.IsSystemRole, role.CreatedAtUtc);
+        return mapper.Map<RoleDto>(role);
     }
 }
 
 // ─── UpdateRole ───────────────────────────────────────────────────────────────
 
-public class UpdateRole(MasterDbContext db, IRoleSyncPublisher sync)
+public class UpdateRole(MasterDbContext db, IMapper mapper, IRoleSyncPublisher sync)
 {
     public async Task<RoleDto?> HandleAsync(Guid id, UpdateRoleRequest request, CancellationToken ct = default)
     {
         var role = await db.Roles.FindAsync([id], ct);
         if (role is null) return null;
 
-        role.Name = request.Name.Trim();
-        role.NormalizedName = request.Name.Trim().ToUpperInvariant();
-        role.Description = request.Description?.Trim();
-        role.IsSystemRole = request.IsSystemRole;
-        role.ConcurrencyStamp = Guid.NewGuid().ToString();
+        mapper.Map(request, role);
 
         await db.SaveChangesAsync(ct);
 
         sync.Publish(role.Id, role.Name, role.Description, role.IsSystemRole, RoleSyncAction.Upsert);
 
-        return new RoleDto(role.Id, role.Name, role.Description, role.IsSystemRole, role.CreatedAtUtc);
+        return mapper.Map<RoleDto>(role);
     }
 }
 

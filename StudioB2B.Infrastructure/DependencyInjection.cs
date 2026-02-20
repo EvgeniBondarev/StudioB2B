@@ -28,6 +28,9 @@ public static class DependencyInjection
         services.Configure<MultiTenancyOptions>(
             configuration.GetSection(MultiTenancyOptions.SectionName));
 
+        // AutoMapper — scan all profiles in this assembly
+        services.AddAutoMapper(typeof(DependencyInjection).Assembly);
+
         // Master DbContext (MySQL)
         services.AddDbContext<MasterDbContext>(options =>
         {
@@ -127,7 +130,6 @@ public static class DependencyInjection
         services.AddScoped<GetAvailableRoles>();
         services.AddScoped<CreateUser>();
         services.AddScoped<UpdateUser>();
-        services.AddScoped<ChangeUserPassword>();
         services.AddScoped<DeleteUser>();
 
         return services;

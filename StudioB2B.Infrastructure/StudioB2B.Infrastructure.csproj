@@ -18,8 +18,8 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
       <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.*" />
-      <PackageReference Include="Mapster" Version="7.4.*" />
       <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.*" />
       <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.*" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.*">
@@ -32,6 +32,7 @@
     <ItemGroup>
       <ProjectReference Include="..\StudioB2B.Domain\StudioB2B.Domain.csproj" />
       <ProjectReference Include="..\StudioB2B.Application\StudioB2B.Application.csproj" />
+      <ProjectReference Include="..\StudioB2B.Shared\StudioB2B.Shared.csproj" />
     </ItemGroup>
 
 </Project>
