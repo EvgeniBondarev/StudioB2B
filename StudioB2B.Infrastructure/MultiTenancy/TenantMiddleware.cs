@@ -54,12 +54,7 @@ public class TenantMiddleware
             }
         }
 
-        // localhost:port или 127.0.0.1 - используем дефолтный субдомен для разработки
-        if (hostValue.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            hostValue.StartsWith("127.0.0.1", StringComparison.OrdinalIgnoreCase))
-        {
-            return options.DefaultSubdomain;
-        }
+        // Чистый localhost без субдомена — тенант не определяется, показывается страница регистрации
 
         // Извлекаем субдомен из host: demo.studiob2b.com -> demo
         var masterDomain = options.MasterDomain;
