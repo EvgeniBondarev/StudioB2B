@@ -1,165 +1,308 @@
 ﻿@page "/"
 @using StudioB2B.Application.Common.Interfaces
-@using Microsoft.AspNetCore.Components.Authorization
+@using System.ComponentModel.DataAnnotations
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
-@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
 <PageTitle>StudioB2B</PageTitle>
 
-<div class="container mt-4">
-    <h1>StudioB2B</h1>
-    <p class="lead">Multi-Tenant Order Management System</p>
+@if (!TenantProvider.IsResolved)
+{
+    <!-- ── NO SUBDOMAIN: Register new Tenant ── -->
+    <MudGrid Justify="Justify.Center" Class="mt-8">
+        <MudItem xs="12" sm="8" md="5">
+            <MudPaper Outlined="true" Class="pa-8">
+                <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true" Style="font-weight:700;">StudioB2B</MudText>
+                <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mb-4">
+                    Создайте рабочее пространство для вашей компании
+                </MudText>
 
-    <hr />
+                <MudDivider Class="mb-5" />
 
-    <div class="row">
-        <!-- Информация о пользователе -->
-        <div class="col-md-6 mb-3">
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">Текущий пользователь</h5>
-                </div>
-                <div class="card-body">
-                    <AuthorizeView>
-                        <Authorized>
-                            <table class="table table-sm mb-2">
-                                <tr>
-                                    <th>Статус:</th>
-                                    <td><span class="badge bg-success">Авторизован</span></td>
-                                </tr>
-                                <tr>
-                                    <th>Email:</th>
-                                    <td><code>@context.User.Identity?.Name</code></td>
-                                </tr>
-                                @if (context.User.IsInRole("Admin"))
-                                {
-                                    <tr>
-                                        <th>Роль:</th>
-                                        <td><span class="badge bg-danger">Admin</span></td>
-                                    </tr>
-                                }
-                            </table>
-                            <a href="/account/logout" class="btn btn-outline-danger btn-sm">
-                                Выйти
-                            </a>
-                        </Authorized>
-                        <NotAuthorized>
-                            <div class="alert alert-info mb-0">
-                                <strong>Вы не авторизованы.</strong>
-                                <p class="mb-2">Войдите в систему для доступа к функциям.</p>
-                                <a href="/login" class="btn btn-primary btn-sm">Войти</a>
-                            </div>
-                        </NotAuthorized>
-                    </AuthorizeView>
-                </div>
-            </div>
-        </div>
+                @if (_registerSuccess)
+                {
+                    <MudAlert Severity="Severity.Success" Variant="Variant.Filled">
+                        Компания зарегистрирована! Перенаправление...
+                    </MudAlert>
+                }
+                else
+                {
+                    <EditForm Model="@_reg" OnValidSubmit="HandleRegister">
+                        <DataAnnotationsValidator />
 
-        <!-- Информация о тенанте -->
-        <div class="col-md-6 mb-3">
-            <div class="card">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">Информация о тенанте</h5>
-                </div>
-                <div class="card-body">
-                    @if (TenantProvider.IsResolved)
-                    {
-                        <table class="table table-sm mb-0">
-                            <tr>
-                                <th>Статус:</th>
-                                <td><span class="badge bg-success">Подключён</span></td>
-                            </tr>
-                            <tr>
-                                <th>Субдомен:</th>
-                                <td><code>@TenantProvider.Subdomain</code></td>
-                            </tr>
-                            <tr>
-                                <th>Tenant ID:</th>
-                                <td><code style="font-size: 0.75em;">@TenantProvider.TenantId</code></td>
-                            </tr>
-                            @if (_tenant != null)
+                        <MudTextField T="string" Label="Название компании"
+                                      @bind-Value="_reg.CompanyName" For="@(() => _reg.CompanyName)"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" FullWidth="true" />
+
+                        <MudTextField T="string" Label="Субдомен"
+                                      @bind-Value="_reg.Subdomain" For="@(() => _reg.Subdomain)"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      Adornment="Adornment.End" AdornmentText=".localhost"
+                                      HelperText="Только a-z, 0-9, дефис (3–5 символов)"
+                                      Class="mb-3" FullWidth="true" />
+
+                        <MudTextField T="string" Label="Email администратора"
+                                      @bind-Value="_reg.AdminEmail" For="@(() => _reg.AdminEmail)"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      InputType="InputType.Email" Class="mb-3" FullWidth="true" />
+
+                        <MudTextField T="string" Label="Пароль"
+                                      @bind-Value="_reg.Password" For="@(() => _reg.Password)"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      InputType="InputType.Password" HelperText="Минимум 6 символов"
+                                      Class="mb-3" FullWidth="true" />
+
+                        <MudTextField T="string" Label="Подтверждение пароля"
+                                      @bind-Value="_reg.ConfirmPassword" For="@(() => _reg.ConfirmPassword)"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense"
+                                      InputType="InputType.Password" Class="mb-5" FullWidth="true" />
+
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"
+                                   Color="Color.Primary" FullWidth="true" Disabled="@_regLoading">
+                            @if (_regLoading)
                             {
-                                <tr>
-                                    <th>Компания:</th>
-                                    <td><strong>@_tenant.Name</strong></td>
-                                </tr>
-                                <tr>
-                                    <th>Тариф:</th>
-                                    <td>
-                                        <span class="badge bg-primary">@_tenant.Tariff</span>
-                                        @if (_tenant.IsTrialExpired())
-                                        {
-                                            <span class="badge bg-danger ms-1">Истёк</span>
-                                        }
-                                    </td>
-                                </tr>
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                <span>Создание...</span>
+                            }
+                            else
+                            {
+                                <span>Создать рабочее пространство</span>
+                            }
+                        </MudButton>
+
+                        <ValidationSummary />
+                    </EditForm>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+else
+{
+    <AuthorizeView>
+        <NotAuthorized>
+            <!-- ── SUBDOMAIN + NOT AUTH: Login ── -->
+            <MudGrid Justify="Justify.Center" Class="mt-8">
+                <MudItem xs="12" sm="8" md="5">
+                    <MudPaper Outlined="true" Class="pa-8">
+                        <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true" Style="font-weight:700;">StudioB2B</MudText>
+                        <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mb-4">
+                            Вход в <strong>@TenantProvider.Subdomain</strong>
+                        </MudText>
+
+                        <MudDivider Class="mb-5" />
+
+                        @if (Error == "invalid")
+                        {
+                            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">Неверный email или пароль</MudAlert>
+                        }
+                        else if (Error == "inactive")
+                        {
+                            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">Аккаунт деактивирован</MudAlert>
+                        }
+                        else if (Error == "error")
+                        {
+                            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">Произошла ошибка при входе</MudAlert>
+                        }
+
+                        <form method="post" action="/account/login">
+                            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+
+                            <MudTextField T="string" Label="Email"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          InputType="InputType.Email" Name="email"
+                                          Required="true" Class="mb-3" FullWidth="true" />
+
+                            <MudTextField T="string" Label="Пароль"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                                          InputType="InputType.Password" Name="password"
+                                          Required="true" Class="mb-3" FullWidth="true" />
+
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                                <MudCheckBox T="bool" @bind-Value="@_rememberMe"
+                                             Label="Запомнить меня" Color="Color.Primary" Dense="true" />
+                                <input type="hidden" name="rememberMe" value="@_rememberMe" />
+                            </MudStack>
+
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"
+                                       Color="Color.Primary" FullWidth="true">
+                                Войти
+                            </MudButton>
+                        </form>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </NotAuthorized>
+
+        <Authorized>
+            <!-- ── SUBDOMAIN + AUTH: Profile ── -->
+            <MudGrid Justify="Justify.Center" Class="mt-8">
+                <MudItem xs="12" sm="8" md="5">
+                    <MudPaper Outlined="true" Class="pa-8">
+                        <MudStack AlignItems="AlignItems.Center" Spacing="2" Class="mb-5">
+                            <MudAvatar Color="Color.Primary" Style="width:64px;height:64px;font-size:1.5rem;">
+                                @GetInitials(context.User.Identity?.Name)
+                            </MudAvatar>
+                            <MudText Typo="Typo.h6" Style="font-weight:600;">
+                                @context.User.Identity?.Name
+                            </MudText>
+                            @if (context.User.IsInRole("Admin"))
+                            {
+                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined">Admin</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Outlined">User</MudChip>
+                            }
+                        </MudStack>
+
+                        <MudDivider Class="mb-4" />
+
+                        @if (_tenant != null)
+                        {
+                            <MudList T="string" Dense="true" DisablePadding="true">
+                                <MudListItem T="string" DisableRipple="true">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Компания</MudText>
+                                        <MudText Typo="Typo.body2">@_tenant.Name</MudText>
+                                    </MudStack>
+                                </MudListItem>
+                                <MudDivider />
+                                <MudListItem T="string" DisableRipple="true">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Субдомен</MudText>
+                                        <MudText Typo="Typo.body2">@TenantProvider.Subdomain</MudText>
+                                    </MudStack>
+                                </MudListItem>
+                                <MudDivider />
+                                <MudListItem T="string" DisableRipple="true">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Тариф</MudText>
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">@_tenant.Tariff</MudChip>
+                                            @if (_tenant.IsTrialExpired())
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">Истёк</MudChip>
+                                            }
+                                        </MudStack>
+                                    </MudStack>
+                                </MudListItem>
                                 @if (_tenant.TrialExpiresAtUtc.HasValue)
                                 {
-                                    <tr>
-                                        <th>Триал до:</th>
-                                        <td>@_tenant.TrialExpiresAtUtc.Value.ToString("dd.MM.yyyy HH:mm")</td>
-                                    </tr>
+                                    <MudDivider />
+                                    <MudListItem T="string" DisableRipple="true">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                            <MudText Typo="Typo.body2" Color="Color.Secondary">Триал до</MudText>
+                                            <MudText Typo="Typo.body2">@_tenant.TrialExpiresAtUtc.Value.ToString("dd.MM.yyyy")</MudText>
+                                        </MudStack>
+                                    </MudListItem>
                                 }
-                                <tr>
-                                    <th>Создан:</th>
-                                    <td>@_tenant.CreatedAtUtc.ToString("dd.MM.yyyy HH:mm")</td>
-                                </tr>
-                            }
-                        </table>
-                    }
-                    else
-                    {
-                        <div class="alert alert-warning mb-0">
-                            <strong>Тенант не определён.</strong>
-                            <p class="mb-0">Перейдите по адресу вашей компании.</p>
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
+                                <MudDivider />
+                                <MudListItem T="string" DisableRipple="true">
+                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Создан</MudText>
+                                        <MudText Typo="Typo.body2">@_tenant.CreatedAtUtc.ToString("dd.MM.yyyy")</MudText>
+                                    </MudStack>
+                                </MudListItem>
+                            </MudList>
+                        }
 
-    <!-- Быстрые ссылки -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0">Быстрые ссылки</h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex gap-2 flex-wrap">
-                        <AuthorizeView>
-                            <NotAuthorized>
-                                @if (TenantProvider.IsResolved)
-                                {
-                                    <a href="/login" class="btn btn-primary">
-                                        Войти в систему
-                                    </a>
-                                }
-                            </NotAuthorized>
-                        </AuthorizeView>
-                        <a href="/register" class="btn btn-success">
-                            Зарегистрировать компанию
-                        </a>
-                        <a href="/health" class="btn btn-outline-secondary">
-                            Health Check
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                        <MudDivider Class="my-4" />
+
+                        <MudButton Href="/account/logout" Variant="Variant.Outlined"
+                                   Color="Color.Error" FullWidth="true"
+                                   StartIcon="@Icons.Material.Outlined.Logout">
+                            Выйти
+                        </MudButton>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </Authorized>
+    </AuthorizeView>
+}
 
 @code {
-    private StudioB2B.Domain.Entities.Tenants.Tenant? _tenant;
+    private Domain.Entities.Tenants.Tenant? _tenant;
+    private bool _rememberMe = true;
+
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    private RegisterModel _reg = new();
+    private bool _regLoading;
+    private bool _registerSuccess;
 
     protected override async Task OnInitializedAsync()
     {
         if (TenantProvider.IsResolved && TenantProvider.TenantId.HasValue)
-        {
             _tenant = await TenantService.GetByIdAsync(TenantProvider.TenantId.Value);
+    }
+
+    private async Task HandleRegister()
+    {
+        _regLoading = true;
+        try
+        {
+            if (_reg.Password != _reg.ConfirmPassword)
+            {
+                Snackbar.Add("Пароли не совпадают", Severity.Error);
+                return;
+            }
+
+            var result = await TenantService.RegisterAsync(_reg.CompanyName, _reg.Subdomain, _reg.AdminEmail, _reg.Password);
+
+            if (result.Success)
+            {
+                _registerSuccess = true;
+                Snackbar.Add("Компания успешно зарегистрирована!", Severity.Success);
+                await Task.Delay(1500);
+                var uri = new Uri(Navigation.Uri);
+                var port = uri.Port is 80 or 443 ? "" : $":{uri.Port}";
+                Navigation.NavigateTo($"http://{_reg.Subdomain}.localhost{port}/", true);
+            }
+            else
+            {
+                Snackbar.Add(result.Error ?? "Ошибка регистрации", Severity.Error);
+            }
         }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _regLoading = false;
+        }
+    }
+
+    private static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var local = name.Split('@')[0];
+        return local.Length >= 2 ? local[..2].ToUpper() : local.ToUpper();
+    }
+
+    public class RegisterModel
+    {
+        [Required(ErrorMessage = "Введите название компании")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "От 2 до 100 символов")]
+        public string CompanyName { get; set; } = "";
+
+        [Required(ErrorMessage = "Введите субдомен")]
+        [RegularExpression(@"^[a-z0-9-]{3,5}$", ErrorMessage = "Только a-z, 0-9, дефис (3–5 символов)")]
+        public string Subdomain { get; set; } = "";
+
+        [Required(ErrorMessage = "Введите email")]
+        [EmailAddress(ErrorMessage = "Некорректный email")]
+        public string AdminEmail { get; set; } = "";
+
+        [Required(ErrorMessage = "Введите пароль")]
+        [MinLength(6, ErrorMessage = "Минимум 6 символов")]
+        public string Password { get; set; } = "";
+
+        [Required(ErrorMessage = "Подтвердите пароль")]
+        public string ConfirmPassword { get; set; } = "";
     }
 }

@@ -79,13 +79,6 @@ public class TenantCircuitHandler : CircuitHandler
             return hostValue[..^".localhost".Length].ToLowerInvariant();
         }
 
-        // localhost или 127.0.0.1 -> default
-        if (hostValue.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            hostValue.StartsWith("127.0.0.1", StringComparison.OrdinalIgnoreCase))
-        {
-            return "demo"; // Default для разработки
-        }
-
         // demo.studiob2b.com -> demo
         var parts = hostValue.Split('.');
         if (parts.Length >= 2)

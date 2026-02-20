@@ -1,23 +1,70 @@
 ﻿@inherits LayoutComponentBase
+@using StudioB2B.Application.Common.Interfaces
+@inject ITenantProvider TenantProvider
+@inject IJSRuntime Js
+@implements IDisposable
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu/>
-    </div>
+<MudThemeProvider @ref="_mud" Theme="_isDark ? AppTheme.Dark : AppTheme.Light" IsDarkMode="_isDark" DefaultScrollbar="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+<MudLayout>
+    <MudAppBar Elevation="1" Dense="true">
+        <MudText Typo="Typo.h6" Style="font-weight:700; letter-spacing:-0.5px;">
+            StudioB2B
+        </MudText>
 
-        <article class="content px-4">
+        <MudSpacer />
+
+        @if (TenantProvider.IsResolved)
+        {
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Class="mr-1">
+                @TenantProvider.Subdomain
+            </MudChip>
+        }
+
+        <MudIconButton
+            Icon="@(_isDark ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)"
+            Color="Color.Inherit"
+            Size="Size.Small"
+            Title="Переключить тему"
+            OnClick="ToggleTheme" />
+
+        <AuthorizeView>
+            <Authorized>
+                <MudText Typo="Typo.body2" Class="ml-2 mr-1">@context.User.Identity?.Name</MudText>
+                <MudIconButton Icon="@Icons.Material.Outlined.Logout" Color="Color.Inherit" Size="Size.Small" Href="/account/logout" Title="Выйти" />
+            </Authorized>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="pa-6">
             @Body
-        </article>
-    </main>
-</div>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
 
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
-</div>
+@code {
+    private MudThemeProvider _mud = null!;
+    private bool _isDark;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var stored = await Js.InvokeAsync<string?>("localStorage.getItem", "theme");
+            _isDark = stored == "dark" || (stored == null && await _mud.GetSystemPreference());
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleTheme()
+    {
+        _isDark = !_isDark;
+        await Js.InvokeVoidAsync("localStorage.setItem", "theme", _isDark ? "dark" : "light");
+    }
+
+    public void Dispose() { }
+}
