@@ -93,15 +93,44 @@ public partial class TenantService : ITenantService
 
             _logger.LogInformation("Tenant created: {TenantId} ({Subdomain})", tenant.Id, normalizedSubdomain);
 
-            // Создание базы данных тенанта
-            await CreateTenantDatabaseAsync(connectionString, ct);
+            try
+            {
+                // Создание базы данных тенанта
+                await CreateTenantDatabaseAsync(connectionString, ct);
 
-            // Создание администратора в базе тенанта
-            await CreateTenantAdminAsync(connectionString, adminEmail, adminPassword, ct);
+                // Создание администратора в базе тенанта
+                await CreateTenantAdminAsync(connectionString, adminEmail, adminPassword, ct);
 
-            _logger.LogInformation("Tenant registration completed: {TenantId}", tenant.Id);
+                _logger.LogInformation("Tenant registration completed: {TenantId}", tenant.Id);
+                return new TenantRegistrationResult(true, tenant.Id);
+            }
+            catch
+            {
+                _logger.LogWarning("Registration failed after tenant creation, rolling back resources for {Subdomain}", normalizedSubdomain);
 
-            return new TenantRegistrationResult(true, tenant.Id);
+                // попытка удалить базу данных, если она была создана
+                try
+                {
+                    await DropTenantDatabaseAsync(connectionString, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to drop tenant database during rollback for {Subdomain}", normalizedSubdomain);
+                }
+
+                // удалить запись о тeнанте из мастер- БД
+                try
+                {
+                    _masterDb.Tenants.Remove(tenant);
+                    await _masterDb.SaveChangesAsync(ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to remove tenant record during rollback for {Subdomain}", normalizedSubdomain);
+                }
+
+                throw; // propagate original error to caller
+            }
         }
         catch (Exception ex)
         {
@@ -147,6 +176,18 @@ public partial class TenantService : ITenantService
         await context.Database.MigrateAsync(ct);
 
         _logger.LogInformation("Tenant database created and migrated");
+    }
+
+    private async Task DropTenantDatabaseAsync(string connectionString, CancellationToken ct)
+    {
+        var optionsBuilder = new DbContextOptionsBuilder<TenantDbContext>();
+        optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+
+        await using var context = new TenantDbContext(optionsBuilder.Options);
+        // ensure deletion (won't throw if not exists)
+        await context.Database.EnsureDeletedAsync(ct);
+
+        _logger.LogInformation("Tenant database dropped during rollback");
     }
 
     private async Task CreateTenantAdminAsync(
