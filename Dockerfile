@@ -13,11 +13,13 @@ COPY StudioB2B.Infrastructure/StudioB2B.Infrastructure.csproj StudioB2B.Infrastr
 COPY StudioB2B.Shared/StudioB2B.Shared.csproj StudioB2B.Shared/
 COPY StudioB2B.Web/StudioB2B.Web.csproj StudioB2B.Web/
 
+# Restore dependencies
+RUN dotnet restore StudioB2B.sln
 
-# Copy all source code
+# Copy source code
 COPY . .
 
-# Restore and publish in one layer to avoid NuGet cache issues
+# Build and publish
 RUN dotnet publish StudioB2B.Web/StudioB2B.Web.csproj \
     -c Release \
     -o /app/publish
