@@ -8,7 +8,7 @@ public class MultiTenancyOptions
     public const string SectionName = "MultiTenancy";
 
     /// <summary>
-    /// Мастер-домен (например, studiob2b.com)
+    /// Мастер-домен (например, studiob2b.ru) - все субдомены которого являются тенантами
     /// </summary>
     public string MasterDomain { get; set; } = "localhost";
 
