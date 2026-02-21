@@ -83,11 +83,13 @@ public class TenantMiddleware
         if (tenant != null)
         {
             tenantProvider.SetTenant(tenant);
+            Console.WriteLine($"Tenant resolved: {tenant.Id} ({subdomain})");
             _logger.LogDebug("Tenant resolved: {TenantId} ({Subdomain})", tenant.Id, subdomain);
         }
         else
         {
             _logger.LogDebug("Tenant not found for subdomain: {Subdomain}", subdomain);
+            Console.WriteLine($"Tenant not found for subdomain: {subdomain}");
         }
     }
 }
