@@ -1,0 +1,24 @@
+@using StudioB2B.Application.Common.Interfaces
+@inject ITenantProvider TenantProvider
+
+@if (TenantProvider.IsResolved)
+{
+    <MudContainer MaxWidth="MaxWidth.Small" Class="mt-12">
+        <MudPaper Outlined="true" Class="pa-8 text-center">
+            <MudIcon Icon="@Icons.Material.Outlined.Lock" Color="Color.Error" Size="Size.Large" Class="mb-3" />
+            <MudText Typo="Typo.h5" GutterBottom="true">Доступ запрещён</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Этот раздел доступен только с главной страницы системы (<strong>localhost</strong>).
+            </MudText>
+        </MudPaper>
+    </MudContainer>
+}
+else
+{
+    @ChildContent
+}
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}
+

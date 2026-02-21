@@ -19,9 +19,24 @@
 
         @if (TenantProvider.IsResolved)
         {
+            <AuthorizeView Roles="Admin">
+                <Authorized>
+                    <MudButton Href="/users" StartIcon="@Icons.Material.Outlined.People"
+                               Variant="Variant.Text" Color="Color.Inherit" Size="Size.Small" Class="mr-1">
+                        Пользователи
+                    </MudButton>
+                </Authorized>
+            </AuthorizeView>
             <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Class="mr-1">
                 @TenantProvider.Subdomain
             </MudChip>
+        }
+        else
+        {
+            <MudButton Href="/roles" StartIcon="@Icons.Material.Outlined.ManageAccounts"
+                       Variant="Variant.Text" Color="Color.Inherit" Size="Size.Small" Class="mr-1">
+                Роли
+            </MudButton>
         }
 
         <MudIconButton
@@ -54,8 +69,22 @@
     {
         if (firstRender)
         {
-            var stored = await Js.InvokeAsync<string?>("localStorage.getItem", "theme");
-            _isDark = stored == "dark" || (stored == null && await _mud.GetSystemPreference());
+            var prefersAttr = await Js.InvokeAsync<string?>(
+                "eval", "document.documentElement.getAttribute('data-prefers-dark')");
+
+            if (prefersAttr == "1")
+            {
+                _isDark = true;
+            }
+            else
+            {
+                var stored = await Js.InvokeAsync<string?>("localStorage.getItem", "theme");
+                _isDark = stored == "dark" || (stored == null && await _mud.GetSystemPreference());
+            }
+
+            await Js.InvokeVoidAsync(
+                "eval", "document.body.classList.remove('theme-unresolved')");
+
             StateHasChanged();
         }
     }
@@ -64,6 +93,11 @@
     {
         _isDark = !_isDark;
         await Js.InvokeVoidAsync("localStorage.setItem", "theme", _isDark ? "dark" : "light");
+        await Js.InvokeVoidAsync(
+            "eval",
+            _isDark
+                ? "document.documentElement.setAttribute('data-prefers-dark','1')"
+                : "document.documentElement.removeAttribute('data-prefers-dark')");
     }
 
     public void Dispose() { }
