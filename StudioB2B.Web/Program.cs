@@ -8,7 +8,7 @@ using StudioB2B.Web.Components;
 using System.Net;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.CookiePolicy;
-using Microsoft.AspNetCore.DataProtection; // Добавить
+using Microsoft.AspNetCore.DataProtection;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -33,33 +33,31 @@ try
         .SetApplicationName("StudioB2B")
         .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
 
-    // Настройка прокси - исправленный вариант
+    // Настройка прокси - оставляем для будущего использования
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
                                    ForwardedHeaders.XForwardedProto |
-                                   ForwardedHeaders.XForwardedHost;  // Добавили Host
+                                   ForwardedHeaders.XForwardedHost;
 
         options.KnownNetworks.Clear();
         options.KnownProxies.Clear();
 
-        // Добавляем доверенные прокси
         options.KnownProxies.Add(IPAddress.Parse("127.0.0.1"));
         options.KnownProxies.Add(IPAddress.Parse("::1"));
 
-        // Эти настройки помогут правильно определить схему
         options.ForwardLimit = null;
         options.RequireHeaderSymmetry = false;
     });
 
-    // Добавляем аутентификацию и авторизацию
+    // Добавляем аутентификацию и авторизацию - ВРЕМЕННО для HTTP
     builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
         .AddCookie(options =>
         {
             options.Cookie.Name = ".StudioB2B.Auth";
             options.Cookie.Domain = ".studiob2b.ru";
             options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.None; // Изменено на None для HTTP
             options.Cookie.SameSite = SameSiteMode.Lax;
             options.Cookie.IsEssential = true;
 
@@ -98,14 +96,16 @@ try
         app.UseHsts();
     }
 
-    app.UseHttpsRedirection();
+    // ВРЕМЕННО отключаем HTTPS редирект
+    // app.UseHttpsRedirection();
 
     app.MapStaticAssets();
 
+    // ВРЕМЕННО изменяем CookiePolicy для HTTP
     app.UseCookiePolicy(new CookiePolicyOptions
     {
         MinimumSameSitePolicy = SameSiteMode.Lax,
-        Secure = CookieSecurePolicy.Always,
+        Secure = CookieSecurePolicy.None, // Изменено на None для HTTP
         HttpOnly = HttpOnlyPolicy.Always
     });
 
