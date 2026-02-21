@@ -44,7 +44,7 @@ ENV ASPNETCORE_URLS=http://+:5184
 ENV ConnectionStrings__MasterDb=""
 
 # Multi-tenancy settings
-ENV MultiTenancy__MasterDomain="studiob2b.com"
+ENV MultiTenancy__MasterDomain="studiob2b.ru"
 ENV MultiTenancy__DefaultSubdomain="demo"
 
 # Tenant DB connection string template (for per-tenant databases)
