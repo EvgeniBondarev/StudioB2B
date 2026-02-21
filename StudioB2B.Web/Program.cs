@@ -17,7 +17,11 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     builder.Host.UseSerilog((context, _, configuration) =>
-        configuration.ReadFrom.Configuration(context.Configuration));
+        configuration
+            .ReadFrom.Configuration(context.Configuration)
+            // гарантируем, что логи Microsoft/EF будут внести детали
+            .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Information)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Information));
 
     StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
 
