@@ -1,14 +1,9 @@
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
-using Microsoft.AspNetCore.HttpOverrides;
 using MudBlazor.Services;
 using Serilog;
 using StudioB2B.Infrastructure;
 using StudioB2B.Infrastructure.MultiTenancy;
 using StudioB2B.Web.Components;
-using System.Net;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.CookiePolicy;
-using Microsoft.AspNetCore.DataProtection;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -27,56 +22,11 @@ try
 
     builder.Services.AddHttpContextAccessor();
 
-    // Настройка Data Protection для Docker
-    builder.Services.AddDataProtection()
-        .PersistKeysToFileSystem(new DirectoryInfo("/root/.aspnet/DataProtection-Keys"))
-        .SetApplicationName("StudioB2B")
-        .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
-
-    // Настройка прокси - оставляем для будущего использования
-    builder.Services.Configure<ForwardedHeadersOptions>(options =>
-    {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
-                                   ForwardedHeaders.XForwardedProto |
-                                   ForwardedHeaders.XForwardedHost;
-
-        options.KnownNetworks.Clear();
-        options.KnownProxies.Clear();
-
-        options.KnownProxies.Add(IPAddress.Parse("127.0.0.1"));
-        options.KnownProxies.Add(IPAddress.Parse("::1"));
-
-        options.ForwardLimit = null;
-        options.RequireHeaderSymmetry = false;
-    });
-
-    // Добавляем аутентификацию и авторизацию - ВРЕМЕННО для HTTP
-    builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-        .AddCookie(options =>
-        {
-            options.Cookie.Name = ".StudioB2B.Auth";
-            options.Cookie.Domain = ".studiob2b.ru";
-            options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.None; // Изменено на None для HTTP
-            options.Cookie.SameSite = SameSiteMode.Lax;
-            options.Cookie.IsEssential = true;
-
-            options.ExpireTimeSpan = TimeSpan.FromDays(14);
-            options.SlidingExpiration = true;
-
-            options.LoginPath = "/login";
-            options.LogoutPath = "/logout";
-            options.AccessDeniedPath = "/access-denied";
-
-            options.Cookie.Path = "/";
-        });
-
-    builder.Services.AddAuthorization();
-
     builder.Services.AddInfrastructure(builder.Configuration);
 
     // Add MudBlazor services
     builder.Services.AddMudServices();
+
 
     builder.Services.AddControllers();
 
@@ -85,30 +35,26 @@ try
 
     var app = builder.Build();
 
-    // Важно: порядок middleware критичен!
-    app.UseForwardedHeaders();
-
     app.UseSerilogRequestLogging();
 
     if (!app.Environment.IsDevelopment())
     {
-        app.UseExceptionHandler("/error");
+        app.UseExceptionHandler(errorApp =>
+        {
+            errorApp.Run(async context =>
+            {
+                context.Response.StatusCode = 500;
+                context.Response.ContentType = "text/plain";
+                await context.Response.WriteAsync("Произошла внутренняя ошибка сервера.");
+            });
+        });
         app.UseHsts();
     }
 
-    // ВРЕМЕННО отключаем HTTPS редирект
-    // app.UseHttpsRedirection();
+    app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+    app.UseHttpsRedirection();
 
-    app.MapStaticAssets();
-
-    // ВРЕМЕННО изменяем CookiePolicy для HTTP
-    app.UseCookiePolicy(new CookiePolicyOptions
-    {
-        MinimumSameSitePolicy = SameSiteMode.Lax,
-        Secure = CookieSecurePolicy.None, // Изменено на None для HTTP
-        HttpOnly = HttpOnlyPolicy.Always
-    });
-
+    // Tenant resolution (must be before Authentication)
     app.UseTenantResolution();
 
     app.UseAuthentication();
@@ -117,29 +63,12 @@ try
     app.UseAntiforgery();
 
     app.MapControllers();
+    app.MapStaticAssets();
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode();
 
-    // Health check
+    // Health check endpoint for Docker/Kubernetes
     app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
-
-    // Debug endpoint
-    app.MapGet("/debug", (HttpContext context) =>
-    {
-        var cookies = context.Request.Cookies.ToDictionary(c => c.Key, c => c.Value);
-        var headers = context.Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString());
-
-        return Results.Ok(new
-        {
-            host = context.Request.Host.Value,
-            scheme = context.Request.Scheme,
-            isAuthenticated = context.User?.Identity?.IsAuthenticated ?? false,
-            user = context.User?.Identity?.Name,
-            cookies = cookies,
-            headers = headers,
-            tenant = context.Items["Tenant"] ?? "не определен"
-        });
-    });
 
     app.Run();
 }
