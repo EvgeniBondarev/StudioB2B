@@ -6,8 +6,9 @@ using StudioB2B.Infrastructure;
 using StudioB2B.Infrastructure.MultiTenancy;
 using StudioB2B.Web.Components;
 using System.Net;
-using Microsoft.AspNetCore.Authentication.Cookies; // Добавить
-using Microsoft.AspNetCore.CookiePolicy; // Добавить
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.CookiePolicy;
+using Microsoft.AspNetCore.DataProtection; // Добавить
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -26,6 +27,12 @@ try
 
     builder.Services.AddHttpContextAccessor();
 
+    // Настройка Data Protection для Docker
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo("/root/.aspnet/DataProtection-Keys"))
+        .SetApplicationName("StudioB2B")
+        .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
+
     // Настройка прокси
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
@@ -41,9 +48,9 @@ try
         .AddCookie(options =>
         {
             options.Cookie.Name = ".StudioB2B.Auth";
-            options.Cookie.Domain = ".studiob2b.ru"; // Для всех субдоменов
+            options.Cookie.Domain = ".studiob2b.ru";
             options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Для HTTPS
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             options.Cookie.SameSite = SameSiteMode.Lax;
             options.Cookie.IsEssential = true;
 
@@ -54,7 +61,6 @@ try
             options.LogoutPath = "/logout";
             options.AccessDeniedPath = "/access-denied";
 
-            // Важно для правильной работы через прокси
             options.Cookie.Path = "/";
         });
 
@@ -85,10 +91,8 @@ try
 
     app.UseHttpsRedirection();
 
-    // Статические файлы должны быть до аутентификации
     app.MapStaticAssets();
 
-    // Важно: CookiePolicy должен быть до аутентификации
     app.UseCookiePolicy(new CookiePolicyOptions
     {
         MinimumSameSitePolicy = SameSiteMode.Lax,
@@ -96,10 +100,8 @@ try
         HttpOnly = HttpOnlyPolicy.Always
     });
 
-    // Tenant resolution ДО аутентификации
     app.UseTenantResolution();
 
-    // Аутентификация и авторизация
     app.UseAuthentication();
     app.UseAuthorization();
 
@@ -113,7 +115,7 @@ try
     app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
 
     // Debug endpoint
-    app.MapGet("/debug", async (HttpContext context) =>
+    app.MapGet("/debug", (HttpContext context) =>
     {
         var cookies = context.Request.Cookies.ToDictionary(c => c.Key, c => c.Value);
         var headers = context.Request.Headers.ToDictionary(h => h.Key, h => h.Value.ToString());
