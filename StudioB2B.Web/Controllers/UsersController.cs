@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Services;
+using StudioB2B.Infrastructure.Persistence.Tenant;
 
 namespace StudioB2B.Web.Controllers;
 
@@ -17,6 +18,10 @@ public class UsersController : ControllerBase
     private readonly ITenantDbContextFactory _dbContextFactory;
     private readonly ITenantProvider _tenantProvider;
     private readonly ILogger<UsersController> _logger;
+
+    // контекст создаётся один раз за экземпляр контроллера
+    private TenantDbContext? _db;
+    private TenantDbContext Db => _db ??= _dbContextFactory.CreateDbContext();
 
     public UsersController(
         ITenantDbContextFactory dbContextFactory,
