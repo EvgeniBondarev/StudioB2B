@@ -33,14 +33,23 @@ try
         .SetApplicationName("StudioB2B")
         .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
 
-    // Настройка прокси
+    // Настройка прокси - исправленный вариант
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
-                                  ForwardedHeaders.XForwardedProto;
+                                   ForwardedHeaders.XForwardedProto |
+                                   ForwardedHeaders.XForwardedHost;  // Добавили Host
+
         options.KnownNetworks.Clear();
         options.KnownProxies.Clear();
+
+        // Добавляем доверенные прокси
         options.KnownProxies.Add(IPAddress.Parse("127.0.0.1"));
+        options.KnownProxies.Add(IPAddress.Parse("::1"));
+
+        // Эти настройки помогут правильно определить схему
+        options.ForwardLimit = null;
+        options.RequireHeaderSymmetry = false;
     });
 
     // Добавляем аутентификацию и авторизацию
