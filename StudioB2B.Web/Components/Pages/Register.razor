@@ -4,6 +4,8 @@
 @code {
     protected override void OnInitialized()
     {
-        Navigation.NavigateTo("/", replace: true);
+        var uri = new Uri(Navigation.Uri);
+        var baseUrl = $"{uri.Scheme}://{uri.Host}{(uri.Port != 80 && uri.Port != 443 ? $":{uri.Port}" : "")}";
+        Navigation.NavigateTo($"{baseUrl}/", forceLoad: true);
     }
 }
