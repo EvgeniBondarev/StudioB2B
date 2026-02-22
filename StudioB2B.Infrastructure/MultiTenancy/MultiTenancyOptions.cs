@@ -10,7 +10,7 @@ public class MultiTenancyOptions
     /// <summary>
     /// Мастер-домен (например, studiob2b.ru) - все субдомены которого являются тенантами
     /// </summary>
-    public string MasterDomain { get; set; } = "localhost";
+    public string MasterDomain { get; set; } = "studiob2b.ru";
 
     /// <summary>
     /// Субдомен по умолчанию для разработки
