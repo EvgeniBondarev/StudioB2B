@@ -52,10 +52,10 @@ jobs:
             docker-compose down || docker compose down
 
             echo "⬇️ Загружаю новый образ..."
-            docker pull bondarevevgeni/studio2b2:latest
+            docker-compose pull
 
             echo "▶️ Запускаю контейнер..."
-            docker-compose up -d || docker compose up -d
+            docker-compose up --build -d
 
             echo "🧹 Очищаю старые образы..."
             docker image prune -f
