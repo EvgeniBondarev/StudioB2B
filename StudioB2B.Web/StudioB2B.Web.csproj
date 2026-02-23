@@ -10,6 +10,7 @@
     <ItemGroup>
       <Folder Include="Components\Controllers\" />
       <Folder Include="Components\Common\" />
+      <Folder Include="logs\" />
     </ItemGroup>
 
     <ItemGroup>
