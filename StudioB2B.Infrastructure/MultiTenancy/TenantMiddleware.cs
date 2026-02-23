@@ -8,10 +8,6 @@ using StudioB2B.Infrastructure.Services;
 
 namespace StudioB2B.Infrastructure.MultiTenancy;
 
-/// <summary>
-/// Middleware для определения тенанта по субдомену
-/// Должен быть зарегистрирован ДО Authentication/Authorization
-/// </summary>
 public class TenantMiddleware
 {
     private readonly RequestDelegate _next;
@@ -45,7 +41,7 @@ public class TenantMiddleware
             }
             else
             {
-                var master = options.Value.MasterDomain?
+                var master = options.Value.MasterDomain
                                       .TrimStart("https://".ToCharArray())
                                       .TrimStart("http://".ToCharArray())
                                       .TrimEnd('/');
@@ -167,16 +163,5 @@ public class TenantMiddleware
         {
             _logger.LogWarning("Tenant not found for subdomain: {Subdomain}", subdomain);
         }
-    }
-}
-
-/// <summary>
-/// Extension methods для регистрации TenantMiddleware
-/// </summary>
-public static class TenantMiddlewareExtensions
-{
-    public static IApplicationBuilder UseTenantResolution(this IApplicationBuilder app)
-    {
-        return app.UseMiddleware<TenantMiddleware>();
     }
 }

@@ -53,7 +53,6 @@ public partial class TenantService : ITenantService
             return false;
         }
 
-        // Проверка в базе
         return !await _masterDb.Tenants
             .AnyAsync(t => t.Subdomain == normalizedSubdomain, ct);
     }
@@ -81,12 +80,15 @@ public partial class TenantService : ITenantService
                 return new TenantRegistrationResult(false, Error: "Subdomain is already taken or reserved.");
             }
 
-            // Генерация connection string для тенанта
             var dbName = $"StudioB2B_Tenant_{normalizedSubdomain}";
             var connectionString = string.Format(_options.TenantDbConnectionTemplate, dbName);
 
-            // Создание тенанта
-            var tenant = Tenant.Create(companyName, normalizedSubdomain, connectionString);
+            var tenant = new Tenant
+                         {
+                             Name = companyName,
+                             Subdomain = subdomain.ToLowerInvariant(),
+                             ConnectionString = connectionString
+                         };
 
             _masterDb.Tenants.Add(tenant);
             await _masterDb.SaveChangesAsync(ct);
@@ -95,10 +97,7 @@ public partial class TenantService : ITenantService
 
             try
             {
-                // Создание базы данных тенанта
                 await CreateTenantDatabaseAsync(connectionString, ct);
-
-                // Создание администратора в базе тенанта
                 await CreateTenantAdminAsync(connectionString, adminEmail, adminPassword, ct);
 
                 _logger.LogInformation("Tenant registration completed: {TenantId}", tenant.Id);
@@ -108,7 +107,6 @@ public partial class TenantService : ITenantService
             {
                 _logger.LogWarning("Registration failed after tenant creation, rolling back resources for {Subdomain}", normalizedSubdomain);
 
-                // попытка удалить базу данных, если она была создана
                 try
                 {
                     await DropTenantDatabaseAsync(connectionString, ct);
@@ -118,7 +116,6 @@ public partial class TenantService : ITenantService
                     _logger.LogError(ex, "Failed to drop tenant database during rollback for {Subdomain}", normalizedSubdomain);
                 }
 
-                // удалить запись о тeнанте из мастер- БД
                 try
                 {
                     _masterDb.Tenants.Remove(tenant);
@@ -139,20 +136,6 @@ public partial class TenantService : ITenantService
         }
     }
 
-    public async Task<bool> SetActiveStateAsync(Guid tenantId, bool isActive, CancellationToken ct = default)
-    {
-        var tenant = await _masterDb.Tenants.FindAsync([tenantId], ct);
-        if (tenant == null) return false;
-
-        if (isActive)
-            tenant.Activate();
-        else
-            tenant.Deactivate();
-
-        await _masterDb.SaveChangesAsync(ct);
-        return true;
-    }
-
     private static bool IsValidSubdomain(string subdomain)
     {
         if (string.IsNullOrWhiteSpace(subdomain)) return false;
@@ -166,16 +149,14 @@ public partial class TenantService : ITenantService
     private async Task CreateTenantDatabaseAsync(string connectionString, CancellationToken ct)
     {
         var optionsBuilder = new DbContextOptionsBuilder<TenantDbContext>();
-        optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+        optionsBuilder.UseMySql(connectionString, await ServerVersion.AutoDetectAsync(connectionString, ct));
 
         await using var context = new TenantDbContext(optionsBuilder.Options);
 
-        // Создаём базу и применяем миграции
         await context.Database.MigrateAsync(ct);
 
         _logger.LogInformation("Tenant database created and migrated");
 
-        // seed lookup tables for marketplace clients if empty
         if (!await context.Set<MarketplaceClientType>().AnyAsync(ct))
         {
             context.Set<MarketplaceClientType>().AddRange(
@@ -202,7 +183,7 @@ public partial class TenantService : ITenantService
     private async Task DropTenantDatabaseAsync(string connectionString, CancellationToken ct)
     {
         var optionsBuilder = new DbContextOptionsBuilder<TenantDbContext>();
-        optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+        optionsBuilder.UseMySql(connectionString, await ServerVersion.AutoDetectAsync(connectionString, ct));
 
         await using var context = new TenantDbContext(optionsBuilder.Options);
         await context.Database.EnsureDeletedAsync(ct);
@@ -217,12 +198,11 @@ public partial class TenantService : ITenantService
         CancellationToken ct)
     {
         var optionsBuilder = new DbContextOptionsBuilder<TenantDbContext>();
-        optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+        optionsBuilder.UseMySql(connectionString, await ServerVersion.AutoDetectAsync(connectionString, ct));
 
         await using var context = new TenantDbContext(optionsBuilder.Options);
         var masterRoles = await _masterDb.Roles.AsNoTracking().ToListAsync(ct);
 
-        // Копируем роли в базу тенанта (если их ещё нет)
         foreach (var masterRole in masterRoles)
         {
             var exists = await context.Roles.AnyAsync(r => r.Id == masterRole.Id, ct);
@@ -243,7 +223,6 @@ public partial class TenantService : ITenantService
 
         await context.SaveChangesAsync(ct);
 
-        // Создаём UserManager вручную (т.к. мы вне DI scope)
         var userStore = new Microsoft.AspNetCore.Identity.EntityFrameworkCore.UserStore<ApplicationUser, ApplicationRole, TenantDbContext, Guid>(context);
         var hasher = new PasswordHasher<ApplicationUser>();
         var normalizer = new UpperInvariantLookupNormalizer();
@@ -286,8 +265,6 @@ public partial class TenantService : ITenantService
             throw new InvalidOperationException($"Failed to create admin user: {errors}");
         }
 
-        // Назначаем пользователю роль Admin
-        // Если в мастер-базе нет роли Admin — создаём её в базе тенанта как резервный вариант
         var roleStore = new Microsoft.AspNetCore.Identity.EntityFrameworkCore.RoleStore<ApplicationRole, TenantDbContext, Guid>(context);
         using var roleManager = new RoleManager<ApplicationRole>(
             roleStore,

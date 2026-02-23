@@ -50,7 +50,7 @@ public class UsersController : ControllerBase
             _tenantProvider.Subdomain);
 
         using var db = _dbContextFactory.CreateDbContext();
-        
+
         var users = await db.Users
             .AsNoTracking()
             .Select(u => new UserDto
@@ -79,7 +79,7 @@ public class UsersController : ControllerBase
         }
 
         using var db = _dbContextFactory.CreateDbContext();
-        
+
         var user = await db.Users
             .AsNoTracking()
             .Where(u => u.Id == id)
@@ -113,7 +113,7 @@ public class UsersController : ControllerBase
 
         using var db = _dbContextFactory.CreateDbContext();
         var user = await db.Users.FindAsync(id);
-        
+
         if (user == null)
             return NotFound();
 
@@ -138,7 +138,7 @@ public class UsersController : ControllerBase
 
         using var db = _dbContextFactory.CreateDbContext();
         var user = await db.Users.FindAsync(id);
-        
+
         if (user == null)
             return NotFound();
 

@@ -1,13 +1,12 @@
-using System;
 using StudioB2B.Domain.Entities.Common;
 
-namespace StudioB2B.Domain.Entities.Marketplace
+namespace StudioB2B.Domain.Entities.Marketplace;
+
+public class MarketplaceClientMode : IBaseEntity, ISoftDelete
 {
-    /// <summary>
-    /// Режим работы клиента на маркетплейсе: FBS/FBO/Express и т.п.
-    /// </summary>
-    public class MarketplaceClientMode : BaseEntity
-    {
-        public string Name { get; set; } = string.Empty;
-    }
+    public Guid Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public bool IsDeleted { get; set; }
 }

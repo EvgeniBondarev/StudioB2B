@@ -177,35 +177,7 @@ else
                                     </MudStack>
                                 </MudListItem>
                                 <MudDivider />
-                                <MudListItem T="string" DisableRipple="true">
-                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Тариф</MudText>
-                                        <MudStack Row="true" Spacing="1">
-                                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">@_tenant.Tariff</MudChip>
-                                            @if (_tenant.IsTrialExpired())
-                                            {
-                                                <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">Истёк</MudChip>
-                                            }
-                                        </MudStack>
-                                    </MudStack>
-                                </MudListItem>
-                                @if (_tenant.TrialExpiresAtUtc.HasValue)
-                                {
-                                    <MudDivider />
-                                    <MudListItem T="string" DisableRipple="true">
-                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                            <MudText Typo="Typo.body2" Color="Color.Secondary">Триал до</MudText>
-                                            <MudText Typo="Typo.body2">@_tenant.TrialExpiresAtUtc.Value.ToString("dd.MM.yyyy")</MudText>
-                                        </MudStack>
-                                    </MudListItem>
-                                }
                                 <MudDivider />
-                                <MudListItem T="string" DisableRipple="true">
-                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Создан</MudText>
-                                        <MudText Typo="Typo.body2">@_tenant.CreatedAtUtc.ToString("dd.MM.yyyy")</MudText>
-                                    </MudStack>
-                                </MudListItem>
                             </MudList>
                         }
 
@@ -223,7 +195,7 @@ else
     </AuthorizeView>
 }
 
-@inject Microsoft.Extensions.Options.IOptions<StudioB2B.Infrastructure.MultiTenancy.MultiTenancyOptions> MultiTenancyOptions
+@inject Microsoft.Extensions.Options.IOptions<Infrastructure.MultiTenancy.MultiTenancyOptions> MultiTenancyOptions
 
 @code {
     private Domain.Entities.Tenants.Tenant? _tenant;
@@ -273,7 +245,7 @@ else
                 if (masterDomain.Contains("localhost"))
                 {
                     redirectHost = $"{_reg.Subdomain}.localhost";
-                    scheme = uri.Scheme; 
+                    scheme = uri.Scheme;
                 }
                 else
                 {

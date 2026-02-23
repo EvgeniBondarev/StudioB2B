@@ -1,10 +1,7 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using StudioB2B.Application.Common.Interfaces;
-using StudioB2B.Infrastructure.Persistence.Tenant;
-using StudioB2B.Infrastructure.Extensions;
 using StudioB2B.Infrastructure.Features.Marketplace;
 using StudioB2B.Infrastructure.Services;
 using StudioB2B.Shared.DTOs;
@@ -18,18 +15,15 @@ public class MarketplaceClientsController : ControllerBase
 {
     private readonly ITenantDbContextFactory _dbContextFactory;
     private readonly ITenantProvider _tenantProvider;
-    private readonly ILogger<MarketplaceClientsController> _logger;
     private readonly IMapper _mapper;
 
     public MarketplaceClientsController(
         ITenantDbContextFactory dbContextFactory,
         ITenantProvider tenantProvider,
-        ILogger<MarketplaceClientsController> logger,
         IMapper mapper)
     {
         _dbContextFactory = dbContextFactory;
         _tenantProvider = tenantProvider;
-        _logger = logger;
         _mapper = mapper;
     }
 

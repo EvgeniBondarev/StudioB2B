@@ -1,16 +1,12 @@
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Services;
 
 namespace StudioB2B.Infrastructure.MultiTenancy;
 
-/// <summary>
-/// Circuit handler для заполнения TenantProvider в Blazor Server circuits
-/// </summary>
 public class TenantCircuitHandler : CircuitHandler
 {
     private readonly TenantProvider _tenantProvider;
@@ -46,7 +42,7 @@ public class TenantCircuitHandler : CircuitHandler
         }
 
         var host = httpContext.Request.Host;
-        var subdomain = ResolveSubdomain(host);
+        var subdomain = ResolveSubdomain(host.Host);
 
         if (string.IsNullOrEmpty(subdomain))
         {
@@ -68,23 +64,9 @@ public class TenantCircuitHandler : CircuitHandler
         _logger.LogDebug("Circuit {CircuitId} tenant set: {TenantId} ({Subdomain})", circuit.Id, tenant.Id, subdomain);
     }
 
-    private static string? ResolveSubdomain(HostString host)
+    private static string? ResolveSubdomain(string hostValue)
     {
-        var hostValue = host.Host;
-
-        // demo.localhost -> demo
-        if (hostValue.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase))
-        {
-            return hostValue[..^".localhost".Length].ToLowerInvariant();
-        }
-
-        // demo.studiob2b.com -> demo
         var parts = hostValue.Split('.');
-        if (parts.Length >= 2)
-        {
-            return parts[0].ToLowerInvariant();
-        }
-
-        return null;
+        return parts.Length >= 2 ? parts[0].ToLowerInvariant() : null;
     }
 }

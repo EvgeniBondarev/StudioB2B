@@ -150,6 +150,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<string>("INN")
                         .HasColumnType("longtext");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -197,6 +200,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<string>("INN")
                         .HasColumnType("longtext");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("LegalName")
                         .HasColumnType("longtext");
 
@@ -226,6 +232,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -241,6 +250,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -254,8 +266,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MarketplaceClientId")
-                        .IsUnique();
+                    b.HasIndex("MarketplaceClientId");
 
                     b.ToTable("MarketplaceClientSettings");
                 });
@@ -265,6 +276,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -476,8 +490,8 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
             modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientSettings", b =>
                 {
                     b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", "MarketplaceClient")
-                        .WithOne("Settings")
-                        .HasForeignKey("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientSettings", "MarketplaceClientId")
+                        .WithMany("Settings")
+                        .HasForeignKey("MarketplaceClientId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
