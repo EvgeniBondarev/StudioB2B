@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StudioB2B.Application.Common.Interfaces;
-using StudioB2B.Infrastructure.BackgroundJobs;
 using StudioB2B.Infrastructure.Features.Roles;
 using StudioB2B.Infrastructure.Features.Users;
 using StudioB2B.Infrastructure.MultiTenancy;
@@ -20,55 +19,34 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Database Options
-        services.Configure<DatabaseOptions>(
-            configuration.GetSection(DatabaseOptions.SectionName));
-
-        // Multi-Tenancy Options
         services.Configure<MultiTenancyOptions>(
             configuration.GetSection(MultiTenancyOptions.SectionName));
 
-        // AutoMapper — scan all profiles in this assembly
         services.AddAutoMapper(typeof(DependencyInjection).Assembly);
 
-        // Master DbContext (MySQL)
         services.AddDbContext<MasterDbContext>(options =>
         {
             var connectionString = configuration.GetConnectionString("MasterDb");
-
-            if (string.IsNullOrEmpty(connectionString))
-            {
-                throw new InvalidOperationException("MasterDb connection string is not configured.");
-            }
-
-            // MySQL с автоопределением версии
             options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
         });
 
-        // Database migration service (runs on startup)
         services.AddHostedService<DatabaseMigrationService>();
 
-        // Tenant Provider (Scoped - per request)
         services.AddScoped<TenantProvider>();
         services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<TenantProvider>());
 
-        // Current User Provider
         services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
 
-        // Tenant DbContext Factory
         services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
 
-        // Tenant Service
         services.AddScoped<ITenantService, TenantService>();
 
-        // Blazor Circuit Handler для заполнения TenantProvider
         services.AddScoped<CircuitHandler, TenantCircuitHandler>();
 
         // Tenant DbContext (Scoped, dynamic connection)
         services.AddScoped(sp =>
         {
             var tenantProvider = sp.GetRequiredService<ITenantProvider>();
-            var currentUser = sp.GetRequiredService<ICurrentUserProvider>();
 
             if (!tenantProvider.IsResolved)
             {
@@ -80,10 +58,9 @@ public static class DependencyInjection
                 tenantProvider.ConnectionString!,
                 ServerVersion.AutoDetect(tenantProvider.ConnectionString!));
 
-            return new TenantDbContext(optionsBuilder.Options, currentUser.UserId);
+            return new TenantDbContext(optionsBuilder.Options);
         });
 
-        // ASP.NET Identity (using Tenant DbContext)
         services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
             {
                 // Password settings
@@ -102,7 +79,6 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<TenantDbContext>()
             .AddDefaultTokenProviders();
 
-        // Cookie configuration
         services.ConfigureApplicationCookie(options =>
         {
             options.LoginPath = "/login";
@@ -111,11 +87,6 @@ public static class DependencyInjection
             options.ExpireTimeSpan = TimeSpan.FromDays(7);
             options.SlidingExpiration = true;
         });
-
-        // ── Role Sync Background Job ──────────────────────────────────────────
-        services.AddSingleton<RoleSyncChannel>();
-        services.AddSingleton<IRoleSyncPublisher, RoleSyncPublisher>();
-        services.AddHostedService<RoleSyncWorker>();
 
         // ── Role Feature Classes (Scoped — используют MasterDbContext) ────────
         services.AddScoped<GetRoles>();

@@ -1,9 +1,9 @@
 using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Shared.DTOs;
 using StudioB2B.Domain.Entities.Marketplace;
-using StudioB2B.Infrastructure.Extensions;
 
 namespace StudioB2B.Infrastructure.Features.Marketplace;
 
@@ -26,7 +26,7 @@ public static class MarketplaceClientExtensions
         return q
                  .AsNoTracking()
                  .IncludeEverything()
-                 .CastToDto<MarketplaceClient, MarketplaceClientDto>(mapper)
+                 .ProjectTo<MarketplaceClientDto>(mapper.ConfigurationProvider)
                  .ToListAsync(ct);
     }
 
@@ -40,7 +40,7 @@ public static class MarketplaceClientExtensions
                  .AsNoTracking()
                  .IncludeEverything()
                  .Where(c => c.Id == id)
-                 .CastToDto<MarketplaceClient, MarketplaceClientDto>(mapper)
+                 .ProjectTo<MarketplaceClientDto>(mapper.ConfigurationProvider)
                  .FirstOrDefaultAsync(ct);
     }
 

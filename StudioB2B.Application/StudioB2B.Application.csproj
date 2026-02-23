@@ -7,13 +7,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Common\Features\Integrations\" />
-      <Folder Include="Common\Features\Orders\" />
-      <Folder Include="Common\Features\Tenants\" />
-      <Folder Include="Common\Features\Transactions\" />
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\StudioB2B.Domain\StudioB2B.Domain.csproj" />
       <ProjectReference Include="..\StudioB2B.Shared\StudioB2B.Shared.csproj" />
     </ItemGroup>

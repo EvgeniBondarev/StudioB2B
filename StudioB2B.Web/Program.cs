@@ -1,36 +1,20 @@
 using Serilog;
-using StudioB2B.Web;
 using StudioB2B.Web.Extensions;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
-    .CreateBootstrapLogger();
+    .CreateLogger();
 
-try
-{
-    Log.Information("Starting StudioB2B application...");
+var builder = WebApplication.CreateBuilder(args);
 
-    var builder = WebApplication.CreateBuilder(args);
-
-    builder.Host.UseSerilog((context, _, configuration) =>
+builder.Host.UseSerilog((context, _, configuration) =>
                                 configuration
                                     .ReadFrom.Configuration(context.Configuration)
                                     .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Information)
                                     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Information));
 
-    builder.Services.AddApplicationServices(builder.Configuration);
+builder.Services.AddApplicationServices(builder.Configuration);
 
-    var app = builder.Build();
-
-    app.ConfigurePipeline();
-
-    app.Run();
-}
-catch (Exception ex)
-{
-    Log.Fatal(ex, "Application terminated unexpectedly");
-}
-finally
-{
-    Log.CloseAndFlush();
-}
+var app = builder.Build();
+app.ConfigurePipeline();
+app.Run();

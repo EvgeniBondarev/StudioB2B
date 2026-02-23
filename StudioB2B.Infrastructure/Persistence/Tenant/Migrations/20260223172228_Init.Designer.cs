@@ -12,8 +12,8 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 {
     [DbContext(typeof(TenantDbContext))]
-    [Migration("20260218072558_InitialTenant")]
-    partial class InitialTenant
+    [Migration("20260223172228_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -126,6 +126,170 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("ApiId")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid?>("ClientTypeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Company")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Country")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Currency")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("INN")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("LegalName")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid?>("ModeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("OGRN")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("OwnershipForm")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("OzonName")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientTypeId");
+
+                    b.HasIndex("ModeId");
+
+                    b.ToTable("MarketplaceClients");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient1CSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Country")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Currency")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("INN")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("LegalName")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid>("MarketplaceClientId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("OGRN")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("OwnershipForm")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("OzonName")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MarketplaceClientId")
+                        .IsUnique();
+
+                    b.ToTable("MarketplaceClient1CSettings");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientMode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MarketplaceClientModes");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid>("MarketplaceClientId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MarketplaceClientId");
+
+                    b.ToTable("MarketplaceClientSettings");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MarketplaceClientTypes");
                 });
 
             modelBuilder.Entity("StudioB2B.Infrastructure.Persistence.Tenant.ApplicationRole", b =>
@@ -298,6 +462,50 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientType", "ClientType")
+                        .WithMany()
+                        .HasForeignKey("ClientTypeId");
+
+                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientMode", "Mode")
+                        .WithMany()
+                        .HasForeignKey("ModeId");
+
+                    b.Navigation("ClientType");
+
+                    b.Navigation("Mode");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient1CSettings", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", "MarketplaceClient")
+                        .WithOne("Settings1C")
+                        .HasForeignKey("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient1CSettings", "MarketplaceClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MarketplaceClient");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientSettings", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", "MarketplaceClient")
+                        .WithMany("Settings")
+                        .HasForeignKey("MarketplaceClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MarketplaceClient");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", b =>
+                {
+                    b.Navigation("Settings");
+
+                    b.Navigation("Settings1C");
                 });
 #pragma warning restore 612, 618
         }

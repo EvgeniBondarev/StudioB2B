@@ -54,7 +54,7 @@ public class GetRoleById(MasterDbContext db, IMapper mapper)
 
 // ─── CreateRole ───────────────────────────────────────────────────────────────
 
-public class CreateRole(MasterDbContext db, IMapper mapper, IRoleSyncPublisher sync)
+public class CreateRole(MasterDbContext db, IMapper mapper)
 {
     public async Task<RoleDto> HandleAsync(CreateRoleRequest request, CancellationToken ct = default)
     {
@@ -63,15 +63,13 @@ public class CreateRole(MasterDbContext db, IMapper mapper, IRoleSyncPublisher s
         db.Roles.Add(role);
         await db.SaveChangesAsync(ct);
 
-        sync.Publish(role.Id, role.Name, role.Description, role.IsSystemRole, RoleSyncAction.Upsert);
-
         return mapper.Map<RoleDto>(role);
     }
 }
 
 // ─── UpdateRole ───────────────────────────────────────────────────────────────
 
-public class UpdateRole(MasterDbContext db, IMapper mapper, IRoleSyncPublisher sync)
+public class UpdateRole(MasterDbContext db, IMapper mapper)
 {
     public async Task<RoleDto?> HandleAsync(Guid id, UpdateRoleRequest request, CancellationToken ct = default)
     {
@@ -82,15 +80,13 @@ public class UpdateRole(MasterDbContext db, IMapper mapper, IRoleSyncPublisher s
 
         await db.SaveChangesAsync(ct);
 
-        sync.Publish(role.Id, role.Name, role.Description, role.IsSystemRole, RoleSyncAction.Upsert);
-
         return mapper.Map<RoleDto>(role);
     }
 }
 
 // ─── DeleteRole ───────────────────────────────────────────────────────────────
 
-public class DeleteRole(MasterDbContext db, IRoleSyncPublisher sync)
+public class DeleteRole(MasterDbContext db)
 {
     public async Task<bool> HandleAsync(Guid id, CancellationToken ct = default)
     {
@@ -99,8 +95,6 @@ public class DeleteRole(MasterDbContext db, IRoleSyncPublisher sync)
 
         db.Roles.Remove(role);
         await db.SaveChangesAsync(ct);
-
-        sync.Publish(id, role.Name, role.Description, role.IsSystemRole, RoleSyncAction.Delete);
 
         return true;
     }

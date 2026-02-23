@@ -1,94 +1,50 @@
+using System.Linq.Expressions;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using StudioB2B.Domain.Entities.Common;
 using StudioB2B.Domain.Entities.Marketplace;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant;
 
-/// <summary>
-/// Tenant Database Context - база данных конкретного тенанта
-/// Содержит: Users, Orders, Transactions, Warehouses и т.д.
-/// </summary>
+
 public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>
 {
-    private readonly Guid? _currentUserId;
-
-    public TenantDbContext(DbContextOptions<TenantDbContext> options) : base(options)
-    {
-    }
-
-    public TenantDbContext(DbContextOptions<TenantDbContext> options, Guid? currentUserId)
-        : base(options)
-    {
-        _currentUserId = currentUserId;
-    }
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        base.OnModelCreating(modelBuilder);
-
-        // Применяем все конфигурации из папки Tenant
-        modelBuilder.ApplyConfigurationsFromAssembly(
-            typeof(TenantDbContext).Assembly,
-            type => type.Namespace?.Contains("Tenant") == true ||
-                    type.Namespace?.Contains("Configurations") == true);
-
-        // Global Query Filters для Soft Delete
-        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-        {
-            if (typeof(ISoftDelete).IsAssignableFrom(entityType.ClrType))
-            {
-                var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
-                var property = System.Linq.Expressions.Expression.Property(parameter, nameof(ISoftDelete.IsDeleted));
-                var falseConstant = System.Linq.Expressions.Expression.Constant(false);
-                var lambda = System.Linq.Expressions.Expression.Lambda(
-                    System.Linq.Expressions.Expression.Equal(property, falseConstant),
-                    parameter);
-
-                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
-            }
-        }
-    }
-
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        UpdateAuditFields();
-        return base.SaveChangesAsync(cancellationToken);
-    }
-
     public DbSet<MarketplaceClient>? MarketplaceClients { get; set; }
     public DbSet<MarketplaceClientType>? MarketplaceClientTypes { get; set; }
     public DbSet<MarketplaceClientMode>? MarketplaceClientModes { get; set; }
     public DbSet<MarketplaceClientSettings>? MarketplaceClientSettings { get; set; }
     public DbSet<MarketplaceClient1CSettings>? MarketplaceClient1CSettings { get; set; }
 
-    public override int SaveChanges()
+    public TenantDbContext(DbContextOptions<TenantDbContext> options) : base(options)
     {
-        UpdateAuditFields();
-        return base.SaveChanges();
     }
 
-    private void UpdateAuditFields()
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        var entries = ChangeTracker.Entries<IAuditableEntity>();
+        base.OnModelCreating(modelBuilder);
 
-        foreach (var entry in entries)
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(TenantDbContext).Assembly,
+            type => type.Namespace?.Contains("Tenant") == true ||
+                    type.Namespace?.Contains("Configurations") == true);
+
+        ApplySoftDeleteFilters(modelBuilder);
+    }
+
+    private static void ApplySoftDeleteFilters(ModelBuilder modelBuilder)
+    {
+        foreach (IMutableEntityType entityType in modelBuilder.Model.GetEntityTypes())
         {
-            if (entry.State == EntityState.Added)
-            {
-                if (_currentUserId.HasValue)
-                {
-                    entry.Entity.GetType().GetMethod("SetCreatedBy")?.Invoke(entry.Entity, [_currentUserId.Value]);
-                }
-            }
+            if (!typeof(ISoftDelete).IsAssignableFrom(entityType.ClrType))
+                continue;
 
-            if (entry.State == EntityState.Modified)
-            {
-                if (_currentUserId.HasValue)
-                {
-                    entry.Entity.GetType().GetMethod("SetModified")?.Invoke(entry.Entity, [_currentUserId.Value]);
-                }
-            }
+            ParameterExpression param = Expression.Parameter(entityType.ClrType, "e");
+            MemberExpression isDeletedProp = Expression.Property(param, nameof(ISoftDelete.IsDeleted));
+            UnaryExpression notDeleted = Expression.Not(isDeletedProp);
+            LambdaExpression lambda = Expression.Lambda(notDeleted, param);
+
+            entityType.SetQueryFilter(lambda);
         }
     }
 }
