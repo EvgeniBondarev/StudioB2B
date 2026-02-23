@@ -47,7 +47,6 @@ public partial class TenantService : ITenantService
     {
         var normalizedSubdomain = subdomain.ToLowerInvariant().Trim();
 
-        // Проверка зарезервированных субдоменов
         if (_options.ReservedSubdomains.Contains(normalizedSubdomain, StringComparer.OrdinalIgnoreCase))
         {
             return false;
@@ -129,7 +128,7 @@ public partial class TenantService : ITenantService
                     _logger.LogError(ex, "Failed to remove tenant record during rollback for {Subdomain}", normalizedSubdomain);
                 }
 
-                throw; // propagate original error to caller
+                throw;
             }
         }
         catch (Exception ex)
@@ -157,8 +156,6 @@ public partial class TenantService : ITenantService
     {
         if (string.IsNullOrWhiteSpace(subdomain)) return false;
         if (subdomain.Length < 3 || subdomain.Length > 30) return false;
-
-        // Only letters, numbers, hyphens. Must start/end with letter or number.
         return SubdomainRegex().IsMatch(subdomain);
     }
 
@@ -184,7 +181,6 @@ public partial class TenantService : ITenantService
         optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
         await using var context = new TenantDbContext(optionsBuilder.Options);
-        // ensure deletion (won't throw if not exists)
         await context.Database.EnsureDeletedAsync(ct);
 
         _logger.LogInformation("Tenant database dropped during rollback");
@@ -200,8 +196,6 @@ public partial class TenantService : ITenantService
         optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
         await using var context = new TenantDbContext(optionsBuilder.Options);
-
-        // Загружаем все роли из мастер-базы
         var masterRoles = await _masterDb.Roles.AsNoTracking().ToListAsync(ct);
 
         // Копируем роли в базу тенанта (если их ещё нет)

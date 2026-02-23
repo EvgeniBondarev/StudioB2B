@@ -41,13 +41,11 @@ public class TenantMiddleware
 
             if (tenantProvider.IsResolved)
             {
-                // Сохраняем последний тенант в куку
                 context.Response.AppendLastTenantCookie(tenantProvider.Subdomain!, options.Value.MasterDomain);
             }
         }
         else
         {
-            // Главный домен - пробуем редирект на последний тенант
             var lastTenant = context.Request.GetLastTenant();
 
             if (!string.IsNullOrEmpty(lastTenant))
@@ -58,8 +56,15 @@ public class TenantMiddleware
 
                 if (tenant != null)
                 {
-                    var redirectUrl = lastTenant.GetTenantUrl(options.Value.MasterDomain,
-                                                              context.Request.Path + context.Request.QueryString);
+                    var originalPath = context.Request.Path + context.Request.QueryString;
+                    if (originalPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                        originalPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.LogWarning("TenantMiddleware received absolute path '{OriginalPath}', resetting to '/'", originalPath);
+                        originalPath = "/";
+                    }
+
+                    var redirectUrl = lastTenant.GetTenantUrl(options.Value.MasterDomain, originalPath);
 
                     _logger.LogInformation("Redirecting to last tenant: {RedirectUrl}", redirectUrl);
                     context.Response.Redirect(redirectUrl);
@@ -75,61 +80,37 @@ public class TenantMiddleware
     private static string? ResolveSubdomain(HostString host, MultiTenancyOptions options, ILogger logger)
     {
         var hostValue = host.Host;
-        var originalHost = host.Value;
-
-        // Подробное логирование для диагностики
-        logger.LogInformation("[TENANT DEBUG] ===== ResolveSubdomain =====");
-        logger.LogInformation("[TENANT DEBUG] Original Host: {OriginalHost}", originalHost);
-        logger.LogInformation("[TENANT DEBUG] Host.Host: {HostValue}", hostValue);
-        logger.LogInformation("[TENANT DEBUG] MasterDomain from config: '{MasterDomain}'", options.MasterDomain);
-        logger.LogInformation("[TENANT DEBUG] ReservedSubdomains: {ReservedSubdomains}", string.Join(", ", options.ReservedSubdomains));
-
-        // Проверка на localhost
         if (hostValue.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase))
         {
             var subdomain = hostValue[..^".localhost".Length];
-            logger.LogInformation("[TENANT DEBUG] Localhost detected, subdomain: '{Subdomain}'", subdomain);
 
             if (!string.IsNullOrEmpty(subdomain) &&
                 !options.ReservedSubdomains.Contains(subdomain, StringComparer.OrdinalIgnoreCase))
             {
-                logger.LogInformation("[TENANT DEBUG] ✅ Localhost subdomain resolved: '{Subdomain}'", subdomain);
                 return subdomain.ToLowerInvariant();
             }
         }
 
-        // Проверка на точное совпадение с мастер-доменом (без субдомена)
         if (string.Equals(hostValue, options.MasterDomain, StringComparison.OrdinalIgnoreCase))
         {
-            logger.LogInformation("[TENANT DEBUG] Exact match with MasterDomain, no subdomain");
             return null;
         }
 
         // Извлекаем субдомен из host: demo.studiob2b.ru -> demo
         var masterDomain = options.MasterDomain?.TrimStart('.') ?? "";
-        logger.LogInformation("[TENANT DEBUG] Checking if '{HostValue}' ends with '{MasterDomain}'", hostValue, masterDomain);
 
         if (!string.IsNullOrEmpty(masterDomain) && hostValue.EndsWith(masterDomain, StringComparison.OrdinalIgnoreCase))
         {
-            // Вычисляем префикс (субдомен)
             var prefix = hostValue[..^masterDomain.Length].TrimEnd('.');
-            logger.LogInformation("[TENANT DEBUG] Found ends with master domain, prefix: '{Prefix}'", prefix);
 
             if (!string.IsNullOrEmpty(prefix))
             {
-                // Проверка на зарезервированные субдомены
                 if (options.ReservedSubdomains.Contains(prefix, StringComparer.OrdinalIgnoreCase))
                 {
-                    logger.LogInformation("[TENANT DEBUG] ⚠️ Subdomain '{Prefix}' is reserved, ignoring", prefix);
                     return null;
                 }
 
-                logger.LogInformation("[TENANT DEBUG] ✅ Subdomain resolved: '{Prefix}'", prefix);
                 return prefix.ToLowerInvariant();
-            }
-            else
-            {
-                logger.LogInformation("[TENANT DEBUG] Empty prefix - this is the main domain");
             }
         }
         else
@@ -148,17 +129,12 @@ public class TenantMiddleware
             if (parts.Length >= 3)
             {
                 var possibleSubdomain = parts[0];
-                logger.LogInformation("[TENANT DEBUG] Fallback: trying first part '{PossibleSubdomain}' as subdomain", possibleSubdomain);
-
                 if (!options.ReservedSubdomains.Contains(possibleSubdomain, StringComparer.OrdinalIgnoreCase))
                 {
-                    logger.LogInformation("[TENANT DEBUG] ✅ Fallback resolved: '{PossibleSubdomain}'", possibleSubdomain);
                     return possibleSubdomain.ToLowerInvariant();
                 }
             }
         }
-
-        logger.LogInformation("[TENANT DEBUG] ❌ No subdomain resolved for: {HostValue}", hostValue);
         return null;
     }
 
@@ -175,7 +151,6 @@ public class TenantMiddleware
         if (tenant != null)
         {
             tenantProvider.SetTenant(tenant);
-            _logger.LogInformation("Tenant resolved: {TenantId} ({Subdomain})", tenant.Id, subdomain);
         }
         else
         {
