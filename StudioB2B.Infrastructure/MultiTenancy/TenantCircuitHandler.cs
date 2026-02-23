@@ -32,7 +32,6 @@ public class TenantCircuitHandler : CircuitHandler
 
     public override async Task OnCircuitOpenedAsync(Circuit circuit, CancellationToken cancellationToken)
     {
-        // Если тенант уже определён (например, middleware успел это сделать) — пропускаем
         if (_tenantProvider.IsResolved)
         {
             _logger.LogDebug("Circuit {CircuitId} tenant already resolved: {TenantId}", circuit.Id, _tenantProvider.TenantId);
