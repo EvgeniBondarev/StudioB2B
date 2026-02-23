@@ -39,7 +39,7 @@
                         <MudTextField T="string" Label="Субдомен"
                                       @bind-Value="_reg.Subdomain" For="@(() => _reg.Subdomain)"
                                       Variant="Variant.Outlined" Margin="Margin.Dense"
-                                      Adornment="Adornment.End" AdornmentText=".localhost"
+                                      Adornment="Adornment.End" AdornmentText="@DomainAdornment"
                                       HelperText="Только a-z, 0-9, дефис (3–5 символов)"
                                       Class="mb-3" FullWidth="true" />
 
@@ -235,6 +235,9 @@ else
     private RegisterModel _reg = new();
     private bool _regLoading;
     private bool _registerSuccess;
+
+    private string DomainAdornment =>
+        "." + (MultiTenancyOptions.Value.MasterDomain?.Trim().TrimEnd('/') ?? "localhost");
 
     protected override async Task OnInitializedAsync()
     {
