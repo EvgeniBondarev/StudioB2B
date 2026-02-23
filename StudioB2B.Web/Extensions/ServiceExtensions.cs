@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.HttpOverrides;
 using MudBlazor.Services;
 using StudioB2B.Infrastructure;
+using Microsoft.AspNetCore.Components;
 
 namespace StudioB2B.Web.Extensions;
 
@@ -18,6 +19,16 @@ public static class ServiceExtensions
         StaticWebAssetsLoader.UseStaticWebAssets(environment, configuration);
 
         services.AddHttpContextAccessor();
+        // provide HttpClient for components (Blazor Server doesn't add it by default)
+        services.AddHttpClient();
+        services.AddScoped(sp =>
+        {
+            var factory = sp.GetRequiredService<IHttpClientFactory>();
+            var nav = sp.GetRequiredService<NavigationManager>();
+            var client = factory.CreateClient();
+            client.BaseAddress = new Uri(nav.BaseUri);
+            return client;
+        });
         services.AddInfrastructure(configuration);
         services.AddMudServices();
 
