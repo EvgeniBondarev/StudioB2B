@@ -11,6 +11,7 @@
       <Folder Include="Components\Controllers\" />
       <Folder Include="Components\Common\" />
       <Folder Include="logs\" />
+      <Folder Include="wwwroot\lib\" />
     </ItemGroup>
 
     <ItemGroup>
