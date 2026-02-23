@@ -7,6 +7,7 @@ using StudioB2B.Domain.Entities.Tenants;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using System.Text.RegularExpressions;
+using StudioB2B.Domain.Entities.Marketplace;
 
 namespace StudioB2B.Infrastructure.MultiTenancy;
 
@@ -173,6 +174,29 @@ public partial class TenantService : ITenantService
         await context.Database.MigrateAsync(ct);
 
         _logger.LogInformation("Tenant database created and migrated");
+
+        // seed lookup tables for marketplace clients if empty
+        if (!await context.Set<MarketplaceClientType>().AnyAsync(ct))
+        {
+            context.Set<MarketplaceClientType>().AddRange(
+                new MarketplaceClientType { Name = "Ozon" },
+                new MarketplaceClientType { Name = "Wildberries" },
+                new MarketplaceClientType { Name = "Яндекс.Маркет" }
+            );
+        }
+
+        if (!await context.Set<MarketplaceClientMode>().AnyAsync(ct))
+        {
+            context.Set<MarketplaceClientMode>().AddRange(
+                new MarketplaceClientMode { Name = "FBS" },
+                new MarketplaceClientMode { Name = "FBO" },
+                new MarketplaceClientMode { Name = "Express" }
+            );
+        }
+
+        await context.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Marketplace lookup data seeded");
     }
 
     private async Task DropTenantDatabaseAsync(string connectionString, CancellationToken ct)
