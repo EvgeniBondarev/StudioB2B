@@ -43,6 +43,17 @@ public class TenantMiddleware
             {
                 context.Response.AppendLastTenantCookie(tenantProvider.Subdomain!, options.Value.MasterDomain);
             }
+            else
+            {
+                var master = options.Value.MasterDomain?
+                                      .TrimStart("https://".ToCharArray())
+                                      .TrimStart("http://".ToCharArray())
+                                      .TrimEnd('/');
+                var redirect = $"https://{master}/";
+                _logger.LogWarning("No tenant for '{Subdomain}', redirecting to {Redirect}", subdomain, redirect);
+                context.Response.Redirect(redirect);
+                return;
+            }
         }
         else
         {
