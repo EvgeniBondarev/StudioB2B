@@ -28,7 +28,8 @@ namespace StudioB2B.Domain.Entities.Marketplace
         public MarketplaceClientMode? Mode { get; set; }
 
         /// <summary>общие настройки пользователя; произвольные ключ‑значение.</summary>
-        public MarketplaceClientSettings? Settings { get; set; }
+        // navigation for key‑value settings; multiple entries allowed
+        public List<MarketplaceClientSettings> Settings { get; set; } = new();
 
         /// <summary>настройки, специфичные для интеграции с 1С.</summary>
         public MarketplaceClient1CSettings? Settings1C { get; set; }
