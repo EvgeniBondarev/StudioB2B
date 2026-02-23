@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Domain.Entities.Common;
+using StudioB2B.Domain.Entities.Marketplace;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -54,6 +55,12 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
         UpdateAuditFields();
         return base.SaveChangesAsync(cancellationToken);
     }
+
+    public DbSet<MarketplaceClient>? MarketplaceClients { get; set; }
+    public DbSet<MarketplaceClientType>? MarketplaceClientTypes { get; set; }
+    public DbSet<MarketplaceClientMode>? MarketplaceClientModes { get; set; }
+    public DbSet<MarketplaceClientSettings>? MarketplaceClientSettings { get; set; }
+    public DbSet<MarketplaceClient1CSettings>? MarketplaceClient1CSettings { get; set; }
 
     public override int SaveChanges()
     {
