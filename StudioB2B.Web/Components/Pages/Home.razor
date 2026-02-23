@@ -223,6 +223,8 @@ else
     </AuthorizeView>
 }
 
+@inject Microsoft.Extensions.Options.IOptions<StudioB2B.Infrastructure.MultiTenancy.MultiTenancyOptions> MultiTenancyOptions
+
 @code {
     private Domain.Entities.Tenants.Tenant? _tenant;
     private bool _rememberMe = true;
@@ -260,7 +262,23 @@ else
                 await Task.Delay(1500);
                 var uri = new Uri(Navigation.Uri);
                 var port = uri.Port is 80 or 443 ? "" : $":{uri.Port}";
-                Navigation.NavigateTo($"http://{_reg.Subdomain}.localhost{port}/", true);
+
+                var masterDomain = MultiTenancyOptions.Value.MasterDomain?.ToLowerInvariant() ?? "localhost";
+                string redirectHost;
+                string scheme;
+
+                if (masterDomain.Contains("localhost"))
+                {
+                    redirectHost = $"{_reg.Subdomain}.localhost";
+                    scheme = uri.Scheme; 
+                }
+                else
+                {
+                    redirectHost = $"{_reg.Subdomain}.{masterDomain}";
+                    scheme = "https";
+                }
+
+                Navigation.NavigateTo($"{scheme}://{redirectHost}{port}/", true);
             }
             else
             {
