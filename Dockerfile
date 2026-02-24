@@ -45,17 +45,9 @@ ENV ConnectionStrings__MasterDb=""
 
 # Multi-tenancy settings
 ENV MultiTenancy__MasterDomain="studiob2b.ru"
-ENV MultiTenancy__DefaultSubdomain="demo"
 
 # Tenant DB connection string template (for per-tenant databases)
 ENV MultiTenancy__TenantDbConnectionTemplate=""
-
-# Database migration settings (disabled for production by default)
-ENV Database__ApplyMigrationsOnStartup=false
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5184/health || exit 1
 
 EXPOSE 5184
 
