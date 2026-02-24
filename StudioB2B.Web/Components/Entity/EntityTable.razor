@@ -1,0 +1,139 @@
+@typeparam TEntity
+@using StudioB2B.Web.Components.Entity
+@using MudBlazor
+<MudPaper Outlined="true">
+    @if (Items.Count > 0)
+    {
+    }
+    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">Всего: @Items?.Count</MudText>
+    @if (ServerData != null)
+    {
+        <MudTable T="TEntity"
+                  ServerData="LoadServerDataWithToken"
+                  Hover="true"
+                  Dense="true"
+                  Loading="@Loading"
+                  LoadingProgressColor="Color.Primary"
+                  Elevation="0">
+            <HeaderContent>
+                @foreach (var field in Meta.Fields.Where(f => f.IsVisible))
+                {
+                    <MudTh>@field.DisplayName</MudTh>
+                }
+                <MudTh Style="width:130px"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                @foreach (var field in Meta.Fields.Where(f => f.IsVisible))
+                {
+                    <MudTd DataLabel="@field.DisplayName">
+                        @((field.Formatter != null) ? field.Formatter(GetFieldValue(context, field)) : GetFieldValue(context, field)?.ToString())
+                    </MudTd>
+                }
+                <MudTd>
+                    @if (OnEdit.HasDelegate)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" Title="Редактировать" OnClick="@(() => OnEdit.InvokeAsync(context))" />
+                    }
+                    @if (OnDelete.HasDelegate)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error" Title="Удалить" OnClick="@(() => OnDelete.InvokeAsync(context))" />
+                    }
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4">Нет данных</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    }
+    else
+    {
+        <MudTable T="TEntity"
+                  Items="FilteredItems"
+                  Hover="true"
+                  Dense="true"
+                  Loading="@Loading"
+                  LoadingProgressColor="Color.Primary"
+                  Elevation="0">
+            <HeaderContent>
+                @foreach (var field in Meta.Fields.Where(f => f.IsVisible))
+                {
+                    <MudTh>@field.DisplayName</MudTh>
+                }
+                <MudTh Style="width:130px"></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                @foreach (var field in Meta.Fields.Where(f => f.IsVisible))
+                {
+                    <MudTd DataLabel="@field.DisplayName">
+                        @((field.Formatter != null) ? field.Formatter(GetFieldValue(context, field)) : GetFieldValue(context, field)?.ToString())
+                    </MudTd>
+                }
+                <MudTd>
+                    @if (OnEdit.HasDelegate)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small" Title="Редактировать" OnClick="@(() => OnEdit.InvokeAsync(context))" />
+                    }
+                    @if (OnDelete.HasDelegate)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error" Title="Удалить" OnClick="@(() => OnDelete.InvokeAsync(context))" />
+                    }
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4">Нет данных</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    }
+    <MudTextField T="string" @bind-Value="_filter" Placeholder="Поиск..." Class="mt-2 mb-2" Immediate="true" OnInput="OnFilterChanged" />
+</MudPaper>
+
+@code {
+    [Parameter] public List<TEntity> Items { get; set; } = new();
+    [Parameter] public IEntityMeta<TEntity> Meta { get; set; } = null!;
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public EventCallback<TEntity> OnEdit { get; set; }
+    [Parameter] public EventCallback<TEntity> OnDelete { get; set; }
+    [Parameter] public Func<TableState, CancellationToken, Task<TableData<TEntity>>>? ServerData { get; set; }
+
+    private string _filter = string.Empty;
+    private List<TEntity> FilteredItems => string.IsNullOrWhiteSpace(_filter)
+        ? Items
+        : Items.Where(x => Meta.Fields.Any(f => (GetFieldValue(x, f)?.ToString() ?? "").Contains(_filter, StringComparison.OrdinalIgnoreCase))).ToList();
+
+    private void OnFilterChanged(ChangeEventArgs e)
+    {
+        _filter = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private object? GetFieldValue(TEntity entity, EntityField field)
+    {
+        var prop = typeof(TEntity).GetProperty(field.Name);
+        if (prop == null)
+        {
+            // Для отладки: если свойство не найдено, вернуть строку с ошибкой
+            return $"[NO PROPERTY: {field.Name}]";
+        }
+        return prop.GetValue(entity);
+    }
+
+    private Dictionary<string, object> GetMudTableAttrs()
+    {
+        var dict = new Dictionary<string, object>();
+        if (ServerData != null)
+            dict["ServerData"] = (Func<TableState, CancellationToken, Task<TableData<TEntity>>>)LoadServerDataWithToken;
+        else
+            dict["Items"] = FilteredItems;
+        return dict;
+    }
+
+    private Task<TableData<TEntity>> LoadServerDataWithToken(TableState state, CancellationToken token)
+    {
+        return ServerData != null ? ServerData(state, token) : Task.FromResult(new TableData<TEntity> { Items = FilteredItems, TotalItems = FilteredItems.Count });
+    }
+}

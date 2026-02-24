@@ -30,4 +30,8 @@
       <ProjectReference Include="..\StudioB2B.Shared\StudioB2B.Shared.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Content Remove="Components\Common\CrudTable.razor" />
+    </ItemGroup>
+
 </Project>
