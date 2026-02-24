@@ -1,0 +1,25 @@
+@typeparam TEntity
+@using StudioB2B.Web.Components.Entity
+@using MudBlazor
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Удаление @Meta.EntityDisplayName</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body1">Вы уверены, что хотите удалить <b>@Meta.EntityDisplayName</b>?</MudText>
+        @ChildContent
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Отмена</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="Delete">Удалить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public TEntity Model { get; set; } = default!;
+    [Parameter] public IEntityMeta<TEntity> Meta { get; set; } = null!;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private void Cancel() => MudDialog.Cancel();
+    private void Delete() => MudDialog.Close(DialogResult.Ok(Model));
+}
