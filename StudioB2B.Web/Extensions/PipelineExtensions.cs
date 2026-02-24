@@ -1,5 +1,6 @@
 ﻿using Serilog;
 using StudioB2B.Infrastructure.MultiTenancy;
+using StudioB2B.Infrastructure.MultiTenancy.Middleware;
 using StudioB2B.Web.Components;
 
 namespace StudioB2B.Web.Extensions;

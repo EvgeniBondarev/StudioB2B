@@ -7,9 +7,13 @@ using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Features.Roles;
 using StudioB2B.Infrastructure.Features.Users;
 using StudioB2B.Infrastructure.MultiTenancy;
+using StudioB2B.Infrastructure.MultiTenancy.CircuitHandlers;
+using StudioB2B.Infrastructure.MultiTenancy.Initialization;
+using StudioB2B.Infrastructure.MultiTenancy.Resolution;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
+using TenantService = StudioB2B.Infrastructure.MultiTenancy.Services.TenantService;
 
 namespace StudioB2B.Infrastructure;
 
@@ -35,12 +39,11 @@ public static class DependencyInjection
         services.AddScoped<TenantProvider>();
         services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<TenantProvider>());
 
+        services.AddSingleton<ISubdomainResolver, SubdomainResolver>();
+        services.AddScoped<ITenantDatabaseInitializer, TenantDatabaseInitializer>();
         services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
-
         services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
-
         services.AddScoped<ITenantService, TenantService>();
-
         services.AddScoped<CircuitHandler, TenantCircuitHandler>();
 
         // Tenant DbContext (Scoped, dynamic connection)
