@@ -104,7 +104,10 @@ public class TenantMiddleware
         }
 
         // Извлекаем субдомен из host: demo.studiob2b.ru -> demo
-        var masterDomain = options.MasterDomain?.TrimStart('.') ?? "";
+        var masterDomain = options.MasterDomain.TrimStart('.');
+
+        logger.LogInformation("[TENANT DEBUG] hostvalue -  {HostValue}", hostValue);
+        logger.LogInformation("[TENANT DEBUG] masterdomain -  {MasterDomain}", masterDomain);
 
         if (!string.IsNullOrEmpty(masterDomain) && hostValue.EndsWith(masterDomain, StringComparison.OrdinalIgnoreCase))
         {
