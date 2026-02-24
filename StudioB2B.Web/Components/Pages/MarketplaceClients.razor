@@ -8,6 +8,7 @@
 @using StudioB2B.Infrastructure.Features.Marketplace
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Infrastructure.Services
+@using StudioB2B.Web.Components.Entity
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory Factory
 @inject IMapper Mapper
@@ -39,37 +40,12 @@ else
         <MudProgressLinear Indeterminate="true" Class="mb-4" />
     }
 
-    <MudPaper Outlined="true">
-        <MudTable Items="@_clients" Hover="true" Dense="true" Loading="@_loading"
-                  LoadingProgressColor="Color.Primary" Elevation="0">
-            <HeaderContent>
-                <MudTh>Название</MudTh>
-                <MudTh>API Id</MudTh>
-                <MudTh>Тип</MudTh>
-                <MudTh>Режим</MudTh>
-                <!-- created column removed -->
-                <MudTh Style="width:130px"></MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Название">
-                    <MudText Style="font-weight:500;">@context.Name</MudText>
-                </MudTd>
-                <MudTd DataLabel="API Id">@context.ApiId</MudTd>
-                <MudTd DataLabel="Тип">@context.ClientTypeName</MudTd>
-                <MudTd DataLabel="Режим">@context.ModeName</MudTd>
-                <MudTd>
-                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small"
-                                   Title="Редактировать" OnClick="@(() => EditClient(context))" />
-                    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small"
-                                   Color="Color.Error" Title="Удалить"
-                                   OnClick="@(() => DeleteClient(context))" />
-                </MudTd>
-            </RowTemplate>
-            <NoRecordsContent>
-                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4">Клиентов пока нет</MudText>
-            </NoRecordsContent>
-        </MudTable>
-    </MudPaper>
+    <EntityTable TEntity="MarketplaceClientDto"
+                 Items="@_clients"
+                 Meta="@_meta"
+                 Loading="@_loading"
+                 OnEdit="EditClient"
+                 OnDelete="DeleteClient" />
 }
 
 @code {
@@ -77,6 +53,7 @@ else
     private List<MarketplaceClientTypeDto> _types = [];
     private List<MarketplaceClientModeDto> _modes = [];
     private bool _loading = true;
+    private MarketplaceClientEntityMeta _meta = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -102,20 +79,21 @@ else
                         .ToListAsync();
         _clients = await db.MarketplaceClients!.GetAllAsync(Mapper);
         _loading = false;
+        StateHasChanged();
     }
 
     private async Task AddClient()
     {
-        var parameters = new DialogParameters<MarketplaceClientFormDialog>
-        {
-            { x => x.Title, "Добавить клиента" },
-            { x => x.Model, new MarketplaceClientFormModel() },
-            { x => x.ClientTypes, _types },
-            { x => x.Modes, _modes }
-        };
-        var dialog = await DialogService.ShowAsync<MarketplaceClientFormDialog>("Добавить клиента", parameters);
+        var dialog = await DialogService.ShowAsync<EntityFormDialog<MarketplaceClientDto>>(
+            "Добавить клиента",
+            new DialogParameters<EntityFormDialog<MarketplaceClientDto>>
+            {
+                { x => x.Title, "Добавить клиента" },
+                { x => x.Model, new MarketplaceClientDto { Id = Guid.NewGuid() } },
+                { x => x.Meta, _meta }
+            });
         var result = await dialog.Result;
-        if (result is { Canceled: false, Data: MarketplaceClientFormModel m })
+        if (result is { Canceled: false, Data: MarketplaceClientDto m })
         {
             using var db = Factory.CreateDbContext();
             var request = new CreateMarketplaceClientRequest(
@@ -131,32 +109,22 @@ else
             await LoadAsync();
         }
     }
-
     private async Task EditClient(MarketplaceClientDto client)
     {
-        var model = new MarketplaceClientFormModel
-        {
-            Id = client.Id,
-            Name = client.Name,
-            ApiId = client.ApiId,
-            Key = client.Key,
-            ClientTypeId = client.ClientTypeId,
-            ModeId = client.ModeId
-        };
-        var parameters = new DialogParameters<MarketplaceClientFormDialog>
-        {
-            { x => x.Title, "Редактировать клиента" },
-            { x => x.Model, model },
-            { x => x.ClientTypes, _types },
-            { x => x.Modes, _modes }
-        };
-        var dialog = await DialogService.ShowAsync<MarketplaceClientFormDialog>("Редактировать клиента", parameters);
+        var dialog = await DialogService.ShowAsync<EntityFormDialog<MarketplaceClientDto>>(
+            "Редактировать клиента",
+            new DialogParameters<EntityFormDialog<MarketplaceClientDto>>
+            {
+                { x => x.Title, "Редактировать клиента" },
+                { x => x.Model, client },
+                { x => x.Meta, _meta }
+            });
         var result = await dialog.Result;
-        if (result is { Canceled: false, Data: MarketplaceClientFormModel m })
+        if (result is { Canceled: false, Data: MarketplaceClientDto m })
         {
             using var db = Factory.CreateDbContext();
             var req = new UpdateMarketplaceClientRequest(
-                m.Id!.Value,
+                m.Id,
                 m.Name ?? string.Empty,
                 m.ApiId ?? string.Empty,
                 m.Key ?? string.Empty,
@@ -176,26 +144,27 @@ else
             }
         }
     }
-
     private async Task DeleteClient(MarketplaceClientDto client)
     {
-        var confirmed = await DialogService.ShowMessageBox(
-            "Удаление клиента",
-            $"Удалить клиента «{client.Name}»? Действие необратимо.",
-            yesText: "Удалить", cancelText: "Отмена");
-        if (confirmed == true)
+        var dialog = await DialogService.ShowAsync<EntityDeleteDialog<MarketplaceClientDto>>(
+            "Удалить клиента",
+            new DialogParameters<EntityDeleteDialog<MarketplaceClientDto>>
+            {
+                { x => x.Model, client },
+                { x => x.Meta, _meta }
+            });
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) return;
+        using var db = Factory.CreateDbContext();
+        var deleted = await db.DeleteAsync(client.Id);
+        if (deleted)
         {
-            using var db = Factory.CreateDbContext();
-            var deleted = await db.DeleteAsync(client.Id);
-            if (deleted)
-            {
-                Snackbar.Add("Клиент удалён", Severity.Success);
-                await LoadAsync();
-            }
-            else
-            {
-                Snackbar.Add("Ошибка удаления", Severity.Error);
-            }
+            Snackbar.Add("Клиент удалён", Severity.Success);
+            await LoadAsync();
+        }
+        else
+        {
+            Snackbar.Add("Ошибка удаления", Severity.Error);
         }
     }
 

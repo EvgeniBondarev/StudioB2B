@@ -1,0 +1,49 @@
+@typeparam TEntity
+@using StudioB2B.Web.Components.Entity
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@Title</MudText>
+    </TitleContent>
+    <DialogContent>
+        <EditForm Model="@Model" OnValidSubmit="OnSubmit">
+            <DataAnnotationsValidator />
+            @foreach (var field in Meta.Fields.Where(f => f.IsVisible))
+            {
+                <MudTextField T="object" Label="@field.DisplayName"
+                              Value="@GetFieldValue(field)"
+                              ValueChanged="@(v => SetFieldValue(field, v))"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" FullWidth="true"
+                              Required="@field.IsRequired" Disabled="@(!field.IsEditable)" />
+            }
+            @ChildContent
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Отмена</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Submit">Сохранить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public TEntity Model { get; set; } = default!;
+    [Parameter] public IEntityMeta<TEntity> Meta { get; set; } = null!;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private object? GetFieldValue(EntityField field)
+    {
+        var prop = typeof(TEntity).GetProperty(field.Name);
+        return prop?.GetValue(Model);
+    }
+    private void SetFieldValue(EntityField field, object? value)
+    {
+        var prop = typeof(TEntity).GetProperty(field.Name);
+        prop?.SetValue(Model, value);
+    }
+    private void Cancel() => MudDialog.Cancel();
+    private void Submit() => MudDialog.Close(DialogResult.Ok(Model));
+    private void OnSubmit() => Submit();
+}
