@@ -3,15 +3,13 @@
 
 @if (TenantProvider.IsResolved)
 {
-    <MudContainer MaxWidth="MaxWidth.Small" Class="mt-12">
-        <MudPaper Outlined="true" Class="pa-8 text-center">
-            <MudIcon Icon="@Icons.Material.Outlined.Lock" Color="Color.Error" Size="Size.Large" Class="mb-3" />
-            <MudText Typo="Typo.h5" GutterBottom="true">Доступ запрещён</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Этот раздел доступен только с главной страницы системы (<strong>localhost</strong>).
-            </MudText>
-        </MudPaper>
-    </MudContainer>
+    <div style="max-width: 480px; margin: 4rem auto; text-align: center;">
+        <RadzenIcon Icon="lock" Style="font-size: 3rem; color: var(--rz-danger);" />
+        <RadzenText TextStyle="TextStyle.H5" Style="margin-top: 1rem;">Доступ запрещён</RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color); margin-top: 0.5rem;">
+            Этот раздел доступен только с главной страницы системы.
+        </RadzenText>
+    </div>
 }
 else
 {
@@ -21,4 +19,3 @@ else
 @code {
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }
-

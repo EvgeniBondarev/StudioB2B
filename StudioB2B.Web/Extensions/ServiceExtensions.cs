@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Hosting.StaticWebAssets;
+using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.HttpOverrides;
-using MudBlazor.Services;
+using Radzen;
 using StudioB2B.Infrastructure;
 using Microsoft.AspNetCore.Components;
 
@@ -12,14 +12,12 @@ public static class ServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Получаем environment правильным способом
         var serviceProvider = services.BuildServiceProvider();
         var environment = serviceProvider.GetRequiredService<IWebHostEnvironment>();
 
         StaticWebAssetsLoader.UseStaticWebAssets(environment, configuration);
 
         services.AddHttpContextAccessor();
-        // provide HttpClient for components (Blazor Server doesn't add it by default)
         services.AddHttpClient();
         services.AddScoped(sp =>
         {
@@ -29,32 +27,24 @@ public static class ServiceExtensions
             client.BaseAddress = new Uri(nav.BaseUri);
             return client;
         });
+
         services.AddInfrastructure(configuration);
-        services.AddMudServices();
 
-        // Настройка аутентификации в зависимости от окружения
+        services.AddScoped<DialogService>();
+        services.AddScoped<NotificationService>();
+        services.AddScoped<TooltipService>();
+        services.AddScoped<ContextMenuService>();
+
         ConfigureAuthentication(services, environment);
-
-        // Настройка CORS в зависимости от окружения
         ConfigureCors(services, environment);
 
         services.Configure<ForwardedHeadersOptions>(options =>
         {
-            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
-                                       ForwardedHeaders.XForwardedProto;
-
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.KnownNetworks.Clear();
+            options.KnownProxies.Clear();
             if (environment.IsDevelopment())
-            {
-                // В разработке добавляем локальные адреса
-                options.KnownNetworks.Clear();
-                options.KnownProxies.Clear();
-                options.AllowedHosts.Clear(); // Разрешаем все хосты в разработке
-            }
-            else
-            {
-                options.KnownNetworks.Clear();
-                options.KnownProxies.Clear();
-            }
+                options.AllowedHosts.Clear();
         });
 
         services.AddControllers();
@@ -68,13 +58,12 @@ public static class ServiceExtensions
     {
         if (environment.IsDevelopment())
         {
-            // Для локальной разработки с localhost
             services.ConfigureApplicationCookie(options =>
             {
-                options.Cookie.Domain = null; // Не устанавливать домен для localhost
+                options.Cookie.Domain = null;
                 options.Cookie.Name = ".AspNetCore.Identity.Application";
                 options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; // Важно для localhost (не HTTPS)
+                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
                 options.Cookie.HttpOnly = true;
                 options.Cookie.IsEssential = true;
                 options.ExpireTimeSpan = TimeSpan.FromDays(14);
@@ -83,7 +72,6 @@ public static class ServiceExtensions
         }
         else
         {
-            // Для Production
             services.ConfigureApplicationCookie(options =>
             {
                 options.Cookie.Domain = ".studiob2b.ru";
@@ -106,27 +94,21 @@ public static class ServiceExtensions
             {
                 if (environment.IsDevelopment())
                 {
-                    // В разработке разрешаем все localhost с любыми портами
                     policy.SetIsOriginAllowed(origin =>
                     {
                         var uri = new Uri(origin);
-                        // Разрешаем localhost с любым портом и любой схемой (http/https)
-                        return uri.Host == "localhost" ||
-                               uri.Host.EndsWith(".localhost") ||
-                               uri.Host == "127.0.0.1";
+                        return uri.Host == "localhost" || uri.Host.EndsWith(".localhost") || uri.Host == "127.0.0.1";
                     })
-                    .AllowCredentials()  // Критически важно для куки
+                    .AllowCredentials()
                     .AllowAnyHeader()
                     .AllowAnyMethod();
                 }
                 else
                 {
-                    // В продакшене - строгая проверка
                     policy.SetIsOriginAllowed(origin =>
                     {
                         var uri = new Uri(origin);
-                        return uri.Host == "studiob2b.ru" ||
-                               uri.Host.EndsWith(".studiob2b.ru");
+                        return uri.Host == "studiob2b.ru" || uri.Host.EndsWith(".studiob2b.ru");
                     })
                     .AllowCredentials()
                     .AllowAnyHeader()
