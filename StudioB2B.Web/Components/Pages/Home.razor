@@ -1,11 +1,13 @@
 @page "/"
 @using StudioB2B.Application.Common.Interfaces
 @using System.ComponentModel.DataAnnotations
+@using StudioB2B.Domain.Entities.Tenants
+@using StudioB2B.Domain.Options
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
-@inject Microsoft.Extensions.Options.IOptions<Infrastructure.MultiTenancy.MultiTenancyOptions> MultiTenancyOptions
+@inject Microsoft.Extensions.Options.IOptions<MultiTenancyOptions> MultiTenancyOptions
 
 <PageTitle>StudioB2B</PageTitle>
 
@@ -186,7 +188,7 @@
 </div>
 
 @code {
-    private Domain.Entities.Tenants.Tenant? _tenant;
+    private TenantEntity? _tenant;
 
     [SupplyParameterFromQuery] public string? Error { get; set; }
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }

@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using StudioB2B.Domain.Entities.Common;
@@ -8,13 +7,15 @@ using StudioB2B.Domain.Entities.Marketplace;
 namespace StudioB2B.Infrastructure.Persistence.Tenant;
 
 
-public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>
+public class TenantDbContext : DbContext
 {
-    public DbSet<MarketplaceClient>? MarketplaceClients { get; set; }
-    public DbSet<MarketplaceClientType>? MarketplaceClientTypes { get; set; }
-    public DbSet<MarketplaceClientMode>? MarketplaceClientModes { get; set; }
-    public DbSet<MarketplaceClientSettings>? MarketplaceClientSettings { get; set; }
-    public DbSet<MarketplaceClient1CSettings>? MarketplaceClient1CSettings { get; set; }
+    public virtual DbSet<MarketplaceClient> MarketplaceClients { get; set; }
+    public virtual DbSet<MarketplaceClientType> MarketplaceClientTypes { get; set; }
+    public virtual DbSet<MarketplaceClientMode> MarketplaceClientModes { get; set; }
+    public virtual DbSet<MarketplaceClientSettings> MarketplaceClientSettings { get; set; }
+    public virtual DbSet<MarketplaceClient1CSettings> MarketplaceClient1CSettings { get; set; }
+    public virtual DbSet<User> Users { get; set; }
+    public virtual DbSet<Role> Roles { get; set; }
 
     public TenantDbContext(DbContextOptions<TenantDbContext> options) : base(options)
     {
