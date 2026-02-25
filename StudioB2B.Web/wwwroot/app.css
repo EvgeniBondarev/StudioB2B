@@ -1,15 +1,8 @@
-html {
-    background-color: var(--mud-palette-background);
-}
-
 html, body {
     margin: 0;
     padding: 0;
-    color: var(--mud-palette-text-primary);
-    background-color: var(--mud-palette-background);
 }
 
-/* Reset browser default <code> styling so it follows theme */
 code {
     color: inherit;
     background-color: transparent;
@@ -29,4 +22,55 @@ h1:focus {
 
 .blazor-error-boundary::after {
     content: "Произошла ошибка приложения.";
+}
+
+/* ─── Sidebar layout ──────────────────────────────────────── */
+
+.sidebar-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.sidebar-logo {
+    padding: 1rem 1.25rem 0.5rem;
+    font-weight: 700;
+    font-size: 1.05rem;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+/* ─── Compact (icon-only) mode ────────────────────────────── */
+
+.sidebar-compact .sidebar-logo {
+    justify-content: center;
+    padding: 0.85rem 0 0.5rem;
+}
+
+/* Hide the text label in each menu item */
+.sidebar-compact .rz-navigation-item-text {
+    display: none !important;
+}
+
+/* Center the icon inside the item wrapper */
+.sidebar-compact .rz-navigation-item-wrapper {
+    display: flex !important;
+    justify-content: center !important;
+    padding: 0.5rem !important;
+}
+
+/* Remove right margin from icon so it stays centred */
+.sidebar-compact .rz-navigation-item-icon,
+.sidebar-compact .notranslate {
+    margin-right: 0 !important;
+}
+
+/* Disable the expand arrow (chevron) on parent items */
+.sidebar-compact .rz-navigation-item-toggle-icon {
+    display: none !important;
 }
