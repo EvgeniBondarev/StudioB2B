@@ -1,0 +1,21 @@
+@using StudioB2B.Application.Common.Interfaces
+@inject ITenantProvider TenantProvider
+
+@if (TenantProvider.IsResolved)
+{
+    <div style="max-width: 480px; margin: 4rem auto; text-align: center;">
+        <RadzenIcon Icon="lock" Style="font-size: 3rem; color: var(--rz-danger);" />
+        <RadzenText TextStyle="TextStyle.H5" Style="margin-top: 1rem;">Доступ запрещён</RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color); margin-top: 0.5rem;">
+            Этот раздел доступен только с главной страницы системы.
+        </RadzenText>
+    </div>
+}
+else
+{
+    @ChildContent
+}
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

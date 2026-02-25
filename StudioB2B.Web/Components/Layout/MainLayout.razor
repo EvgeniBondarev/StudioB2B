@@ -1,108 +1,90 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @using StudioB2B.Application.Common.Interfaces
 @inject ITenantProvider TenantProvider
-@inject IJSRuntime Js
-@implements IDisposable
+@inject NavigationManager Navigation
 
-<MudThemeProvider @ref="_mud" Theme="_isDark ? AppTheme.Dark : AppTheme.Light" IsDarkMode="_isDark" DefaultScrollbar="true" />
-<MudPopoverProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
+<RadzenLayout Style="min-height: 100vh;">
 
-<MudLayout>
-    <MudAppBar Elevation="1" Dense="true">
-        <MudText Typo="Typo.h6" Style="font-weight:700; letter-spacing:-0.5px;">
-            StudioB2B
-        </MudText>
+    <!--
+        Sidebar width is controlled manually via Style.
+        @bind-Expanded is intentionally omitted — Radzen collapses it to width:0 when Expanded=false,
+        which hides icons too. Instead we use CSS class .sidebar-compact to show icon-only mode.
+    -->
+    <RadzenSidebar Style="@(_sidebarExpanded ? "width: 220px;" : "width: 64px; overflow: hidden;")">
+        <div class="sidebar-inner @(_sidebarExpanded ? "" : "sidebar-compact")">
 
-        <MudSpacer />
+            <div class="sidebar-logo">
+                <RadzenIcon Icon="business_center" Style="color: var(--rz-primary); font-size: 1.3rem; flex-shrink: 0;" />
+                @if (_sidebarExpanded)
+                {
+                    <span>StudioB2B</span>
+                }
+            </div>
 
-        @if (TenantProvider.IsResolved)
-        {
-            <AuthorizeView Roles="Admin">
-                <Authorized>
-                    <MudButton Href="/users" StartIcon="@Icons.Material.Outlined.People"
-                               Variant="Variant.Text" Color="Color.Inherit" Size="Size.Small" Class="mr-1">
-                        Пользователи
-                    </MudButton>
-                    <MudButton Href="/marketplace-clients" StartIcon="@Icons.Material.Outlined.AddBusiness"
-                               Variant="Variant.Text" Color="Color.Inherit" Size="Size.Small" Class="mr-1">
-                        Маркетплейс
-                    </MudButton>
-                </Authorized>
-            </AuthorizeView>
-            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" Class="mr-1">
-                @TenantProvider.Subdomain
-            </MudChip>
-        }
-        else
-        {
-            <MudButton Href="/roles" StartIcon="@Icons.Material.Outlined.ManageAccounts"
-                       Variant="Variant.Text" Color="Color.Inherit" Size="Size.Small" Class="mr-1">
-                Роли
-            </MudButton>
-        }
+            <RadzenPanelMenu>
+                <RadzenPanelMenuItem Text="Главная" Path="/" Icon="home" />
 
-        <MudIconButton
-            Icon="@(_isDark ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)"
-            Color="Color.Inherit"
-            Size="Size.Small"
-            Title="Переключить тему"
-            OnClick="ToggleTheme" />
+                @if (TenantProvider.IsResolved)
+                {
+                    <AuthorizeView Roles="Admin">
+                        <Authorized>
+                            <RadzenPanelMenuItem Text="Пользователи" Path="/users" Icon="people" />
+                            <RadzenPanelMenuItem Text="Маркетплейс" Path="/marketplace-clients" Icon="store" />
+                        </Authorized>
+                    </AuthorizeView>
 
-        <AuthorizeView>
-            <Authorized>
-                <MudText Typo="Typo.body2" Class="ml-2 mr-1">@context.User.Identity?.Name</MudText>
-                <MudIconButton Icon="@Icons.Material.Outlined.Logout" Color="Color.Inherit" Size="Size.Small" Href="/account/logout" Title="Выйти" />
-            </Authorized>
-        </AuthorizeView>
-    </MudAppBar>
+                    <RadzenPanelMenuItem Text="@TenantProvider.Subdomain" Icon="apartment" Disabled="true" />
+                }
+                else
+                {
+                    <RadzenPanelMenuItem Text="Роли" Path="/roles" Icon="security" />
+                }
+            </RadzenPanelMenu>
 
-    <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.Large" Class="pa-6">
+        </div>
+    </RadzenSidebar>
+
+    <RadzenHeader Style="padding: 0; border-bottom: 1px solid var(--rz-border-color);">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                     JustifyContent="JustifyContent.SpaceBetween"
+                     Style="height: 56px; padding: 0 1rem; width: 100%;">
+
+            <!-- Кнопка-бургер для сворачивания/разворачивания панели -->
+            <RadzenButton Icon="menu" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text"
+                          Size="ButtonSize.Medium" Click="ToggleSidebar" />
+
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                <AuthorizeView>
+                    <Authorized>
+                        <!-- Имя пользователя — того же цвета, что и кнопка "Выйти" -->
+                        <RadzenText TextStyle="TextStyle.Body2"
+                                    Style="color: var(--rz-text-color); margin: 0; font-weight: 500;">
+                            @context.User.Identity?.Name
+                        </RadzenText>
+                        <RadzenButton Text="Выйти" Icon="logout" ButtonStyle="ButtonStyle.Light"
+                                      Variant="Variant.Text" Size="ButtonSize.Small"
+                                      Click="@(() => Navigation.NavigateTo("/account/logout", forceLoad: true))" />
+                    </Authorized>
+                </AuthorizeView>
+            </RadzenStack>
+
+        </RadzenStack>
+    </RadzenHeader>
+
+    <RadzenBody>
+        <div style="padding: 1.5rem 2rem;">
             @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+        </div>
+    </RadzenBody>
+
+</RadzenLayout>
+
+<RadzenNotification />
+<RadzenDialog />
+<RadzenContextMenu />
 
 @code {
-    private MudThemeProvider _mud = null!;
-    private bool _isDark;
+    private bool _sidebarExpanded = true;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            var prefersAttr = await Js.InvokeAsync<string?>(
-                "eval", "document.documentElement.getAttribute('data-prefers-dark')");
-
-            if (prefersAttr == "1")
-            {
-                _isDark = true;
-            }
-            else
-            {
-                var stored = await Js.InvokeAsync<string?>("localStorage.getItem", "theme");
-                _isDark = stored == "dark" || (stored == null && await _mud.GetSystemPreference());
-            }
-
-            await Js.InvokeVoidAsync(
-                "eval", "document.body.classList.remove('theme-unresolved')");
-
-            StateHasChanged();
-        }
-    }
-
-    private async Task ToggleTheme()
-    {
-        _isDark = !_isDark;
-        await Js.InvokeVoidAsync("localStorage.setItem", "theme", _isDark ? "dark" : "light");
-        await Js.InvokeVoidAsync(
-            "eval",
-            _isDark
-                ? "document.documentElement.setAttribute('data-prefers-dark','1')"
-                : "document.documentElement.removeAttribute('data-prefers-dark')");
-    }
-
-    public void Dispose() { }
+    private void ToggleSidebar() => _sidebarExpanded = !_sidebarExpanded;
 }

@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using StudioB2B.Infrastructure.MultiTenancy;
 using StudioB2B.Web.Components;
 

@@ -1,110 +1,288 @@
 @page "/"
+@using StudioB2B.Application.Common.Interfaces
+@using System.ComponentModel.DataAnnotations
 @inject ITenantProvider TenantProvider
+@inject ITenantService TenantService
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
+@inject Microsoft.Extensions.Options.IOptions<Infrastructure.MultiTenancy.MultiTenancyOptions> MultiTenancyOptions
 
 <PageTitle>StudioB2B</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
-    <MudPaper Class="pa-8" Elevation="3">
+<div style="display: flex; justify-content: center; padding-top: 4rem;">
+    <div style="width: 100%; max-width: 440px;">
+
         @if (!TenantProvider.IsResolved)
         {
-            <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-6" Style="font-weight:700">
-                StudioB2B
-            </MudText>
+            <!-- Главная страница мастер-домена: регистрация нового тенанта -->
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                    Создайте рабочее пространство для вашей компании
+                </RadzenText>
+            </div>
 
-            <AuthorizeView>
-                <Authorized>
-                    <MudText Align="Align.Center" Class="mb-1">
-                        Вы вошли как <strong>@context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</strong>
-                    </MudText>
-                    <MudStack Row="true" Justify="Justify.Center" Class="mb-4" Wrap="Wrap.Wrap">
-                        @foreach (var role in context.User.FindAll(System.Security.Claims.ClaimTypes.Role))
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
-                                @role.Value
-                            </MudChip>
-                        }
-                    </MudStack>
-                    <MudButton Href="/register-tenant"
-                               Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               FullWidth="true"
-                               Class="mb-3"
-                               StartIcon="@Icons.Material.Outlined.AddBusiness">
-                        Добавить тенант
-                    </MudButton>
-                    <MudButton OnClick="Logout"
-                               Variant="Variant.Outlined"
-                               Color="Color.Default"
-                               FullWidth="true">
-                        Выйти
-                    </MudButton>
-                </Authorized>
-                <NotAuthorized>
-                    <MudButton Href="/login"
-                               Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               FullWidth="true"
-                               Class="mb-3"
-                               StartIcon="@Icons.Material.Outlined.Login">
-                        Войти
-                    </MudButton>
-                    <MudButton Href="/register"
-                               Variant="Variant.Outlined"
-                               Color="Color.Primary"
-                               FullWidth="true"
-                               StartIcon="@Icons.Material.Outlined.PersonAdd">
-                        Зарегистрироваться
-                    </MudButton>
-                </NotAuthorized>
-            </AuthorizeView>
+            <hr style="margin-bottom: 2rem;" />
+
+            @if (_registerSuccess)
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Success" ShowIcon="true" AllowClose="false">
+                    Компания зарегистрирована! Перенаправление...
+                </RadzenAlert>
+            }
+            else
+            {
+                <EditForm Model="@_reg" OnValidSubmit="HandleRegister">
+                    <DataAnnotationsValidator />
+
+                    <RadzenStack Gap="1rem">
+
+                        <RadzenFormField Text="Название компании" Style="width: 100%;">
+                            <RadzenTextBox @bind-Value="_reg.CompanyName" Style="width: 100%;" />
+                        </RadzenFormField>
+
+                        <RadzenFormField Text="Субдомен" Style="width: 100%;">
+                            <ChildContent>
+                                <RadzenTextBox @bind-Value="_reg.Subdomain" Style="width: 100%;" />
+                            </ChildContent>
+                            <Helper>
+                                <RadzenText TextStyle="TextStyle.Caption">Только a-z, 0-9, дефис (3–5 символов) — добавится .@DomainAdornment</RadzenText>
+                            </Helper>
+                        </RadzenFormField>
+
+                        <RadzenFormField Text="Email администратора" Style="width: 100%;">
+                            <RadzenTextBox @bind-Value="_reg.AdminEmail" Style="width: 100%;" />
+                        </RadzenFormField>
+
+                        <RadzenFormField Text="Пароль" Style="width: 100%;">
+                            <ChildContent>
+                                <RadzenPassword @bind-Value="_reg.Password" Style="width: 100%;" />
+                            </ChildContent>
+                            <Helper>
+                                <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов</RadzenText>
+                            </Helper>
+                        </RadzenFormField>
+
+                        <RadzenFormField Text="Подтверждение пароля" Style="width: 100%;">
+                            <RadzenPassword @bind-Value="_reg.ConfirmPassword" Style="width: 100%;" />
+                        </RadzenFormField>
+
+                        <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
+
+                        <RadzenButton ButtonType="ButtonType.Submit" Text="Создать рабочее пространство"
+                                      ButtonStyle="ButtonStyle.Primary" Style="width: 100%;"
+                                      IsBusy="@_regLoading" />
+                    </RadzenStack>
+                </EditForm>
+            }
         }
         else
         {
-            <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-2" Style="font-weight:700">
-                @TenantProvider.Subdomain
-            </MudText>
-
             <AuthorizeView>
-                <Authorized>
-                    <MudText Align="Align.Center" Class="mb-1">
-                        Вы вошли как <strong>@context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</strong>
-                    </MudText>
-                    <MudStack Row="true" Justify="Justify.Center" Class="mb-4" Wrap="Wrap.Wrap">
-                        @foreach (var role in context.User.FindAll(System.Security.Claims.ClaimTypes.Role))
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">
-                                @role.Value
-                            </MudChip>
-                        }
-                    </MudStack>
-                    <MudButton OnClick="Logout"
-                               Variant="Variant.Outlined"
-                               Color="Color.Default"
-                               FullWidth="true">
-                        Выйти
-                    </MudButton>
-                </Authorized>
                 <NotAuthorized>
-                    <MudButton Href="/login"
-                               Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               FullWidth="true"
-                               StartIcon="@Icons.Material.Outlined.Login">
-                        Войти
-                    </MudButton>
+                    <!-- Тенант-домен, не авторизован: форма входа -->
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                            Вход в <strong>@TenantProvider.Subdomain</strong>
+                        </RadzenText>
+                    </div>
+
+                    <hr style="margin-bottom: 2rem;" />
+
+                    @if (Error == "invalid")
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                            Неверный email или пароль
+                        </RadzenAlert>
+                    }
+                    else if (Error == "inactive")
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                            Аккаунт деактивирован
+                        </RadzenAlert>
+                    }
+                    else if (Error == "error")
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                            Произошла ошибка при входе
+                        </RadzenAlert>
+                    }
+
+                    <form method="post" action="/account/login">
+                        <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+
+                        <RadzenStack Gap="1rem">
+                            <RadzenFormField Text="Email" Style="width: 100%;">
+                                <input name="email" type="email" required
+                                       class="rz-textbox" style="width: 100%;" />
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Пароль" Style="width: 100%;">
+                                <input name="password" type="password" required
+                                       class="rz-textbox" style="width: 100%;" />
+                            </RadzenFormField>
+
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center">
+                                <input type="checkbox" name="rememberMe" id="rememberMe" value="true" checked />
+                                <label for="rememberMe" style="margin-left: 0.5rem; font-size: 0.875rem;">Запомнить меня</label>
+                            </RadzenStack>
+
+                            <button type="submit" class="rz-button rz-button-md rz-primary"
+                                    style="width: 100%; justify-content: center;">
+                                Войти
+                            </button>
+                        </RadzenStack>
+                    </form>
                 </NotAuthorized>
+
+                <Authorized>
+                    <!-- Тенант-домен, авторизован: профиль -->
+                    <div style="text-align: center; margin-bottom: 1.5rem;">
+                        <div style="width: 64px; height: 64px; border-radius: 50%;
+                                    background: var(--rz-primary); color: white;
+                                    display: flex; align-items: center; justify-content: center;
+                                    font-size: 1.4rem; font-weight: 600; margin: 0 auto 1rem;">
+                            @GetInitials(context.User.Identity?.Name)
+                        </div>
+                        <RadzenText TextStyle="TextStyle.H6" Style="font-weight: 600; margin-bottom: 0.25rem;">
+                            @context.User.Identity?.Name
+                        </RadzenText>
+                        <RadzenBadge Text="@(context.User.IsInRole("Admin") ? "Admin" : "User")"
+                                     BadgeStyle="@(context.User.IsInRole("Admin") ? BadgeStyle.Primary : BadgeStyle.Light)" />
+                    </div>
+
+                    <hr style="margin-bottom: 1.5rem;" />
+
+                    @if (_tenant != null)
+                    {
+                        <RadzenStack Gap="0.5rem" Style="margin-bottom: 1.5rem;">
+                            <RadzenStack Orientation="Orientation.Horizontal"
+                                         JustifyContent="JustifyContent.SpaceBetween">
+                                <RadzenText TextStyle="TextStyle.Body2"
+                                            Style="color: var(--rz-text-secondary-color);">Компания</RadzenText>
+                                <RadzenText TextStyle="TextStyle.Body2">@_tenant.Name</RadzenText>
+                            </RadzenStack>
+                            <hr style="margin: 0.25rem 0;" />
+                            <RadzenStack Orientation="Orientation.Horizontal"
+                                         JustifyContent="JustifyContent.SpaceBetween">
+                                <RadzenText TextStyle="TextStyle.Body2"
+                                            Style="color: var(--rz-text-secondary-color);">Субдомен</RadzenText>
+                                <RadzenText TextStyle="TextStyle.Body2">@TenantProvider.Subdomain</RadzenText>
+                            </RadzenStack>
+                        </RadzenStack>
+                    }
+
+                    <hr style="margin-bottom: 1.5rem;" />
+
+                    <RadzenButton Text="Выйти" Icon="logout" ButtonStyle="ButtonStyle.Danger"
+                                  Style="width: 100%; justify-content: center;"
+                                  Click="@(() => Navigation.NavigateTo("/account/logout", forceLoad: true))" />
+                </Authorized>
             </AuthorizeView>
         }
-    </MudPaper>
-</MudContainer>
+
+    </div>
+</div>
 
 @code {
-    [Inject] private NavigationManager Navigation { get; set; } = default!;
+    private Domain.Entities.Tenants.Tenant? _tenant;
 
-    private void Logout()
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    private RegisterModel _reg = new();
+    private bool _regLoading;
+    private bool _registerSuccess;
+
+    private string DomainAdornment =>
+        MultiTenancyOptions.Value.MasterDomain?.Trim().TrimEnd('/') ?? "localhost";
+
+    protected override async Task OnInitializedAsync()
     {
-        // forceLoad=true — полный page load, контроллер удалит куку и редиректит на /
-        Navigation.NavigateTo("/auth/logout", forceLoad: true);
+        if (TenantProvider.IsResolved && TenantProvider.TenantId.HasValue)
+            _tenant = await TenantService.GetByIdAsync(TenantProvider.TenantId.Value);
+    }
+
+    private async Task HandleRegister()
+    {
+        _regLoading = true;
+        try
+        {
+            if (_reg.Password != _reg.ConfirmPassword)
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Пароли не совпадают");
+                return;
+            }
+
+            var result = await TenantService.RegisterAsync(_reg.CompanyName, _reg.Subdomain, _reg.AdminEmail, _reg.Password);
+
+            if (result.Success)
+            {
+                _registerSuccess = true;
+                await Task.Delay(1500);
+
+                var uri = new Uri(Navigation.Uri);
+                var port = uri.Port is 80 or 443 ? "" : $":{uri.Port}";
+                var masterDomain = MultiTenancyOptions.Value.MasterDomain?.ToLowerInvariant() ?? "localhost";
+
+                string redirectHost;
+                string scheme;
+
+                if (masterDomain.Contains("localhost"))
+                {
+                    redirectHost = $"{_reg.Subdomain}.localhost";
+                    scheme = uri.Scheme;
+                }
+                else
+                {
+                    redirectHost = $"{_reg.Subdomain}.{masterDomain}";
+                    scheme = "https";
+                }
+
+                Navigation.NavigateTo($"{scheme}://{redirectHost}{port}/", forceLoad: true);
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Ошибка регистрации", result.Error ?? "Неизвестная ошибка");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
+        }
+        finally
+        {
+            _regLoading = false;
+        }
+    }
+
+    private static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var local = name.Split('@')[0];
+        return local.Length >= 2 ? local[..2].ToUpper() : local.ToUpper();
+    }
+
+    private class RegisterModel
+    {
+        [Required(ErrorMessage = "Введите название компании")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "От 2 до 100 символов")]
+        public string CompanyName { get; set; } = "";
+
+        [Required(ErrorMessage = "Введите субдомен")]
+        [RegularExpression(@"^[a-z0-9-]{3,5}$", ErrorMessage = "Только a-z, 0-9, дефис (3–5 символов)")]
+        public string Subdomain { get; set; } = "";
+
+        [Required(ErrorMessage = "Введите email")]
+        [EmailAddress(ErrorMessage = "Некорректный email")]
+        public string AdminEmail { get; set; } = "";
+
+        [Required(ErrorMessage = "Введите пароль")]
+        [MinLength(6, ErrorMessage = "Минимум 6 символов")]
+        public string Password { get; set; } = "";
+
+        [Required(ErrorMessage = "Подтвердите пароль")]
+        public string ConfirmPassword { get; set; } = "";
     }
 }
-
