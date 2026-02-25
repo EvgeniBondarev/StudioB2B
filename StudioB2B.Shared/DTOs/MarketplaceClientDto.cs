@@ -10,7 +10,7 @@ public class MarketplaceClientDto
     public string? ClientTypeName { get; set; }
     public Guid? ModeId { get; set; }
     public string? ModeName { get; set; }
-    public List<MarketplaceClientSettingDto>? Settings { get; set; }
+    public List<MarketplaceClientSettingsDto>? Settings { get; set; }
     public MarketplaceClient1CSettingsDto? Settings1C { get; set; }
     public string? Company { get; set; }
     public string? Country { get; set; }

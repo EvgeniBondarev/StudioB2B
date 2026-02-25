@@ -2,7 +2,7 @@ using StudioB2B.Domain.Entities.Common;
 
 namespace StudioB2B.Domain.Entities.Marketplace;
 
-public class MarketplaceClientSettings : IBaseEntity, ISoftDelete
+public class MarketplaceClientSettings : IHasId, ISoftDelete
 {
     public Guid Id { get; set; }
 
