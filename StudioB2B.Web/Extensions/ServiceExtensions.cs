@@ -3,14 +3,14 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Radzen;
 using StudioB2B.Infrastructure;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using StudioB2B.Web.Services;
 
 namespace StudioB2B.Web.Extensions;
 
 public static class ServiceExtensions
 {
-    public static IServiceCollection AddApplicationServices(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
         var serviceProvider = services.BuildServiceProvider();
         var environment = serviceProvider.GetRequiredService<IWebHostEnvironment>();
@@ -29,13 +29,15 @@ public static class ServiceExtensions
         });
 
         services.AddInfrastructure(configuration);
+        services.AddSingleton<TokenExchangeService>();
+        services.AddScoped<CookieAuthService>();
+        services.AddScoped<AuthenticationStateProvider, CookieAuthenticationStateProvider>();
 
         services.AddScoped<DialogService>();
         services.AddScoped<NotificationService>();
         services.AddScoped<TooltipService>();
         services.AddScoped<ContextMenuService>();
 
-        ConfigureAuthentication(services, environment);
         ConfigureCors(services, environment);
 
         services.Configure<ForwardedHeadersOptions>(options =>
@@ -52,38 +54,6 @@ public static class ServiceExtensions
             .AddInteractiveServerComponents();
 
         return services;
-    }
-
-    private static void ConfigureAuthentication(IServiceCollection services, IWebHostEnvironment environment)
-    {
-        if (environment.IsDevelopment())
-        {
-            services.ConfigureApplicationCookie(options =>
-            {
-                options.Cookie.Domain = null;
-                options.Cookie.Name = ".AspNetCore.Identity.Application";
-                options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-                options.Cookie.HttpOnly = true;
-                options.Cookie.IsEssential = true;
-                options.ExpireTimeSpan = TimeSpan.FromDays(14);
-                options.SlidingExpiration = true;
-            });
-        }
-        else
-        {
-            services.ConfigureApplicationCookie(options =>
-            {
-                options.Cookie.Domain = ".studiob2b.ru";
-                options.Cookie.Name = ".AspNetCore.Identity.Application";
-                options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-                options.Cookie.HttpOnly = true;
-                options.Cookie.IsEssential = true;
-                options.ExpireTimeSpan = TimeSpan.FromDays(14);
-                options.SlidingExpiration = true;
-            });
-        }
     }
 
     private static void ConfigureCors(IServiceCollection services, IWebHostEnvironment environment)

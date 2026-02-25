@@ -22,49 +22,86 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.MasterRole", b =>
+            modelBuilder.Entity("RoleUser", b =>
+                {
+                    b.Property<Guid>("RolesId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("UsersId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("RolesId", "UsersId");
+
+                    b.HasIndex("UsersId");
+
+                    b.ToTable("RoleUser");
+
+                    b.HasData(
+                        new
+                        {
+                            RolesId = new Guid("a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
+                            UsersId = new Guid("b2c3d4e5-f6a7-8901-bcde-f12345678901")
+                        });
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Common.Role", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("ConcurrencyStamp")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("varchar(36)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsSystemRole")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
-                    b.Property<string>("NormalizedName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("NormalizedName")
-                        .IsUnique();
+                    b.ToTable("Roles");
 
-                    b.ToTable("Roles", (string)null);
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
+                            IsDeleted = false,
+                            Name = "Администратор"
+                        });
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.Tenant", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Common.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("b2c3d4e5-f6a7-8901-bcde-f12345678901"),
+                            Email = "demo@gmail.com",
+                            IsDeleted = false,
+                            PasswordHash = "$2a$11$A9Dp33vAQDIANSivU2bamu2rrFUAqjNLnBeJQurInxLgthJoOOZlq"
+                        });
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantEntity", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -97,6 +134,21 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                         .IsUnique();
 
                     b.ToTable("Tenants", (string)null);
+                });
+
+            modelBuilder.Entity("RoleUser", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Common.Role", null)
+                        .WithMany()
+                        .HasForeignKey("RolesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Domain.Entities.Common.User", null)
+                        .WithMany()
+                        .HasForeignKey("UsersId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
