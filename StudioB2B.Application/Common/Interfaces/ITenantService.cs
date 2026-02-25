@@ -7,24 +7,12 @@ namespace StudioB2B.Application.Common.Interfaces;
 /// </summary>
 public interface ITenantService
 {
-    /// <summary>
-    /// Получить тенанта по субдомену
-    /// </summary>
-    Task<Tenant?> GetBySubdomainAsync(string subdomain, CancellationToken ct = default);
+    Task<TenantEntity?> GetBySubdomainAsync(string subdomain, CancellationToken ct = default);
 
-    /// <summary>
-    /// Получить тенанта по ID
-    /// </summary>
-    Task<Tenant?> GetByIdAsync(Guid tenantId, CancellationToken ct = default);
+    Task<TenantEntity?> GetByIdAsync(Guid tenantId, CancellationToken ct = default);
 
-    /// <summary>
-    /// Проверить доступность субдомена
-    /// </summary>
     Task<bool> IsSubdomainAvailableAsync(string subdomain, CancellationToken ct = default);
 
-    /// <summary>
-    /// Зарегистрировать нового тенанта и создать его базу данных
-    /// </summary>
     Task<TenantRegistrationResult> RegisterAsync(
         string companyName,
         string subdomain,

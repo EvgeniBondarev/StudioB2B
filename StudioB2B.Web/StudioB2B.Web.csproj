@@ -8,8 +8,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Components\Common\" />
-      <Folder Include="logs\" />
       <Folder Include="wwwroot\lib\" />
     </ItemGroup>
 
@@ -32,6 +30,12 @@
 
     <ItemGroup>
       <Content Remove="Components\Common\CrudTable.razor" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="Components\Entity\EntityDeleteDialog.razor" />
+      <_ContentIncludedByDefault Remove="Components\Entity\EntityFormDialog.razor" />
+      <_ContentIncludedByDefault Remove="Components\Entity\EntityTable.razor" />
     </ItemGroup>
 
 </Project>
