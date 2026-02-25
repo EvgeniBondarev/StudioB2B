@@ -1,16 +1,91 @@
 @page "/login"
+@using System.ComponentModel.DataAnnotations
+@using StudioB2B.Web.Services
+@inject CookieAuthService CookieAuth
 @inject NavigationManager Navigation
-
+@inject ISnackbar Snackbar
+<PageTitle>Вход — StudioB2B</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Class="pa-8" Elevation="3">
+        <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-6" Style="font-weight:700">
+            Вход в систему
+        </MudText>
+        <EditForm Model="_model" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
+            <MudTextField T="string"
+                          Label="Email"
+                          @bind-Value="_model.Email"
+                          InputType="InputType.Email"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          For="@(() => _model.Email)" />
+            <MudTextField T="string"
+                          Label="Пароль"
+                          @bind-Value="_model.Password"
+                          InputType="InputType.Password"
+                          Variant="Variant.Outlined"
+                          Class="mb-6"
+                          For="@(() => _model.Password)" />
+            <MudButton ButtonType="ButtonType.Submit"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Disabled="_loading">
+                @if (_loading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Войти
+            </MudButton>
+        </EditForm>
+        @if (!_isTenant)
+        {
+            <MudDivider Class="my-4" />
+            <MudText Align="Align.Center">
+                Нет аккаунта?
+                <MudLink Href="/register">Зарегистрироваться</MudLink>
+            </MudText>
+        }
+    </MudPaper>
+</MudContainer>
 @code {
-    [SupplyParameterFromQuery] public string? Error { get; set; }
-    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
-
+    [Inject] private ITenantProvider TenantProvider { get; set; } = default!;
+    private readonly FormModel _model = new();
+    private bool _loading;
+    private bool _isTenant;
     protected override void OnInitialized()
     {
-        var query = new System.Text.StringBuilder("?");
-        if (!string.IsNullOrEmpty(Error)) query.Append($"error={Uri.EscapeDataString(Error)}&");
-        if (!string.IsNullOrEmpty(ReturnUrl)) query.Append($"returnUrl={Uri.EscapeDataString(ReturnUrl)}&");
-        var qs = query.ToString().TrimEnd('&', '?');
-        Navigation.NavigateTo("/" + (qs.Length > 0 ? qs : ""), replace: true);
+        _isTenant = TenantProvider.IsResolved;
+    }
+    private async Task HandleLogin()
+    {
+        _loading = true;
+        try
+        {
+            // LoginAsync возвращает redirect URL (/auth/set-cookie?t=...&r=/)
+            // либо null если неверный email/пароль
+            var redirectUrl = await CookieAuth.LoginAsync(_model.Email, _model.Password);
+            if (redirectUrl is not null)
+            {
+                // forceLoad=true — полный page load, браузер получит Set-Cookie заголовок
+                Navigation.NavigateTo(redirectUrl, forceLoad: true);
+            }
+            else
+            {
+                Snackbar.Add("Неверный email или пароль.", Severity.Error);
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+    private class FormModel
+    {
+        [Required(ErrorMessage = "Введите email")]
+        [EmailAddress(ErrorMessage = "Некорректный email")]
+        public string Email { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Введите пароль")]
+        public string Password { get; set; } = string.Empty;
     }
 }

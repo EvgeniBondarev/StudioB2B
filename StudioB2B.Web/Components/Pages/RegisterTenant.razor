@@ -1,0 +1,122 @@
+@page "/register-tenant"
+@attribute [Authorize]
+@using System.ComponentModel.DataAnnotations
+@inject ITenantService TenantService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Добавить тенант — StudioB2B</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudPaper Class="pa-8" Elevation="3">
+        <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-6" Style="font-weight:700">
+            Добавить тенант
+        </MudText>
+
+        <EditForm Model="_model" OnValidSubmit="HandleRegisterTenant">
+            <DataAnnotationsValidator />
+
+            <MudTextField T="string"
+                          Label="Название компании"
+                          @bind-Value="_model.CompanyName"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          For="@(() => _model.CompanyName)" />
+
+            <MudTextField T="string"
+                          Label="Субдомен"
+                          @bind-Value="_model.Subdomain"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          HelperText="Только латинские буквы, цифры и дефис (3–30 символов)"
+                          For="@(() => _model.Subdomain)" />
+
+            <MudTextField T="string"
+                          Label="Email администратора"
+                          @bind-Value="_model.AdminEmail"
+                          InputType="InputType.Email"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          For="@(() => _model.AdminEmail)" />
+
+            <MudTextField T="string"
+                          Label="Пароль администратора"
+                          @bind-Value="_model.AdminPassword"
+                          InputType="InputType.Password"
+                          Variant="Variant.Outlined"
+                          Class="mb-6"
+                          For="@(() => _model.AdminPassword)" />
+
+            <MudButton ButtonType="ButtonType.Submit"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Disabled="_loading">
+                @if (_loading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Создать тенант
+            </MudButton>
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    [Inject] private ITenantProvider TenantProvider { get; set; } = default!;
+
+    private readonly RegisterTenantModel _model = new();
+    private bool _loading;
+
+    protected override void OnInitialized()
+    {
+        if (TenantProvider.IsResolved)
+            Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    private async Task HandleRegisterTenant()
+    {
+        _loading = true;
+        try
+        {
+            var result = await TenantService.RegisterAsync(
+                _model.CompanyName,
+                _model.Subdomain,
+                _model.AdminEmail,
+                _model.AdminPassword);
+
+            if (result.Success)
+            {
+                Snackbar.Add($"Тенант «{_model.Subdomain}» успешно создан!", Severity.Success);
+                Navigation.NavigateTo("/", forceLoad: false);
+            }
+            else
+            {
+                Snackbar.Add(result.Error ?? "Ошибка создания тенанта.", Severity.Error);
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private class RegisterTenantModel
+    {
+        [Required(ErrorMessage = "Введите название компании")]
+        public string CompanyName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите субдомен")]
+        [RegularExpression("^[a-z0-9-]{3,30}$", ErrorMessage = "Только строчные латинские буквы, цифры и дефис (3–30 символов)")]
+        public string Subdomain { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите email администратора")]
+        [EmailAddress(ErrorMessage = "Некорректный email")]
+        public string AdminEmail { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите пароль")]
+        [MinLength(6, ErrorMessage = "Минимум 6 символов")]
+        public string AdminPassword { get; set; } = string.Empty;
+    }
+}
+

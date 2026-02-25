@@ -1,9 +1,118 @@
 @page "/register"
+@using System.ComponentModel.DataAnnotations
+@using StudioB2B.Web.Services
+@inject CookieAuthService CookieAuth
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Регистрация — StudioB2B</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Class="pa-8" Elevation="3">
+        <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-6" Style="font-weight:700">
+            Регистрация
+        </MudText>
+
+        <EditForm Model="_model" OnValidSubmit="HandleRegister">
+            <DataAnnotationsValidator />
+
+            <MudTextField T="string"
+                          Label="Email"
+                          @bind-Value="_model.Email"
+                          InputType="InputType.Email"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          For="@(() => _model.Email)" />
+
+            <MudTextField T="string"
+                          Label="Пароль"
+                          @bind-Value="_model.Password"
+                          InputType="InputType.Password"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          For="@(() => _model.Password)" />
+
+            <MudTextField T="string"
+                          Label="Повторите пароль"
+                          @bind-Value="_model.ConfirmPassword"
+                          InputType="InputType.Password"
+                          Variant="Variant.Outlined"
+                          Class="mb-6"
+                          For="@(() => _model.ConfirmPassword)" />
+
+            <MudButton ButtonType="ButtonType.Submit"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Disabled="_loading">
+                @if (_loading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                }
+                Зарегистрироваться
+            </MudButton>
+        </EditForm>
+
+        <MudDivider Class="my-4" />
+        <MudText Align="Align.Center">
+            Уже есть аккаунт?
+            <MudLink Href="/login">Войти</MudLink>
+        </MudText>
+    </MudPaper>
+</MudContainer>
 
 @code {
+    [Inject] private ITenantProvider TenantProvider { get; set; } = default!;
+
+    private readonly RegisterModel _model = new();
+    private bool _loading;
+
     protected override void OnInitialized()
     {
-        Navigation.NavigateTo("/", replace: true);
+        // Регистрация доступна только на мастере
+        if (TenantProvider.IsResolved)
+            Navigation.NavigateTo("/login", forceLoad: true);
+    }
+
+    private async Task HandleRegister()
+    {
+        if (_model.Password != _model.ConfirmPassword)
+        {
+            Snackbar.Add("Пароли не совпадают.", Severity.Warning);
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            var redirectUrl = await CookieAuth.RegisterMasterAsync(_model.Email, _model.Password);
+            if (redirectUrl is not null)
+            {
+                Navigation.NavigateTo(redirectUrl, forceLoad: true);
+            }
+            else
+            {
+                Snackbar.Add("Пользователь с таким email уже существует.", Severity.Error);
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private class RegisterModel
+    {
+        [Required(ErrorMessage = "Введите email")]
+        [EmailAddress(ErrorMessage = "Некорректный email")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Введите пароль")]
+        [MinLength(6, ErrorMessage = "Минимум 6 символов")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Повторите пароль")]
+        public string ConfirmPassword { get; set; } = string.Empty;
     }
 }
+
