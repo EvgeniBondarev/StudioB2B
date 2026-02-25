@@ -1,6 +1,5 @@
 ﻿using Serilog;
 using StudioB2B.Infrastructure.MultiTenancy;
-using StudioB2B.Infrastructure.MultiTenancy.Middleware;
 using StudioB2B.Web.Components;
 
 namespace StudioB2B.Web.Extensions;
@@ -9,8 +8,6 @@ public static class PipelineExtensions
 {
     public static WebApplication ConfigurePipeline(this WebApplication app)
     {
-        app.UseSerilogRequestLogging();
-
         app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
         app.UseHttpsRedirection();
 
