@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Hosting.StaticWebAssets;
+using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.HttpOverrides;
-using MudBlazor.Services;
+using Radzen;
 using StudioB2B.Infrastructure;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -27,30 +27,26 @@ public static class ServiceExtensions
             client.BaseAddress = new Uri(nav.BaseUri);
             return client;
         });
+
         services.AddInfrastructure(configuration);
         services.AddSingleton<TokenExchangeService>();
         services.AddScoped<CookieAuthService>();
         services.AddScoped<AuthenticationStateProvider, CookieAuthenticationStateProvider>();
-        services.AddMudServices();
+
+        services.AddScoped<DialogService>();
+        services.AddScoped<NotificationService>();
+        services.AddScoped<TooltipService>();
+        services.AddScoped<ContextMenuService>();
 
         ConfigureCors(services, environment);
 
         services.Configure<ForwardedHeadersOptions>(options =>
         {
-            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
-                                       ForwardedHeaders.XForwardedProto;
-
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.KnownNetworks.Clear();
+            options.KnownProxies.Clear();
             if (environment.IsDevelopment())
-            {
-                options.KnownNetworks.Clear();
-                options.KnownProxies.Clear();
                 options.AllowedHosts.Clear();
-            }
-            else
-            {
-                options.KnownNetworks.Clear();
-                options.KnownProxies.Clear();
-            }
         });
 
         services.AddControllers();
@@ -71,9 +67,7 @@ public static class ServiceExtensions
                     policy.SetIsOriginAllowed(origin =>
                     {
                         var uri = new Uri(origin);
-                        return uri.Host == "localhost" ||
-                               uri.Host.EndsWith(".localhost") ||
-                               uri.Host == "127.0.0.1";
+                        return uri.Host == "localhost" || uri.Host.EndsWith(".localhost") || uri.Host == "127.0.0.1";
                     })
                     .AllowCredentials()
                     .AllowAnyHeader()
@@ -84,8 +78,7 @@ public static class ServiceExtensions
                     policy.SetIsOriginAllowed(origin =>
                     {
                         var uri = new Uri(origin);
-                        return uri.Host == "studiob2b.ru" ||
-                               uri.Host.EndsWith(".studiob2b.ru");
+                        return uri.Host == "studiob2b.ru" || uri.Host.EndsWith(".studiob2b.ru");
                     })
                     .AllowCredentials()
                     .AllowAnyHeader()
