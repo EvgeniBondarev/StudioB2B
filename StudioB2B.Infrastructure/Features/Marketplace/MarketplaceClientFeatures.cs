@@ -23,11 +23,23 @@ public static class MarketplaceClientExtensions
         IMapper mapper,
         CancellationToken ct = default)
     {
+        // Legacy: fetch all
         return q
                  .AsNoTracking()
                  .IncludeEverything()
                  .ProjectTo<MarketplaceClientDto>(mapper.ConfigurationProvider)
                  .ToListAsync(ct);
+    }
+
+    // Paging logic moved to web project for MudBlazor dependency
+    public static IQueryable<MarketplaceClientDto> ProjectToDto(
+        this IQueryable<MarketplaceClient> q,
+        IMapper mapper)
+    {
+        return q
+            .AsNoTracking()
+            .IncludeEverything()
+            .ProjectTo<MarketplaceClientDto>(mapper.ConfigurationProvider);
     }
 
     public static Task<MarketplaceClientDto?> GetByIdAsync(
