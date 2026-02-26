@@ -1,5 +1,5 @@
 @page "/marketplace-clients"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "Директор")]
 @using AutoMapper.QueryableExtensions
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Application.Common.Interfaces
@@ -18,14 +18,8 @@
 
 <PageTitle>Клиенты маркетплейсов</PageTitle>
 
-@if (!TenantProvider.IsResolved)
-{
-    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
-        Раздел доступен только внутри тенанта
-    </RadzenAlert>
-}
-else
-{
+<TenantOnlyGuard>
+
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
         <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Клиенты маркетплейсов</RadzenText>
@@ -129,7 +123,8 @@ else
 
         </Columns>
     </RadzenDataGrid>
-}
+
+</TenantOnlyGuard>
 
 @code {
     private RadzenDataGrid<MarketplaceClient>? _grid;
