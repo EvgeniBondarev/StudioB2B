@@ -1,7 +1,8 @@
 @page "/"
 @using StudioB2B.Application.Common.Interfaces
 @using System.ComponentModel.DataAnnotations
-@using StudioB2B.Domain.Entities.Tenants
+@using StudioB2B.Domain.Entities.Master
+@using StudioB2B.Domain.Entities.Tenant
 @using StudioB2B.Domain.Options
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
@@ -75,6 +76,18 @@
                                     <RadzenPassword @bind-Value="_reg.ConfirmPassword" Style="width: 100%;" />
                                 </RadzenFormField>
 
+                                <RadzenFormField Text="Фамилия администратора" Style="width: 100%;">
+                                    <RadzenTextBox @bind-Value="_reg.AdminSurname" Style="width: 100%;" />
+                                </RadzenFormField>
+
+                                <RadzenFormField Text="Имя администратора" Style="width: 100%;">
+                                    <RadzenTextBox @bind-Value="_reg.AdminFirstName" Style="width: 100%;" />
+                                </RadzenFormField>
+
+                                <RadzenFormField Text="Отчество администратора" Style="width: 100%;">
+                                    <RadzenTextBox @bind-Value="_reg.AdminPatronymic" Style="width: 100%;" />
+                                </RadzenFormField>
+
                                 <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
 
                                 <RadzenButton ButtonType="ButtonType.Submit" Text="Создать рабочее пространство"
@@ -114,6 +127,9 @@
                         </div>
                         <RadzenText TextStyle="TextStyle.H6" Style="font-weight: 600; margin-bottom: 0.25rem;">
                             @context.User.Identity?.Name
+                        </RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color); margin-bottom: 0.5rem;">
+                            @context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
                         </RadzenText>
                         <RadzenBadge Text="@(context.User.IsInRole("Директор") ? "Директор" : "Сотрудник")"
                                      BadgeStyle="@(context.User.IsInRole("Директор") ? BadgeStyle.Primary : BadgeStyle.Light)" />
@@ -196,7 +212,8 @@
                 return;
             }
 
-            var result = await TenantService.RegisterAsync(_reg.CompanyName, _reg.Subdomain, _reg.AdminEmail, _reg.Password);
+            var result = await TenantService.RegisterAsync(_reg.CompanyName, _reg.Subdomain, _reg.AdminEmail, _reg.Password,
+                _reg.AdminSurname, _reg.AdminFirstName, _reg.AdminPatronymic);
 
             if (result.Success)
             {
@@ -241,6 +258,11 @@
     private static string GetInitials(string? name)
     {
         if (string.IsNullOrWhiteSpace(name)) return "?";
+        // If it's a full name (words), take first letters of first two words
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        // Fallback to email local part
         var local = name.Split('@')[0];
         return local.Length >= 2 ? local[..2].ToUpper() : local.ToUpper();
     }
@@ -265,5 +287,13 @@
 
         [Required(ErrorMessage = "Подтвердите пароль")]
         public string ConfirmPassword { get; set; } = "";
+
+        [Required(ErrorMessage = "Введите фамилию")]
+        public string AdminSurname { get; set; } = "";
+
+        [Required(ErrorMessage = "Введите имя")]
+        public string AdminFirstName { get; set; } = "";
+
+        public string AdminPatronymic { get; set; } = "";
     }
 }
