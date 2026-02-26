@@ -1,9 +1,14 @@
 @inject NavigationManager Navigation
+@inject ITenantProvider TenantProvider
 
 @code {
     protected override void OnInitialized()
     {
         var returnUrl = Uri.EscapeDataString(Navigation.Uri);
-        Navigation.NavigateTo($"/?returnUrl={returnUrl}", forceLoad: false);
+
+        if (TenantProvider.IsResolved)
+            Navigation.NavigateTo($"/?returnUrl={returnUrl}", forceLoad: false);
+        else
+            Navigation.NavigateTo($"/login?returnUrl={returnUrl}", forceLoad: false);
     }
 }
