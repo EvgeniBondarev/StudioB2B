@@ -49,10 +49,6 @@ ENV MultiTenancy__TenantDbConnectionTemplate=""
 
 ENV Jwt__Secret="2B5F9B6E75C256999B7359FE076156E5"
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5184/health || exit 1
-
 EXPOSE 5184
 
 ENTRYPOINT ["dotnet", "StudioB2B.Web.dll"]
