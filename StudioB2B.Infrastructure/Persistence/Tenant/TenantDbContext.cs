@@ -2,7 +2,8 @@ using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using StudioB2B.Domain.Entities.Common;
-using StudioB2B.Domain.Entities.Marketplace;
+using StudioB2B.Domain.Entities.Tenant;
+using StudioB2B.Domain.Entities.Tenant.Marketplace;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -14,8 +15,8 @@ public class TenantDbContext : DbContext
     public virtual DbSet<MarketplaceClientMode> MarketplaceClientModes { get; set; }
     public virtual DbSet<MarketplaceClientSettings> MarketplaceClientSettings { get; set; }
     public virtual DbSet<MarketplaceClient1CSettings> MarketplaceClient1CSettings { get; set; }
-    public virtual DbSet<User> Users { get; set; }
-    public virtual DbSet<Role> Roles { get; set; }
+    public virtual DbSet<TenantUser> Users { get; set; }
+    public virtual DbSet<TenantRole> Roles { get; set; }
 
     public TenantDbContext(DbContextOptions<TenantDbContext> options) : base(options)
     {

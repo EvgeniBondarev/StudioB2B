@@ -12,10 +12,10 @@ public static partial class StringExtensions
 
         var span = domain.AsSpan();
 
-        if (span.StartsWith(WebConstants.HttpsScheme, StringComparison.OrdinalIgnoreCase))
-            span = span[WebConstants.HttpsScheme.Length..];
-        else if (span.StartsWith(WebConstants.HttpScheme, StringComparison.OrdinalIgnoreCase))
-            span = span[WebConstants.HttpScheme.Length..];
+        if (span.StartsWith(Constants.Constants.HttpsScheme, StringComparison.OrdinalIgnoreCase))
+            span = span[Constants.Constants.HttpsScheme.Length..];
+        else if (span.StartsWith(Constants.Constants.HttpScheme, StringComparison.OrdinalIgnoreCase))
+            span = span[Constants.Constants.HttpScheme.Length..];
 
         return span.TrimEnd('/').ToString();
     }
@@ -24,12 +24,12 @@ public static partial class StringExtensions
     {
         var normalizedDomain = NormalizeDomain(masterDomain);
         var sanitizedPath = string.IsNullOrEmpty(path) ||
-                            path.StartsWith(WebConstants.HttpScheme, StringComparison.OrdinalIgnoreCase) ||
-                            path.StartsWith(WebConstants.HttpsScheme, StringComparison.OrdinalIgnoreCase)
-                            ? WebConstants.PathSeparator.ToString()
-                            : path.StartsWith(WebConstants.PathSeparator) ? path : $"{WebConstants.PathSeparator}{path}";
+                            path.StartsWith(Constants.Constants.HttpScheme, StringComparison.OrdinalIgnoreCase) ||
+                            path.StartsWith(Constants.Constants.HttpsScheme, StringComparison.OrdinalIgnoreCase)
+                            ? Constants.Constants.PathSeparator.ToString()
+                            : path.StartsWith(Constants.Constants.PathSeparator) ? path : $"{Constants.Constants.PathSeparator}{path}";
 
-        return $"{WebConstants.HttpsScheme}{subdomain}.{normalizedDomain}{sanitizedPath}";
+        return $"{Constants.Constants.HttpsScheme}{subdomain}.{normalizedDomain}{sanitizedPath}";
     }
 
     public static bool IsValidSubdomain(this string subdomain)

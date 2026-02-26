@@ -5,3 +5,11 @@ public record UserDto(Guid Id,
                       string PasswordHash,
                       List<RoleDto> Roles);
 
+public record TenantUserDto(Guid Id,
+                             string Email,
+                             string Surname,
+                             string FirstName,
+                             string Patronymic,
+                             string PasswordHash,
+                             List<RoleDto> Roles);
+
