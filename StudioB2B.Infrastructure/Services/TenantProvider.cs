@@ -1,5 +1,6 @@
 using StudioB2B.Application.Common.Interfaces;
-using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Domain.Entities.Master;
+using StudioB2B.Domain.Entities.Tenant;
 
 namespace StudioB2B.Infrastructure.Services;
 

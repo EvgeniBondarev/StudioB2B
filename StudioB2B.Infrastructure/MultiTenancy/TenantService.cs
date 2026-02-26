@@ -2,7 +2,8 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using StudioB2B.Application.Common.Interfaces;
-using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Domain.Entities.Master;
+using StudioB2B.Domain.Entities.Tenant;
 using StudioB2B.Domain.Extensions;
 using StudioB2B.Domain.Options;
 using StudioB2B.Infrastructure.Features;
@@ -42,6 +43,7 @@ public partial class TenantService : ITenantService
 
     public async Task<TenantRegistrationResult> RegisterAsync(
         string companyName, string subdomain, string adminEmail, string adminPassword,
+        string adminSurname, string adminFirstName, string adminPatronymic,
         CancellationToken ct = default)
     {
         try
@@ -68,7 +70,8 @@ public partial class TenantService : ITenantService
 
             try
             {
-                await _dbInitializer.MigrateAndSeedAsync(connectionString, adminEmail, adminPassword, ct);
+                await _dbInitializer.MigrateAndSeedAsync(connectionString, adminEmail, adminPassword,
+                    adminSurname, adminFirstName, adminPatronymic, ct);
                 return new TenantRegistrationResult(true, tenant.Id);
             }
             catch

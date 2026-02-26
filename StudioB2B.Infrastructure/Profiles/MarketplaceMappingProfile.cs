@@ -1,5 +1,5 @@
 using AutoMapper;
-using StudioB2B.Domain.Entities.Marketplace;
+using StudioB2B.Domain.Entities.Tenant.Marketplace;
 using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Profiles;

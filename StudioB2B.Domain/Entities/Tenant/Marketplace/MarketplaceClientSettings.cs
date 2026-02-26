@@ -1,6 +1,6 @@
 using StudioB2B.Domain.Entities.Common;
 
-namespace StudioB2B.Domain.Entities.Marketplace;
+namespace StudioB2B.Domain.Entities.Tenant.Marketplace;
 
 public class MarketplaceClientSettings : IHasId, ISoftDelete
 {

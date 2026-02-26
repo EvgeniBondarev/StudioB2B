@@ -4,4 +4,7 @@ public record RegisterTenantRequest(
     string CompanyName,
     string Subdomain,
     string AdminEmail,
-    string AdminPassword);
+    string AdminPassword,
+    string AdminSurname,
+    string AdminFirstName,
+    string AdminPatronymic);

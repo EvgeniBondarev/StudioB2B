@@ -22,7 +22,7 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("RoleUser", b =>
+            modelBuilder.Entity("MasterRoleMasterUser", b =>
                 {
                     b.Property<Guid>("RolesId")
                         .HasColumnType("char(36)");
@@ -34,17 +34,10 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
 
                     b.HasIndex("UsersId");
 
-                    b.ToTable("RoleUser");
-
-                    b.HasData(
-                        new
-                        {
-                            RolesId = new Guid("a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
-                            UsersId = new Guid("b2c3d4e5-f6a7-8901-bcde-f12345678901")
-                        });
+                    b.ToTable("MasterRoleMasterUser");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Common.Role", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Master.MasterRole", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -60,17 +53,9 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Roles");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("a1b2c3d4-e5f6-7890-abcd-ef1234567890"),
-                            IsDeleted = false,
-                            Name = "Администратор"
-                        });
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Common.User", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Master.MasterUser", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -90,18 +75,9 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("b2c3d4e5-f6a7-8901-bcde-f12345678901"),
-                            Email = "demo@gmail.com",
-                            IsDeleted = false,
-                            PasswordHash = "$2a$11$A9Dp33vAQDIANSivU2bamu2rrFUAqjNLnBeJQurInxLgthJoOOZlq"
-                        });
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantEntity", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Master.TenantEntity", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -136,15 +112,15 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                     b.ToTable("Tenants", (string)null);
                 });
 
-            modelBuilder.Entity("RoleUser", b =>
+            modelBuilder.Entity("MasterRoleMasterUser", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Common.Role", null)
+                    b.HasOne("StudioB2B.Domain.Entities.Master.MasterRole", null)
                         .WithMany()
                         .HasForeignKey("RolesId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Common.User", null)
+                    b.HasOne("StudioB2B.Domain.Entities.Master.MasterUser", null)
                         .WithMany()
                         .HasForeignKey("UsersId")
                         .OnDelete(DeleteBehavior.Cascade)

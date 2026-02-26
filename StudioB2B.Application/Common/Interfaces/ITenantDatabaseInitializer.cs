@@ -2,6 +2,7 @@
 
 public interface ITenantDatabaseInitializer
 {
-    Task MigrateAndSeedAsync(string connectionString, string email, string password, CancellationToken ct);
+    Task MigrateAndSeedAsync(string connectionString, string email, string password,
+        string surname, string firstName, string patronymic, CancellationToken ct);
     Task DropDatabaseAsync(string connectionString, CancellationToken ct);
 }
