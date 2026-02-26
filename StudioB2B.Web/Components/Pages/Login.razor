@@ -1,16 +1,41 @@
 @page "/login"
+@layout EmptyLayout
+@attribute [AllowAnonymous]
 @inject NavigationManager Navigation
+@inject ITenantProvider TenantProvider
+
+<PageTitle>Вход — StudioB2B</PageTitle>
+
+<div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem;">
+    <div style="width: 100%; max-width: 400px;">
+
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <RadzenIcon Icon="business_center" Style="font-size: 3rem; color: var(--rz-primary);" />
+            <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin: 0.75rem 0 0.25rem;">StudioB2B</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                Вход в систему
+            </RadzenText>
+        </div>
+
+        <LoginForm ReturnUrl="@(_returnUrl)" />
+
+    </div>
+</div>
 
 @code {
-    [SupplyParameterFromQuery] public string? Error { get; set; }
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    private string _returnUrl = "/";
 
     protected override void OnInitialized()
     {
-        var query = new System.Text.StringBuilder("?");
-        if (!string.IsNullOrEmpty(Error)) query.Append($"error={Uri.EscapeDataString(Error)}&");
-        if (!string.IsNullOrEmpty(ReturnUrl)) query.Append($"returnUrl={Uri.EscapeDataString(ReturnUrl)}&");
-        var qs = query.ToString().TrimEnd('&', '?');
-        Navigation.NavigateTo("/" + (qs.Length > 0 ? qs : ""), replace: true);
+        // Если зашли на /login с tenant-домена — сразу на главную (там своя форма)
+        if (TenantProvider.IsResolved)
+        {
+            Navigation.NavigateTo("/", replace: true);
+            return;
+        }
+
+        _returnUrl = string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl;
     }
 }
