@@ -54,7 +54,7 @@ public partial class TenantService : ITenantService
             if (!await IsSubdomainAvailableAsync(normalized, ct))
                 return Fail("Subdomain is already taken or reserved.");
 
-            var connectionString = string.Format(_options.TenantDbConnectionTemplate, $"StudioB2B_Tenant_{normalized}");
+            var connectionString = string.Format(_options.TenantDbConnectionTemplate, $"{normalized}");
 
             var tenant = new TenantEntity
             {
