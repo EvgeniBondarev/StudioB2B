@@ -17,13 +17,14 @@
             </RadzenText>
         </div>
 
-        <LoginForm ReturnUrl="@(_returnUrl)" />
+        <LoginForm ReturnUrl="@_returnUrl" Error="@Error" />
 
     </div>
 </div>
 
 @code {
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+    [SupplyParameterFromQuery] public string? Error { get; set; }
 
     private string _returnUrl = "/";
 
