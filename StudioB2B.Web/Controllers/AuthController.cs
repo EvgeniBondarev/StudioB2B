@@ -1,12 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using StudioB2B.Application.Common.Interfaces;
-using StudioB2B.Web.Models;
+using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Web.Controllers;
 
-[ApiController]
 [Route("api/auth")]
-public class AuthController : ControllerBase
+public class AuthController : Controller
 {
     private readonly IAuthService _authService;
     private readonly ITenantProvider _tenantProvider;
@@ -25,41 +24,29 @@ public class AuthController : ControllerBase
         _env = env;
     }
 
-    // POST /api/auth/login
+    // POST /api/auth/login  — принимает как form, так и JSON
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
+    public async Task<IActionResult> Login(
+        [FromForm] string? email,
+        [FromForm] string? password,
+        [FromForm] string? returnUrl,
+        CancellationToken ct)
     {
-        string? token;
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+            return RedirectToLogin(returnUrl, "Введите email и пароль");
 
-        if (_tenantProvider.IsResolved)
-            token = await _authService.LoginTenantAsync(request.Email, request.Password, ct);
-        else
-            token = await _authService.LoginMasterAsync(request.Email, request.Password, ct);
+        string? token = _tenantProvider.IsResolved
+            ? await _authService.LoginTenantAsync(email, password, ct)
+            : await _authService.LoginMasterAsync(email, password, ct);
 
         if (token is null)
-            return Unauthorized(new { message = "Неверный email или пароль." });
+            return RedirectToLogin(returnUrl, "Неверный email или пароль");
 
         AppendAuthCookie(token);
-        return Ok(new { message = "OK" });
+
+        return Redirect(ToLocalPath(returnUrl));
     }
 
-    // POST /api/auth/register
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken ct)
-    {
-        if (_tenantProvider.IsResolved)
-            return BadRequest(new { message = "Регистрация недоступна в тенанте." });
-
-        var token = await _authService.RegisterMasterAsync(request.Email, request.Password, ct);
-
-        if (token is null)
-            return Conflict(new { message = "Пользователь с таким email уже существует." });
-
-        AppendAuthCookie(token);
-        return Ok(new { message = "OK" });
-    }
-
-    // POST /api/auth/register-tenant
     [HttpPost("register-tenant")]
     public async Task<IActionResult> RegisterTenant([FromBody] RegisterTenantRequest request, CancellationToken ct)
     {
@@ -79,24 +66,52 @@ public class AuthController : ControllerBase
         return Ok(new { tenantId = result.TenantId });
     }
 
-    // POST /api/auth/logout
+    [HttpGet("logout")]
     [HttpPost("logout")]
-    public IActionResult Logout()
+    public IActionResult Logout([FromQuery] string? returnUrl)
     {
         Response.Cookies.Delete("auth_token");
-        return Ok(new { message = "OK" });
+        var redirect = string.IsNullOrWhiteSpace(returnUrl)
+            ? (_tenantProvider.IsResolved ? "/" : "/login")
+            : ToLocalPath(returnUrl);
+        return Redirect(redirect);
+    }
+
+    public IActionResult RedirectToLogin(string? returnUrl, string error)
+    {
+        var localPath = ToLocalPath(returnUrl);
+        var encoded = Uri.EscapeDataString(localPath);
+        var errorEncoded = Uri.EscapeDataString(error);
+        var loginPath = _tenantProvider.IsResolved ? "/" : "/login";
+        return Redirect($"{loginPath}?returnUrl={encoded}&error={errorEncoded}");
+    }
+
+    /// <summary>
+    /// Extracts the local path+query from a URL.
+    /// Handles both absolute (https://host/path?q) and relative (/path?q) URLs.
+    /// Always returns a relative path, defaulting to "/" if empty or invalid.
+    /// </summary>
+    private static string ToLocalPath(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return "/";
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var abs))
+            return string.IsNullOrEmpty(abs.PathAndQuery) ? "/" : abs.PathAndQuery;
+
+        // Already relative — ensure it starts with /
+        return url.StartsWith('/') ? url : "/" + url;
     }
 
     private void AppendAuthCookie(string token)
     {
-        var options = new CookieOptions
+        Response.Cookies.Append("auth_token", token, new CookieOptions
         {
             HttpOnly = true,
             SameSite = SameSiteMode.Lax,
             Secure = !_env.IsDevelopment(),
             Expires = DateTimeOffset.UtcNow.AddDays(14)
-        };
-        Response.Cookies.Append("auth_token", token, options);
+        });
     }
 }
 

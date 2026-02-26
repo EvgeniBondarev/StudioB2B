@@ -100,7 +100,7 @@
 
                     <hr style="margin-bottom: 2rem;" />
 
-                    <LoginForm ReturnUrl="@(ReturnUrl ?? "/")" />
+                    <LoginForm ReturnUrl="@(ReturnUrl ?? "/")" Error="@Error" />
                 </NotAuthorized>
 
                 <Authorized>
@@ -144,7 +144,7 @@
 
                     <RadzenButton Text="Выйти" Icon="logout" ButtonStyle="ButtonStyle.Danger"
                                   Style="width: 100%; justify-content: center;"
-                                  Click="@(() => Navigation.NavigateTo("/auth/logout", forceLoad: true))" />
+                                  Click="@(() => Navigation.NavigateTo("/api/auth/logout", forceLoad: true))" />
                 </Authorized>
             </AuthorizeView>
         }
@@ -156,6 +156,7 @@
     private TenantEntity? _tenant;
 
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+    [SupplyParameterFromQuery] public string? Error { get; set; }
 
     private RegisterModel _reg = new();
     private bool _regLoading;

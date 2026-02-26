@@ -1,78 +1,32 @@
-@inject CookieAuthService AuthService
-@inject NavigationManager Navigation
-
-@if (_error is not null)
+@if (!string.IsNullOrWhiteSpace(Error))
 {
     <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
-        @_error
+        @Error
     </RadzenAlert>
 }
 
-<EditForm Model="@_model" OnValidSubmit="HandleSubmit">
-    <DataAnnotationsValidator />
+<form method="post" action="/api/auth/login">
+    <input type="hidden" name="returnUrl" value="@ReturnUrl" />
 
     <RadzenStack Gap="1rem">
 
         <RadzenFormField Text="Email" Style="width: 100%;">
-            <RadzenTextBox @bind-Value="_model.Email" Name="Email" Style="width: 100%;" autocomplete="username" />
+            <RadzenTextBox Name="email" Style="width: 100%;" autocomplete="username" />
         </RadzenFormField>
 
         <RadzenFormField Text="Пароль" Style="width: 100%;">
-            <RadzenPassword @bind-Value="_model.Password" Name="Password" Style="width: 100%;" autocomplete="current-password" />
+            <RadzenPassword Name="password" Style="width: 100%;" autocomplete="current-password" />
         </RadzenFormField>
-
-        <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
 
         <RadzenButton ButtonType="ButtonType.Submit"
                       Text="Войти"
                       ButtonStyle="ButtonStyle.Primary"
-                      Style="width: 100%; justify-content: center;"
-                      IsBusy="@_loading" />
+                      Style="width: 100%; justify-content: center;" />
     </RadzenStack>
-</EditForm>
+</form>
 
 @code {
     [Parameter] public string ReturnUrl { get; set; } = "/";
-
-    private readonly LoginModel _model = new();
-    private bool _loading;
-    private string? _error;
-
-    private async Task HandleSubmit()
-    {
-        _loading = true;
-        _error = null;
-
-        try
-        {
-            var redirectUrl = await AuthService.LoginAsync(_model.Email, _model.Password, ReturnUrl);
-
-            if (redirectUrl is null)
-            {
-                _error = "Неверный email или пароль";
-                return;
-            }
-
-            Navigation.NavigateTo(redirectUrl, forceLoad: true);
-        }
-        catch
-        {
-            _error = "Произошла ошибка при входе. Попробуйте ещё раз.";
-        }
-        finally
-        {
-            _loading = false;
-        }
-    }
-
-    private class LoginModel
-    {
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Введите email")]
-        [System.ComponentModel.DataAnnotations.EmailAddress(ErrorMessage = "Некорректный email")]
-        public string Email { get; set; } = "";
-
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Введите пароль")]
-        public string Password { get; set; } = "";
-    }
+    [Parameter] public string? Error { get; set; }
 }
 
