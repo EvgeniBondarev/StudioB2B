@@ -1,14 +1,15 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Domain.Entities.Common;
+using StudioB2B.Domain.Entities.Tenant;
+using StudioB2B.Infrastructure.Persistence.Tenant;
 
 namespace StudioB2B.Infrastructure.Features;
 
-public static class RoleExtensions
+public static class TenantRoleExtensions
 {
-    public static Task<List<Role>> GetAllAsync(
-        this IQueryable<Role> q,
-        Expression<Func<Role, bool>>? predicate = null,
+    public static Task<List<TenantRole>> GetAllAsync(
+        this IQueryable<TenantRole> q,
+        Expression<Func<TenantRole, bool>>? predicate = null,
         CancellationToken ct = default)
     {
         q = q.AsNoTracking();
@@ -19,34 +20,34 @@ public static class RoleExtensions
         return q.ToListAsync(ct);
     }
 
-    public static Task<Role?> GetByPredicateAsync(
-        this IQueryable<Role> q,
-        Expression<Func<Role, bool>> predicate,
+    public static Task<TenantRole?> GetByPredicateAsync(
+        this IQueryable<TenantRole> q,
+        Expression<Func<TenantRole, bool>> predicate,
         CancellationToken ct = default)
     {
         return q.AsNoTracking()
             .FirstOrDefaultAsync(predicate, ct);
     }
 
-    public static async Task<Role> CreateAsync(
-        this DbContext db,
-        Role entity,
+    public static async Task<TenantRole> CreateAsync(
+        this TenantDbContext db,
+        TenantRole entity,
         CancellationToken ct = default)
     {
-        db.Set<Role>().Add(entity);
+        db.Set<TenantRole>().Add(entity);
         await db.SaveChangesAsync(ct);
         return entity;
     }
 
-    public static async Task<Role?> UpdateAsync(
-        this DbContext db,
-        Role entity,
+    public static async Task<TenantRole?> UpdateAsync(
+        this TenantDbContext db,
+        TenantRole entity,
         CancellationToken ct = default)
     {
-        if (!await db.Set<Role>().AnyAsync(e => e.Id == entity.Id, ct))
+        if (!await db.Set<TenantRole>().AnyAsync(e => e.Id == entity.Id, ct))
             return null;
 
-        db.Set<Role>().Update(entity);
+        db.Set<TenantRole>().Update(entity);
         await db.SaveChangesAsync(ct);
         return entity;
     }
@@ -56,11 +57,11 @@ public static class RoleExtensions
         Guid id,
         CancellationToken ct = default)
     {
-        var entity = await db.Set<Role>().FindAsync([id], ct);
+        var entity = await db.Set<TenantRole>().FindAsync([id], ct);
         if (entity == null)
             return false;
 
-        db.Set<Role>().Remove(entity);
+        db.Set<TenantRole>().Remove(entity);
         await db.SaveChangesAsync(ct);
         return true;
     }

@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Domain.Entities.Marketplace;
+using StudioB2B.Domain.Entities.Tenant.Marketplace;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
 namespace StudioB2B.Infrastructure.Features;

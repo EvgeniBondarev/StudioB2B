@@ -1,6 +1,6 @@
 using StudioB2B.Domain.Entities.Common;
 
-namespace StudioB2B.Domain.Entities.Tenants;
+namespace StudioB2B.Domain.Entities.Master;
 
 public class TenantEntity : IHasId, IHasName, ISoftDelete
 {

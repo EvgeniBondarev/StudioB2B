@@ -1,13 +1,11 @@
 @page "/users"
 @attribute [Authorize(Roles = "Директор")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Common
+@using StudioB2B.Domain.Entities.Tenant
 @using StudioB2B.Infrastructure.Features
-@using StudioB2B.Infrastructure.Persistence.Master
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 
-@inject MasterDbContext MasterDb
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory DbFactory
 @inject IPasswordHasher PasswordHasher
@@ -51,6 +49,18 @@ else
                     <RadzenFormField Text="Email" Style="width: 100%;">
                         <RadzenTextBox @bind-Value="_editUser.Email" Name="Email" Style="width: 100%;"
                                        Disabled="@(_editUser.Id != Guid.Empty)" />
+                    </RadzenFormField>
+
+                    <RadzenFormField Text="Фамилия" Style="width: 100%;">
+                        <RadzenTextBox @bind-Value="_editUser.Surname" Name="Surname" Style="width: 100%;" />
+                    </RadzenFormField>
+
+                    <RadzenFormField Text="Имя" Style="width: 100%;">
+                        <RadzenTextBox @bind-Value="_editUser.FirstName" Name="FirstName" Style="width: 100%;" />
+                    </RadzenFormField>
+
+                    <RadzenFormField Text="Отчество" Style="width: 100%;">
+                        <RadzenTextBox @bind-Value="_editUser.Patronymic" Name="Patronymic" Style="width: 100%;" />
                     </RadzenFormField>
 
                     @if (_editUser.Id == Guid.Empty)
@@ -101,7 +111,10 @@ else
                     IsLoading="@_loading"
                     CellContextMenu="@ShowContextMenu">
         <Columns>
-            <RadzenDataGridColumn TItem="UserRowModel" Property="Email" Title="Email" Width="280px" Frozen="true" />
+            <RadzenDataGridColumn TItem="UserRowModel" Property="Email" Title="Email" Width="260px" Frozen="true" />
+            <RadzenDataGridColumn TItem="UserRowModel" Property="Surname" Title="Фамилия" Width="160px" />
+            <RadzenDataGridColumn TItem="UserRowModel" Property="FirstName" Title="Имя" Width="140px" />
+            <RadzenDataGridColumn TItem="UserRowModel" Property="Patronymic" Title="Отчество" Width="160px" />
 
             <RadzenDataGridColumn TItem="UserRowModel" Title="Роли" Width="280px"
                                   Sortable="false" Filterable="false">
@@ -116,7 +129,7 @@ else
 @code {
     private RadzenDataGrid<UserRowModel>? _grid;
     private List<UserRowModel> _users = [];
-    private List<Role> _availableRoles = [];
+    private List<TenantRole> _availableRoles = [];
     private bool _loading = true;
     private bool _saving;
     private Density _density = Density.Default;
@@ -141,12 +154,15 @@ else
     private async Task LoadAsync()
     {
         _loading = true;
-        _availableRoles = await MasterDb.Roles.AsNoTracking().OrderBy(r => r.Name).ToListAsync();
+        _availableRoles = await _db!.Roles.AsNoTracking().OrderBy(r => r.Name).ToListAsync();
         var users = await _db!.Users.GetAllAsync();
         _users = users.Select(u => new UserRowModel
         {
             Id = u.Id,
             Email = u.Email,
+            Surname = u.Surname,
+            FirstName = u.FirstName,
+            Patronymic = u.Patronymic,
             RoleNames = u.Roles.Select(r => r.Name).ToList()
         }).ToList();
         _loading = false;
@@ -168,6 +184,9 @@ else
         {
             Id = user.Id,
             Email = user.Email,
+            Surname = user.Surname,
+            FirstName = user.FirstName,
+            Patronymic = user.Patronymic,
             RoleIds = roleIds
         };
     }
@@ -195,23 +214,26 @@ else
                 }
 
                 // Attach roles from tenant db context so EF tracks them
-                var tenantRoles = new List<Role>();
+                var tenantRoles = new List<TenantRole>();
                 foreach (var r in selectedRoles)
                 {
                     var tracked = await _db!.Roles.FindAsync(r.Id)
-                                  ?? _db!.Roles.Attach(new Role { Id = r.Id, Name = r.Name }).Entity;
+                                  ?? _db!.Roles.Attach(new TenantRole { Id = r.Id, Name = r.Name }).Entity;
                     tenantRoles.Add(tracked);
                 }
 
-                var user = new User
+                var user = new TenantUser
                 {
                     Id = Guid.NewGuid(),
                     Email = model.Email,
+                    Surname = model.Surname,
+                    FirstName = model.FirstName,
+                    Patronymic = model.Patronymic,
                     PasswordHash = PasswordHasher.Hash(model.Password!),
                     Roles = tenantRoles
                 };
 
-                await _db!.CreateAsync(user);
+                await _db.CreateAsync(user);
                 NotificationService.Notify(NotificationSeverity.Success, "Пользователь создан");
                 _editUser = null;
                 await LoadAsync();
@@ -228,12 +250,17 @@ else
                     return;
                 }
 
+                // Update FIO
+                user.Surname = model.Surname;
+                user.FirstName = model.FirstName;
+                user.Patronymic = model.Patronymic;
+
                 // Sync roles
                 user.Roles.Clear();
                 foreach (var r in selectedRoles)
                 {
                     var tracked = await _db!.Roles.FindAsync(r.Id)
-                                  ?? _db!.Roles.Attach(new Role { Id = r.Id, Name = r.Name }).Entity;
+                                  ?? _db!.Roles.Attach(new TenantRole { Id = r.Id, Name = r.Name }).Entity;
                     user.Roles.Add(tracked);
                 }
 
@@ -257,7 +284,7 @@ else
     {
         try
         {
-            await UserExtensions.DeleteAsync(_db!, user.Id);
+            await TenantUserExtensions.DeleteAsync(_db!, user.Id);
             NotificationService.Notify(NotificationSeverity.Success, "Пользователь удалён");
             await LoadAsync();
         }
@@ -299,6 +326,9 @@ else
     {
         public Guid Id { get; set; }
         public string Email { get; set; } = "";
+        public string Surname { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string Patronymic { get; set; } = "";
         public List<string> RoleNames { get; set; } = [];
     }
 
@@ -306,6 +336,9 @@ else
     {
         public Guid Id { get; set; }
         public string Email { get; set; } = "";
+        public string Surname { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string Patronymic { get; set; } = "";
         public string? Password { get; set; }
         public List<Guid> RoleIds { get; set; } = [];
     }

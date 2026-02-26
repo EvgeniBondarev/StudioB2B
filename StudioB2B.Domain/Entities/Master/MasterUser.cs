@@ -1,6 +1,8 @@
-namespace StudioB2B.Domain.Entities.Common;
+using StudioB2B.Domain.Entities.Common;
 
-public class User : IHasId, ISoftDelete
+namespace StudioB2B.Domain.Entities.Master;
+
+public class MasterUser : IHasId, ISoftDelete
 {
     public Guid Id { get; set; }
 
@@ -10,5 +12,5 @@ public class User : IHasId, ISoftDelete
 
     public bool IsDeleted { get; set; }
 
-    public List<Role> Roles { get; set; } = [];
+    public List<MasterRole> Roles { get; set; } = [];
 }

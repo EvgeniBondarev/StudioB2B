@@ -1,21 +1,22 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Domain.Entities.Common;
-using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Domain.Entities.Master;
+using StudioB2B.Infrastructure.Persistence.Master;
 
 namespace StudioB2B.Infrastructure.Features;
 
 
 public static class UserExtensions
 {
-    public static IQueryable<User> IncludeEverything(this IQueryable<User> q)
+    public static IQueryable<MasterUser> IncludeEverything(this IQueryable<MasterUser> q)
     {
         return q.Include(c => c.Roles);
     }
 
-    public static Task<List<User>> GetAllAsync(
-        this IQueryable<User> q,
-        Expression<Func<User, bool>>? predicate = null,
+    public static Task<List<MasterUser>> GetAllAsync(
+        this IQueryable<MasterUser> q,
+        Expression<Func<MasterUser, bool>>? predicate = null,
         CancellationToken ct = default)
     {
         q = q.AsNoTracking()
@@ -27,9 +28,9 @@ public static class UserExtensions
         return q.ToListAsync(ct);
     }
 
-    public static Task<User?> GetByPredicateAsync(
-        this IQueryable<User> q,
-        Expression<Func<User, bool>> predicate,
+    public static Task<MasterUser?> GetByPredicateAsync(
+        this IQueryable<MasterUser> q,
+        Expression<Func<MasterUser, bool>> predicate,
         CancellationToken ct = default)
     {
         return q.AsNoTracking()
@@ -37,39 +38,39 @@ public static class UserExtensions
             .FirstOrDefaultAsync(predicate, ct);
     }
 
-    public static async Task<User> CreateAsync(
-        this TenantDbContext db,
-        User entity,
+    public static async Task<MasterUser> CreateAsync(
+        this MasterDbContext db,
+        MasterUser entity,
         CancellationToken ct = default)
     {
-        db.Set<User>().Add(entity);
+        db.Set<MasterUser>().Add(entity);
         await db.SaveChangesAsync(ct);
         return entity;
     }
 
-    public static async Task<User?> UpdateAsync(
-        this TenantDbContext db,
-        User entity,
+    public static async Task<MasterUser?> UpdateAsync(
+        this MasterDbContext db,
+        MasterUser entity,
         CancellationToken ct = default)
     {
-        if (!await db.Set<User>().AnyAsync(e => e.Id == entity.Id, ct))
+        if (!await db.Set<MasterUser>().AnyAsync(e => e.Id == entity.Id, ct))
             return null;
 
-        db.Set<User>().Update(entity);
+        db.Set<MasterUser>().Update(entity);
         await db.SaveChangesAsync(ct);
         return entity;
     }
 
     public static async Task<bool> DeleteAsync(
-        this TenantDbContext db,
+        this MasterDbContext db,
         Guid id,
         CancellationToken ct = default)
     {
-        var entity = await db.Set<User>().FindAsync([id], ct);
+        var entity = await db.Set<MasterUser>().FindAsync([id], ct);
         if (entity == null)
             return false;
 
-        db.Users.Remove(entity);
+        db.Set<MasterUser>().Remove(entity);
         await db.SaveChangesAsync(ct);
         return true;
     }

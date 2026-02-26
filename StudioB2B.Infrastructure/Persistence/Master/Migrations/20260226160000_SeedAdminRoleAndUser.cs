@@ -26,9 +26,9 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                 columns: ["Id", "Email", "PasswordHash", "IsDeleted"],
                 values: [UserId, "demo@gmail.com", "$2a$11$A9Dp33vAQDIANSivU2bamu2rrFUAqjNLnBeJQurInxLgthJoOOZlq", false]);
 
-            // Assign role to user
+            // Assign role to user (join table name from Initial migration: MasterRoleMasterUser)
             migrationBuilder.InsertData(
-                table: "RoleUser",
+                table: "MasterRoleMasterUser",
                 columns: ["RolesId", "UsersId"],
                 values: [RoleId, UserId]);
         }
@@ -37,7 +37,7 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DeleteData(
-                table: "RoleUser",
+                table: "MasterRoleMasterUser",
                 keyColumns: ["RolesId", "UsersId"],
                 keyValues: [RoleId, UserId]);
 

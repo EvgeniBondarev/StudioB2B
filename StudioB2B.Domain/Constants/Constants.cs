@@ -1,6 +1,6 @@
 namespace StudioB2B.Domain.Constants;
 
-public struct WebConstants
+public struct Constants
 {
     public const string HttpsScheme = "https://";
     public const string HttpScheme = "http://";

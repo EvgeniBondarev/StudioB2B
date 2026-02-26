@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -11,9 +12,11 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 {
     [DbContext(typeof(TenantDbContext))]
-    partial class TenantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260226144648_add fio to user")]
+    partial class addfiotouser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,7 +25,45 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClient", b =>
+            modelBuilder.Entity("RoleUser", b =>
+                {
+                    b.Property<Guid>("RolesId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("UsersId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("RolesId", "UsersId");
+
+                    b.HasIndex("UsersId");
+
+                    b.ToTable("RoleUser");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Common.Role", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid?>("TenantUserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantUserId");
+
+                    b.ToTable("Roles");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -82,7 +123,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("MarketplaceClients");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClient1CSettings", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient1CSettings", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -123,7 +164,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("MarketplaceClient1CSettings");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClientMode", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientMode", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -141,7 +182,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("MarketplaceClientModes");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClientSettings", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientSettings", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -168,7 +209,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("MarketplaceClientSettings");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClientType", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientType", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -186,25 +227,29 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("MarketplaceClientTypes");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenant.TenantRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Roles");
+                    b.ToTable("User");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenant.TenantUser", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantUser", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -238,28 +283,35 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("TenantRoleTenantUser", b =>
+            modelBuilder.Entity("RoleUser", b =>
                 {
-                    b.Property<Guid>("RolesId")
-                        .HasColumnType("char(36)");
+                    b.HasOne("StudioB2B.Domain.Entities.Common.Role", null)
+                        .WithMany()
+                        .HasForeignKey("RolesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Property<Guid>("UsersId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("RolesId", "UsersId");
-
-                    b.HasIndex("UsersId");
-
-                    b.ToTable("TenantRoleTenantUser");
+                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.User", null)
+                        .WithMany()
+                        .HasForeignKey("UsersId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClient", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Common.Role", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClientType", "ClientType")
+                    b.HasOne("StudioB2B.Domain.Entities.Tenants.TenantUser", null)
+                        .WithMany("Roles")
+                        .HasForeignKey("TenantUserId");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientType", "ClientType")
                         .WithMany()
                         .HasForeignKey("ClientTypeId");
 
-                    b.HasOne("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClientMode", "Mode")
+                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientMode", "Mode")
                         .WithMany()
                         .HasForeignKey("ModeId");
 
@@ -268,20 +320,20 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Mode");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClient1CSettings", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient1CSettings", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClient", "MarketplaceClient")
+                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", "MarketplaceClient")
                         .WithOne("Settings1C")
-                        .HasForeignKey("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClient1CSettings", "MarketplaceClientId")
+                        .HasForeignKey("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient1CSettings", "MarketplaceClientId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("MarketplaceClient");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClientSettings", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientSettings", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClient", "MarketplaceClient")
+                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", "MarketplaceClient")
                         .WithMany("Settings")
                         .HasForeignKey("MarketplaceClientId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -290,26 +342,16 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("MarketplaceClient");
                 });
 
-            modelBuilder.Entity("TenantRoleTenantUser", b =>
-                {
-                    b.HasOne("StudioB2B.Domain.Entities.Tenant.TenantRole", null)
-                        .WithMany()
-                        .HasForeignKey("RolesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StudioB2B.Domain.Entities.Tenant.TenantUser", null)
-                        .WithMany()
-                        .HasForeignKey("UsersId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenant.Marketplace.MarketplaceClient", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", b =>
                 {
                     b.Navigation("Settings");
 
                     b.Navigation("Settings1C");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantUser", b =>
+                {
+                    b.Navigation("Roles");
                 });
 #pragma warning restore 612, 618
         }
