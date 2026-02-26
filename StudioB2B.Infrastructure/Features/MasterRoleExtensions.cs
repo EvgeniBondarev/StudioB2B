@@ -1,16 +1,15 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Domain.Entities.Master;
-using StudioB2B.Domain.Entities.Tenant;
 using StudioB2B.Infrastructure.Persistence.Master;
 
 namespace StudioB2B.Infrastructure.Features;
 
-public static class TenantExtensions
+public static class MasterRoleExtensions
 {
-    public static Task<List<TenantEntity>> GetAllAsync(
-        this IQueryable<TenantEntity> q,
-        Expression<Func<TenantEntity, bool>>? predicate = null,
+    public static Task<List<MasterRole>> GetAllAsync(
+        this IQueryable<MasterRole> q,
+        Expression<Func<MasterRole, bool>>? predicate = null,
         CancellationToken ct = default)
     {
         q = q.AsNoTracking();
@@ -21,48 +20,48 @@ public static class TenantExtensions
         return q.ToListAsync(ct);
     }
 
-    public static Task<TenantEntity?> GetByPredicateAsync(
-        this IQueryable<TenantEntity> q,
-        Expression<Func<TenantEntity, bool>> predicate,
+    public static Task<MasterRole?> GetByPredicateAsync(
+        this IQueryable<MasterRole> q,
+        Expression<Func<MasterRole, bool>> predicate,
         CancellationToken ct = default)
     {
         return q.AsNoTracking()
             .FirstOrDefaultAsync(predicate, ct);
     }
 
-    public static async Task<TenantEntity> CreateAsync(
+    public static async Task<MasterRole> CreateAsync(
         this MasterDbContext db,
-        TenantEntity entity,
+        MasterRole entity,
         CancellationToken ct = default)
     {
-        db.Set<TenantEntity>().Add(entity);
+        db.Set<MasterRole>().Add(entity);
         await db.SaveChangesAsync(ct);
         return entity;
     }
 
-    public static async Task<TenantEntity?> UpdateAsync(
+    public static async Task<MasterRole?> UpdateAsync(
         this MasterDbContext db,
-        TenantEntity entity,
+        MasterRole entity,
         CancellationToken ct = default)
     {
-        if (!await db.Set<TenantEntity>().AnyAsync(e => e.Id == entity.Id, ct))
+        if (!await db.Set<MasterRole>().AnyAsync(e => e.Id == entity.Id, ct))
             return null;
 
-        db.Set<TenantEntity>().Update(entity);
+        db.Set<MasterRole>().Update(entity);
         await db.SaveChangesAsync(ct);
         return entity;
     }
 
     public static async Task<bool> DeleteAsync(
-        this MasterDbContext db,
+        this DbContext db,
         Guid id,
         CancellationToken ct = default)
     {
-        var entity = await db.Set<TenantEntity>().FindAsync([id], ct);
+        var entity = await db.Set<MasterRole>().FindAsync([id], ct);
         if (entity == null)
             return false;
 
-        db.Set<TenantEntity>().Remove(entity);
+        db.Set<MasterRole>().Remove(entity);
         await db.SaveChangesAsync(ct);
         return true;
     }

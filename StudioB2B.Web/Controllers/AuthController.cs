@@ -58,6 +58,9 @@ public class AuthController : Controller
             request.Subdomain,
             request.AdminEmail,
             request.AdminPassword,
+            request.AdminSurname,
+            request.AdminFirstName,
+            request.AdminPatronymic,
             ct);
 
         if (!result.Success)

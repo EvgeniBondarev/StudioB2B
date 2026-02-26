@@ -67,7 +67,7 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "RoleUser",
+                name: "MasterRoleMasterUser",
                 columns: table => new
                 {
                     RolesId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
@@ -75,15 +75,15 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_RoleUser", x => new { x.RolesId, x.UsersId });
+                    table.PrimaryKey("PK_MasterRoleMasterUser", x => new { x.RolesId, x.UsersId });
                     table.ForeignKey(
-                        name: "FK_RoleUser_Roles_RolesId",
+                        name: "FK_MasterRoleMasterUser_Roles_RolesId",
                         column: x => x.RolesId,
                         principalTable: "Roles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_RoleUser_Users_UsersId",
+                        name: "FK_MasterRoleMasterUser_Users_UsersId",
                         column: x => x.UsersId,
                         principalTable: "Users",
                         principalColumn: "Id",
@@ -92,8 +92,8 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
-                name: "IX_RoleUser_UsersId",
-                table: "RoleUser",
+                name: "IX_MasterRoleMasterUser_UsersId",
+                table: "MasterRoleMasterUser",
                 column: "UsersId");
 
             migrationBuilder.CreateIndex(
@@ -107,7 +107,7 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "RoleUser");
+                name: "MasterRoleMasterUser");
 
             migrationBuilder.DropTable(
                 name: "Tenants");
