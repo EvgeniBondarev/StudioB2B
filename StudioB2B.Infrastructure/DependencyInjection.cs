@@ -1,17 +1,21 @@
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components.Server.Circuits;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.IdentityModel.Tokens;
 using StudioB2B.Application.Common.Interfaces;
-using StudioB2B.Domain.Options;
+using StudioB2B.Infrastructure.Features.Roles;
+using StudioB2B.Infrastructure.Features.Users;
+using StudioB2B.Infrastructure.Http.Handlers;
+using StudioB2B.Infrastructure.Integrations.Ozon;
 using StudioB2B.Infrastructure.MultiTenancy;
+using StudioB2B.Infrastructure.MultiTenancy.CircuitHandlers;
+using StudioB2B.Infrastructure.MultiTenancy.Initialization;
+using StudioB2B.Infrastructure.MultiTenancy.Resolution;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
-using TenantService = StudioB2B.Infrastructure.MultiTenancy.TenantService;
+using TenantService = StudioB2B.Infrastructure.MultiTenancy.Services.TenantService;
 
 namespace StudioB2B.Infrastructure;
 
@@ -24,9 +28,6 @@ public static class DependencyInjection
         services.Configure<MultiTenancyOptions>(
             configuration.GetSection(MultiTenancyOptions.SectionName));
 
-        services.Configure<JwtOptions>(
-            configuration.GetSection(JwtOptions.SectionName));
-
         services.AddAutoMapper(typeof(DependencyInjection).Assembly);
 
         services.AddDbContext<MasterDbContext>(options =>
@@ -37,17 +38,39 @@ public static class DependencyInjection
 
         services.AddHostedService<DatabaseMigrationService>();
 
+        services.AddSingleton<IKeyEncryptionService, KeyEncryptionService>();
+
+        // ── HTTP pipeline for marketplace APIs (Ozon, etc.) ──
+        services.AddTransient<LoggingHandler>();
+        services.AddTransient<RetryHandler>();
+        services.AddTransient<RateLimitHandler>();
+
+        var ozonSection = configuration.GetSection("Ozon");
+        var ozonBaseAddress = ozonSection.GetValue<string>("BaseAddress") ?? "https://api-seller.ozon.ru/";
+        var ozonTimeoutSeconds = ozonSection.GetValue<int?>("TimeoutSeconds") ?? 30;
+
+        services.AddHttpClient("Ozon", client =>
+        {
+            client.BaseAddress = new Uri(ozonBaseAddress);
+            client.Timeout = TimeSpan.FromSeconds(ozonTimeoutSeconds);
+        })
+        .AddHttpMessageHandler<LoggingHandler>()
+        .AddHttpMessageHandler<RetryHandler>()
+        .AddHttpMessageHandler<RateLimitHandler>();
+
+        services.AddScoped<IOzonApiClient, OzonApiClient>();
+
         services.AddScoped<TenantProvider>();
         services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<TenantProvider>());
 
         services.AddSingleton<ISubdomainResolver, SubdomainResolver>();
         services.AddScoped<ITenantDatabaseInitializer, TenantDatabaseInitializer>();
+        services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<CircuitHandler, TenantCircuitHandler>();
-        services.AddSingleton<IPasswordHasher, PasswordHasher>();
-        services.AddScoped<IAuthService, AuthService>();
 
+        // Tenant DbContext (Scoped, dynamic connection)
         services.AddScoped(sp =>
         {
             var tenantProvider = sp.GetRequiredService<ITenantProvider>();
@@ -65,39 +88,47 @@ public static class DependencyInjection
             return new TenantDbContext(optionsBuilder.Options);
         });
 
-        // JWT Authentication — token is read from HttpOnly cookie "auth_token"
-        var jwtSecret = configuration[$"{JwtOptions.SectionName}:{nameof(JwtOptions.Secret)}"]
-                        ?? throw new InvalidOperationException("JWT Secret is not configured.");
-        var jwtIssuer = configuration[$"{JwtOptions.SectionName}:{nameof(JwtOptions.Issuer)}"] ?? "StudioB2B";
-        var jwtAudience = configuration[$"{JwtOptions.SectionName}:{nameof(JwtOptions.Audience)}"] ?? "StudioB2B";
-
-        services
-            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
+        services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
             {
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = jwtIssuer,
-                    ValidAudience = jwtAudience,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
-                };
+                // Password settings
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = false;
+                options.Password.RequireNonAlphanumeric = false;
+                options.Password.RequiredLength = 6;
 
-                // Read JWT from HttpOnly cookie instead of Authorization header
-                options.Events = new JwtBearerEvents
-                {
-                    OnMessageReceived = ctx =>
-                    {
-                        ctx.Token = ctx.Request.Cookies["auth_token"];
-                        return Task.CompletedTask;
-                    }
-                };
-            });
+                // User settings
+                options.User.RequireUniqueEmail = true;
 
-        services.AddAuthorization();
+                // SignIn settings
+                options.SignIn.RequireConfirmedEmail = false;
+            })
+            .AddEntityFrameworkStores<TenantDbContext>()
+            .AddDefaultTokenProviders();
+
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.LoginPath = "/login";
+            options.LogoutPath = "/logout";
+            options.AccessDeniedPath = "/access-denied";
+            options.ExpireTimeSpan = TimeSpan.FromDays(7);
+            options.SlidingExpiration = true;
+        });
+
+        // ── Role Feature Classes (Scoped — используют MasterDbContext) ────────
+        services.AddScoped<GetRoles>();
+        services.AddScoped<GetRoleById>();
+        services.AddScoped<CreateRole>();
+        services.AddScoped<UpdateRole>();
+        services.AddScoped<DeleteRole>();
+
+        // ── User Management Feature Classes (Scoped — используют TenantDbContext) ──
+        services.AddScoped<GetUsers>();
+        services.AddScoped<GetUserById>();
+        services.AddScoped<GetAvailableRoles>();
+        services.AddScoped<CreateUser>();
+        services.AddScoped<UpdateUser>();
+        services.AddScoped<DeleteUser>();
 
         return services;
     }
