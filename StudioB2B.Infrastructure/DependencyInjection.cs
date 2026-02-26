@@ -6,6 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Features.Roles;
 using StudioB2B.Infrastructure.Features.Users;
+using StudioB2B.Infrastructure.Http.Handlers;
+using StudioB2B.Infrastructure.Integrations.Ozon;
 using StudioB2B.Infrastructure.MultiTenancy;
 using StudioB2B.Infrastructure.MultiTenancy.CircuitHandlers;
 using StudioB2B.Infrastructure.MultiTenancy.Initialization;
@@ -35,6 +37,28 @@ public static class DependencyInjection
         });
 
         services.AddHostedService<DatabaseMigrationService>();
+
+        services.AddSingleton<IKeyEncryptionService, KeyEncryptionService>();
+
+        // ── HTTP pipeline for marketplace APIs (Ozon, etc.) ──
+        services.AddTransient<LoggingHandler>();
+        services.AddTransient<RetryHandler>();
+        services.AddTransient<RateLimitHandler>();
+
+        var ozonSection = configuration.GetSection("Ozon");
+        var ozonBaseAddress = ozonSection.GetValue<string>("BaseAddress") ?? "https://api-seller.ozon.ru/";
+        var ozonTimeoutSeconds = ozonSection.GetValue<int?>("TimeoutSeconds") ?? 30;
+
+        services.AddHttpClient("Ozon", client =>
+        {
+            client.BaseAddress = new Uri(ozonBaseAddress);
+            client.Timeout = TimeSpan.FromSeconds(ozonTimeoutSeconds);
+        })
+        .AddHttpMessageHandler<LoggingHandler>()
+        .AddHttpMessageHandler<RetryHandler>()
+        .AddHttpMessageHandler<RateLimitHandler>();
+
+        services.AddScoped<IOzonApiClient, OzonApiClient>();
 
         services.AddScoped<TenantProvider>();
         services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<TenantProvider>());

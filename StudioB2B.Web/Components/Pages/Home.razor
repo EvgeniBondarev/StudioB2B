@@ -1,18 +1,36 @@
 @page "/"
 @using StudioB2B.Application.Common.Interfaces
+@using Microsoft.EntityFrameworkCore
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
 @using System.ComponentModel.DataAnnotations
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
 @inject Microsoft.Extensions.Options.IOptions<Infrastructure.MultiTenancy.MultiTenancyOptions> MultiTenancyOptions
+@inject ITenantDbContextFactory Factory
 
 <PageTitle>StudioB2B</PageTitle>
 
 <div style="display: flex; justify-content: center; padding-top: 4rem;">
     <div style="width: 100%; max-width: 440px;">
 
-        @if (!TenantProvider.IsResolved)
+        @if (_initializing)
+        {
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.75rem;">
+                    StudioB2B
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color); display:block; margin-bottom: 1rem;">
+                    Загрузка рабочей области...
+                </RadzenText>
+                <RadzenProgressBar Mode="ProgressBarMode.Indeterminate"
+                                   ShowValue="false"
+                                   Style="width: 100%; max-width: 260px; margin: 0 auto;" />
+            </div>
+        }
+        else if (!TenantProvider.IsResolved)
         {
             <!-- Главная страница мастер-домена: регистрация нового тенанта -->
             <div style="text-align: center; margin-bottom: 2rem;">
@@ -21,8 +39,6 @@
                     Создайте рабочее пространство для вашей компании
                 </RadzenText>
             </div>
-
-            <hr style="margin-bottom: 2rem;" />
 
             @if (_registerSuccess)
             {
@@ -88,8 +104,6 @@
                         </RadzenText>
                     </div>
 
-                    <hr style="margin-bottom: 2rem;" />
-
                     @if (Error == "invalid")
                     {
                         <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
@@ -152,8 +166,6 @@
                                      BadgeStyle="@(context.User.IsInRole("Admin") ? BadgeStyle.Primary : BadgeStyle.Light)" />
                     </div>
 
-                    <hr style="margin-bottom: 1.5rem;" />
-
                     @if (_tenant != null)
                     {
                         <RadzenStack Gap="0.5rem" Style="margin-bottom: 1.5rem;">
@@ -173,6 +185,29 @@
                         </RadzenStack>
                     }
 
+                    @if (context.User.IsInRole("Admin") && !_hasMarketplaceClients)
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Info"
+                                     ShowIcon="true"
+                                     AllowClose="false"
+                                     Style="margin-bottom: 1.5rem; text-align: left;">
+                            <RadzenStack Gap="0.5rem">
+                                <RadzenText TextStyle="TextStyle.Body2">
+                                    В этом рабочем пространстве ещё нет ни одного клиента маркетплейса.
+                                </RadzenText>
+                                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                                    Добавьте, например, клиента Ozon на странице
+                                    <strong>«Клиенты маркетплейсов»</strong>, чтобы начать работу с заказами.
+                                </RadzenText>
+                                <RadzenButton Text="Перейти к клиентам маркетплейсов"
+                                              Icon="store"
+                                              ButtonStyle="ButtonStyle.Primary"
+                                              Size="ButtonSize.Small"
+                                              Click="@(() => Navigation.NavigateTo("/marketplace-clients"))" />
+                            </RadzenStack>
+                        </RadzenAlert>
+                    }
+
                     <hr style="margin-bottom: 1.5rem;" />
 
                     <RadzenButton Text="Выйти" Icon="logout" ButtonStyle="ButtonStyle.Danger"
@@ -187,6 +222,8 @@
 
 @code {
     private Domain.Entities.Tenants.Tenant? _tenant;
+    private bool _initializing = true;
+    private bool _hasMarketplaceClients;
 
     [SupplyParameterFromQuery] public string? Error { get; set; }
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
@@ -201,7 +238,17 @@
     protected override async Task OnInitializedAsync()
     {
         if (TenantProvider.IsResolved && TenantProvider.TenantId.HasValue)
+        {
             _tenant = await TenantService.GetByIdAsync(TenantProvider.TenantId.Value);
+
+            // Проверяем, есть ли хоть один клиент маркетплейса у текущего тенанта
+            await using var db = Factory.CreateDbContext();
+            _hasMarketplaceClients = await db.MarketplaceClients!
+                .AsNoTracking()
+                .AnyAsync();
+        }
+
+        _initializing = false;
     }
 
     private async Task HandleRegister()
