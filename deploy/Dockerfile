@@ -43,13 +43,11 @@ ENV ConnectionStrings__MasterDb=""
 
 # Multi-tenancy settings
 ENV MultiTenancy__MasterDomain="studiob2b.com"
-ENV MultiTenancy__DefaultSubdomain="demo"
 
 # Tenant DB connection string template (for per-tenant databases)
 ENV MultiTenancy__TenantDbConnectionTemplate=""
 
-# Database migration settings (disabled for production by default)
-ENV Database__ApplyMigrationsOnStartup=false
+ENV Jwt__Secret="REMOVED_JWT_SECRET"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
