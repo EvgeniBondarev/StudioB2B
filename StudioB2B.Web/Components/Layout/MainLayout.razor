@@ -25,7 +25,7 @@
 
                 @if (TenantProvider.IsResolved)
                 {
-                    <AuthorizeView Roles="Admin">
+                    <AuthorizeView Roles="Директор">
                         <Authorized>
                             <RadzenPanelMenuItem Text="Пользователи" Path="/users" Icon="people" />
                             <RadzenPanelMenuItem Text="Маркетплейс" Path="/marketplace-clients" Icon="store" />
@@ -62,7 +62,7 @@
                         </RadzenText>
                         <RadzenButton Text="Выйти" Icon="logout" ButtonStyle="ButtonStyle.Light"
                                       Variant="Variant.Text" Size="ButtonSize.Small"
-                                      Click="@(() => Navigation.NavigateTo("/account/logout", forceLoad: true))" />
+                                      Click="@(() => Navigation.NavigateTo("/auth/logout", forceLoad: true))" />
                     </Authorized>
                 </AuthorizeView>
             </RadzenStack>

@@ -8,6 +8,7 @@
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
 @inject Microsoft.Extensions.Options.IOptions<MultiTenancyOptions> MultiTenancyOptions
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>StudioB2B</PageTitle>
 
@@ -16,67 +17,74 @@
 
         @if (!TenantProvider.IsResolved)
         {
-            <!-- Главная страница мастер-домена: регистрация нового тенанта -->
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
-                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
-                    Создайте рабочее пространство для вашей компании
-                </RadzenText>
-            </div>
+            <AuthorizeView>
+                <NotAuthorized>
+                    <!-- Мастер-домен, не авторизован: перенаправить на /login -->
+                </NotAuthorized>
+                <Authorized Context="authContext">
+                    <!-- Главная страница мастер-домена: регистрация нового тенанта -->
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                            Создайте рабочее пространство для вашей компании
+                        </RadzenText>
+                    </div>
 
-            <hr style="margin-bottom: 2rem;" />
+                    <hr style="margin-bottom: 2rem;" />
 
-            @if (_registerSuccess)
-            {
-                <RadzenAlert AlertStyle="AlertStyle.Success" ShowIcon="true" AllowClose="false">
-                    Компания зарегистрирована! Перенаправление...
-                </RadzenAlert>
-            }
-            else
-            {
-                <EditForm Model="@_reg" OnValidSubmit="HandleRegister">
-                    <DataAnnotationsValidator />
+                    @if (_registerSuccess)
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Success" ShowIcon="true" AllowClose="false">
+                            Компания зарегистрирована! Перенаправление...
+                        </RadzenAlert>
+                    }
+                    else
+                    {
+                        <EditForm Model="@_reg" OnValidSubmit="HandleRegister">
+                            <DataAnnotationsValidator />
 
-                    <RadzenStack Gap="1rem">
+                            <RadzenStack Gap="1rem">
 
-                        <RadzenFormField Text="Название компании" Style="width: 100%;">
-                            <RadzenTextBox @bind-Value="_reg.CompanyName" Style="width: 100%;" />
-                        </RadzenFormField>
+                                <RadzenFormField Text="Название компании" Style="width: 100%;">
+                                    <RadzenTextBox @bind-Value="_reg.CompanyName" Style="width: 100%;" />
+                                </RadzenFormField>
 
-                        <RadzenFormField Text="Субдомен" Style="width: 100%;">
-                            <ChildContent>
-                                <RadzenTextBox @bind-Value="_reg.Subdomain" Style="width: 100%;" />
-                            </ChildContent>
-                            <Helper>
-                                <RadzenText TextStyle="TextStyle.Caption">Только a-z, 0-9, дефис (3–5 символов) — добавится .@DomainAdornment</RadzenText>
-                            </Helper>
-                        </RadzenFormField>
+                                <RadzenFormField Text="Субдомен" Style="width: 100%;">
+                                    <ChildContent>
+                                        <RadzenTextBox @bind-Value="_reg.Subdomain" Style="width: 100%;" />
+                                    </ChildContent>
+                                    <Helper>
+                                        <RadzenText TextStyle="TextStyle.Caption">Только a-z, 0-9, дефис (3–5 символов) — добавится .@DomainAdornment</RadzenText>
+                                    </Helper>
+                                </RadzenFormField>
 
-                        <RadzenFormField Text="Email администратора" Style="width: 100%;">
-                            <RadzenTextBox @bind-Value="_reg.AdminEmail" Style="width: 100%;" />
-                        </RadzenFormField>
+                                <RadzenFormField Text="Email администратора" Style="width: 100%;">
+                                    <RadzenTextBox @bind-Value="_reg.AdminEmail" Style="width: 100%;" />
+                                </RadzenFormField>
 
-                        <RadzenFormField Text="Пароль" Style="width: 100%;">
-                            <ChildContent>
-                                <RadzenPassword @bind-Value="_reg.Password" Style="width: 100%;" />
-                            </ChildContent>
-                            <Helper>
-                                <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов</RadzenText>
-                            </Helper>
-                        </RadzenFormField>
+                                <RadzenFormField Text="Пароль" Style="width: 100%;">
+                                    <ChildContent>
+                                        <RadzenPassword @bind-Value="_reg.Password" Style="width: 100%;" />
+                                    </ChildContent>
+                                    <Helper>
+                                        <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов</RadzenText>
+                                    </Helper>
+                                </RadzenFormField>
 
-                        <RadzenFormField Text="Подтверждение пароля" Style="width: 100%;">
-                            <RadzenPassword @bind-Value="_reg.ConfirmPassword" Style="width: 100%;" />
-                        </RadzenFormField>
+                                <RadzenFormField Text="Подтверждение пароля" Style="width: 100%;">
+                                    <RadzenPassword @bind-Value="_reg.ConfirmPassword" Style="width: 100%;" />
+                                </RadzenFormField>
 
-                        <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
+                                <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
 
-                        <RadzenButton ButtonType="ButtonType.Submit" Text="Создать рабочее пространство"
-                                      ButtonStyle="ButtonStyle.Primary" Style="width: 100%;"
-                                      IsBusy="@_regLoading" />
-                    </RadzenStack>
-                </EditForm>
-            }
+                                <RadzenButton ButtonType="ButtonType.Submit" Text="Создать рабочее пространство"
+                                              ButtonStyle="ButtonStyle.Primary" Style="width: 100%;"
+                                              IsBusy="@_regLoading" />
+                            </RadzenStack>
+                        </EditForm>
+                    }
+                </Authorized>
+            </AuthorizeView>
         }
         else
         {
@@ -92,50 +100,7 @@
 
                     <hr style="margin-bottom: 2rem;" />
 
-                    @if (Error == "invalid")
-                    {
-                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
-                            Неверный email или пароль
-                        </RadzenAlert>
-                    }
-                    else if (Error == "inactive")
-                    {
-                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
-                            Аккаунт деактивирован
-                        </RadzenAlert>
-                    }
-                    else if (Error == "error")
-                    {
-                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
-                            Произошла ошибка при входе
-                        </RadzenAlert>
-                    }
-
-                    <form method="post" action="/account/login">
-                        <input type="hidden" name="returnUrl" value="@ReturnUrl" />
-
-                        <RadzenStack Gap="1rem">
-                            <RadzenFormField Text="Email" Style="width: 100%;">
-                                <input name="email" type="email" required
-                                       class="rz-textbox" style="width: 100%;" />
-                            </RadzenFormField>
-
-                            <RadzenFormField Text="Пароль" Style="width: 100%;">
-                                <input name="password" type="password" required
-                                       class="rz-textbox" style="width: 100%;" />
-                            </RadzenFormField>
-
-                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center">
-                                <input type="checkbox" name="rememberMe" id="rememberMe" value="true" checked />
-                                <label for="rememberMe" style="margin-left: 0.5rem; font-size: 0.875rem;">Запомнить меня</label>
-                            </RadzenStack>
-
-                            <button type="submit" class="rz-button rz-button-md rz-primary"
-                                    style="width: 100%; justify-content: center;">
-                                Войти
-                            </button>
-                        </RadzenStack>
-                    </form>
+                    <LoginForm ReturnUrl="@(ReturnUrl ?? "/")" />
                 </NotAuthorized>
 
                 <Authorized>
@@ -150,8 +115,8 @@
                         <RadzenText TextStyle="TextStyle.H6" Style="font-weight: 600; margin-bottom: 0.25rem;">
                             @context.User.Identity?.Name
                         </RadzenText>
-                        <RadzenBadge Text="@(context.User.IsInRole("Admin") ? "Admin" : "User")"
-                                     BadgeStyle="@(context.User.IsInRole("Admin") ? BadgeStyle.Primary : BadgeStyle.Light)" />
+                        <RadzenBadge Text="@(context.User.IsInRole("Директор") ? "Директор" : "Сотрудник")"
+                                     BadgeStyle="@(context.User.IsInRole("Директор") ? BadgeStyle.Primary : BadgeStyle.Light)" />
                     </div>
 
                     <hr style="margin-bottom: 1.5rem;" />
@@ -179,7 +144,7 @@
 
                     <RadzenButton Text="Выйти" Icon="logout" ButtonStyle="ButtonStyle.Danger"
                                   Style="width: 100%; justify-content: center;"
-                                  Click="@(() => Navigation.NavigateTo("/account/logout", forceLoad: true))" />
+                                  Click="@(() => Navigation.NavigateTo("/auth/logout", forceLoad: true))" />
                 </Authorized>
             </AuthorizeView>
         }
@@ -190,7 +155,6 @@
 @code {
     private TenantEntity? _tenant;
 
-    [SupplyParameterFromQuery] public string? Error { get; set; }
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
 
     private RegisterModel _reg = new();
@@ -203,7 +167,21 @@
     protected override async Task OnInitializedAsync()
     {
         if (TenantProvider.IsResolved && TenantProvider.TenantId.HasValue)
+        {
             _tenant = await TenantService.GetByIdAsync(TenantProvider.TenantId.Value);
+            return;
+        }
+
+        // Мастер-домен: неавторизованного — на /login
+        if (!TenantProvider.IsResolved)
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            if (authState.User.Identity?.IsAuthenticated != true)
+            {
+                var returnUrl = Uri.EscapeDataString(Navigation.Uri);
+                Navigation.NavigateTo($"/login?returnUrl={returnUrl}", replace: true);
+            }
+        }
     }
 
     private async Task HandleRegister()
