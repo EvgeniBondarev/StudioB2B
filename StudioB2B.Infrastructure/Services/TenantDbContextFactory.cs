@@ -16,9 +16,7 @@ public class TenantDbContextFactory : ITenantDbContextFactory
     public TenantDbContext CreateDbContext()
     {
         if (!_tenantProvider.IsResolved)
-        {
             throw new InvalidOperationException("Tenant is not resolved. Cannot create TenantDbContext.");
-        }
 
         var optionsBuilder = new DbContextOptionsBuilder<TenantDbContext>();
         var connectionString = _tenantProvider.ConnectionString!;
