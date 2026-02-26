@@ -47,6 +47,8 @@ ENV MultiTenancy__MasterDomain="studiob2b.com"
 # Tenant DB connection string template (for per-tenant databases)
 ENV MultiTenancy__TenantDbConnectionTemplate=""
 
+ENV Jwt__Secret="REMOVED_JWT_SECRET"
+
 EXPOSE 5184
 
 ENTRYPOINT ["dotnet", "StudioB2B.Web.dll"]
