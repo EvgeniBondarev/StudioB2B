@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using StudioB2B.Domain.Entities.Marketplace;
+using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -63,6 +64,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 
     private static async Task SeedMarketplaceDataAsync(TenantDbContext ctx, CancellationToken ct)
     {
+        // Типы клиентов маркетплейсов
         if (!await ctx.Set<MarketplaceClientType>().AnyAsync(ct))
         {
             ctx.Set<MarketplaceClientType>().AddRange(
@@ -71,6 +73,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
                 new MarketplaceClientType { Name = "Яндекс.Маркет" });
         }
 
+        // Режимы клиентов маркетплейсов
         if (!await ctx.Set<MarketplaceClientMode>().AnyAsync(ct))
         {
             ctx.Set<MarketplaceClientMode>().AddRange(
@@ -79,7 +82,75 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
                 new MarketplaceClientMode { Name = "Express" });
         }
 
+        // Системные статусы заказов (OrderStatus)
+        if (!await ctx.Set<OrderStatus>().AnyAsync(ct))
+        {
+            var systemStatuses = new List<OrderStatus>
+            {
+                new() { Name = "Не указан",            Color = "#9E9E9E", IsTerminal = false, IsInternal = true },
+                new() { Name = "Готов к отгрузке",     Color = "#4CAF50", IsTerminal = false, IsInternal = true },
+                new() { Name = "Не готов",             Color = "#FF9800", IsTerminal = false, IsInternal = true },
+                new() { Name = "Заказан поставщику",   Color = "#2196F3", IsTerminal = false, IsInternal = true },
+                new() { Name = "Изменен",              Color = "#03A9F4", IsTerminal = false, IsInternal = true },
+                new() { Name = "Отменен",              Color = "#F44336", IsTerminal = true,  IsInternal = true },
+                new() { Name = "Возврат покупателя",   Color = "#9C27B0", IsTerminal = true,  IsInternal = true },
+                new() { Name = "Доставлен",            Color = "#4CAF50", IsTerminal = true,  IsInternal = true },
+                new() { Name = "Отгружен клиенту",     Color = "#4CAF50", IsTerminal = true,  IsInternal = true },
+                new() { Name = "Отгружен поставщиком", Color = "#4CAF50", IsTerminal = false, IsInternal = true },
+                new() { Name = "Возврат поставщику",   Color = "#9C27B0", IsTerminal = false, IsInternal = true },
+                new() { Name = "Возвращено поставщику",Color = "#9C27B0", IsTerminal = true,  IsInternal = true },
+                new() { Name = "Приостановлен",        Color = "#FFC107", IsTerminal = false, IsInternal = true },
+                new() { Name = "ПринятНаСкладе",       Color = "#4CAF50", IsTerminal = false, IsInternal = true },
+                new() { Name = "К отмене",             Color = "#FF5722", IsTerminal = false, IsInternal = true },
+                new() { Name = "Отгружен реализатором",Color = "#4CAF50", IsTerminal = false, IsInternal = true },
+                new() { Name = "Утерян реализатором",  Color = "#607D8B", IsTerminal = true,  IsInternal = true },
+                new() { Name = "Заказан реализатору",  Color = "#2196F3", IsTerminal = false, IsInternal = true },
+                new() { Name = "Утерян поставщиком",   Color = "#607D8B", IsTerminal = true,  IsInternal = true },
+                new() { Name = "Отгружен реализатору", Color = "#4CAF50", IsTerminal = false, IsInternal = true },
+                new() { Name = "Перемещение",          Color = "#3F51B5", IsTerminal = false, IsInternal = true },
+                new() { Name = "Возвращен на склад",   Color = "#009688", IsTerminal = false, IsInternal = true }
+            };
+
+            ctx.Set<OrderStatus>().AddRange(systemStatuses);
+        }
+
         await ctx.SaveChangesAsync(ct);
+
+        // Цвета статусов (StatusColor) – наполняем, если ещё пусто
+        if (!await ctx.Set<StatusColor>().AnyAsync(ct))
+        {
+            var statuses = await ctx.Set<OrderStatus>()
+                .AsNoTracking()
+                .ToListAsync(ct);
+
+            StatusColor CreateIfExists(string statusName, string colorHex)
+            {
+                var status = statuses.FirstOrDefault(s => s.Name == statusName);
+                return status is null
+                    ? null!
+                    : new StatusColor { OrderStatusId = status.Id, Hash = colorHex };
+            }
+
+            var colors = new List<StatusColor?>
+            {
+                CreateIfExists("Не указан", "#9E9E9E"),
+                CreateIfExists("Готов к отгрузке", "#4CAF50"),
+                CreateIfExists("Не готов", "#FF9800"),
+                CreateIfExists("Отменен", "#F44336"),
+                CreateIfExists("Доставлен", "#4CAF50"),
+                CreateIfExists("Приостановлен", "#FFC107"),
+                CreateIfExists("Возврат покупателя", "#9C27B0"),
+                CreateIfExists("Возвращен на склад", "#009688")
+            }
+            .Where(c => c is not null)
+            .ToList()!;
+
+            if (colors.Count > 0)
+            {
+                ctx.Set<StatusColor>().AddRange(colors);
+                await ctx.SaveChangesAsync(ct);
+            }
+        }
     }
 
     private async Task SyncRolesFromMasterAsync(TenantDbContext ctx, CancellationToken ct)
