@@ -59,6 +59,8 @@ public static class DependencyInjection
         .AddHttpMessageHandler<RateLimitHandler>();
 
         services.AddScoped<IOzonApiClient, OzonApiClient>();
+        services.AddScoped<IOrderAdapter, OzonFbsOrderAdapter>();
+        services.AddScoped<IOrderSyncService, OrderSyncService>();
 
         services.AddScoped<TenantProvider>();
         services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<TenantProvider>());

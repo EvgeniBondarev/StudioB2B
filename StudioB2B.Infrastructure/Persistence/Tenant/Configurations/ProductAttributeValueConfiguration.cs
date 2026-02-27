@@ -28,6 +28,6 @@ public class ProductAttributeValueConfiguration : IEntityTypeConfiguration<Produ
 
         builder.Property(v => v.Value)
             .IsRequired()
-            .HasMaxLength(1000);
+            .HasColumnType("longtext");
     }
 }

@@ -48,48 +48,109 @@
             }
             else
             {
-                <EditForm Model="@_reg" OnValidSubmit="HandleRegister">
-                    <DataAnnotationsValidator />
+                @if (!_showRegTimeline)
+                {
+                    <EditForm Model="@_reg" OnValidSubmit="HandleRegister">
+                        <DataAnnotationsValidator />
 
+                        <RadzenStack Gap="1rem">
+
+                            <RadzenFormField Text="Название компании" Style="width: 100%;">
+                                <RadzenTextBox @bind-Value="_reg.CompanyName" Style="width: 100%;" />
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Субдомен" Style="width: 100%;">
+                                <ChildContent>
+                                    <RadzenTextBox @bind-Value="_reg.Subdomain" Style="width: 100%;" />
+                                </ChildContent>
+                                <Helper>
+                                    <RadzenText TextStyle="TextStyle.Caption">Только a-z, 0-9, дефис (3–5 символов) — добавится .@DomainAdornment</RadzenText>
+                                </Helper>
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Email администратора" Style="width: 100%;">
+                                <RadzenTextBox @bind-Value="_reg.AdminEmail" Style="width: 100%;" />
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Пароль" Style="width: 100%;">
+                                <ChildContent>
+                                    <RadzenPassword @bind-Value="_reg.Password" Style="width: 100%;" />
+                                </ChildContent>
+                                <Helper>
+                                    <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов</RadzenText>
+                                </Helper>
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Подтверждение пароля" Style="width: 100%;">
+                                <RadzenPassword @bind-Value="_reg.ConfirmPassword" Style="width: 100%;" />
+                            </RadzenFormField>
+
+                            <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
+
+                            <RadzenButton ButtonType="ButtonType.Submit" Text="Создать рабочее пространство"
+                                          ButtonStyle="ButtonStyle.Primary" Style="width: 100%;"
+                                          IsBusy="@_regLoading" />
+                        </RadzenStack>
+                    </EditForm>
+                }
+                else
+                {
                     <RadzenStack Gap="1rem">
+                        <RadzenText TextStyle="TextStyle.Body1" Style="color: var(--rz-text-secondary-color); text-align: center;">
+                            Создаём рабочее пространство, это может занять немного времени...
+                        </RadzenText>
 
-                        <RadzenFormField Text="Название компании" Style="width: 100%;">
-                            <RadzenTextBox @bind-Value="_reg.CompanyName" Style="width: 100%;" />
-                        </RadzenFormField>
+                        <RadzenTimeline>
+                            <Items>
+                                <RadzenTimelineItem PointStyle="@RegStepStyle(0)" PointSize="PointSize.Small">
+                                    <LabelContent>
+                                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                                    Style="@RegStepLabelStyle(0)">
+                                            Ввод данных
+                                        </RadzenText>
+                                    </LabelContent>
+                                    <ChildContent>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(0)">
+                                            Подготовка параметров компании и администратора.
+                                        </RadzenText>
+                                    </ChildContent>
+                                </RadzenTimelineItem>
 
-                        <RadzenFormField Text="Субдомен" Style="width: 100%;">
-                            <ChildContent>
-                                <RadzenTextBox @bind-Value="_reg.Subdomain" Style="width: 100%;" />
-                            </ChildContent>
-                            <Helper>
-                                <RadzenText TextStyle="TextStyle.Caption">Только a-z, 0-9, дефис (3–5 символов) — добавится .@DomainAdornment</RadzenText>
-                            </Helper>
-                        </RadzenFormField>
+                                <RadzenTimelineItem PointStyle="@RegStepStyle(1)" PointSize="PointSize.Small">
+                                    <LabelContent>
+                                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                                    Style="@RegStepLabelStyle(1)">
+                                            Создание базы
+                                        </RadzenText>
+                                    </LabelContent>
+                                    <ChildContent>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(1)">
+                                            Создание базы данных тенанта и применение миграций.
+                                        </RadzenText>
+                                    </ChildContent>
+                                </RadzenTimelineItem>
 
-                        <RadzenFormField Text="Email администратора" Style="width: 100%;">
-                            <RadzenTextBox @bind-Value="_reg.AdminEmail" Style="width: 100%;" />
-                        </RadzenFormField>
+                                <RadzenTimelineItem PointStyle="@RegStepStyle(2)" PointSize="PointSize.Small">
+                                    <LabelContent>
+                                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                                    Style="@RegStepLabelStyle(2)">
+                                            Готово
+                                        </RadzenText>
+                                    </LabelContent>
+                                    <ChildContent>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(2)">
+                                            Настройка администратора и переход в систему.
+                                        </RadzenText>
+                                    </ChildContent>
+                                </RadzenTimelineItem>
+                            </Items>
+                        </RadzenTimeline>
 
-                        <RadzenFormField Text="Пароль" Style="width: 100%;">
-                            <ChildContent>
-                                <RadzenPassword @bind-Value="_reg.Password" Style="width: 100%;" />
-                            </ChildContent>
-                            <Helper>
-                                <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов</RadzenText>
-                            </Helper>
-                        </RadzenFormField>
-
-                        <RadzenFormField Text="Подтверждение пароля" Style="width: 100%;">
-                            <RadzenPassword @bind-Value="_reg.ConfirmPassword" Style="width: 100%;" />
-                        </RadzenFormField>
-
-                        <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
-
-                        <RadzenButton ButtonType="ButtonType.Submit" Text="Создать рабочее пространство"
-                                      ButtonStyle="ButtonStyle.Primary" Style="width: 100%;"
-                                      IsBusy="@_regLoading" />
+                        <RadzenProgressBar Mode="ProgressBarMode.Indeterminate"
+                                           ShowValue="false"
+                                           Style="width: 100%;" />
                     </RadzenStack>
-                </EditForm>
+                }
             }
         }
         else
@@ -224,6 +285,8 @@
     private Domain.Entities.Tenants.Tenant? _tenant;
     private bool _initializing = true;
     private bool _hasMarketplaceClients;
+    private int _regStep;
+    private bool _showRegTimeline;
 
     [SupplyParameterFromQuery] public string? Error { get; set; }
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
@@ -253,15 +316,23 @@
 
     private async Task HandleRegister()
     {
+        if (_regLoading)
+            return;
+
+        if (_reg.Password != _reg.ConfirmPassword)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Пароли не совпадают");
+            return;
+        }
+
         _regLoading = true;
+        _showRegTimeline = true;
+        _regStep = 0;
+
+        _ = RunRegTimelineAsync();
+
         try
         {
-            if (_reg.Password != _reg.ConfirmPassword)
-            {
-                NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Пароли не совпадают");
-                return;
-            }
-
             var result = await TenantService.RegisterAsync(_reg.CompanyName, _reg.Subdomain, _reg.AdminEmail, _reg.Password);
 
             if (result.Success)
@@ -291,11 +362,13 @@
             }
             else
             {
+                _showRegTimeline = false;
                 NotificationService.Notify(NotificationSeverity.Error, "Ошибка регистрации", result.Error ?? "Неизвестная ошибка");
             }
         }
         catch (Exception ex)
         {
+            _showRegTimeline = false;
             NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
         }
         finally
@@ -303,6 +376,41 @@
             _regLoading = false;
         }
     }
+
+    private async Task RunRegTimelineAsync()
+    {
+        _regStep = 0;
+        StateHasChanged();
+
+        await Task.Delay(800);
+        if (!_showRegTimeline) return;
+
+        _regStep = 1;
+        StateHasChanged();
+
+        await Task.Delay(1200);
+        if (!_showRegTimeline) return;
+
+        _regStep = 2;
+        StateHasChanged();
+    }
+
+    private PointStyle RegStepStyle(int step) => step switch
+    {
+        _ when step < _regStep  => PointStyle.Success,
+        _ when step == _regStep => PointStyle.Primary,
+        _                       => PointStyle.Secondary
+    };
+
+    private string RegStepLabelStyle(int step) => step == _regStep
+        ? "color: var(--rz-primary); font-weight: 700;"
+        : step < _regStep
+            ? "color: var(--rz-success);"
+            : "color: var(--rz-text-disabled-color);";
+
+    private string RegStepDescStyle(int step) => step <= _regStep
+        ? string.Empty
+        : "color: var(--rz-text-disabled-color);";
 
     private static string GetInitials(string? name)
     {

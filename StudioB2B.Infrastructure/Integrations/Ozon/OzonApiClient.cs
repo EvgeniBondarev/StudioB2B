@@ -5,6 +5,9 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Http;
+using StudioB2B.Infrastructure.Integrations.Ozon.Models.FbsUnfulfilled;
+using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductAttributes;
+using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductPrices;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo;
 
 namespace StudioB2B.Infrastructure.Integrations.Ozon;
@@ -36,7 +39,6 @@ public class OzonApiClient : IOzonApiClient
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
 
-        // The stored key may be encrypted; decrypt it before calling the API
         var plainApiKey = _encryption.Decrypt(apiKey);
 
         return SendPostAsync<OzonSellerInfoResponse>(
@@ -45,6 +47,113 @@ public class OzonApiClient : IOzonApiClient
             plainApiKey,
             new { },
             cancellationToken);
+    }
+
+    public Task<OzonApiResult<OzonFbsUnfulfilledListResponse>> GetFbsUnfulfilledListAsync(
+        string clientId,
+        string apiKey,
+        DateTime cutoffFrom,
+        DateTime cutoffTo,
+        int limit = 100,
+        int offset = 0,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+
+        var body = new OzonFbsUnfulfilledListRequest
+        {
+            Filter = new OzonFbsUnfulfilledFilter
+            {
+                CutoffFrom = cutoffFrom,
+                CutoffTo = cutoffTo
+            },
+            Limit = limit,
+            Offset = offset,
+            With = new OzonFbsUnfulfilledWith { FinancialData = true }
+        };
+
+        return SendPostAsync<OzonFbsUnfulfilledListResponse>(
+            OzonEndpoints.FbsUnfulfilledList,
+            clientId,
+            plainApiKey,
+            body,
+            ct);
+    }
+
+    public Task<OzonApiResult<OzonProductPricesResponse>> GetProductPricesAsync(
+        string clientId,
+        string apiKey,
+        IReadOnlyCollection<string> offerIds,
+        string cursor = "",
+        int limit = 100,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+
+        var body = new OzonProductPricesRequest
+        {
+            Cursor = cursor,
+            Filter = new OzonProductPricesFilter
+            {
+                OfferId = offerIds.ToList(),
+                Visibility = "ALL"
+            },
+            Limit = limit
+        };
+
+        return SendPostAsync<OzonProductPricesResponse>(
+            OzonEndpoints.ProductInfoPrices,
+            clientId,
+            plainApiKey,
+            body,
+            ct);
+    }
+
+    public Task<OzonApiResult<OzonProductAttributesResponse>> GetProductAttributesAsync(
+        string clientId,
+        string apiKey,
+        IReadOnlyCollection<string> offerIds,
+        string lastId = "",
+        int limit = 1000,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+
+        var body = new OzonProductAttributesRequest
+        {
+            LastId = lastId,
+            Filter = new OzonProductAttributesFilter
+            {
+                OfferId = offerIds.ToList(),
+                Visibility = "ALL"
+            },
+            Limit = limit
+        };
+
+        return SendPostAsync<OzonProductAttributesResponse>(
+            OzonEndpoints.ProductInfoAttributes,
+            clientId,
+            plainApiKey,
+            body,
+            ct);
     }
 
     private async Task<OzonApiResult<TResponse>> SendPostAsync<TResponse>(
