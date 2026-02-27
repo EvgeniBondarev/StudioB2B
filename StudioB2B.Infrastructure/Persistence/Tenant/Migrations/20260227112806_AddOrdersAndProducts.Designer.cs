@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -11,9 +12,11 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 {
     [DbContext(typeof(TenantDbContext))]
-    partial class TenantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260227112806_AddOrdersAndProducts")]
+    partial class AddOrdersAndProducts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -505,14 +508,8 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("IsInternal")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<bool>("IsTerminal")
                         .HasColumnType("tinyint(1)");
-
-                    b.Property<Guid?>("MarketplaceClientTypeId")
-                        .HasColumnType("char(36)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -522,8 +519,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("MarketplaceClientTypeId");
 
                     b.ToTable("OrderStatuses");
                 });
@@ -1237,15 +1232,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("Supplier");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderStatus", b =>
-                {
-                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientType", "MarketplaceClientType")
-                        .WithMany()
-                        .HasForeignKey("MarketplaceClientTypeId");
-
-                    b.Navigation("MarketplaceClientType");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Recipient", b =>
