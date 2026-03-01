@@ -1,3 +1,5 @@
+using StudioB2B.Application.Common;
+
 namespace StudioB2B.Application.Common.Interfaces;
 
 /// <summary>
@@ -5,5 +7,5 @@ namespace StudioB2B.Application.Common.Interfaces;
 /// </summary>
 public interface IOrderSyncService
 {
-    Task SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default);
+    Task<OrderSyncResult> SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default);
 }
