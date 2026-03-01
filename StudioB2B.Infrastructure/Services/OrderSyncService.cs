@@ -22,7 +22,7 @@ public class OrderSyncService : IOrderSyncService
         _logger = logger;
     }
 
-    public async Task<OrderSyncResult> SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default)
+    public async Task<OrderSyncSummary> SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default)
     {
         var ozonClients = await _db.MarketplaceClients!
             .Include(c => c.ClientType)
@@ -33,7 +33,7 @@ public class OrderSyncService : IOrderSyncService
         _logger.LogInformation(
             "Starting order sync for {Count} Ozon FBS client(s).", ozonClients.Count);
 
-        var result = new OrderSyncResult();
+        var summary = new OrderSyncSummary();
 
         foreach (var client in ozonClients)
         {
@@ -43,7 +43,18 @@ public class OrderSyncService : IOrderSyncService
                     "Syncing orders for client {ClientId} ({ClientName}) in period {From}–{To}.",
                     client.ApiId, client.Name, cutoffFrom, cutoffTo);
                 var clientResult = await _adapter.SyncAsync(client, cutoffFrom, cutoffTo, ct);
-                result.Add(clientResult);
+                summary.Total.Add(clientResult);
+                summary.PerClient.Add(new ClientSyncResultItem
+                {
+                    ClientName = client.Name,
+                    Mode = client.Mode?.Name ?? string.Empty,
+                    ShipmentsCreated = clientResult.ShipmentsCreated,
+                    ShipmentsUpdated = clientResult.ShipmentsUpdated,
+                    ShipmentsUntouched = clientResult.ShipmentsUntouched,
+                    OrdersCreated = clientResult.OrdersCreated,
+                    OrdersUpdated = clientResult.OrdersUpdated,
+                    OrdersUntouched = clientResult.OrdersUntouched
+                });
             }
             catch (Exception ex)
             {
@@ -54,6 +65,55 @@ public class OrderSyncService : IOrderSyncService
         }
 
         _logger.LogInformation("Order sync completed.");
-        return result;
+        return summary;
+    }
+
+    public async Task<OrderSyncSummary> UpdateAllAsync(CancellationToken ct = default)
+    {
+        var ozonClients = await _db.MarketplaceClients!
+            .Include(c => c.ClientType)
+            .Include(c => c.Mode)
+            .Where(c => c.ClientType!.Name == "Ozon" && c.Mode!.Name == "FBS")
+            .ToListAsync(ct);
+
+        _logger.LogInformation(
+            "Starting status update for {Count} Ozon FBS client(s).", ozonClients.Count);
+
+        var summary = new OrderSyncSummary();
+
+        foreach (var client in ozonClients)
+        {
+            try
+            {
+                _logger.LogInformation(
+                    "Updating statuses for client {ClientId} ({ClientName}).",
+                    client.ApiId, client.Name);
+
+                var clientResult = await _adapter.UpdateStatusesAsync(client, ct);
+                summary.Total.Add(clientResult);
+                summary.UpdatedShipments.AddRange(clientResult.UpdatedShipments);
+                summary.PerClient.Add(new ClientSyncResultItem
+                {
+                    ClientName = client.Name,
+                    Mode = client.Mode?.Name ?? string.Empty,
+                    ShipmentsCreated = clientResult.ShipmentsCreated,
+                    ShipmentsUpdated = clientResult.ShipmentsUpdated,
+                    ShipmentsUntouched = clientResult.ShipmentsUntouched,
+                    OrdersCreated = clientResult.OrdersCreated,
+                    OrdersUpdated = clientResult.OrdersUpdated,
+                    OrdersUntouched = clientResult.OrdersUntouched,
+                    UpdatedFieldsSummary = clientResult.UpdatedFieldsSummary
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Unhandled error while updating statuses for client {ClientId} ({ClientName}). Skipping.",
+                    client.ApiId, client.Name);
+            }
+        }
+
+        _logger.LogInformation("Status update completed.");
+        return summary;
     }
 }

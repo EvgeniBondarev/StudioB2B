@@ -76,6 +76,113 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         return result;
     }
 
+    public async Task<OrderSyncResult> UpdateStatusesAsync(
+        MarketplaceClient client,
+        CancellationToken ct = default)
+    {
+        var shipments = await _db.Shipments
+            .Include(s => s.Status)
+            .Where(s => s.MarketplaceClientId == client.Id
+                        && (s.StatusId == null || s.Status == null || !s.Status.IsTerminal))
+            .ToListAsync(ct);
+
+        _logger.LogInformation(
+            "Updating statuses for {Count} active shipments of client {ClientId}.",
+            shipments.Count, client.ApiId);
+
+        var result = new OrderSyncResult();
+
+        foreach (var shipment in shipments)
+        {
+            try
+            {
+                var apiResult = await _api.GetFbsPostingAsync(client.ApiId, client.Key, shipment.PostingNumber, ct);
+
+                if (!apiResult.IsSuccess || apiResult.Data?.Result == null)
+                {
+                    _logger.LogWarning(
+                        "Failed to fetch posting {PostingNumber} for client {ClientId}: {Error}",
+                        shipment.PostingNumber, client.ApiId, apiResult.ErrorMessage);
+                    continue;
+                }
+
+                await UpdateShipmentStatusAsync(shipment, client.Name, apiResult.Data.Result, result, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Error updating shipment {PostingNumber} for client {ClientId}.",
+                    shipment.PostingNumber, client.ApiId);
+            }
+        }
+
+        if (result.ShipmentsUpdated > 0)
+            result.UpdatedFieldsSummary = "Статус, Номер заказа, Дата отгрузки, Дата принятия, Трек-номер, Способ доставки";
+
+        return result;
+    }
+
+    private async Task UpdateShipmentStatusAsync(
+        Shipment shipment,
+        string clientName,
+        OzonFbsPostingDto posting,
+        OrderSyncResult stats,
+        CancellationToken ct)
+    {
+        var oldStatusName = shipment.Status?.Name ?? "—";
+        var newStatusName = GetOzonShipmentStatusDisplayName(posting.Status);
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            var status = await EnsureOrderStatusAsync(posting.Status, ct);
+            var deliveryMethod = await EnsureDeliveryMethodAsync(posting, ct);
+
+            shipment.OrderNumber = posting.OrderNumber;
+            shipment.StatusId = status.Id;
+            shipment.DeliveryMethodId = deliveryMethod?.Id;
+            shipment.ShipmentDate = posting.ShipmentDate;
+            shipment.TrackingNumber = posting.TrackingNumber;
+            shipment.InProcessAt = posting.InProcessAt;
+
+            var orders = await _db.Orders
+                .Include(o => o.Status)
+                .Where(o => o.ShipmentId == shipment.Id)
+                .ToListAsync(ct);
+
+            foreach (var order in orders)
+            {
+                if (order.StatusId == null || order.Status == null || !order.Status.IsTerminal)
+                    order.StatusId = status.Id;
+            }
+
+            await _db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+
+            stats.ShipmentsUpdated++;
+            stats.OrdersUpdated += orders.Count;
+            if (oldStatusName != newStatusName)
+            {
+                stats.UpdatedShipments.Add(new ShipmentUpdateItem
+                {
+                    PostingNumber = shipment.PostingNumber,
+                    ClientName = clientName,
+                    OldStatusName = oldStatusName,
+                    NewStatusName = newStatusName
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync(ct);
+            _db.ChangeTracker.Clear();
+            _logger.LogError(ex,
+                "Failed to update shipment {PostingNumber}, rolled back.",
+                shipment.PostingNumber);
+            throw;
+        }
+    }
+
     private async Task<List<OzonFbsPostingDto>> FetchAllPostingsAsync(
         MarketplaceClient client,
         DateTime cutoffFrom,
@@ -199,6 +306,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         var deliveryMethod = await EnsureDeliveryMethodAsync(posting, ct);
         var warehouseInfo = await EnsureWarehouseInfoAsync(posting, ct);
         var orderStatus = await EnsureOrderStatusAsync(posting.Status, ct);
+        var systemBaseStatus = await GetSystemBaseOrderStatusAsync(ct);
 
         var (shipment, shipmentCreated) = await EnsureShipmentAsync(client, posting, deliveryMethod, orderStatus, ct);
         if (shipmentCreated)
@@ -216,7 +324,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
             var domainProduct = await EnsureProductAsync(product, ct);
             var recipient = await EnsureRecipientAsync(posting.Customer, ct);
 
-            var (order, orderCreated) = await EnsureOrderAsync(shipment, posting.OrderId, product, domainProduct, orderStatus, recipient, warehouseInfo, ct);
+            var (order, orderCreated) = await EnsureOrderAsync(shipment, posting.OrderId, product, domainProduct, orderStatus, systemBaseStatus, recipient, warehouseInfo, ct);
             if (orderCreated)
                 stats.OrdersCreated++;
             else
@@ -321,10 +429,32 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         return warehouseInfo;
     }
 
+    private static string GetOzonShipmentStatusDisplayName(string synonym)
+    {
+        return synonym switch
+        {
+            "acceptance_in_progress" => "идёт приёмка",
+            "arbitration" => "арбитраж",
+            "awaiting_approve" => "ожидает подтверждения",
+            "awaiting_deliver" => "ожидает отгрузки",
+            "awaiting_packaging" => "ожидает упаковки",
+            "awaiting_registration" => "ожидает регистрации",
+            "awaiting_verification" => "создано",
+            "cancelled" => "отменено",
+            "cancelled_from_split_pending" => "отменён из-за разделения отправления",
+            "client_arbitration" => "клиентский арбитраж доставки",
+            "delivering" => "доставляется",
+            "driver_pickup" => "у водителя",
+            "not_accepted" => "не принят на сортировочном центре",
+            _ => synonym
+        };
+    }
+
     private async Task<OrderStatus> EnsureOrderStatusAsync(string synonym, CancellationToken ct)
     {
+        var normalized = synonym?.Trim() ?? "";
         var status = await _db.OrderStatuses
-            .FirstOrDefaultAsync(s => s.Synonym == synonym, ct);
+            .FirstOrDefaultAsync(s => s.Synonym != null && s.Synonym.ToLower() == normalized.ToLower(), ct);
 
         if (status != null)
             return status;
@@ -332,11 +462,12 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         var ozonType = await _db.MarketplaceClientTypes!
             .FirstOrDefaultAsync(t => t.Name == "Ozon", ct);
 
+        var displayName = GetOzonShipmentStatusDisplayName(normalized);
         status = new OrderStatus
         {
             Id = Guid.NewGuid(),
-            Name = synonym,
-            Synonym = synonym,
+            Name = displayName,
+            Synonym = normalized,
             IsInternal = false,
             MarketplaceClientTypeId = ozonType?.Id
         };
@@ -344,6 +475,12 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         await _db.SaveChangesAsync(ct);
 
         return status;
+    }
+
+    private async Task<OrderStatus?> GetSystemBaseOrderStatusAsync(CancellationToken ct)
+    {
+        return await _db.OrderStatuses
+            .FirstOrDefaultAsync(s => s.Name == "Не указан" && s.IsInternal, ct);
     }
 
     private async Task<(Shipment Shipment, bool Created)> EnsureShipmentAsync(
@@ -495,6 +632,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         OzonFbsProductDto product,
         Product domainProduct,
         OrderStatus status,
+        OrderStatus? systemBaseStatus,
         Recipient? recipient,
         WarehouseInfo? warehouseInfo,
         CancellationToken ct)
@@ -520,7 +658,8 @@ public class OzonFbsOrderAdapter : IOrderAdapter
                 Id = Guid.NewGuid(),
                 ShipmentId = shipment.Id,
                 OzonOrderId = ozonOrderId,
-                ProductInfoId = orderProductInfo.Id
+                ProductInfoId = orderProductInfo.Id,
+                SystemStatusId = systemBaseStatus?.Id
             };
             orderProductInfo.OrderId = order.Id;
             _db.Orders.Add(order);

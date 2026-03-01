@@ -165,13 +165,13 @@ else
                                             Новых отправлений: <b>@_newShipmentsCount</b>. Клиентов с новыми заказами: <b>@_clientsWithNewShipments</b>.
                                         </RadzenText>
                                         <RadzenText TextStyle="TextStyle.Body2">
-                                            Загружено (новых): <b>@_syncResult.ShipmentsCreated</b> отправлений, <b>@_syncResult.OrdersCreated</b> заказов.
+                                            Загружено (новых): <b>@_syncSummary.Total.ShipmentsCreated</b> отправлений, <b>@_syncSummary.Total.OrdersCreated</b> заказов.
                                         </RadzenText>
                                         <RadzenText TextStyle="TextStyle.Body2">
-                                            Обновлено: <b>@_syncResult.ShipmentsUpdated</b> отправлений, <b>@_syncResult.OrdersUpdated</b> заказов.
+                                            Обновлено: <b>@_syncSummary.Total.ShipmentsUpdated</b> отправлений, <b>@_syncSummary.Total.OrdersUpdated</b> заказов.
                                         </RadzenText>
                                         <RadzenText TextStyle="TextStyle.Body2">
-                                            Не тронуто: <b>@_syncResult.ShipmentsUntouched</b> отправлений, <b>@_syncResult.OrdersUntouched</b> заказов.
+                                            Не тронуто: <b>@_syncSummary.Total.ShipmentsUntouched</b> отправлений, <b>@_syncSummary.Total.OrdersUntouched</b> заказов.
                                         </RadzenText>
                                         @if (_startedAtUtc.HasValue && _finishedAtUtc.HasValue)
                                         {
@@ -182,10 +182,13 @@ else
                                     </RadzenStack>
                                 </RadzenAlert>
 
-                                @if (_clientResults.Count > 0)
+                                @if (_syncSummary.PerClient.Count > 0)
                                 {
-                                    <RadzenDataGrid TItem="ClientResult"
-                                                    Data="@_clientResults"
+                                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-top: 1rem;">
+                                        Результат по клиентам
+                                    </RadzenText>
+                                    <RadzenDataGrid TItem="ClientSyncResultItem"
+                                                    Data="@_syncSummary.PerClient"
                                                     Density="Density.Compact"
                                                     AllowPaging="true"
                                                     PageSize="10"
@@ -193,24 +196,245 @@ else
                                                     AllowSorting="true"
                                                     Style="margin-top: 0.5rem;">
                                         <Columns>
-                                            <RadzenDataGridColumn TItem="ClientResult"
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
                                                                   Property="ClientName"
                                                                   Title="Клиент"
                                                                   Width="220px" />
-                                            <RadzenDataGridColumn TItem="ClientResult"
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
                                                                   Property="Mode"
                                                                   Title="Режим"
                                                                   Width="120px" />
-                                            <RadzenDataGridColumn TItem="ClientResult"
-                                                                  Property="NewShipments"
-                                                                  Title="Новые отправления"
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
+                                                                  Property="ShipmentsCreated"
+                                                                  Title="Загружено отправлений"
+                                                                  TextAlign="TextAlign.Center"
+                                                                  Width="140px" />
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
+                                                                  Property="OrdersCreated"
+                                                                  Title="Загружено заказов"
+                                                                  TextAlign="TextAlign.Center"
+                                                                  Width="140px" />
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
+                                                                  Property="ShipmentsUpdated"
+                                                                  Title="Обновлено отправлений"
                                                                   TextAlign="TextAlign.Center"
                                                                   Width="160px" />
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
+                                                                  Property="OrdersUpdated"
+                                                                  Title="Обновлено заказов"
+                                                                  TextAlign="TextAlign.Center"
+                                                                  Width="140px" />
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
+                                                                  Property="ShipmentsUntouched"
+                                                                  Title="Не тронуто отправлений"
+                                                                  TextAlign="TextAlign.Center"
+                                                                  Width="160px" />
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
+                                                                  Property="OrdersUntouched"
+                                                                  Title="Не тронуто заказов"
+                                                                  TextAlign="TextAlign.Center"
+                                                                  Width="140px" />
                                         </Columns>
                                     </RadzenDataGrid>
                                 }
                             }
                         </RadzenStack>
+                    </RadzenStack>
+                </RadzenTabsItem>
+
+                <RadzenTabsItem Text="Обновление статусов">
+                    <RadzenStack Gap="1.5rem">
+
+                        <RadzenStack Gap="0.25rem">
+                            <RadzenText TextStyle="TextStyle.H6" Style="font-weight: 600;">
+                                Обновление статусов отправлений Ozon
+                            </RadzenText>
+                            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                                Получает актуальный статус, дату отгрузки и трек-номер по каждому активному
+                                отправлению из Ozon API (<code>/v3/posting/fbs/get</code>).
+                                Завершённые отправления не затрагиваются.
+                            </RadzenText>
+                        </RadzenStack>
+
+                        @if (!_showUpdateProcess)
+                        {
+                            <RadzenStack Gap="0.5rem">
+                                <RadzenButton Text="Обновить статусы отправлений"
+                                              Icon="sync"
+                                              ButtonStyle="ButtonStyle.Secondary"
+                                              Size="ButtonSize.Medium"
+                                              IsBusy="@_isUpdateRunning"
+                                              Disabled="@_isUpdateRunning"
+                                              Click="@RunUpdateAsync" />
+                                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                                    Обновляются только отправления с незавершёнными статусами.
+                                </RadzenText>
+                            </RadzenStack>
+                        }
+                        else
+                        {
+                            <RadzenTimeline>
+                                <Items>
+                                    <RadzenTimelineItem PointStyle="@UpdateStepStyle(0)" PointSize="PointSize.Medium">
+                                        <LabelContent>
+                                            <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                                        Style="@UpdateStepLabelStyle(0)">Запрос к API</RadzenText>
+                                        </LabelContent>
+                                        <ChildContent>
+                                            <RadzenText TextStyle="TextStyle.Body2" Style="@UpdateStepDescStyle(0)">
+                                                Получение актуальных данных по каждому отправлению из Ozon API.
+                                            </RadzenText>
+                                        </ChildContent>
+                                    </RadzenTimelineItem>
+
+                                    <RadzenTimelineItem PointStyle="@UpdateStepStyle(1)" PointSize="PointSize.Medium">
+                                        <LabelContent>
+                                            <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                                        Style="@UpdateStepLabelStyle(1)">Сохранение</RadzenText>
+                                        </LabelContent>
+                                        <ChildContent>
+                                            <RadzenText TextStyle="TextStyle.Body2" Style="@UpdateStepDescStyle(1)">
+                                                Обновление статусов, дат отгрузки и трек-номеров в базе данных.
+                                            </RadzenText>
+                                        </ChildContent>
+                                    </RadzenTimelineItem>
+                                </Items>
+                            </RadzenTimeline>
+
+                            <RadzenStack Gap="0.75rem">
+                                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                                    <RadzenButton Text="Обновление запущено"
+                                                  Icon="sync"
+                                                  ButtonStyle="ButtonStyle.Secondary"
+                                                  Size="ButtonSize.Medium"
+                                                  IsBusy="@_isUpdateRunning"
+                                                  Disabled="true" />
+                                    @if (_isUpdateRunning)
+                                    {
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                                            Обновление выполняется, пожалуйста, подождите...
+                                        </RadzenText>
+                                    }
+                                </RadzenStack>
+                                @if (_isUpdateRunning)
+                                {
+                                    <RadzenProgressBar Mode="ProgressBarMode.Indeterminate"
+                                                       ShowValue="false"
+                                                       Style="width: 100%; max-width: 420px;" />
+                                }
+                            </RadzenStack>
+                        }
+
+                        <RadzenStack Gap="0.75rem">
+                            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+                                Результат последнего обновления
+                            </RadzenText>
+
+                            @if (!_hasUpdateResult)
+                            {
+                                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                                    Обновление ещё не выполнялось в текущей сессии.
+                                </RadzenText>
+                            }
+                            else
+                            {
+                                <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false">
+                                    <RadzenStack Gap="0.25rem">
+                                        <RadzenText TextStyle="TextStyle.Body2">
+                                            Обновлено: <b>@_updateSummary.Total.ShipmentsUpdated</b> отправлений,
+                                            <b>@_updateSummary.Total.OrdersUpdated</b> заказов.
+                                        </RadzenText>
+                                        @if (_updateSummary.Total.ShipmentsUpdated > 0)
+                                        {
+                                            <RadzenText TextStyle="TextStyle.Body2">
+                                                Обновляемые поля: Статус, Номер заказа, Дата отгрузки, Дата принятия, Трек-номер, Способ доставки.
+                                            </RadzenText>
+                                        }
+                                        @if (_updateStartedAtUtc.HasValue && _updateFinishedAtUtc.HasValue)
+                                        {
+                                            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                                                Запуск: @_updateStartedAtUtc.Value.ToLocalTime():g · Завершено: @_updateFinishedAtUtc.Value.ToLocalTime():g
+                                            </RadzenText>
+                                        }
+                                    </RadzenStack>
+                                </RadzenAlert>
+
+                                @if (_updateSummary.PerClient.Count > 0)
+                                {
+                                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-top: 1rem;">
+                                        Результат по клиентам
+                                    </RadzenText>
+                                    <RadzenDataGrid TItem="ClientSyncResultItem"
+                                                    Data="@_updateSummary.PerClient"
+                                                    Density="Density.Compact"
+                                                    AllowPaging="true"
+                                                    PageSize="10"
+                                                    ShowPagingSummary="true"
+                                                    AllowSorting="true"
+                                                    Style="margin-top: 0.5rem;">
+                                        <Columns>
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
+                                                                  Property="ClientName"
+                                                                  Title="Клиент"
+                                                                  Width="220px" />
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
+                                                                  Property="Mode"
+                                                                  Title="Режим"
+                                                                  Width="120px" />
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
+                                                                  Property="ShipmentsUpdated"
+                                                                  Title="Обновлено отправлений"
+                                                                  TextAlign="TextAlign.Center"
+                                                                  Width="160px" />
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
+                                                                  Property="OrdersUpdated"
+                                                                  Title="Обновлено заказов"
+                                                                  TextAlign="TextAlign.Center"
+                                                                  Width="140px" />
+                                            <RadzenDataGridColumn TItem="ClientSyncResultItem"
+                                                                  Property="UpdatedFieldsSummary"
+                                                                  Title="Обновлённые поля"
+                                                                  Width="320px" />
+                                        </Columns>
+                                    </RadzenDataGrid>
+                                }
+
+                                @if (_updateSummary.UpdatedShipments.Count > 0)
+                                {
+                                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-top: 1rem;">
+                                        Отправления со сменой статуса
+                                    </RadzenText>
+                                    <RadzenDataGrid TItem="ShipmentUpdateItem"
+                                                    Data="@_updateSummary.UpdatedShipments"
+                                                    Density="Density.Compact"
+                                                    AllowPaging="true"
+                                                    PageSize="15"
+                                                    ShowPagingSummary="true"
+                                                    AllowSorting="true"
+                                                    Style="margin-top: 0.5rem;">
+                                        <Columns>
+                                            <RadzenDataGridColumn TItem="ShipmentUpdateItem"
+                                                                  Property="PostingNumber"
+                                                                  Title="Номер отправления"
+                                                                  Width="180px" />
+                                            <RadzenDataGridColumn TItem="ShipmentUpdateItem"
+                                                                  Property="ClientName"
+                                                                  Title="Клиент"
+                                                                  Width="200px" />
+                                            <RadzenDataGridColumn TItem="ShipmentUpdateItem"
+                                                                  Property="OldStatusName"
+                                                                  Title="Старый статус"
+                                                                  Width="220px" />
+                                            <RadzenDataGridColumn TItem="ShipmentUpdateItem"
+                                                                  Property="NewStatusName"
+                                                                  Title="Новый статус"
+                                                                  Width="220px" />
+                                        </Columns>
+                                    </RadzenDataGrid>
+                                }
+                            }
+                        </RadzenStack>
+
                     </RadzenStack>
                 </RadzenTabsItem>
             </Tabs>
@@ -219,18 +443,27 @@ else
 }
 
 @code {
+    // ── Синхронизация (загрузка) ─────────────────────────────────────────────
     private bool _isSyncRunning;
     private int _step;
     private bool _hasResult;
     private int _newShipmentsCount;
     private int _clientsWithNewShipments;
-    private OrderSyncResult _syncResult = new();
+    private OrderSyncSummary _syncSummary = new();
     private DateTime? _startedAtUtc;
     private DateTime? _finishedAtUtc;
-    private readonly List<ClientResult> _clientResults = new();
     private DateTime? _from = DateTime.Today.AddDays(-7);
     private DateTime? _to = DateTime.Today;
     private bool _showProcess;
+
+    // ── Обновление статусов ──────────────────────────────────────────────────
+    private bool _isUpdateRunning;
+    private int _updateStep;
+    private bool _hasUpdateResult;
+    private OrderSyncSummary _updateSummary = new();
+    private DateTime? _updateStartedAtUtc;
+    private DateTime? _updateFinishedAtUtc;
+    private bool _showUpdateProcess;
 
     private async Task RunSyncAsync()
     {
@@ -273,8 +506,7 @@ else
         _step = 0;
         _newShipmentsCount = 0;
         _clientsWithNewShipments = 0;
-        _syncResult = new OrderSyncResult();
-        _clientResults.Clear();
+        _syncSummary = new OrderSyncSummary();
         _startedAtUtc = DateTime.UtcNow;
         _finishedAtUtc = null;
         _showProcess = true;
@@ -289,7 +521,7 @@ else
 
             // Шаг 1: запуск доменной синхронизации
             _step = 1;
-            _syncResult = await OrderSyncService.SyncAllAsync(from, to, CancellationToken.None);
+            _syncSummary = await OrderSyncService.SyncAllAsync(from, to, CancellationToken.None);
 
             // Шаг 2: считаем результат по только что созданным отправлениям
             _step = 2;
@@ -312,23 +544,12 @@ else
                 .ToList();
 
             _clientsWithNewShipments = grouped.Count;
-
-            foreach (var g in grouped.OrderByDescending(g => g.Count()))
-            {
-                _clientResults.Add(new ClientResult
-                {
-                    ClientName = g.Key.Name,
-                    Mode = g.Key.Mode?.Name ?? string.Empty,
-                    NewShipments = g.Count()
-                });
-            }
-
             _hasResult = true;
 
             NotificationService.Notify(NotificationSeverity.Success,
                 "Синхронизация завершена",
-                _syncResult.ShipmentsCreated + _syncResult.ShipmentsUpdated > 0
-                    ? $"Загружено: {_syncResult.ShipmentsCreated} отправлений, {_syncResult.OrdersCreated} заказов. Обновлено: {_syncResult.ShipmentsUpdated} отправлений, {_syncResult.OrdersUpdated} заказов."
+                _syncSummary.Total.ShipmentsCreated + _syncSummary.Total.ShipmentsUpdated > 0
+                    ? $"Загружено: {_syncSummary.Total.ShipmentsCreated} отправлений, {_syncSummary.Total.OrdersCreated} заказов. Обновлено: {_syncSummary.Total.ShipmentsUpdated} отправлений, {_syncSummary.Total.OrdersUpdated} заказов."
                     : "Новых и обновлённых записей не найдено.");
         }
         catch (Exception ex)
@@ -341,6 +562,83 @@ else
             _isSyncRunning = false;
         }
     }
+
+    private async Task RunUpdateAsync()
+    {
+        if (!TenantProvider.IsResolved)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning,
+                "Нет тенанта", "Обновление доступно только внутри рабочего пространства.");
+            return;
+        }
+
+        if (_isUpdateRunning)
+            return;
+
+        _isUpdateRunning = true;
+        _hasUpdateResult = false;
+        _updateStep = 0;
+        _updateSummary = new OrderSyncSummary();
+        _updateStartedAtUtc = DateTime.UtcNow;
+        _updateFinishedAtUtc = null;
+        _showUpdateProcess = true;
+
+        try
+        {
+            _updateStep = 0;
+            StateHasChanged();
+
+            _updateStep = 1;
+            _updateSummary = await OrderSyncService.UpdateAllAsync(CancellationToken.None);
+
+            _updateFinishedAtUtc = DateTime.UtcNow;
+            _hasUpdateResult = true;
+
+            NotificationService.Notify(NotificationSeverity.Success,
+                "Обновление завершено",
+                _updateSummary.Total.ShipmentsUpdated > 0
+                    ? $"Обновлено {_updateSummary.Total.ShipmentsUpdated} отправлений, {_updateSummary.Total.OrdersUpdated} заказов."
+                    : "Изменений не обнаружено.");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error,
+                "Ошибка обновления", ex.Message);
+        }
+        finally
+        {
+            _isUpdateRunning = false;
+        }
+    }
+
+    private PointStyle UpdateStepStyle(int step)
+    {
+        if (!_isUpdateRunning && _hasUpdateResult)
+            return PointStyle.Success;
+
+        return step switch
+        {
+            _ when step < _updateStep  => PointStyle.Success,
+            _ when step == _updateStep => PointStyle.Primary,
+            _                          => PointStyle.Secondary
+        };
+    }
+
+    private string UpdateStepLabelStyle(int step)
+    {
+        if (!_isUpdateRunning && _hasUpdateResult)
+            return "color: var(--rz-success); font-weight: 700;";
+
+        return step == _updateStep
+            ? "color: var(--rz-primary); font-weight: 700;"
+            : step < _updateStep
+                ? "color: var(--rz-success);"
+                : "color: var(--rz-text-disabled-color);";
+    }
+
+    private string UpdateStepDescStyle(int step) => step <= _updateStep
+        ? string.Empty
+        : "color: var(--rz-text-disabled-color);";
 
     private PointStyle StepStyle(int step)
     {
@@ -371,12 +669,5 @@ else
     private string StepDescStyle(int step) => step <= _step
         ? string.Empty
         : "color: var(--rz-text-disabled-color);";
-
-    private sealed class ClientResult
-    {
-        public string ClientName { get; set; } = string.Empty;
-        public string Mode { get; set; } = string.Empty;
-        public int NewShipments { get; set; }
-    }
 }
 

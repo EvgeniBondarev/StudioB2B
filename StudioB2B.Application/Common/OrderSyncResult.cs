@@ -14,6 +14,12 @@ public class OrderSyncResult
     /// <summary>Заказы в выборке, по которым не было изменений (пока не используется, всегда 0).</summary>
     public int OrdersUntouched { get; set; }
 
+    /// <summary>Сводка обновлённых полей (для режима обновления статусов), например: «Статус, Номер заказа, Дата отгрузки».</summary>
+    public string? UpdatedFieldsSummary { get; set; }
+
+    /// <summary>Детализация по каждому обновлённому отправлению (старый и новый статус).</summary>
+    public List<ShipmentUpdateItem> UpdatedShipments { get; set; } = new();
+
     public void Add(OrderSyncResult other)
     {
         ShipmentsCreated += other.ShipmentsCreated;
