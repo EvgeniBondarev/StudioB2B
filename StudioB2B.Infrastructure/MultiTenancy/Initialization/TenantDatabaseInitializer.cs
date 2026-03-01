@@ -116,7 +116,45 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 
         await ctx.SaveChangesAsync(ct);
 
-        // Цвета статусов (StatusColor) – наполняем, если ещё пусто
+        // Статусы отправлений Ozon (отображаемое имя — на русском, синоним — код API; не системные, привязаны к типу Ozon)
+        var ozonType = await ctx.Set<MarketplaceClientType>()
+            .FirstOrDefaultAsync(t => t.Name == "Ozon", ct);
+        if (ozonType != null)
+        {
+            var ozonShipmentStatuses = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["acceptance_in_progress"] = "идёт приёмка",
+                ["arbitration"] = "арбитраж",
+                ["awaiting_approve"] = "ожидает подтверждения",
+                ["awaiting_deliver"] = "ожидает отгрузки",
+                ["awaiting_packaging"] = "ожидает упаковки",
+                ["awaiting_registration"] = "ожидает регистрации",
+                ["awaiting_verification"] = "создано",
+                ["cancelled"] = "отменено",
+                ["cancelled_from_split_pending"] = "отменён из-за разделения отправления",
+                ["client_arbitration"] = "клиентский арбитраж доставки",
+                ["delivering"] = "доставляется",
+                ["driver_pickup"] = "у водителя",
+                ["not_accepted"] = "не принят на сортировочном центре"
+            };
+            foreach (var (synonym, name) in ozonShipmentStatuses)
+            {
+                if (!await ctx.Set<OrderStatus>().AnyAsync(s => s.Synonym == synonym, ct))
+                {
+                    ctx.Set<OrderStatus>().Add(new OrderStatus
+                    {
+                        Name = name,
+                        Synonym = synonym,
+                        IsInternal = false,
+                        IsTerminal = false,
+                        MarketplaceClientTypeId = ozonType.Id
+                    });
+                }
+            }
+            await ctx.SaveChangesAsync(ct);
+        }
+
+        // Цвета статусов (StatusColor)
         if (!await ctx.Set<StatusColor>().AnyAsync(ct))
         {
             var statuses = await ctx.Set<OrderStatus>()

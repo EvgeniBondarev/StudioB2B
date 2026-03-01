@@ -7,5 +7,10 @@ namespace StudioB2B.Application.Common.Interfaces;
 /// </summary>
 public interface IOrderSyncService
 {
-    Task<OrderSyncResult> SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default);
+    Task<OrderSyncSummary> SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default);
+
+    /// <summary>
+    /// Updates statuses and dates for all active (non-terminal) shipments across all Ozon FBS clients.
+    /// </summary>
+    Task<OrderSyncSummary> UpdateAllAsync(CancellationToken ct = default);
 }

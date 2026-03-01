@@ -3,6 +3,7 @@ using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductAttributes;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductPrices;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo;
 
+
 namespace StudioB2B.Infrastructure.Integrations.Ozon;
 
 public interface IOzonApiClient
@@ -47,5 +48,14 @@ public interface IOzonApiClient
         IReadOnlyCollection<string> offerIds,
         string lastId = "",
         int limit = 1000,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets a single FBS posting by posting number via /v3/posting/fbs/get.
+    /// </summary>
+    Task<OzonApiResult<OzonFbsGetPostingResponse>> GetFbsPostingAsync(
+        string clientId,
+        string apiKey,
+        string postingNumber,
         CancellationToken ct = default);
 }
