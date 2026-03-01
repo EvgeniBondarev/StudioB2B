@@ -1,6 +1,7 @@
 @page "/orders-sync"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
+@using StudioB2B.Application.Common
 @using StudioB2B.Application.Common.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
@@ -161,8 +162,16 @@ else
                                 <RadzenAlert AlertStyle="AlertStyle.Success" ShowIcon="true" AllowClose="false">
                                     <RadzenStack Gap="0.25rem">
                                         <RadzenText TextStyle="TextStyle.Body2">
-                                            Новых отправлений: <b>@_newShipmentsCount</b>.
-                                            Клиентов с новыми заказами: <b>@_clientsWithNewShipments</b>.
+                                            Новых отправлений: <b>@_newShipmentsCount</b>. Клиентов с новыми заказами: <b>@_clientsWithNewShipments</b>.
+                                        </RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Body2">
+                                            Загружено (новых): <b>@_syncResult.ShipmentsCreated</b> отправлений, <b>@_syncResult.OrdersCreated</b> заказов.
+                                        </RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Body2">
+                                            Обновлено: <b>@_syncResult.ShipmentsUpdated</b> отправлений, <b>@_syncResult.OrdersUpdated</b> заказов.
+                                        </RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Body2">
+                                            Не тронуто: <b>@_syncResult.ShipmentsUntouched</b> отправлений, <b>@_syncResult.OrdersUntouched</b> заказов.
                                         </RadzenText>
                                         @if (_startedAtUtc.HasValue && _finishedAtUtc.HasValue)
                                         {
@@ -215,6 +224,7 @@ else
     private bool _hasResult;
     private int _newShipmentsCount;
     private int _clientsWithNewShipments;
+    private OrderSyncResult _syncResult = new();
     private DateTime? _startedAtUtc;
     private DateTime? _finishedAtUtc;
     private readonly List<ClientResult> _clientResults = new();
@@ -263,6 +273,7 @@ else
         _step = 0;
         _newShipmentsCount = 0;
         _clientsWithNewShipments = 0;
+        _syncResult = new OrderSyncResult();
         _clientResults.Clear();
         _startedAtUtc = DateTime.UtcNow;
         _finishedAtUtc = null;
@@ -278,7 +289,7 @@ else
 
             // Шаг 1: запуск доменной синхронизации
             _step = 1;
-            await OrderSyncService.SyncAllAsync(from, to, CancellationToken.None);
+            _syncResult = await OrderSyncService.SyncAllAsync(from, to, CancellationToken.None);
 
             // Шаг 2: считаем результат по только что созданным отправлениям
             _step = 2;
@@ -316,9 +327,9 @@ else
 
             NotificationService.Notify(NotificationSeverity.Success,
                 "Синхронизация завершена",
-                _newShipmentsCount > 0
-                    ? $"Добавлено {_newShipmentsCount} новых отправлений."
-                    : "Новых отправлений не найдено.");
+                _syncResult.ShipmentsCreated + _syncResult.ShipmentsUpdated > 0
+                    ? $"Загружено: {_syncResult.ShipmentsCreated} отправлений, {_syncResult.OrdersCreated} заказов. Обновлено: {_syncResult.ShipmentsUpdated} отправлений, {_syncResult.OrdersUpdated} заказов."
+                    : "Новых и обновлённых записей не найдено.");
         }
         catch (Exception ex)
         {
