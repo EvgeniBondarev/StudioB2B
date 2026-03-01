@@ -156,6 +156,34 @@ public class OzonApiClient : IOzonApiClient
             ct);
     }
 
+    public Task<OzonApiResult<OzonFbsGetPostingResponse>> GetFbsPostingAsync(
+        string clientId,
+        string apiKey,
+        string postingNumber,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+
+        var body = new OzonFbsGetPostingRequest
+        {
+            PostingNumber = postingNumber,
+            With = new OzonFbsGetPostingWith()
+        };
+
+        return SendPostAsync<OzonFbsGetPostingResponse>(
+            OzonEndpoints.FbsPostingGet,
+            clientId,
+            plainApiKey,
+            body,
+            ct);
+    }
+
     private async Task<OzonApiResult<TResponse>> SendPostAsync<TResponse>(
         string path,
         string clientId,

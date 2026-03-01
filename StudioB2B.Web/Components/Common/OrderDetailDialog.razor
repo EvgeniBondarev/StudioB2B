@@ -1,0 +1,335 @@
+@using Microsoft.EntityFrameworkCore
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
+
+@inject ITenantDbContextFactory Factory
+@inject DialogService DialogService
+
+@implements IDisposable
+
+@if (_order == null)
+{
+    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 200px;">
+        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
+    </RadzenStack>
+}
+else
+{
+    <RadzenTabs>
+        <Tabs>
+
+            <!-- ── Товар ──────────────────────────────────────────── -->
+            <RadzenTabsItem Text="Товар">
+                @{
+                    var product = _order.ProductInfo?.Product;
+                }
+                <RadzenStack Gap="1.25rem" Style="padding: 1rem 0;">
+                    @if (product != null)
+                    {
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="1.5rem" AlignItems="AlignItems.Start">
+                            @if (!string.IsNullOrEmpty(product.ImageUrl))
+                            {
+                                <img src="@product.ImageUrl"
+                                     style="width: 120px; height: 120px; object-fit: contain; border: 1px solid var(--rz-border-color); border-radius: 8px; flex-shrink: 0;"
+                                     alt="@product.Name" />
+                            }
+                            else
+                            {
+                                <div style="width: 120px; height: 120px; background: var(--rz-base-200); border-radius: 8px;
+                                            display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                    <RadzenIcon Icon="image_not_supported" Style="color: var(--rz-text-disabled-color); font-size: 2rem;" />
+                                </div>
+                            }
+                            <RadzenStack Gap="0.5rem" Style="flex: 1; min-width: 0;">
+                                <RadzenText TextStyle="TextStyle.H6" Style="font-weight: 700; margin: 0;">
+                                    @product.Name
+                                </RadzenText>
+                                <RadzenStack Gap="0.25rem">
+                                    <DetailRow Label="Артикул" Value="@product.Article" Mono="true" />
+                                    <DetailRow Label="SKU (Ozon)" Value="@product.Sku?.ToString()" Mono="true" />
+                                    <DetailRow Label="Штрихкод" Value="@product.Barcode" Mono="true" />
+                                    <DetailRow Label="Производитель" Value="@product.Manufacturer?.Name" />
+                                    <DetailRow Label="Категория" Value="@product.Category?.Name" />
+                                </RadzenStack>
+                            </RadzenStack>
+                        </RadzenStack>
+
+                        @if (product.Attributes.Count > 0)
+                        {
+                            <div>
+                                <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-bottom: 0.5rem;">
+                                    Характеристики
+                                </RadzenText>
+                                <RadzenDataGrid TItem="StudioB2B.Domain.Entities.Products.ProductAttributeValue"
+                                                Data="@product.Attributes"
+                                                Density="Density.Compact"
+                                                AllowSorting="true"
+                                                AllowFiltering="false"
+                                                AllowPaging="@(product.Attributes.Count > 15)"
+                                                PageSize="15"
+                                                Style="max-height: 320px; overflow-y: auto;">
+                                    <Columns>
+                                        <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Products.ProductAttributeValue"
+                                                              Title="Характеристика"
+                                                              Width="220px"
+                                                              Filterable="false" Sortable="false">
+                                            <Template Context="attr">
+                                                @(attr.Attribute?.Name ?? attr.Attribute?.Code ?? "—")
+                                            </Template>
+                                        </RadzenDataGridColumn>
+                                        <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Products.ProductAttributeValue"
+                                                              Property="Value"
+                                                              Title="Значение" />
+                                    </Columns>
+                                </RadzenDataGrid>
+                            </div>
+                        }
+                        else
+                        {
+                            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                                Характеристики не загружены.
+                            </RadzenText>
+                        }
+                    }
+                    else
+                    {
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                            Информация о товаре отсутствует.
+                        </RadzenText>
+                    }
+                </RadzenStack>
+            </RadzenTabsItem>
+
+            <!-- ── Цены ───────────────────────────────────────────── -->
+            <RadzenTabsItem Text="Цены">
+                <RadzenStack Gap="1rem" Style="padding: 1rem 0;">
+                    @if (_order.Prices.Count > 0)
+                    {
+                        <RadzenDataGrid TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
+                                        Data="@_order.Prices.OrderBy(p => p.PriceType?.Name).ToList()"
+                                        Density="Density.Compact"
+                                        AllowSorting="true"
+                                        AllowFiltering="false"
+                                        AllowPaging="false">
+                            <Columns>
+                                <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
+                                                      Property="PriceType.Name"
+                                                      Title="Тип цены"
+                                                      Width="280px" />
+                                <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
+                                                      Property="Value"
+                                                      Title="Значение"
+                                                      Width="140px"
+                                                      TextAlign="TextAlign.Right"
+                                                      FormatString="{0:N2}" />
+                                <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
+                                                      Property="Currency.Code"
+                                                      Title="Валюта"
+                                                      Width="80px" />
+                            </Columns>
+                        </RadzenDataGrid>
+                    }
+                    else
+                    {
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                            Цены не загружены.
+                        </RadzenText>
+                    }
+                </RadzenStack>
+            </RadzenTabsItem>
+
+            <!-- ── Получатель ─────────────────────────────────────── -->
+            <RadzenTabsItem Text="Получатель">
+                <RadzenStack Gap="0.75rem" Style="padding: 1rem 0;">
+                    @if (_order.Recipient != null)
+                    {
+                        <DetailRow Label="Имя" Value="@_order.Recipient.Name" />
+                        <DetailRow Label="Телефон" Value="@_order.Recipient.Phone" Mono="true" />
+                        <DetailRow Label="Email" Value="@_order.Recipient.Email" Mono="true" />
+                        @if (_order.Recipient.Address != null)
+                        {
+                            var a = _order.Recipient.Address;
+                            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-top: 0.5rem;">
+                                Адрес доставки
+                            </RadzenText>
+                            <DetailRow Label="Индекс" Value="@a.PostalCode" />
+                            <DetailRow Label="Регион" Value="@a.Region" />
+                            <DetailRow Label="Город" Value="@a.City" />
+                            <DetailRow Label="Улица" Value="@a.Street" />
+                            @if (!string.IsNullOrEmpty(a.Comment))
+                            {
+                                <DetailRow Label="Комментарий" Value="@a.Comment" />
+                            }
+                        }
+                    }
+                    else
+                    {
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                            Информация о получателе отсутствует.
+                        </RadzenText>
+                    }
+                </RadzenStack>
+            </RadzenTabsItem>
+
+            <!-- ── Отправление ────────────────────────────────────── -->
+            <RadzenTabsItem Text="Отправление">
+                <RadzenStack Gap="1rem" Style="padding: 1rem 0;">
+                    @{
+                        var s = _order.Shipment;
+                    }
+                    @if (s != null)
+                    {
+                        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-bottom: 0.25rem;">
+                            Номер отправления и доставка
+                        </RadzenText>
+                        <DetailRow Label="Номер отправления" Value="@s.PostingNumber" Mono="true" />
+                        <DetailRow Label="Номер заказа" Value="@s.OrderNumber" Mono="true" />
+                        <DetailRow Label="Трек-номер" Value="@s.TrackingNumber" Mono="true" />
+                        <DetailRow Label="Статус отправления" Value="@s.Status?.Name" />
+                        <DetailRow Label="Способ доставки" Value="@s.DeliveryMethod?.Name" />
+                        @if (s.InProcessAt.HasValue)
+                        {
+                            <div style="display: flex; gap: 0.75rem; align-items: baseline;">
+                                <span style="min-width: 160px; color: var(--rz-text-secondary-color); font-size: 0.85rem; flex-shrink: 0;">Дата принятия</span>
+                                <span style="font-size: 0.9rem;" title="@FormatDateTooltip(s.InProcessAt)">@FormatDateDisplay(s.InProcessAt)</span>
+                            </div>
+                        }
+                        @if (s.ShipmentDate.HasValue)
+                        {
+                            <div style="display: flex; gap: 0.75rem; align-items: baseline;">
+                                <span style="min-width: 160px; color: var(--rz-text-secondary-color); font-size: 0.85rem; flex-shrink: 0;">Дата отгрузки</span>
+                                <span style="font-size: 0.9rem;" title="@FormatDateTooltip(s.ShipmentDate)">@FormatDateDisplay(s.ShipmentDate)</span>
+                            </div>
+                        }
+
+                        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.25rem;">
+                            Клиент маркетплейса
+                        </RadzenText>
+                        <DetailRow Label="Клиент" Value="@s.MarketplaceClient?.Name" />
+                        <DetailRow Label="Компания" Value="@s.MarketplaceClient?.Company" />
+                        <DetailRow Label="Склад отправки" Value="@_order.WarehouseInfo?.SenderWarehouse?.Name" />
+
+                        @if (_shipmentOrders != null && _shipmentOrders.Count > 0)
+                        {
+                            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.5rem;">
+                                Позиции в отправлении (@_shipmentOrders.Count)
+                            </RadzenText>
+                            <RadzenDataGrid TItem="Order"
+                                            Data="@_shipmentOrders"
+                                            Density="Density.Compact"
+                                            AllowSorting="false"
+                                            AllowFiltering="false"
+                                            AllowPaging="@(_shipmentOrders.Count > 10)"
+                                            PageSize="10"
+                                            Style="max-height: 280px; overflow-y: auto;">
+                                <Columns>
+                                    <RadzenDataGridColumn TItem="Order" Title="Товар" Width="240px">
+                                        <Template Context="o">
+                                            @(o.ProductInfo?.Product?.Name ?? "—")
+                                        </Template>
+                                    </RadzenDataGridColumn>
+                                    <RadzenDataGridColumn TItem="Order" Title="Артикул" Width="120px">
+                                        <Template Context="o">
+                                            <span style="font-family: monospace; font-size: 0.8rem;">@(o.ProductInfo?.Product?.Article ?? "—")</span>
+                                        </Template>
+                                    </RadzenDataGridColumn>
+                                    <RadzenDataGridColumn TItem="Order" Property="Quantity" Title="Кол-во" Width="80px" TextAlign="TextAlign.Center" />
+                                    <RadzenDataGridColumn TItem="Order" Title="Статус" Width="160px">
+                                        <Template Context="o">
+                                            @o.Status?.Name
+                                        </Template>
+                                    </RadzenDataGridColumn>
+                                </Columns>
+                            </RadzenDataGrid>
+                        }
+                    }
+                </RadzenStack>
+            </RadzenTabsItem>
+
+        </Tabs>
+    </RadzenTabs>
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End"
+                 Style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--rz-border-color);">
+        <RadzenButton Text="Закрыть" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close())" />
+    </RadzenStack>
+}
+
+@code {
+    [Parameter] public Guid OrderId { get; set; }
+
+    private TenantDbContext? _db;
+    private Order? _order;
+    private List<Order> _shipmentOrders = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _db = Factory.CreateDbContext();
+
+        _order = await _db.Orders
+            .Include(o => o.Shipment).ThenInclude(s => s.MarketplaceClient)
+            .Include(o => o.Shipment).ThenInclude(s => s.Status)
+            .Include(o => o.Shipment).ThenInclude(s => s.DeliveryMethod)
+            .Include(o => o.Status)
+            .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
+                .ThenInclude(p => p!.Attributes).ThenInclude(a => a.Attribute)
+            .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
+                .ThenInclude(p => p!.Manufacturer)
+            .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
+                .ThenInclude(p => p!.Category)
+            .Include(o => o.Recipient).ThenInclude(r => r!.Address)
+            .Include(o => o.WarehouseInfo).ThenInclude(wi => wi!.SenderWarehouse)
+            .Include(o => o.Prices).ThenInclude(p => p.PriceType)
+            .Include(o => o.Prices).ThenInclude(p => p.Currency)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == OrderId);
+
+        if (_order?.ShipmentId != null)
+        {
+            _shipmentOrders = await _db.Orders
+                .Include(o => o.Shipment)
+                .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
+                .Include(o => o.Status)
+                .AsNoTracking()
+                .Where(o => o.ShipmentId == _order.ShipmentId)
+                .OrderByDescending(o => o.Shipment.InProcessAt)
+                .ThenBy(o => o.ProductInfo == null ? "" : (o.ProductInfo.Product == null ? "" : (o.ProductInfo.Product.Article ?? "")))
+                .ToListAsync();
+        }
+    }
+
+    public void Dispose() => _db?.Dispose();
+
+    private static string FormatDateDisplay(DateTime? d)
+    {
+        if (!d.HasValue) return "";
+        return d.Value.Date == DateTime.Today ? d.Value.ToString("HH:mm") : d.Value.ToString("dd.MM.yyyy");
+    }
+
+    private static string FormatDateTooltip(DateTime? d)
+    {
+        if (!d.HasValue) return "";
+        return d.Value.Date == DateTime.Today ? d.Value.ToString("HH:mm") : d.Value.ToString("dd.MM.yyyy HH:mm");
+    }
+
+    // Small helper render fragment for label+value rows
+    private RenderFragment DetailRow(string label, string? value, bool mono = false) => __builder =>
+    {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        __builder.OpenElement(0, "div");
+        __builder.AddAttribute(1, "style", "display: flex; gap: 0.75rem; align-items: baseline;");
+        __builder.OpenElement(2, "span");
+        __builder.AddAttribute(3, "style", "min-width: 160px; color: var(--rz-text-secondary-color); font-size: 0.85rem; flex-shrink: 0;");
+        __builder.AddContent(4, label);
+        __builder.CloseElement();
+        __builder.OpenElement(5, "span");
+        __builder.AddAttribute(6, "style", mono
+            ? "font-family: monospace; font-size: 0.85rem; word-break: break-all;"
+            : "font-size: 0.9rem;");
+        __builder.AddContent(7, value);
+        __builder.CloseElement();
+        __builder.CloseElement();
+    };
+}
