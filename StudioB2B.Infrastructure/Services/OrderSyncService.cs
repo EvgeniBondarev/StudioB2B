@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using StudioB2B.Application.Common;
 using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -21,7 +22,7 @@ public class OrderSyncService : IOrderSyncService
         _logger = logger;
     }
 
-    public async Task SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default)
+    public async Task<OrderSyncResult> SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default)
     {
         var ozonClients = await _db.MarketplaceClients!
             .Include(c => c.ClientType)
@@ -32,6 +33,8 @@ public class OrderSyncService : IOrderSyncService
         _logger.LogInformation(
             "Starting order sync for {Count} Ozon FBS client(s).", ozonClients.Count);
 
+        var result = new OrderSyncResult();
+
         foreach (var client in ozonClients)
         {
             try
@@ -39,7 +42,8 @@ public class OrderSyncService : IOrderSyncService
                 _logger.LogInformation(
                     "Syncing orders for client {ClientId} ({ClientName}) in period {From}–{To}.",
                     client.ApiId, client.Name, cutoffFrom, cutoffTo);
-                await _adapter.SyncAsync(client, cutoffFrom, cutoffTo, ct);
+                var clientResult = await _adapter.SyncAsync(client, cutoffFrom, cutoffTo, ct);
+                result.Add(clientResult);
             }
             catch (Exception ex)
             {
@@ -50,5 +54,6 @@ public class OrderSyncService : IOrderSyncService
         }
 
         _logger.LogInformation("Order sync completed.");
+        return result;
     }
 }

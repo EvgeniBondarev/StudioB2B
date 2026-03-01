@@ -1,3 +1,4 @@
+using StudioB2B.Application.Common;
 using StudioB2B.Domain.Entities.Marketplace;
 
 namespace StudioB2B.Application.Common.Interfaces;
@@ -9,5 +10,5 @@ public interface IOrderAdapter
 {
     string MarketplaceName { get; }
 
-    Task SyncAsync(MarketplaceClient client, DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default);
+    Task<OrderSyncResult> SyncAsync(MarketplaceClient client, DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default);
 }

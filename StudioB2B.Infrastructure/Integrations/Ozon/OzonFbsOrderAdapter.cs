@@ -1,6 +1,8 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
+using StudioB2B.Application.Common;
 using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Domain.Entities.Marketplace;
 using StudioB2B.Domain.Entities.Orders;
@@ -32,7 +34,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
 
     public string MarketplaceName => "Ozon";
 
-    public async Task SyncAsync(
+    public async Task<OrderSyncResult> SyncAsync(
         MarketplaceClient client,
         DateTime cutoffFrom,
         DateTime cutoffTo,
@@ -44,25 +46,34 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         {
             _logger.LogInformation(
                 "No FBS postings found for client {ClientId} in the last 30 days.", client.ApiId);
-            return;
+            return new OrderSyncResult();
         }
 
         var priceByOfferId = await FetchPricesAsync(client, allPostings, ct);
         var attributesByOfferId = await FetchAttributesAsync(client, allPostings, ct);
 
-        foreach (var posting in allPostings)
+        var result = new OrderSyncResult();
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        try
         {
-            try
+            foreach (var posting in allPostings)
             {
-                await UpsertShipmentAsync(client, posting, priceByOfferId, attributesByOfferId, ct);
+                await UpsertShipmentAsync(client, posting, priceByOfferId, attributesByOfferId, result, tx, ct);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "Failed to upsert posting {PostingNumber} for client {ClientId}.",
-                    posting.PostingNumber, client.ApiId);
-            }
+            await tx.CommitAsync(ct);
         }
+        catch (Exception ex)
+        {
+            await tx.RollbackAsync(ct);
+            _db.ChangeTracker.Clear();
+            _logger.LogError(ex,
+                "Sync failed for client {ClientId}, all changes rolled back.",
+                client.ApiId);
+            throw;
+        }
+
+        return result;
     }
 
     private async Task<List<OzonFbsPostingDto>> FetchAllPostingsAsync(
@@ -181,44 +192,42 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         OzonFbsPostingDto posting,
         Dictionary<string, OzonProductPriceItemDto> priceByOfferId,
         Dictionary<string, OzonProductAttributeItemDto> attributesByOfferId,
+        OrderSyncResult stats,
+        IDbContextTransaction transaction,
         CancellationToken ct)
     {
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        var deliveryMethod = await EnsureDeliveryMethodAsync(posting, ct);
+        var warehouseInfo = await EnsureWarehouseInfoAsync(posting, ct);
+        var orderStatus = await EnsureOrderStatusAsync(posting.Status, ct);
 
-        try
+        var (shipment, shipmentCreated) = await EnsureShipmentAsync(client, posting, deliveryMethod, orderStatus, ct);
+        if (shipmentCreated)
+            stats.ShipmentsCreated++;
+        else
+            stats.ShipmentsUpdated++;
+
+        await EnsureShipmentDatesAsync(shipment, posting, ct);
+
+        var priceType = await EnsurePriceTypeAsync("Цена", "fbs", ct);
+        var oldPriceType = await EnsurePriceTypeAsync("Цена до скидки", "fbs", ct);
+
+        foreach (var product in posting.Products)
         {
-            var deliveryMethod = await EnsureDeliveryMethodAsync(posting, ct);
-            var warehouseInfo = await EnsureWarehouseInfoAsync(posting, ct);
-            var orderStatus = await EnsureOrderStatusAsync(posting.Status, ct);
+            var domainProduct = await EnsureProductAsync(product, ct);
+            var recipient = await EnsureRecipientAsync(posting.Customer, ct);
 
-            var shipment = await EnsureShipmentAsync(client, posting, deliveryMethod, orderStatus, ct);
-            await EnsureShipmentDatesAsync(shipment, posting, ct);
+            var (order, orderCreated) = await EnsureOrderAsync(shipment, posting.OrderId, product, domainProduct, orderStatus, recipient, warehouseInfo, ct);
+            if (orderCreated)
+                stats.OrdersCreated++;
+            else
+                stats.OrdersUpdated++;
 
-            var priceType = await EnsurePriceTypeAsync("Цена", "fbs", ct);
-            var oldPriceType = await EnsurePriceTypeAsync("Цена до скидки", "fbs", ct);
+            await EnsureProductInfoAsync(order, domainProduct, ct);
 
-            foreach (var product in posting.Products)
-            {
-                var domainProduct = await EnsureProductAsync(product, ct);
-                var recipient = await EnsureRecipientAsync(posting.Customer, ct);
+            await UpsertOrderPricesAsync(order, product, posting, priceByOfferId, priceType, oldPriceType, ct);
 
-                var order = await EnsureOrderAsync(shipment, posting.OrderId, product, orderStatus, recipient, warehouseInfo, ct);
-
-                await EnsureProductInfoAsync(order, domainProduct, ct);
-
-                await UpsertOrderPricesAsync(order, product, posting, priceByOfferId, priceType, oldPriceType, ct);
-
-                if (attributesByOfferId.TryGetValue(product.OfferId, out var attrItem))
-                    await UpsertProductAttributesAsync(domainProduct, attrItem, ct);
-            }
-
-            await tx.CommitAsync(ct);
-        }
-        catch
-        {
-            await tx.RollbackAsync(ct);
-            _db.ChangeTracker.Clear();
-            throw;
+            if (attributesByOfferId.TryGetValue(product.OfferId, out var attrItem))
+                await UpsertProductAttributesAsync(domainProduct, attrItem, ct);
         }
     }
 
@@ -231,6 +240,18 @@ public class OzonFbsOrderAdapter : IOrderAdapter
 
         var dm = await _db.DeliveryMethods
             .FirstOrDefaultAsync(d => d.ExternalId == posting.DeliveryMethod.Id, ct);
+
+        if (dm == null && !string.IsNullOrWhiteSpace(posting.DeliveryMethod.Name))
+        {
+            // Reuse by name (same delivery type) to avoid duplicates
+            dm = await _db.DeliveryMethods
+                .FirstOrDefaultAsync(d => d.Name == posting.DeliveryMethod.Name && d.DeliveryTypeId == deliveryType.Id, ct);
+            if (dm != null && dm.ExternalId == null)
+            {
+                dm.ExternalId = posting.DeliveryMethod.Id;
+                await _db.SaveChangesAsync(ct);
+            }
+        }
 
         if (dm == null)
         {
@@ -253,8 +274,22 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         if (posting.DeliveryMethod == null)
             return null;
 
+        var warehouseName = posting.DeliveryMethod.Warehouse ?? $"Warehouse {posting.DeliveryMethod.WarehouseId}";
+
         var warehouse = await _db.Warehouses
             .FirstOrDefaultAsync(w => w.ExternalId == posting.DeliveryMethod.WarehouseId, ct);
+
+        if (warehouse == null && !string.IsNullOrWhiteSpace(warehouseName))
+        {
+            // Reuse warehouse by name to avoid duplicates
+            warehouse = await _db.Warehouses
+                .FirstOrDefaultAsync(w => w.Name == warehouseName, ct);
+            if (warehouse != null && warehouse.ExternalId == null)
+            {
+                warehouse.ExternalId = posting.DeliveryMethod.WarehouseId;
+                await _db.SaveChangesAsync(ct);
+            }
+        }
 
         if (warehouse == null)
         {
@@ -262,11 +297,18 @@ public class OzonFbsOrderAdapter : IOrderAdapter
             {
                 Id = Guid.NewGuid(),
                 ExternalId = posting.DeliveryMethod.WarehouseId,
-                Name = posting.DeliveryMethod.Warehouse ?? $"Warehouse {posting.DeliveryMethod.WarehouseId}"
+                Name = warehouseName
             };
             _db.Warehouses.Add(warehouse);
             await _db.SaveChangesAsync(ct);
         }
+
+        // Reuse existing WarehouseInfo for the same sender warehouse to avoid duplicates
+        var existingWarehouseInfo = await _db.WarehouseInfos
+            .FirstOrDefaultAsync(wi => wi.SenderWarehouseId == warehouse.Id, ct);
+
+        if (existingWarehouseInfo != null)
+            return existingWarehouseInfo;
 
         var warehouseInfo = new WarehouseInfo
         {
@@ -304,7 +346,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         return status;
     }
 
-    private async Task<Shipment> EnsureShipmentAsync(
+    private async Task<(Shipment Shipment, bool Created)> EnsureShipmentAsync(
         MarketplaceClient client,
         OzonFbsPostingDto posting,
         DeliveryMethod? deliveryMethod,
@@ -314,8 +356,10 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         var shipment = await _db.Shipments
             .FirstOrDefaultAsync(s => s.PostingNumber == posting.PostingNumber, ct);
 
+        var created = false;
         if (shipment == null)
         {
+            created = true;
             shipment = new Shipment
             {
                 Id = Guid.NewGuid(),
@@ -335,7 +379,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
 
         await _db.SaveChangesAsync(ct);
 
-        return shipment;
+        return (shipment, created);
     }
 
     private async Task EnsureShipmentDatesAsync(
@@ -363,6 +407,13 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         var domainProduct = await _db.Products
             .FirstOrDefaultAsync(p => p.Sku == product.Sku, ct);
 
+        if (domainProduct == null && !string.IsNullOrWhiteSpace(product.OfferId))
+        {
+            // Reuse by article (offer_id) to avoid duplicates
+            domainProduct = await _db.Products
+                .FirstOrDefaultAsync(p => p.Article == product.OfferId, ct);
+        }
+
         if (domainProduct == null)
         {
             domainProduct = new Product
@@ -377,6 +428,8 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         }
         else
         {
+            if (domainProduct.Sku == null || domainProduct.Sku != product.Sku)
+                domainProduct.Sku = product.Sku;
             domainProduct.Article ??= product.OfferId;
             if (string.IsNullOrEmpty(domainProduct.Name))
                 domainProduct.Name = product.Name;
@@ -390,6 +443,23 @@ public class OzonFbsOrderAdapter : IOrderAdapter
     {
         if (customer == null)
             return null;
+
+        // Reuse existing recipient by phone or name to avoid duplicates
+        if (!string.IsNullOrWhiteSpace(customer.Phone))
+        {
+            var existingByPhone = await _db.Recipients
+                .FirstOrDefaultAsync(r => r.Phone == customer.Phone, ct);
+            if (existingByPhone != null)
+                return existingByPhone;
+        }
+
+        if (!string.IsNullOrWhiteSpace(customer.Name))
+        {
+            var existingByName = await _db.Recipients
+                .FirstOrDefaultAsync(r => r.Name == customer.Name, ct);
+            if (existingByName != null)
+                return existingByName;
+        }
 
         Address? address = null;
         if (customer.Address != null)
@@ -419,37 +489,53 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         return recipient;
     }
 
-    private async Task<Order> EnsureOrderAsync(
+    private async Task<(Order Order, bool Created)> EnsureOrderAsync(
         Shipment shipment,
         long ozonOrderId,
         OzonFbsProductDto product,
+        Product domainProduct,
         OrderStatus status,
         Recipient? recipient,
         WarehouseInfo? warehouseInfo,
         CancellationToken ct)
     {
         var order = await _db.Orders
-            .FirstOrDefaultAsync(o => o.ShipmentId == shipment.Id && o.OzonOrderId == ozonOrderId, ct);
+            .Include(o => o.ProductInfo)
+            .FirstOrDefaultAsync(o =>
+                o.ShipmentId == shipment.Id
+                && o.ProductInfo != null
+                && o.ProductInfo.ProductId == domainProduct.Id, ct);
 
+        var created = false;
         if (order == null)
         {
+            created = true;
+            var orderProductInfo = new OrderProductInfo
+            {
+                Id = Guid.NewGuid(),
+                ProductId = domainProduct.Id
+            };
             order = new Order
             {
                 Id = Guid.NewGuid(),
                 ShipmentId = shipment.Id,
-                OzonOrderId = ozonOrderId
+                OzonOrderId = ozonOrderId,
+                ProductInfoId = orderProductInfo.Id
             };
+            orderProductInfo.OrderId = order.Id;
             _db.Orders.Add(order);
+            _db.OrderProductInfos.Add(orderProductInfo);
         }
 
         order.Quantity = product.Quantity;
         order.StatusId = status.Id;
         order.RecipientId = recipient?.Id;
         order.WarehouseInfoId = warehouseInfo?.Id;
+        order.OzonOrderId = ozonOrderId;
 
         await _db.SaveChangesAsync(ct);
 
-        return order;
+        return (order, created);
     }
 
     private async Task EnsureProductInfoAsync(Order order, Product product, CancellationToken ct)
