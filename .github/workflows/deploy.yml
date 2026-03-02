@@ -2,7 +2,7 @@ name: Build, Push and Deploy
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "ozon-client-api" ]
   workflow_dispatch:
 
 jobs:
