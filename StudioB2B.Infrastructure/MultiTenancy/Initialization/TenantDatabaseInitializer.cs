@@ -135,20 +135,66 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
                 ["client_arbitration"] = "клиентский арбитраж доставки",
                 ["delivering"] = "доставляется",
                 ["driver_pickup"] = "у водителя",
-                ["not_accepted"] = "не принят на сортировочном центре"
+                ["not_accepted"] = "не принят на сортировочном центре",
+                ["delivered"] = "доставлено"
             };
             foreach (var (synonym, name) in ozonShipmentStatuses)
             {
-                if (!await ctx.Set<OrderStatus>().AnyAsync(s => s.Synonym == synonym, ct))
+                var existing = await ctx.Set<OrderStatus>()
+                    .FirstOrDefaultAsync(s => s.Synonym == synonym, ct);
+
+                var isTerminal = string.Equals(synonym, "delivered", StringComparison.OrdinalIgnoreCase);
+
+                if (existing == null)
                 {
                     ctx.Set<OrderStatus>().Add(new OrderStatus
                     {
                         Name = name,
                         Synonym = synonym,
                         IsInternal = false,
-                        IsTerminal = false,
+                        IsTerminal = isTerminal,
                         MarketplaceClientTypeId = ozonType.Id
                     });
+                }
+                else
+                {
+                    // Обновляем существующий статус, если он был создан ранее с английским именем или неверными флагами
+                    var needsUpdate = false;
+
+                    if (existing.Name != name)
+                    {
+                        existing.Name = name;
+                        needsUpdate = true;
+                    }
+
+                    if (existing.IsInternal)
+                    {
+                        existing.IsInternal = false;
+                        needsUpdate = true;
+                    }
+
+                    if (existing.MarketplaceClientTypeId != ozonType.Id)
+                    {
+                        existing.MarketplaceClientTypeId = ozonType.Id;
+                        needsUpdate = true;
+                    }
+
+                    if (existing.IsTerminal != isTerminal)
+                    {
+                        existing.IsTerminal = isTerminal;
+                        needsUpdate = true;
+                    }
+
+                    if (existing.IsDeleted)
+                    {
+                        existing.IsDeleted = false;
+                        needsUpdate = true;
+                    }
+
+                    if (needsUpdate)
+                    {
+                        ctx.Set<OrderStatus>().Update(existing);
+                    }
                 }
             }
             await ctx.SaveChangesAsync(ct);

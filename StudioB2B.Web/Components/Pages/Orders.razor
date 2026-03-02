@@ -8,6 +8,7 @@
 @using StudioB2B.Domain.Entities.Warehouses
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
+@using StudioB2B.Infrastructure.Features.Orders
 @using StudioB2B.Web.Components.Common
 
 @inject ITenantProvider TenantProvider
@@ -265,14 +266,7 @@ else
         await EnsureInitializedAsync();
 
         var query = _db!.Orders
-            .Include(o => o.Shipment).ThenInclude(s => s.MarketplaceClient)
-            .Include(o => o.Shipment).ThenInclude(s => s.DeliveryMethod)
-            .Include(o => o.Status)
-            .Include(o => o.SystemStatus)
-            .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
-            .Include(o => o.WarehouseInfo).ThenInclude(wi => wi!.SenderWarehouse)
-            .Include(o => o.Prices).ThenInclude(p => p.PriceType)
-            .Include(o => o.Prices).ThenInclude(p => p.Currency)
+            .IncludeForGrid()
             .AsNoTracking()
             .AsQueryable();
 
