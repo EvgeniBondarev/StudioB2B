@@ -110,8 +110,11 @@ else
             <RadzenDataGridColumn TItem="Order" Property="Shipment.PostingNumber"
                                   Title="Номер отправления" Width="200px" Frozen="true">
                 <Template Context="o">
-                    <span style="font-family: monospace; font-size: 0.8rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;"
-                          title="@o.Shipment?.PostingNumber">@o.Shipment?.PostingNumber</span>
+                    <CopyableText Text="@(o.Shipment?.PostingNumber ?? string.Empty)"
+                                  Style="font-family: monospace; font-size: 0.8rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;"
+                                  Tooltip="Нажмите, чтобы скопировать номер отправления">
+                        @o.Shipment?.PostingNumber
+                    </CopyableText>
                 </Template>
             </RadzenDataGridColumn>
 
@@ -140,8 +143,11 @@ else
             <RadzenDataGridColumn TItem="Order" Property="ProductInfo.Product.Article"
                                   Title="Артикул" Width="160px" Filterable="false" Sortable="false">
                 <Template Context="o">
-                    <span style="font-family: monospace; font-size: 0.8rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;"
-                          title="@o.ProductInfo?.Product?.Article">@o.ProductInfo?.Product?.Article</span>
+                    <CopyableText Text="@(o.ProductInfo?.Product?.Article ?? string.Empty)"
+                                  Style="font-family: monospace; font-size: 0.8rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;"
+                                  Tooltip="Нажмите, чтобы скопировать артикул">
+                        @o.ProductInfo?.Product?.Article
+                    </CopyableText>
                 </Template>
             </RadzenDataGridColumn>
 
@@ -252,7 +258,7 @@ else
                                 <RadzenStack Gap="0.15rem">
                                     @foreach (var rule in _calcRules)
                                     {
-                                        @if (fields.TryGetValue(rule.ResultKey, out var val))
+                                        @if (fields.TryGetValue(rule.ResultKey, out var val) && val != decimal.MinValue)
                                         {
                                             <span style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
                                                   title="@rule.Formula">
@@ -275,19 +281,13 @@ else
                                               Title="@rule.Name"
                                               Property="@propName"
                                               Width="120px"
-                                              Filterable="true"
+                                              Filterable="false"
                                               Sortable="true"
                                               TextAlign="TextAlign.Right">
-                            <FilterTemplate>
-                                <RadzenNumeric @bind-Value="_computedFilterMin[rule.ResultKey]"
-                                               TValue="decimal?"
-                                               Style="width: 100%;"
-                                               Change="@(async (_)=> await _grid!.Reload())"
-                                               Placeholder="≥ значение" />
-                            </FilterTemplate>
                             <Template Context="o">
                                 @if (_computed.TryGetValue(o.Id, out var fields) &&
-                                     fields.TryGetValue(rule.ResultKey, out var val))
+                                     fields.TryGetValue(rule.ResultKey, out var val) &&
+                                     val != decimal.MinValue)
                                 {
                                     <span title="@rule.Formula">@val.ToString("N2")</span>
                                 }
@@ -324,7 +324,6 @@ else
     private List<CalculationRule> _calcRules = new();
     private Dictionary<Guid, Dictionary<string, decimal>> _computed = new();
     private bool _computedSplitByColumns;
-    private readonly Dictionary<string, decimal?> _computedFilterMin = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -359,9 +358,6 @@ else
                               !string.IsNullOrEmpty(appliedOrderBy) &&
                               appliedOrderBy.StartsWith("Computed_", StringComparison.OrdinalIgnoreCase);
 
-        var hasComputedFilter = _computedSplitByColumns &&
-                                _computedFilterMin.Values.Any(v => v.HasValue);
-
         // Базовая сортировка по датам, если не сортируем по вычисляемым полям.
         if (!isComputedOrder)
         {
@@ -371,7 +367,7 @@ else
                        .ThenByDescending(o => o.Shipment.CreatedAt);
         }
 
-        var baseList = (hasComputedFilter || isComputedOrder)
+        var baseList = isComputedOrder
             ? await query.ToListAsync()
             : null;
 
@@ -395,27 +391,6 @@ else
                 o => _calcEngine.Calculate(o, _calcRules))
             : new Dictionary<Guid, Dictionary<string, decimal>>();
 
-        // Фильтрация по вычисляемым значениям (по минимальному значению в колонке).
-        if (hasComputedFilter && baseList != null)
-        {
-            _pageItems = _pageItems
-                .Where(o =>
-                {
-                    if (!_computed.TryGetValue(o.Id, out var dict))
-                        return false;
-
-                    foreach (var kv in _computedFilterMin)
-                    {
-                        if (!kv.Value.HasValue) continue;
-                        if (!dict.TryGetValue(kv.Key, out var val)) return false;
-                        if (val < kv.Value.Value) return false;
-                    }
-
-                    return true;
-                })
-                .ToList();
-        }
-
         // Сортировка по вычисляемому полю
         if (isComputedOrder && baseList != null)
         {
@@ -431,13 +406,13 @@ else
 
             if (ruleByProp.TryGetValue(field, out var ruleKey))
             {
+                decimal GetSortValue(Order o) =>
+                    _computed.TryGetValue(o.Id, out var dict) &&
+                    dict.TryGetValue(ruleKey, out var v) && v != decimal.MinValue ? v : 0m;
+
                 _pageItems = desc
-                    ? _pageItems.OrderByDescending(o =>
-                        _computed.TryGetValue(o.Id, out var dict) &&
-                        dict.TryGetValue(ruleKey, out var v) ? v : 0m).ToList()
-                    : _pageItems.OrderBy(o =>
-                        _computed.TryGetValue(o.Id, out var dict) &&
-                        dict.TryGetValue(ruleKey, out var v) ? v : 0m).ToList();
+                    ? _pageItems.OrderByDescending(GetSortValue).ToList()
+                    : _pageItems.OrderBy(GetSortValue).ToList();
             }
         }
 
@@ -486,15 +461,6 @@ else
             .ToListAsync();
 
         _calcRules = await _db.GetActiveRulesAsync();
-
-        // Инициализируем словарь фильтров по вычисляемым полям,
-        // чтобы избежать KeyNotFound при биндинге в заголовках.
-        _computedFilterMin.Clear();
-        foreach (var rule in _calcRules)
-        {
-            if (!_computedFilterMin.ContainsKey(rule.ResultKey))
-                _computedFilterMin[rule.ResultKey] = null;
-        }
     }
 
     private async Task OnFilterChange()

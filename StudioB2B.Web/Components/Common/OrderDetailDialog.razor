@@ -5,6 +5,7 @@
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
 @using System.Collections.Generic
+@using System.Text.RegularExpressions
 
 @inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
@@ -164,13 +165,35 @@ else
                                 </RadzenDataGridColumn>
                                 <RadzenDataGridColumn TItem="CalculationResultRow" Title="Формула" Width="260px">
                                     <Template Context="row">
-                                        <span style="font-family: monospace; font-size: 0.8rem; color: var(--rz-text-secondary-color);"
-                                              title="@row.Formula">@row.Formula</span>
+                                        <RadzenStack Gap="0.15rem">
+                                            <span style="font-family: monospace; font-size: 0.8rem; color: var(--rz-text-secondary-color);"
+                                                  title="@row.Formula">@row.Formula</span>
+                                            @if (!string.IsNullOrWhiteSpace(row.RenderedFormula) &&
+                                                 !string.Equals(row.RenderedFormula, row.Formula, StringComparison.Ordinal))
+                                            {
+                                                <RadzenText TextStyle="TextStyle.Caption"
+                                                            Style="color: var(--rz-text-secondary-color);">
+                                                    Подстановка:
+                                                    <code>@row.RenderedFormula</code>
+                                                </RadzenText>
+                                            }
+                                        </RadzenStack>
                                     </Template>
                                 </RadzenDataGridColumn>
                                 <RadzenDataGridColumn TItem="CalculationResultRow" Title="Результат" Width="140px" TextAlign="TextAlign.Right">
                                     <Template Context="row">
-                                        <strong>@row.Result.ToString("N2")</strong>
+                                        @if (row.Result == decimal.MinValue)
+                                        {
+                                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem" JustifyContent="JustifyContent.End">
+                                                <RadzenIcon Icon="warning" Style="font-size: 1rem; color: var(--rz-warning);"
+                                                            title="@row.ErrorMessage" />
+                                                <span style="color: var(--rz-danger); font-size: 0.78rem;" title="@row.ErrorMessage">Ошибка</span>
+                                            </RadzenStack>
+                                        }
+                                        else
+                                        {
+                                            <strong>@row.Result.ToString("N2")</strong>
+                                        }
                                     </Template>
                                 </RadzenDataGridColumn>
                             </Columns>
@@ -306,7 +329,7 @@ else
     private List<CalculationRule> _calcRules = new();
     private List<CalculationResultRow> _calcResults = new();
 
-    private sealed record CalculationResultRow(string Name, string Formula, decimal Result);
+    private sealed record CalculationResultRow(string Name, string Formula, string RenderedFormula, decimal Result, string? ErrorMessage = null);
 
     protected override async Task OnInitializedAsync()
     {
@@ -322,9 +345,16 @@ else
         {
             var engine = new CalculationEngine();
             var computed = engine.Calculate(_order, _calcRules);
+            var context = CalculationEngine.GetContextSnapshot(_order);
+
             _calcResults = _calcRules
                 .Where(r => computed.ContainsKey(r.ResultKey))
-                .Select(r => new CalculationResultRow(r.Name, r.Formula, computed[r.ResultKey]))
+                .Select(r =>
+                {
+                    var rendered = RenderFormulaWithValues(r.Formula, context);
+                    engine.LastErrors.TryGetValue(r.ResultKey, out var errorMsg);
+                    return new CalculationResultRow(r.Name, r.Formula, rendered, computed[r.ResultKey], errorMsg);
+                })
                 .ToList();
         }
 
@@ -354,6 +384,28 @@ else
         return d.Value.Date == DateTime.Today ? d.Value.ToString("HH:mm") : d.Value.ToString("dd.MM.yyyy HH:mm");
     }
 
+    private static string RenderFormulaWithValues(string formula, IReadOnlyDictionary<string, decimal> context)
+    {
+        if (string.IsNullOrWhiteSpace(formula) || context.Count == 0)
+            return formula;
+
+        var rendered = formula;
+
+        foreach (var kv in context)
+        {
+            if (string.IsNullOrWhiteSpace(kv.Key))
+                continue;
+
+            var pattern = $@"\b{Regex.Escape(kv.Key)}\b";
+            rendered = Regex.Replace(
+                rendered,
+                pattern,
+                kv.Value.ToString("N2"));
+        }
+
+        return rendered;
+    }
+
     // Small helper render fragment for label+value rows
     private RenderFragment DetailRow(string label, string? value, bool mono = false) => __builder =>
     {
@@ -365,10 +417,23 @@ else
         __builder.AddContent(4, label);
         __builder.CloseElement();
         __builder.OpenElement(5, "span");
-        __builder.AddAttribute(6, "style", mono
-            ? "font-family: monospace; font-size: 0.85rem; word-break: break-all;"
-            : "font-size: 0.9rem;");
-        __builder.AddContent(7, value);
+        if (mono)
+        {
+            __builder.OpenComponent<CopyableText>(6);
+            __builder.AddAttribute(7, "Text", value);
+            __builder.AddAttribute(8, "Style", "font-family: monospace; font-size: 0.85rem; word-break: break-all;");
+            __builder.AddAttribute(9, "Tooltip", "Нажмите, чтобы скопировать");
+            __builder.AddAttribute(10, "ChildContent", (RenderFragment)(__builder2 =>
+            {
+                __builder2.AddContent(11, value);
+            }));
+            __builder.CloseComponent();
+        }
+        else
+        {
+            __builder.AddAttribute(12, "style", "font-size: 0.9rem;");
+            __builder.AddContent(13, value);
+        }
         __builder.CloseElement();
         __builder.CloseElement();
     };
