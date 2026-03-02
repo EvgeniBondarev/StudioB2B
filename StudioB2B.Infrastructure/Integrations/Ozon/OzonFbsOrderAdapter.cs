@@ -446,6 +446,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
             "delivering" => "доставляется",
             "driver_pickup" => "у водителя",
             "not_accepted" => "не принят на сортировочном центре",
+            "delivered" => "доставлено",
             _ => synonym
         };
     }
@@ -463,12 +464,14 @@ public class OzonFbsOrderAdapter : IOrderAdapter
             .FirstOrDefaultAsync(t => t.Name == "Ozon", ct);
 
         var displayName = GetOzonShipmentStatusDisplayName(normalized);
+        var isTerminal = string.Equals(normalized, "delivered", StringComparison.OrdinalIgnoreCase);
         status = new OrderStatus
         {
             Id = Guid.NewGuid(),
             Name = displayName,
             Synonym = normalized,
             IsInternal = false,
+            IsTerminal = isTerminal,
             MarketplaceClientTypeId = ozonType?.Id
         };
         _db.OrderStatuses.Add(status);

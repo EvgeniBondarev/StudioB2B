@@ -7,6 +7,7 @@
 @using StudioB2B.Domain.Entities.Marketplace
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
+@using StudioB2B.Infrastructure.Features.Orders
 
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory Factory
@@ -249,10 +250,10 @@ else
         await EnsureInitializedAsync();
 
         var query = _db!.OrderStatuses
-            .Include(s => s.MarketplaceClientType)
-            .Where(s => !s.IsDeleted)
-            .AsNoTracking()
-            .AsQueryable();
+            .AsQueryable()
+            .IncludeEverything()
+            .Active()
+            .AsNoTracking();
 
         if (_filterType == "internal")
             query = query.Where(s => s.IsInternal);
@@ -314,10 +315,7 @@ else
     {
         try
         {
-            if (!_db!.OrderStatuses.Local.Contains(s))
-                _db.OrderStatuses.Attach(s).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-
-            await _db!.SaveChangesAsync();
+            await _db!.UpdateOrderStatusAsync(s);
             NotificationService.Notify(NotificationSeverity.Success, "Статус обновлён");
         }
         catch (Exception ex)
@@ -330,8 +328,7 @@ else
     {
         try
         {
-            _db!.OrderStatuses.Add(s);
-            await _db.SaveChangesAsync();
+            await _db!.CreateOrderStatusAsync(s);
             NotificationService.Notify(NotificationSeverity.Success, "Статус создан");
         }
         catch (Exception ex)
@@ -352,10 +349,7 @@ else
 
         try
         {
-            s.IsDeleted = true;
-            if (!_db!.OrderStatuses.Local.Contains(s))
-                _db.OrderStatuses.Attach(s).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-            await _db.SaveChangesAsync();
+            await _db!.SoftDeleteOrderStatusAsync(s);
             await _grid!.Reload();
             NotificationService.Notify(NotificationSeverity.Success, "Статус удалён");
         }
