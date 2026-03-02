@@ -3,6 +3,7 @@
 @using StudioB2B.Domain.Entities.Orders
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
+@using StudioB2B.Infrastructure.Features.Orders
 
 @inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
@@ -269,29 +270,14 @@ else
         _db = Factory.CreateDbContext();
 
         _order = await _db.Orders
-            .Include(o => o.Shipment).ThenInclude(s => s.MarketplaceClient)
-            .Include(o => o.Shipment).ThenInclude(s => s.Status)
-            .Include(o => o.Shipment).ThenInclude(s => s.DeliveryMethod)
-            .Include(o => o.Status)
-            .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
-                .ThenInclude(p => p!.Attributes).ThenInclude(a => a.Attribute)
-            .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
-                .ThenInclude(p => p!.Manufacturer)
-            .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
-                .ThenInclude(p => p!.Category)
-            .Include(o => o.Recipient).ThenInclude(r => r!.Address)
-            .Include(o => o.WarehouseInfo).ThenInclude(wi => wi!.SenderWarehouse)
-            .Include(o => o.Prices).ThenInclude(p => p.PriceType)
-            .Include(o => o.Prices).ThenInclude(p => p.Currency)
+            .IncludeForDetail()
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == OrderId);
 
         if (_order?.ShipmentId != null)
         {
             _shipmentOrders = await _db.Orders
-                .Include(o => o.Shipment)
-                .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
-                .Include(o => o.Status)
+                .IncludeForShipmentList()
                 .AsNoTracking()
                 .Where(o => o.ShipmentId == _order.ShipmentId)
                 .OrderByDescending(o => o.Shipment.InProcessAt)
