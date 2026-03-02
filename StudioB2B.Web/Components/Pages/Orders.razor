@@ -9,6 +9,7 @@
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
+@using StudioB2B.Infrastructure.Services
 @using StudioB2B.Web.Components.Common
 
 @inject ITenantProvider TenantProvider
@@ -231,6 +232,71 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
+            @if (_calcRules.Count > 0)
+            {
+                @if (!_computedSplitByColumns)
+                {
+                    <RadzenDataGridColumn TItem="Order" Title="Расчёты" Width="200px"
+                                          Filterable="false" Sortable="false">
+                        <HeaderTemplate>
+                            <span style="cursor: pointer; text-decoration: underline; font-size: 0.85rem;"
+                                  title="Щёлкните, чтобы переключить режим отображения расчётов"
+                                  @onclick="ToggleComputedLayout">
+                                Расчёты
+                                (@(_computedSplitByColumns ? "по столбцам" : "в одном столбце"))
+                            </span>
+                        </HeaderTemplate>
+                        <Template Context="o">
+                            @if (_computed.TryGetValue(o.Id, out var fields) && fields.Count > 0)
+                            {
+                                <RadzenStack Gap="0.15rem">
+                                    @foreach (var rule in _calcRules)
+                                    {
+                                        @if (fields.TryGetValue(rule.ResultKey, out var val))
+                                        {
+                                            <span style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                                                  title="@rule.Formula">
+                                                <span style="color: var(--rz-text-secondary-color);">@rule.Name:</span>
+                                                <strong>@val.ToString("N2")</strong>
+                                            </span>
+                                        }
+                                    }
+                                </RadzenStack>
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                }
+                else
+                {
+                    @foreach (var rule in _calcRules)
+                    {
+                        var propName = $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(rule.ResultKey)}";
+                        <RadzenDataGridColumn TItem="Order"
+                                              Title="@rule.Name"
+                                              Property="@propName"
+                                              Width="120px"
+                                              Filterable="true"
+                                              Sortable="true"
+                                              TextAlign="TextAlign.Right">
+                            <FilterTemplate>
+                                <RadzenNumeric @bind-Value="_computedFilterMin[rule.ResultKey]"
+                                               TValue="decimal?"
+                                               Style="width: 100%;"
+                                               Change="@(async (_)=> await _grid!.Reload())"
+                                               Placeholder="≥ значение" />
+                            </FilterTemplate>
+                            <Template Context="o">
+                                @if (_computed.TryGetValue(o.Id, out var fields) &&
+                                     fields.TryGetValue(rule.ResultKey, out var val))
+                                {
+                                    <span title="@rule.Formula">@val.ToString("N2")</span>
+                                }
+                            </Template>
+                        </RadzenDataGridColumn>
+                    }
+                }
+            }
+
         </Columns>
     </RadzenDataGrid>
 }
@@ -253,6 +319,12 @@ else
     private List<OrderStatus> _marketplaceStatuses = new();
     private List<OrderStatus> _systemStatuses = new();
     private List<Warehouse> _warehouses = new();
+
+    private readonly CalculationEngine _calcEngine = new();
+    private List<CalculationRule> _calcRules = new();
+    private Dictionary<Guid, Dictionary<string, decimal>> _computed = new();
+    private bool _computedSplitByColumns;
+    private readonly Dictionary<string, decimal?> _computedFilterMin = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -282,16 +354,104 @@ else
         if (!string.IsNullOrEmpty(args.Filter))
             query = query.Where(args.Filter);
 
-        query = !string.IsNullOrEmpty(args.OrderBy)
-            ? query.OrderBy(args.OrderBy)
-            : query.OrderByDescending(o => o.Shipment.InProcessAt).ThenByDescending(o => o.Shipment.CreatedAt);
+        var appliedOrderBy = args.OrderBy;
+        var isComputedOrder = _computedSplitByColumns &&
+                              !string.IsNullOrEmpty(appliedOrderBy) &&
+                              appliedOrderBy.StartsWith("Computed_", StringComparison.OrdinalIgnoreCase);
 
-        _totalCount = await query.CountAsync();
+        var hasComputedFilter = _computedSplitByColumns &&
+                                _computedFilterMin.Values.Any(v => v.HasValue);
 
-        var skip = args.Skip ?? 0;
-        var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 15);
+        // Базовая сортировка по датам, если не сортируем по вычисляемым полям.
+        if (!isComputedOrder)
+        {
+            query = !string.IsNullOrEmpty(appliedOrderBy)
+                ? query.OrderBy(appliedOrderBy)
+                : query.OrderByDescending(o => o.Shipment.InProcessAt)
+                       .ThenByDescending(o => o.Shipment.CreatedAt);
+        }
 
-        _pageItems = await query.Skip(skip).Take(take).ToListAsync();
+        var baseList = (hasComputedFilter || isComputedOrder)
+            ? await query.ToListAsync()
+            : null;
+
+        if (baseList == null)
+        {
+            _totalCount = await query.CountAsync();
+
+            var skip = args.Skip ?? 0;
+            var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 15);
+
+            _pageItems = await query.Skip(skip).Take(take).ToListAsync();
+        }
+        else
+        {
+            _pageItems = baseList;
+        }
+
+        _computed = _calcRules.Count > 0
+            ? _pageItems.ToDictionary(
+                o => o.Id,
+                o => _calcEngine.Calculate(o, _calcRules))
+            : new Dictionary<Guid, Dictionary<string, decimal>>();
+
+        // Фильтрация по вычисляемым значениям (по минимальному значению в колонке).
+        if (hasComputedFilter && baseList != null)
+        {
+            _pageItems = _pageItems
+                .Where(o =>
+                {
+                    if (!_computed.TryGetValue(o.Id, out var dict))
+                        return false;
+
+                    foreach (var kv in _computedFilterMin)
+                    {
+                        if (!kv.Value.HasValue) continue;
+                        if (!dict.TryGetValue(kv.Key, out var val)) return false;
+                        if (val < kv.Value.Value) return false;
+                    }
+
+                    return true;
+                })
+                .ToList();
+        }
+
+        // Сортировка по вычисляемому полю
+        if (isComputedOrder && baseList != null)
+        {
+            var parts = appliedOrderBy!.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var field = parts[0];
+            var desc = parts.Length > 1 &&
+                       parts[1].Equals("desc", StringComparison.OrdinalIgnoreCase);
+
+            var ruleByProp = _calcRules.ToDictionary(
+                r => $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(r.ResultKey)}",
+                r => r.ResultKey,
+                StringComparer.OrdinalIgnoreCase);
+
+            if (ruleByProp.TryGetValue(field, out var ruleKey))
+            {
+                _pageItems = desc
+                    ? _pageItems.OrderByDescending(o =>
+                        _computed.TryGetValue(o.Id, out var dict) &&
+                        dict.TryGetValue(ruleKey, out var v) ? v : 0m).ToList()
+                    : _pageItems.OrderBy(o =>
+                        _computed.TryGetValue(o.Id, out var dict) &&
+                        dict.TryGetValue(ruleKey, out var v) ? v : 0m).ToList();
+            }
+        }
+
+        // Пагинация после всех in‑memory операций (для случаев с вычисляемыми полями)
+        if (baseList != null)
+        {
+            _totalCount = _pageItems.Count();
+
+            var skip = args.Skip ?? 0;
+            var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 15);
+
+            _pageItems = _pageItems.Skip(skip).Take(take).ToList();
+        }
+
         _loading = false;
     }
 
@@ -324,6 +484,17 @@ else
             .OrderBy(w => w.Name)
             .AsNoTracking()
             .ToListAsync();
+
+        _calcRules = await _db.GetActiveRulesAsync();
+
+        // Инициализируем словарь фильтров по вычисляемым полям,
+        // чтобы избежать KeyNotFound при биндинге в заголовках.
+        _computedFilterMin.Clear();
+        foreach (var rule in _calcRules)
+        {
+            if (!_computedFilterMin.ContainsKey(rule.ResultKey))
+                _computedFilterMin[rule.ResultKey] = null;
+        }
     }
 
     private async Task OnFilterChange()
@@ -346,6 +517,9 @@ else
                 ShowClose = true
             });
     }
+
+    private void ToggleComputedLayout() =>
+        _computedSplitByColumns = !_computedSplitByColumns;
 
     // Returns true for light background colors (to use dark text)
     private static bool IsLightColor(string hex)

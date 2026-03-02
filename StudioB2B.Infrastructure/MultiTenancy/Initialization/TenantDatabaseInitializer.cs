@@ -28,8 +28,22 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
     {
         await using var context = await CreateContextAsync(connectionString, ct);
 
-        await context.Database.MigrateAsync(ct);
-        _logger.LogInformation("Tenant database created and migrated");
+        var pending = await context.Database.GetPendingMigrationsAsync(ct);
+        var pendingList = pending.ToList();
+
+        if (pendingList.Count > 0)
+        {
+            _logger.LogInformation("Applying {Count} pending tenant migrations: {Migrations}",
+                pendingList.Count, string.Join(", ", pendingList));
+
+            await context.Database.MigrateAsync(ct);
+
+            _logger.LogInformation("Tenant database created and migrated");
+        }
+        else
+        {
+            _logger.LogInformation("No pending tenant migrations, database is up to date");
+        }
 
         await SeedMarketplaceDataAsync(context, ct);
     }
