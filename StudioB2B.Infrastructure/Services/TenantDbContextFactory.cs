@@ -32,6 +32,34 @@ public class TenantDbContextFactory : ITenantDbContextFactory
 
         _logger.LogDebug("Creating TenantDbContext for tenant {TenantId}", _tenantProvider.TenantId);
 
-        return new TenantDbContext(optionsBuilder.Options);
+        var context = new TenantDbContext(optionsBuilder.Options);
+
+        try
+        {
+            var pending = context.Database.GetPendingMigrations().ToList();
+            if (pending.Count > 0)
+            {
+                _logger.LogInformation(
+                    "Applying {Count} pending tenant migrations for {TenantId}: {Migrations}",
+                    pending.Count,
+                    _tenantProvider.TenantId,
+                    string.Join(", ", pending));
+
+                context.Database.Migrate();
+
+                _logger.LogInformation(
+                    "Tenant migrations applied successfully for {TenantId}",
+                    _tenantProvider.TenantId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to apply tenant migrations for {TenantId}",
+                _tenantProvider.TenantId);
+            throw;
+        }
+
+        return context;
     }
 }

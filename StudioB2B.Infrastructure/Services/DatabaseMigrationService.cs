@@ -46,6 +46,12 @@ public class DatabaseMigrationService : IHostedService
             await using var scope = _serviceProvider.CreateAsyncScope();
             var masterDbContext = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
 
+            var appliedMigrations = await masterDbContext.Database
+                .GetAppliedMigrationsAsync(cancellationToken);
+
+            _logger.LogInformation("Applied master migrations: {Migrations}",
+                appliedMigrations.Any() ? string.Join(", ", appliedMigrations) : "<none>");
+
             var pendingMigrations = await masterDbContext.Database
                 .GetPendingMigrationsAsync(cancellationToken);
 

@@ -4,6 +4,7 @@
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
+@using System.Collections.Generic
 
 @inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
@@ -141,6 +142,43 @@ else
                 </RadzenStack>
             </RadzenTabsItem>
 
+            <!-- ── Расчёты ────────────────────────────────────────── -->
+            @if (_calcRules.Count > 0)
+            {
+                <RadzenTabsItem Text="Расчёты">
+                    <RadzenStack Gap="0.75rem" Style="padding: 1rem 0;">
+                        <RadzenDataGrid TItem="CalculationResultRow"
+                                        Data="@_calcResults"
+                                        Density="Density.Compact"
+                                        AllowSorting="false"
+                                        AllowFiltering="false"
+                                        AllowPaging="false">
+                            <Columns>
+                                <RadzenDataGridColumn TItem="CalculationResultRow" Title="Название" Width="180px">
+                                    <Template Context="row">
+                                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.3rem">
+                                            <RadzenIcon Icon="calculate" Style="font-size: 1rem; color: var(--rz-primary);" />
+                                            <span>@row.Name</span>
+                                        </RadzenStack>
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="CalculationResultRow" Title="Формула" Width="260px">
+                                    <Template Context="row">
+                                        <span style="font-family: monospace; font-size: 0.8rem; color: var(--rz-text-secondary-color);"
+                                              title="@row.Formula">@row.Formula</span>
+                                    </Template>
+                                </RadzenDataGridColumn>
+                                <RadzenDataGridColumn TItem="CalculationResultRow" Title="Результат" Width="140px" TextAlign="TextAlign.Right">
+                                    <Template Context="row">
+                                        <strong>@row.Result.ToString("N2")</strong>
+                                    </Template>
+                                </RadzenDataGridColumn>
+                            </Columns>
+                        </RadzenDataGrid>
+                    </RadzenStack>
+                </RadzenTabsItem>
+            }
+
             <!-- ── Получатель ─────────────────────────────────────── -->
             <RadzenTabsItem Text="Получатель">
                 <RadzenStack Gap="0.75rem" Style="padding: 1rem 0;">
@@ -265,6 +303,11 @@ else
     private Order? _order;
     private List<Order> _shipmentOrders = new();
 
+    private List<CalculationRule> _calcRules = new();
+    private List<CalculationResultRow> _calcResults = new();
+
+    private sealed record CalculationResultRow(string Name, string Formula, decimal Result);
+
     protected override async Task OnInitializedAsync()
     {
         _db = Factory.CreateDbContext();
@@ -273,6 +316,17 @@ else
             .IncludeForDetail()
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == OrderId);
+
+        _calcRules = await _db.GetActiveRulesAsync();
+        if (_order != null && _calcRules.Count > 0)
+        {
+            var engine = new CalculationEngine();
+            var computed = engine.Calculate(_order, _calcRules);
+            _calcResults = _calcRules
+                .Where(r => computed.ContainsKey(r.ResultKey))
+                .Select(r => new CalculationResultRow(r.Name, r.Formula, computed[r.ResultKey]))
+                .ToList();
+        }
 
         if (_order?.ShipmentId != null)
         {

@@ -22,6 +22,7 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
 
     // ── Orders ───────────────────────────────────────────────────────
     public DbSet<OrderStatus> OrderStatuses { get; set; } = null!;
+    public DbSet<CalculationRule> CalculationRules { get; set; } = null!;
     public DbSet<StatusColor> StatusColors { get; set; } = null!;
     public DbSet<DateType> DateTypes { get; set; } = null!;
     public DbSet<DeliveryType> DeliveryTypes { get; set; } = null!;

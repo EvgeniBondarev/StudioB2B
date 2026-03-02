@@ -1,0 +1,453 @@
+@using Microsoft.EntityFrameworkCore
+@using System.Text.RegularExpressions
+@using Radzen
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Domain.Entities.References
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
+@using StudioB2B.Infrastructure.Features.Orders
+
+@inject ITenantDbContextFactory Factory
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+@implements IDisposable
+
+@if (_loading)
+{
+    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 200px;">
+        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
+    </RadzenStack>
+}
+else
+{
+    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+
+        <RadzenStack Gap="0.5rem">
+            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+                Основные параметры
+            </RadzenText>
+            <RadzenStack Gap="0.5rem">
+                <RadzenTextBox @bind-Value="_name"
+                               Style="width: 100%;"
+                               Placeholder="Название правила (например, Скидка)" />
+                <RadzenTextBox @bind-Value="_resultKey"
+                               Style="width: 100%;"
+                               Placeholder="Ключ результата (например, Скидка)" />
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                    <RadzenNumeric @bind-Value="_sortOrder"
+                                   Style="width: 140px;"
+                                   Min="0"
+                                   Placeholder="Порядок" />
+                    <RadzenCheckBox @bind-Value="_isActive" TValue="bool" />
+                    <RadzenLabel Text="Активно" Style="margin-left: 0.25rem;" />
+                </RadzenStack>
+            </RadzenStack>
+        </RadzenStack>
+
+        <RadzenStack Gap="0.5rem">
+            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+                Формула
+            </RadzenText>
+            <RadzenTextArea @bind-Value="_formula"
+                            Rows="3"
+                            Style="width: 100%; font-family: monospace;"
+                            Placeholder="Например: ЦенаДоСкидки - Цена" />
+        </RadzenStack>
+
+        @if (_availableVariables.Count > 0)
+        {
+            <RadzenStack Gap="0.4rem"
+                         Style="padding: 0.5rem 0.75rem; background: var(--rz-base-100); border-radius: 6px; border: 1px solid var(--rz-border-color);">
+                <RadzenText TextStyle="TextStyle.Caption" Style="font-weight: 600; margin: 0;">
+                    Конструктор формулы
+                </RadzenText>
+
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.35rem" FlexWrap="FlexWrap.Wrap">
+                    @foreach (var op in _operatorTokens)
+                    {
+                        <RadzenButton Text="@op"
+                                      ButtonStyle="ButtonStyle.Light"
+                                      Size="ButtonSize.ExtraSmall"
+                                      Click="@(() => AppendToken(op))" />
+                    }
+                </RadzenStack>
+
+                <RadzenStack Gap="0.25rem">
+                    <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">
+                        Переменные (нажмите, чтобы вставить в формулу):
+                    </RadzenText>
+                    <RadzenStack Gap="0.15rem">
+                        @foreach (var v in _availableVariables)
+                        {
+                            <span style="display: block; padding: 2px 8px; border-radius: 6px;
+                                         background: var(--rz-primary-light); color: var(--rz-primary-dark);
+                                         font-family: monospace; font-size: 0.8rem; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis;"
+                                  @onclick="@(() => AppendToken(v))"
+                                  title="Добавить переменную в формулу">@v</span>
+                        }
+                    </RadzenStack>
+                </RadzenStack>
+
+                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color); margin: 0;">
+                    Используйте кнопки и переменные выше, чтобы избежать опечаток и лишних символов.
+                </RadzenText>
+            </RadzenStack>
+        }
+
+        <RadzenStack Gap="0.5rem">
+            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+                Пример на заказе
+            </RadzenText>
+
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                <RadzenTextBox @bind-Value="_postingNumberFilter"
+                               Style="width: 220px;"
+                               Placeholder="Номер отправления (опционально)" />
+                <RadzenButton Text="Найти заказ"
+                              Icon="search"
+                              ButtonStyle="ButtonStyle.Light"
+                              Size="ButtonSize.Small"
+                              Click="@LoadExampleOrderAsync" />
+            </RadzenStack>
+
+            @if (_exampleOrder == null)
+            {
+                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                    Заказ для примера не найден. Укажите корректный номер отправления или загрузите заказы.
+                </RadzenText>
+            }
+            else
+            {
+                <RadzenStack Gap="0.25rem">
+                    <RadzenText TextStyle="TextStyle.Body2">
+                        Заказ: <code>@_exampleOrder.Shipment?.PostingNumber</code>,
+                        клиент: @_exampleOrder.Shipment?.MarketplaceClient?.Name,
+                        товар: @_exampleOrder.ProductInfo?.Product?.Article
+                        (@_exampleOrder.ProductInfo?.Product?.Name)
+                    </RadzenText>
+
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                        <RadzenButton Icon="play_arrow" Text="Проверить формулу"
+                                      ButtonStyle="ButtonStyle.Info"
+                                      Size="ButtonSize.Small"
+                                      Click="@TestFormulaAsync" />
+
+                        @if (_exampleError != null)
+                        {
+                            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-danger);">
+                                @_exampleError
+                            </RadzenText>
+                        }
+                        else if (_exampleResult.HasValue)
+                        {
+                            <RadzenStack Gap="0.2rem">
+                                <RadzenText TextStyle="TextStyle.Body2">
+                                    Результат: <b>@_exampleResult.Value.ToString("N2")</b>
+                                </RadzenText>
+                                @if (!string.IsNullOrWhiteSpace(_exampleFormulaRendered))
+                                {
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                                        Подстановка: <code>@_exampleFormulaRendered</code>
+                                    </RadzenText>
+                                }
+                                else
+                                {
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                                        Формула: <code>@_formula</code>
+                                    </RadzenText>
+                                }
+                            </RadzenStack>
+                        }
+                    </RadzenStack>
+
+                    @if (_contextSnapshot != null && _contextSnapshot.Count > 0)
+                    {
+                        <RadzenStack Gap="0.25rem" Style="margin-top: 0.5rem;">
+                            <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">
+                                Контекст переменных для выбранного заказа:
+                            </RadzenText>
+                            <RadzenDataGrid TItem="KeyValuePair<string, decimal>"
+                                            Data="@_contextSnapshot"
+                                            Density="Density.Compact"
+                                            AllowSorting="false"
+                                            AllowFiltering="false"
+                                            AllowPaging="false"
+                                            Style="max-height: 200px; overflow-y: auto;">
+                                <Columns>
+                                    <RadzenDataGridColumn TItem="KeyValuePair<string, decimal>"
+                                                          Title="Переменная"
+                                                          Width="220px">
+                                        <Template Context="row">
+                                            <span style="font-family: monospace; font-size: 0.8rem;">@row.Key</span>
+                                        </Template>
+                                    </RadzenDataGridColumn>
+                                    <RadzenDataGridColumn TItem="KeyValuePair<string, decimal>"
+                                                          Title="Значение"
+                                                          Width="140px"
+                                                          TextAlign="TextAlign.Right">
+                                        <Template Context="row">
+                                            @row.Value.ToString("N2")
+                                        </Template>
+                                    </RadzenDataGridColumn>
+                                </Columns>
+                            </RadzenDataGrid>
+                        </RadzenStack>
+                    }
+                </RadzenStack>
+            }
+        </RadzenStack>
+
+        <RadzenStack Orientation="Orientation.Horizontal"
+                     JustifyContent="JustifyContent.End"
+                     Gap="0.5rem"
+                     Style="margin-top: 0.75rem;">
+            <RadzenButton Text="Отмена"
+                          ButtonStyle="ButtonStyle.Light"
+                          Click="@(() => DialogService.Close(false))" />
+            <RadzenButton Text="Сохранить"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Click="@SaveAsync" />
+        </RadzenStack>
+    </RadzenStack>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<string> AvailableVariables { get; set; } = Array.Empty<string>();
+
+    private TenantDbContext? _db;
+    private CalculationEngine _engine = new();
+    private bool _loading = true;
+
+    private string _name = string.Empty;
+    private string _resultKey = string.Empty;
+    private string _formula = string.Empty;
+    private int _sortOrder;
+    private bool _isActive = true;
+
+    private List<string> _availableVariables = new();
+    private Order? _exampleOrder;
+    private IReadOnlyDictionary<string, decimal>? _contextSnapshot;
+    private decimal? _exampleResult;
+    private string? _exampleError;
+    private string _postingNumberFilter = string.Empty;
+    private string? _exampleFormulaRendered;
+
+    private static readonly string[] _operatorTokens = ["+", "-", "*", "/", "(", ")"];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _db = Factory.CreateDbContext();
+
+        // Доступные переменные
+        if (AvailableVariables.Count > 0)
+        {
+            _availableVariables = AvailableVariables.ToList();
+        }
+        else
+        {
+            var priceTypeNames = await _db.PriceTypes
+                .AsNoTracking()
+                .OrderBy(p => p.Name)
+                .Select(p => p.Name)
+                .ToListAsync();
+
+            _availableVariables = CalculationEngine.GetBaseVariableNames(priceTypeNames).ToList();
+        }
+
+        // Порядок по умолчанию = max + 1
+        var maxOrder = await _db.CalculationRules
+            .AsNoTracking()
+            .Select(r => (int?)r.SortOrder)
+            .MaxAsync();
+        _sortOrder = (maxOrder ?? -1) + 1;
+
+        await LoadExampleOrderCoreAsync();
+
+        _loading = false;
+    }
+
+    private async Task LoadExampleOrderAsync()
+    {
+        _exampleError = null;
+        _exampleResult = null;
+        _exampleFormulaRendered = null;
+        await LoadExampleOrderCoreAsync();
+    }
+
+    private async Task LoadExampleOrderCoreAsync()
+    {
+        IQueryable<Order> q = _db!.Orders
+            .IncludeForGrid()
+            .AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(_postingNumberFilter))
+        {
+            var pn = _postingNumberFilter.Trim();
+            q = q.Where(o => o.Shipment.PostingNumber == pn);
+        }
+
+        _exampleOrder = await q
+            .OrderByDescending(o => o.Shipment.InProcessAt)
+            .ThenByDescending(o => o.Shipment.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        _contextSnapshot = _exampleOrder != null
+            ? CalculationEngine.GetContextSnapshot(_exampleOrder)
+            : null;
+    }
+
+    private void AppendToken(string token)
+    {
+        // Если только что была показана ошибка проверки на примере — очищаем её,
+        // чтобы пользователь видел актуальное состояние.
+        _exampleError = null;
+        _exampleResult = null;
+
+        if (string.IsNullOrWhiteSpace(_formula))
+        {
+            _formula = token;
+            return;
+        }
+
+        // Добавляем пробел перед токеном, если предыдущий символ не пробел и токен не ")"
+        var needsSpace = !_formula.EndsWith(" ");
+        _formula += needsSpace ? " " + token : token;
+    }
+
+    private async Task TestFormulaAsync()
+    {
+        _exampleError = null;
+        _exampleResult = null;
+
+        if (_exampleOrder == null)
+        {
+            _exampleError = "В базе пока нет заказов для примера.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_formula))
+        {
+            _exampleError = "Введите формулу.";
+            return;
+        }
+
+        var key = string.IsNullOrWhiteSpace(_resultKey) ? "Preview" : _resultKey;
+
+        try
+        {
+            var rules = await _db!.CalculationRules
+                .AsNoTracking()
+                .Where(r => !r.IsDeleted && r.IsActive)
+                .OrderBy(r => r.SortOrder)
+                .ToListAsync();
+
+            var tempRule = new CalculationRule
+            {
+                Id = Guid.NewGuid(),
+                Name = _name == string.Empty ? "Черновик" : _name,
+                ResultKey = key,
+                Formula = _formula,
+                SortOrder = 0,
+                IsActive = true
+            };
+
+            rules.Add(tempRule);
+
+            var result = _engine.Calculate(_exampleOrder, rules);
+            if (result.TryGetValue(key, out var value))
+            {
+                _exampleResult = value;
+
+                if (_contextSnapshot != null)
+                {
+                    _exampleFormulaRendered = RenderFormulaWithValues(_formula, _contextSnapshot);
+                }
+            }
+            else
+            {
+                _exampleError = "Формула не вернула результат.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _exampleError = ex.Message;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_name))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Некорректные данные", "Укажите название правила.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_resultKey))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Некорректные данные", "Укажите ключ результата.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_formula))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Некорректные данные", "Укажите формулу.");
+            return;
+        }
+
+        var error = _engine.ValidateFormula(_formula, _availableVariables);
+        if (error != null)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка в формуле", error);
+            return;
+        }
+
+        try
+        {
+            var entity = new CalculationRule
+            {
+                Id = Guid.NewGuid(),
+                Name = _name.Trim(),
+                ResultKey = _resultKey.Trim(),
+                Formula = _formula.Trim(),
+                SortOrder = _sortOrder,
+                IsActive = _isActive
+            };
+
+            await _db!.CreateCalculationRuleAsync(entity);
+
+            NotificationService.Notify(NotificationSeverity.Success, "Правило создано");
+            DialogService.Close(true);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка сохранения", ex.Message);
+        }
+    }
+
+    private static string RenderFormulaWithValues(string formula, IReadOnlyDictionary<string, decimal> context)
+    {
+        if (string.IsNullOrWhiteSpace(formula) || context.Count == 0)
+            return formula;
+
+        var rendered = formula;
+
+        foreach (var kv in context)
+        {
+            if (string.IsNullOrWhiteSpace(kv.Key))
+                continue;
+
+            var pattern = $@"\b{Regex.Escape(kv.Key)}\b";
+            rendered = Regex.Replace(
+                rendered,
+                pattern,
+                kv.Value.ToString("N2"));
+        }
+
+        return rendered;
+    }
+
+    public void Dispose() => _db?.Dispose();
+}
+
