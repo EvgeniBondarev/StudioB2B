@@ -87,7 +87,8 @@ public static class DependencyInjection
                 tenantProvider.ConnectionString!,
                 ServerVersion.AutoDetect(tenantProvider.ConnectionString!));
 
-            return new TenantDbContext(optionsBuilder.Options);
+            var currentUserProvider = sp.GetService<ICurrentUserProvider>();
+            return new TenantDbContext(optionsBuilder.Options, currentUserProvider);
         });
 
         services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
