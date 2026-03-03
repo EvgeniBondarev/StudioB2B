@@ -1,0 +1,394 @@
+@page "/calculation-rules"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.EntityFrameworkCore
+@using Radzen
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Domain.Entities.References
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
+@using StudioB2B.Infrastructure.Features.Orders
+@using StudioB2B.Web.Components.Common
+
+@inject ITenantProvider TenantProvider
+@inject ITenantDbContextFactory Factory
+@inject NotificationService NotificationService
+@inject ContextMenuService ContextMenuService
+@inject DialogService DialogService
+@inject IJSRuntime JSRuntime
+
+@implements IDisposable
+
+<PageTitle>Правила расчёта</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+{
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                 JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
+        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Правила расчёта</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+            <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                          Click="@ToggleDensity" Title="@GetDensityTitle()" />
+            <RadzenButton Icon="add" Text="Добавить" ButtonStyle="ButtonStyle.Primary"
+                          Click="@AddRow" />
+        </RadzenStack>
+    </RadzenStack>
+
+    <!-- ── Справочник переменных ─────────────────────────────────────── -->
+    @if (_availableVariables.Count > 0)
+    {
+        <RadzenStack Gap="0.5rem" Style="margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: var(--rz-base-100); border-radius: 6px; border: 1px solid var(--rz-border-color);">
+            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin: 0;">
+                Доступные переменные
+            </RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.4rem" FlexWrap="FlexWrap.Wrap">
+                @foreach (var v in _availableVariables)
+                {
+                    <span style="display: inline-block; padding: 2px 10px; border-radius: 12px;
+                                 background: var(--rz-primary-light); color: var(--rz-primary-dark);
+                                 font-family: monospace; font-size: 0.8rem; cursor: default;"
+                          title="Скопируйте имя и используйте в формуле">@v</span>
+                }
+            </RadzenStack>
+            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color); margin: 0;">
+                Переменные соответствуют типам цен заказов (пробелы удалены, CamelCase). Базовое поле: <code>Quantity</code>.
+            </RadzenText>
+        </RadzenStack>
+    }
+
+    <RadzenDataGrid @ref="_grid"
+                    TItem="CalculationRule"
+                    Data="@_items"
+                    Count="@_totalCount"
+                    LoadData="@LoadData"
+                    Density="@_density"
+                    Settings="@_gridSettings"
+                    SettingsChanged="@OnGridSettingsChanged"
+                    AllowFiltering="true"
+                    AllowColumnResize="true"
+                    AllowAlternatingRows="false"
+                    FilterMode="FilterMode.Advanced"
+                    AllowSorting="true"
+                    AllowPaging="true"
+                    PageSize="20"
+                    PageSizeOptions="@_pageSizeOptions"
+                    ShowPagingSummary="true"
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    EditMode="DataGridEditMode.Single"
+                    RowUpdate="@OnUpdate"
+                    RowCreate="@OnCreate"
+                    CellContextMenu="@ShowContextMenu"
+                    IsLoading="@_loading"
+                    FilterText="@RadzenRuStrings.FilterText"
+                    ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
+                    ClearFilterText="@RadzenRuStrings.ClearFilterText"
+                    ContainsText="@RadzenRuStrings.ContainsText"
+                    DoesNotContainText="@RadzenRuStrings.DoesNotContainText"
+                    EqualsText="@RadzenRuStrings.EqualsText"
+                    NotEqualsText="@RadzenRuStrings.NotEqualsText"
+                    StartsWithText="@RadzenRuStrings.StartsWithText"
+                    EndsWithText="@RadzenRuStrings.EndsWithText"
+                    GreaterThanText="@RadzenRuStrings.GreaterThanText"
+                    GreaterThanOrEqualsText="@RadzenRuStrings.GreaterThanOrEqualsText"
+                    LessThanText="@RadzenRuStrings.LessThanText"
+                    LessThanOrEqualsText="@RadzenRuStrings.LessThanOrEqualsText"
+                    IsNullText="@RadzenRuStrings.IsNullText"
+                    IsNotNullText="@RadzenRuStrings.IsNotNullText"
+                    AndOperatorText="@RadzenRuStrings.AndOperatorText"
+                    OrOperatorText="@RadzenRuStrings.OrOperatorText"
+                    PageSizeText="@RadzenRuStrings.PageSizeText"
+                    PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                    EmptyText="@RadzenRuStrings.EmptyText">
+        <Columns>
+
+            <RadzenDataGridColumn TItem="CalculationRule" Property="SortOrder" Title="#"
+                                  Width="60px" TextAlign="TextAlign.Center" Filterable="false">
+                <EditTemplate Context="r">
+                    <RadzenNumeric @bind-Value="r.SortOrder" Style="width: 100%;" Min="0" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="CalculationRule" Property="Name" Title="Название" Width="200px">
+                <EditTemplate Context="r">
+                    <RadzenTextBox @bind-Value="r.Name" Style="width: 100%;" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="CalculationRule" Property="ResultKey" Title="Ключ результата" Width="180px">
+                <Template Context="r">
+                    <span style="font-family: monospace; font-size: 0.82rem; color: var(--rz-primary);">@r.ResultKey</span>
+                </Template>
+                <EditTemplate Context="r">
+                    <RadzenTextBox @bind-Value="r.ResultKey" Style="width: 100%;" Placeholder="Скидка" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="CalculationRule" Property="Formula" Title="Формула" Width="360px">
+                <Template Context="r">
+                    <span style="font-family: monospace; font-size: 0.82rem;">@r.Formula</span>
+                </Template>
+                <EditTemplate Context="r">
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.4rem">
+                        <RadzenTextBox @bind-Value="r.Formula" Style="flex: 1;"
+                                       Placeholder="ЦенаДоСкидки - Цена" />
+                        <RadzenButton Icon="check_circle" ButtonStyle="ButtonStyle.Info"
+                                      Size="ButtonSize.ExtraSmall"
+                                      Title="Проверить формулу"
+                                      Click="@(() => ValidateFormulaAsync(r))" />
+                    </RadzenStack>
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="CalculationRule" Property="IsActive" Title="Активно"
+                                  Width="90px" TextAlign="TextAlign.Center" Filterable="false">
+                <Template Context="r">
+                    @if (r.IsActive)
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Да" />
+                    }
+                    else
+                    {
+                        <span style="color: var(--rz-text-disabled-color);">—</span>
+                    }
+                </Template>
+                <EditTemplate Context="r">
+                    <RadzenCheckBox @bind-Value="r.IsActive" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="CalculationRule" Filterable="false" Sortable="false"
+                                  Width="110px" TextAlign="TextAlign.Center" Title="">
+                <EditTemplate Context="r">
+                    <RadzenButton Icon="check" ButtonStyle="ButtonStyle.Success"
+                                  Size="ButtonSize.ExtraSmall"
+                                  Click="@(() => SaveRow(r))" Style="margin-right: 4px;" />
+                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.ExtraSmall"
+                                  Click="@(() => CancelRow(r))" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    private RadzenDataGrid<CalculationRule>? _grid;
+    private TenantDbContext? _db;
+    private CalculationEngine? _engine;
+    private IEnumerable<CalculationRule> _items = Array.Empty<CalculationRule>();
+    private int _totalCount;
+    private Density _density = Density.Default;
+    private bool _loading;
+    private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+    private List<string> _availableVariables = new();
+
+    private DataGridSettings? _gridSettings;
+    private const string GridSettingsKey = "calculation-rules-grid-settings";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadGridSettingsAsync();
+            if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
+                await _grid.Reload();
+        }
+    }
+
+    private async Task LoadGridSettingsAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private void OnGridSettingsChanged(DataGridSettings settings)
+    {
+        _gridSettings = settings;
+        _ = SaveGridSettingsAsync();
+    }
+
+    private async Task SaveGridSettingsAsync()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+        }
+        catch { }
+    }
+
+    private async Task LoadData(LoadDataArgs args)
+    {
+        _loading = true;
+        await EnsureInitializedAsync();
+
+        var query = _db!.CalculationRules
+            .Where(r => !r.IsDeleted)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(args.Filter))
+            query = query.Where(args.Filter);
+
+        query = !string.IsNullOrEmpty(args.OrderBy)
+            ? query.OrderBy(args.OrderBy)
+            : query.OrderBy(r => r.SortOrder).ThenBy(r => r.Name);
+
+        _totalCount = await query.CountAsync();
+
+        var skip = args.Skip ?? 0;
+        var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 20);
+
+        _items = await query.Skip(skip).Take(take).ToListAsync();
+        _loading = false;
+    }
+
+    private async Task EnsureInitializedAsync()
+    {
+        if (_db != null) return;
+        _db = Factory.CreateDbContext();
+        _engine = new CalculationEngine();
+
+        var priceTypeNames = await _db.PriceTypes
+            .AsNoTracking()
+            .OrderBy(p => p.Name)
+            .Select(p => p.Name)
+            .ToListAsync();
+
+        _availableVariables = CalculationEngine.GetBaseVariableNames(priceTypeNames).ToList();
+    }
+
+    private async Task AddRow()
+    {
+        await EnsureInitializedAsync();
+
+        var parameters = new Dictionary<string, object?>
+        {
+            ["AvailableVariables"] = _availableVariables
+        };
+
+        var options = new DialogOptions
+        {
+            Width = "650px",
+            CloseDialogOnEsc = true,
+            CloseDialogOnOverlayClick = true
+        };
+
+        var result = await DialogService.OpenAsync<CalculationRuleDialog>(
+            "Новое правило расчёта",
+            parameters,
+            options);
+
+        if (result is bool b && b && _grid != null)
+        {
+            await _grid.Reload();
+        }
+    }
+
+    private async Task EditRow(CalculationRule r) => await _grid!.EditRow(r);
+
+    private async Task SaveRow(CalculationRule r) => await _grid!.UpdateRow(r);
+
+    private void CancelRow(CalculationRule r) => _grid!.CancelEditRow(r);
+
+    private async Task OnUpdate(CalculationRule r)
+    {
+        try
+        {
+            await _db!.UpdateCalculationRuleAsync(r);
+            NotificationService.Notify(NotificationSeverity.Success, "Правило обновлено");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
+        }
+    }
+
+    private async Task OnCreate(CalculationRule r)
+    {
+        try
+        {
+            await _db!.CreateCalculationRuleAsync(r);
+            NotificationService.Notify(NotificationSeverity.Success, "Правило создано");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
+            await _grid!.Reload();
+        }
+    }
+
+    private async Task DeleteRow(CalculationRule r)
+    {
+        var confirmed = await DialogService.Confirm(
+            $"Удалить правило «{r.Name}»?",
+            "Подтверждение",
+            new ConfirmOptions { OkButtonText = "Удалить", CancelButtonText = "Отмена" });
+
+        if (confirmed != true) return;
+
+        try
+        {
+            await _db!.SoftDeleteCalculationRuleAsync(r);
+            await _grid!.Reload();
+            NotificationService.Notify(NotificationSeverity.Success, "Правило удалено");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
+        }
+    }
+
+    private async Task ValidateFormulaAsync(CalculationRule r)
+    {
+        await EnsureInitializedAsync();
+        var error = _engine!.ValidateFormula(r.Formula, _availableVariables);
+        if (error == null)
+            NotificationService.Notify(NotificationSeverity.Success, "Формула корректна", $"Переменные: {string.Join(", ", _availableVariables)}");
+        else
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка в формуле", error, duration: 6000);
+    }
+
+    private void ShowContextMenu(DataGridCellMouseEventArgs<CalculationRule> args)
+    {
+        ContextMenuService.Open(args,
+            [
+                new ContextMenuItem { Text = "Редактировать", Icon = "edit",   Value = "edit" },
+                new ContextMenuItem { Text = "Удалить",       Icon = "delete", Value = "delete" }
+            ],
+            e =>
+            {
+                ContextMenuService.Close();
+                if (e.Value?.ToString() == "edit")
+                    InvokeAsync(() => EditRow(args.Data));
+                else if (e.Value?.ToString() == "delete")
+                    InvokeAsync(() => DeleteRow(args.Data));
+            });
+    }
+
+    public void Dispose() => _db?.Dispose();
+
+    private void ToggleDensity() =>
+        _density = _density == Density.Compact ? Density.Default : Density.Compact;
+
+    private string GetDensityTitle() => _density switch
+    {
+        Density.Compact => "Компактный режим строк",
+        _ => "Обычный режим строк"
+    };
+}

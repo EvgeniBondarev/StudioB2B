@@ -30,15 +30,39 @@ public class TenantDbContextFactory : ITenantDbContextFactory
 
         var optionsBuilder = new DbContextOptionsBuilder<TenantDbContext>();
 
-        // MySQL с автоопределением версии
         var connectionString = _tenantProvider.ConnectionString!;
         optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 
-        if (_logger.IsEnabled(LogLevel.Debug))
+        _logger.LogDebug("Creating TenantDbContext for tenant {TenantId}", _tenantProvider.TenantId);
+
+        var context = new TenantDbContext(optionsBuilder.Options, _currentUserProvider);
+
+        try
         {
-            _logger.LogDebug("Creating TenantDbContext for tenant {TenantId}", _tenantProvider.TenantId);
+            var pending = context.Database.GetPendingMigrations().ToList();
+            if (pending.Count > 0)
+            {
+                _logger.LogInformation(
+                    "Applying {Count} pending tenant migrations for {TenantId}: {Migrations}",
+                    pending.Count,
+                    _tenantProvider.TenantId,
+                    string.Join(", ", pending));
+
+                context.Database.Migrate();
+
+                _logger.LogInformation(
+                    "Tenant migrations applied successfully for {TenantId}",
+                    _tenantProvider.TenantId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to apply tenant migrations for {TenantId}",
+                _tenantProvider.TenantId);
+            throw;
         }
 
-        return new TenantDbContext(optionsBuilder.Options, _currentUserProvider.UserId);
+        return context;
     }
 }

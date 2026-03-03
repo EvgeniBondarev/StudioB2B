@@ -1,233 +1,292 @@
-﻿@page "/"
+@page "/"
 @using StudioB2B.Application.Common.Interfaces
+@using Microsoft.EntityFrameworkCore
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
 @using System.ComponentModel.DataAnnotations
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
 @inject NavigationManager Navigation
-@inject ISnackbar Snackbar
+@inject NotificationService NotificationService
+@inject Microsoft.Extensions.Options.IOptions<Infrastructure.MultiTenancy.MultiTenancyOptions> MultiTenancyOptions
+@inject ITenantDbContextFactory Factory
 
 <PageTitle>StudioB2B</PageTitle>
 
-@if (!TenantProvider.IsResolved)
-{
-    <!-- ── NO SUBDOMAIN: Register new Tenant ── -->
-    <MudGrid Justify="Justify.Center" Class="mt-8">
-        <MudItem xs="12" sm="8" md="5">
-            <MudPaper Outlined="true" Class="pa-8">
-                <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true" Style="font-weight:700;">StudioB2B</MudText>
-                <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mb-4">
+<div style="display: flex; justify-content: center; padding-top: 4rem;">
+    <div style="width: 100%; max-width: 440px;">
+
+        @if (_initializing)
+        {
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.75rem;">
+                    StudioB2B
+                </RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color); display:block; margin-bottom: 1rem;">
+                    Загрузка рабочей области...
+                </RadzenText>
+                <RadzenProgressBar Mode="ProgressBarMode.Indeterminate"
+                                   ShowValue="false"
+                                   Style="width: 100%; max-width: 260px; margin: 0 auto;" />
+            </div>
+        }
+        else if (!TenantProvider.IsResolved)
+        {
+            <!-- Главная страница мастер-домена: регистрация нового тенанта -->
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
                     Создайте рабочее пространство для вашей компании
-                </MudText>
+                </RadzenText>
+            </div>
 
-                <MudDivider Class="mb-5" />
-
-                @if (_registerSuccess)
-                {
-                    <MudAlert Severity="Severity.Success" Variant="Variant.Filled">
-                        Компания зарегистрирована! Перенаправление...
-                    </MudAlert>
-                }
-                else
+            @if (_registerSuccess)
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Success" ShowIcon="true" AllowClose="false">
+                    Компания зарегистрирована! Перенаправление...
+                </RadzenAlert>
+            }
+            else
+            {
+                @if (!_showRegTimeline)
                 {
                     <EditForm Model="@_reg" OnValidSubmit="HandleRegister">
                         <DataAnnotationsValidator />
 
-                        <MudTextField T="string" Label="Название компании"
-                                      @bind-Value="_reg.CompanyName" For="@(() => _reg.CompanyName)"
-                                      Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" FullWidth="true" />
+                        <RadzenStack Gap="1rem">
 
-                        <MudTextField T="string" Label="Субдомен"
-                                      @bind-Value="_reg.Subdomain" For="@(() => _reg.Subdomain)"
-                                      Variant="Variant.Outlined" Margin="Margin.Dense"
-                                      Adornment="Adornment.End" AdornmentText="@DomainAdornment"
-                                      HelperText="Только a-z, 0-9, дефис (3–5 символов)"
-                                      Class="mb-3" FullWidth="true" />
+                            <RadzenFormField Text="Название компании" Style="width: 100%;">
+                                <RadzenTextBox @bind-Value="_reg.CompanyName" Style="width: 100%;" />
+                            </RadzenFormField>
 
-                        <MudTextField T="string" Label="Email администратора"
-                                      @bind-Value="_reg.AdminEmail" For="@(() => _reg.AdminEmail)"
-                                      Variant="Variant.Outlined" Margin="Margin.Dense"
-                                      InputType="InputType.Email" Class="mb-3" FullWidth="true" />
+                            <RadzenFormField Text="Субдомен" Style="width: 100%;">
+                                <ChildContent>
+                                    <RadzenTextBox @bind-Value="_reg.Subdomain" Style="width: 100%;" />
+                                </ChildContent>
+                                <Helper>
+                                    <RadzenText TextStyle="TextStyle.Caption">Только a-z, 0-9, дефис (3–5 символов) — добавится .@DomainAdornment</RadzenText>
+                                </Helper>
+                            </RadzenFormField>
 
-                        <MudTextField T="string" Label="Пароль"
-                                      @bind-Value="_reg.Password" For="@(() => _reg.Password)"
-                                      Variant="Variant.Outlined" Margin="Margin.Dense"
-                                      InputType="InputType.Password" HelperText="Минимум 6 символов"
-                                      Class="mb-3" FullWidth="true" />
+                            <RadzenFormField Text="Email администратора" Style="width: 100%;">
+                                <RadzenTextBox @bind-Value="_reg.AdminEmail" Style="width: 100%;" />
+                            </RadzenFormField>
 
-                        <MudTextField T="string" Label="Подтверждение пароля"
-                                      @bind-Value="_reg.ConfirmPassword" For="@(() => _reg.ConfirmPassword)"
-                                      Variant="Variant.Outlined" Margin="Margin.Dense"
-                                      InputType="InputType.Password" Class="mb-5" FullWidth="true" />
+                            <RadzenFormField Text="Пароль" Style="width: 100%;">
+                                <ChildContent>
+                                    <RadzenPassword @bind-Value="_reg.Password" Style="width: 100%;" />
+                                </ChildContent>
+                                <Helper>
+                                    <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов</RadzenText>
+                                </Helper>
+                            </RadzenFormField>
 
-                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"
-                                   Color="Color.Primary" FullWidth="true" Disabled="@_regLoading">
-                            @if (_regLoading)
-                            {
-                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                                <span>Создание...</span>
-                            }
-                            else
-                            {
-                                <span>Создать рабочее пространство</span>
-                            }
-                        </MudButton>
+                            <RadzenFormField Text="Подтверждение пароля" Style="width: 100%;">
+                                <RadzenPassword @bind-Value="_reg.ConfirmPassword" Style="width: 100%;" />
+                            </RadzenFormField>
 
-                        <ValidationSummary />
+                            <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
+
+                            <RadzenButton ButtonType="ButtonType.Submit" Text="Создать рабочее пространство"
+                                          ButtonStyle="ButtonStyle.Primary" Style="width: 100%;"
+                                          IsBusy="@_regLoading" />
+                        </RadzenStack>
                     </EditForm>
                 }
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
-}
-else
-{
-    <AuthorizeView>
-        <NotAuthorized>
-            <!-- ── SUBDOMAIN + NOT AUTH: Login ── -->
-            <MudGrid Justify="Justify.Center" Class="mt-8">
-                <MudItem xs="12" sm="8" md="5">
-                    <MudPaper Outlined="true" Class="pa-8">
-                        <MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true" Style="font-weight:700;">StudioB2B</MudText>
-                        <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mb-4">
+                else
+                {
+                    <RadzenStack Gap="1rem">
+                        <RadzenText TextStyle="TextStyle.Body1" Style="color: var(--rz-text-secondary-color); text-align: center;">
+                            Создаём рабочее пространство, это может занять немного времени...
+                        </RadzenText>
+
+                        <RadzenTimeline>
+                            <Items>
+                                <RadzenTimelineItem PointStyle="@RegStepStyle(0)" PointSize="PointSize.Small">
+                                    <LabelContent>
+                                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                                    Style="@RegStepLabelStyle(0)">
+                                            Ввод данных
+                                        </RadzenText>
+                                    </LabelContent>
+                                    <ChildContent>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(0)">
+                                            Подготовка параметров компании и администратора.
+                                        </RadzenText>
+                                    </ChildContent>
+                                </RadzenTimelineItem>
+
+                                <RadzenTimelineItem PointStyle="@RegStepStyle(1)" PointSize="PointSize.Small">
+                                    <LabelContent>
+                                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                                    Style="@RegStepLabelStyle(1)">
+                                            Создание базы
+                                        </RadzenText>
+                                    </LabelContent>
+                                    <ChildContent>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(1)">
+                                            Создание базы данных тенанта и применение миграций.
+                                        </RadzenText>
+                                    </ChildContent>
+                                </RadzenTimelineItem>
+
+                                <RadzenTimelineItem PointStyle="@RegStepStyle(2)" PointSize="PointSize.Small">
+                                    <LabelContent>
+                                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                                    Style="@RegStepLabelStyle(2)">
+                                            Готово
+                                        </RadzenText>
+                                    </LabelContent>
+                                    <ChildContent>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(2)">
+                                            Настройка администратора и переход в систему.
+                                        </RadzenText>
+                                    </ChildContent>
+                                </RadzenTimelineItem>
+                            </Items>
+                        </RadzenTimeline>
+
+                        <RadzenProgressBar Mode="ProgressBarMode.Indeterminate"
+                                           ShowValue="false"
+                                           Style="width: 100%;" />
+                    </RadzenStack>
+                }
+            }
+        }
+        else
+        {
+            <AuthorizeView>
+                <NotAuthorized>
+                    <!-- Тенант-домен, не авторизован: форма входа -->
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
                             Вход в <strong>@TenantProvider.Subdomain</strong>
-                        </MudText>
+                        </RadzenText>
+                    </div>
 
-                        <MudDivider Class="mb-5" />
+                    @if (Error == "invalid")
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                            Неверный email или пароль
+                        </RadzenAlert>
+                    }
+                    else if (Error == "inactive")
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                            Аккаунт деактивирован
+                        </RadzenAlert>
+                    }
+                    else if (Error == "error")
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                            Произошла ошибка при входе
+                        </RadzenAlert>
+                    }
 
-                        @if (Error == "invalid")
-                        {
-                            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">Неверный email или пароль</MudAlert>
-                        }
-                        else if (Error == "inactive")
-                        {
-                            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">Аккаунт деактивирован</MudAlert>
-                        }
-                        else if (Error == "error")
-                        {
-                            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">Произошла ошибка при входе</MudAlert>
-                        }
+                    <form method="post" action="/account/login">
+                        <input type="hidden" name="returnUrl" value="@ReturnUrl" />
 
-                        <form method="post" action="/account/login">
-                            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+                        <RadzenStack Gap="1rem">
+                            <RadzenFormField Text="Email" Style="width: 100%;">
+                                <input name="email" type="email" required
+                                       class="rz-textbox" style="width: 100%;" />
+                            </RadzenFormField>
 
-                            <MudTextField T="string" Label="Email"
-                                          Variant="Variant.Outlined" Margin="Margin.Dense"
-                                          InputType="InputType.Email" Name="email"
-                                          Required="true" Class="mb-3" FullWidth="true" />
+                            <RadzenFormField Text="Пароль" Style="width: 100%;">
+                                <input name="password" type="password" required
+                                       class="rz-textbox" style="width: 100%;" />
+                            </RadzenFormField>
 
-                            <MudTextField T="string" Label="Пароль"
-                                          Variant="Variant.Outlined" Margin="Margin.Dense"
-                                          InputType="InputType.Password" Name="password"
-                                          Required="true" Class="mb-3" FullWidth="true" />
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center">
+                                <input type="checkbox" name="rememberMe" id="rememberMe" value="true" checked />
+                                <label for="rememberMe" style="margin-left: 0.5rem; font-size: 0.875rem;">Запомнить меня</label>
+                            </RadzenStack>
 
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
-                                <MudCheckBox T="bool" @bind-Value="@_rememberMe"
-                                             Label="Запомнить меня" Color="Color.Primary" Dense="true" />
-                                <input type="hidden" name="rememberMe" value="@_rememberMe" />
-                            </MudStack>
-
-                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled"
-                                       Color="Color.Primary" FullWidth="true">
+                            <button type="submit" class="rz-button rz-button-md rz-primary"
+                                    style="width: 100%; justify-content: center;">
                                 Войти
-                            </MudButton>
-                        </form>
-                    </MudPaper>
-                </MudItem>
-            </MudGrid>
-        </NotAuthorized>
+                            </button>
+                        </RadzenStack>
+                    </form>
+                </NotAuthorized>
 
-        <Authorized>
-            <!-- ── SUBDOMAIN + AUTH: Profile ── -->
-            <MudGrid Justify="Justify.Center" Class="mt-8">
-                <MudItem xs="12" sm="8" md="5">
-                    <MudPaper Outlined="true" Class="pa-8">
-                        <MudStack AlignItems="AlignItems.Center" Spacing="2" Class="mb-5">
-                            <MudAvatar Color="Color.Primary" Style="width:64px;height:64px;font-size:1.5rem;">
-                                @GetInitials(context.User.Identity?.Name)
-                            </MudAvatar>
-                            <MudText Typo="Typo.h6" Style="font-weight:600;">
-                                @context.User.Identity?.Name
-                            </MudText>
-                            @if (context.User.IsInRole("Admin"))
-                            {
-                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined">Admin</MudChip>
-                            }
-                            else
-                            {
-                                <MudChip T="string" Color="Color.Default" Size="Size.Small" Variant="Variant.Outlined">User</MudChip>
-                            }
-                        </MudStack>
+                <Authorized>
+                    <!-- Тенант-домен, авторизован: профиль -->
+                    <div style="text-align: center; margin-bottom: 1.5rem;">
+                        <div style="width: 64px; height: 64px; border-radius: 50%;
+                                    background: var(--rz-primary); color: white;
+                                    display: flex; align-items: center; justify-content: center;
+                                    font-size: 1.4rem; font-weight: 600; margin: 0 auto 1rem;">
+                            @GetInitials(context.User.Identity?.Name)
+                        </div>
+                        <RadzenText TextStyle="TextStyle.H6" Style="font-weight: 600; margin-bottom: 0.25rem;">
+                            @context.User.Identity?.Name
+                        </RadzenText>
+                        <RadzenBadge Text="@(context.User.IsInRole("Admin") ? "Admin" : "User")"
+                                     BadgeStyle="@(context.User.IsInRole("Admin") ? BadgeStyle.Primary : BadgeStyle.Light)" />
+                    </div>
 
-                        <MudDivider Class="mb-4" />
+                    @if (_tenant != null)
+                    {
+                        <RadzenStack Gap="0.5rem" Style="margin-bottom: 1.5rem;">
+                            <RadzenStack Orientation="Orientation.Horizontal"
+                                         JustifyContent="JustifyContent.SpaceBetween">
+                                <RadzenText TextStyle="TextStyle.Body2"
+                                            Style="color: var(--rz-text-secondary-color);">Компания</RadzenText>
+                                <RadzenText TextStyle="TextStyle.Body2">@_tenant.Name</RadzenText>
+                            </RadzenStack>
+                            <hr style="margin: 0.25rem 0;" />
+                            <RadzenStack Orientation="Orientation.Horizontal"
+                                         JustifyContent="JustifyContent.SpaceBetween">
+                                <RadzenText TextStyle="TextStyle.Body2"
+                                            Style="color: var(--rz-text-secondary-color);">Субдомен</RadzenText>
+                                <RadzenText TextStyle="TextStyle.Body2">@TenantProvider.Subdomain</RadzenText>
+                            </RadzenStack>
+                        </RadzenStack>
+                    }
 
-                        @if (_tenant != null)
-                        {
-                            <MudList T="string" Dense="true" DisablePadding="true">
-                                <MudListItem T="string" DisableRipple="true">
-                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Компания</MudText>
-                                        <MudText Typo="Typo.body2">@_tenant.Name</MudText>
-                                    </MudStack>
-                                </MudListItem>
-                                <MudDivider />
-                                <MudListItem T="string" DisableRipple="true">
-                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Субдомен</MudText>
-                                        <MudText Typo="Typo.body2">@TenantProvider.Subdomain</MudText>
-                                    </MudStack>
-                                </MudListItem>
-                                <MudDivider />
-                                <MudListItem T="string" DisableRipple="true">
-                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Тариф</MudText>
-                                        <MudStack Row="true" Spacing="1">
-                                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">@_tenant.Tariff</MudChip>
-                                            @if (_tenant.IsTrialExpired())
-                                            {
-                                                <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">Истёк</MudChip>
-                                            }
-                                        </MudStack>
-                                    </MudStack>
-                                </MudListItem>
-                                @if (_tenant.TrialExpiresAtUtc.HasValue)
-                                {
-                                    <MudDivider />
-                                    <MudListItem T="string" DisableRipple="true">
-                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                            <MudText Typo="Typo.body2" Color="Color.Secondary">Триал до</MudText>
-                                            <MudText Typo="Typo.body2">@_tenant.TrialExpiresAtUtc.Value.ToString("dd.MM.yyyy")</MudText>
-                                        </MudStack>
-                                    </MudListItem>
-                                }
-                                <MudDivider />
-                                <MudListItem T="string" DisableRipple="true">
-                                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                        <MudText Typo="Typo.body2" Color="Color.Secondary">Создан</MudText>
-                                        <MudText Typo="Typo.body2">@_tenant.CreatedAtUtc.ToString("dd.MM.yyyy")</MudText>
-                                    </MudStack>
-                                </MudListItem>
-                            </MudList>
-                        }
+                    @if (context.User.IsInRole("Admin") && !_hasMarketplaceClients)
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Info"
+                                     ShowIcon="true"
+                                     AllowClose="false"
+                                     Style="margin-bottom: 1.5rem; text-align: left;">
+                            <RadzenStack Gap="0.5rem">
+                                <RadzenText TextStyle="TextStyle.Body2">
+                                    В этом рабочем пространстве ещё нет ни одного клиента маркетплейса.
+                                </RadzenText>
+                                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                                    Добавьте, например, клиента Ozon на странице
+                                    <strong>«Клиенты маркетплейсов»</strong>, чтобы начать работу с заказами.
+                                </RadzenText>
+                                <RadzenButton Text="Перейти к клиентам маркетплейсов"
+                                              Icon="store"
+                                              ButtonStyle="ButtonStyle.Primary"
+                                              Size="ButtonSize.Small"
+                                              Click="@(() => Navigation.NavigateTo("/marketplace-clients"))" />
+                            </RadzenStack>
+                        </RadzenAlert>
+                    }
 
-                        <MudDivider Class="my-4" />
+                    <hr style="margin-bottom: 1.5rem;" />
 
-                        <MudButton Href="/account/logout" Variant="Variant.Outlined"
-                                   Color="Color.Error" FullWidth="true"
-                                   StartIcon="@Icons.Material.Outlined.Logout">
-                            Выйти
-                        </MudButton>
-                    </MudPaper>
-                </MudItem>
-            </MudGrid>
-        </Authorized>
-    </AuthorizeView>
-}
+                    <RadzenButton Text="Выйти" Icon="logout" ButtonStyle="ButtonStyle.Danger"
+                                  Style="width: 100%; justify-content: center;"
+                                  Click="@(() => Navigation.NavigateTo("/account/logout", forceLoad: true))" />
+                </Authorized>
+            </AuthorizeView>
+        }
 
-@inject Microsoft.Extensions.Options.IOptions<StudioB2B.Infrastructure.MultiTenancy.MultiTenancyOptions> MultiTenancyOptions
+    </div>
+</div>
 
 @code {
     private Domain.Entities.Tenants.Tenant? _tenant;
-    private bool _rememberMe = true;
+    private bool _initializing = true;
+    private bool _hasMarketplaceClients;
+    private int _regStep;
+    private bool _showRegTimeline;
 
     [SupplyParameterFromQuery] public string? Error { get; set; }
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
@@ -237,43 +296,61 @@ else
     private bool _registerSuccess;
 
     private string DomainAdornment =>
-        "." + (MultiTenancyOptions.Value.MasterDomain?.Trim().TrimEnd('/') ?? "localhost");
+        MultiTenancyOptions.Value.MasterDomain?.Trim().TrimEnd('/') ?? "localhost";
 
     protected override async Task OnInitializedAsync()
     {
         if (TenantProvider.IsResolved && TenantProvider.TenantId.HasValue)
+        {
             _tenant = await TenantService.GetByIdAsync(TenantProvider.TenantId.Value);
+
+            // Проверяем, есть ли хоть один клиент маркетплейса у текущего тенанта
+            await using var db = Factory.CreateDbContext();
+            _hasMarketplaceClients = await db.MarketplaceClients!
+                .AsNoTracking()
+                .AnyAsync();
+        }
+
+        _initializing = false;
     }
 
     private async Task HandleRegister()
     {
+        if (_regLoading)
+            return;
+
+        if (_reg.Password != _reg.ConfirmPassword)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Пароли не совпадают");
+            return;
+        }
+
         _regLoading = true;
+        _showRegTimeline = true;
+        _regStep = 0;
+
+        _ = RunRegTimelineAsync();
+
         try
         {
-            if (_reg.Password != _reg.ConfirmPassword)
-            {
-                Snackbar.Add("Пароли не совпадают", Severity.Error);
-                return;
-            }
-
             var result = await TenantService.RegisterAsync(_reg.CompanyName, _reg.Subdomain, _reg.AdminEmail, _reg.Password);
 
             if (result.Success)
             {
                 _registerSuccess = true;
-                Snackbar.Add("Компания успешно зарегистрирована!", Severity.Success);
                 await Task.Delay(1500);
+
                 var uri = new Uri(Navigation.Uri);
                 var port = uri.Port is 80 or 443 ? "" : $":{uri.Port}";
-
                 var masterDomain = MultiTenancyOptions.Value.MasterDomain?.ToLowerInvariant() ?? "localhost";
+
                 string redirectHost;
                 string scheme;
 
                 if (masterDomain.Contains("localhost"))
                 {
                     redirectHost = $"{_reg.Subdomain}.localhost";
-                    scheme = uri.Scheme; 
+                    scheme = uri.Scheme;
                 }
                 else
                 {
@@ -281,22 +358,59 @@ else
                     scheme = "https";
                 }
 
-                Navigation.NavigateTo($"{scheme}://{redirectHost}{port}/", true);
+                Navigation.NavigateTo($"{scheme}://{redirectHost}{port}/", forceLoad: true);
             }
             else
             {
-                Snackbar.Add(result.Error ?? "Ошибка регистрации", Severity.Error);
+                _showRegTimeline = false;
+                NotificationService.Notify(NotificationSeverity.Error, "Ошибка регистрации", result.Error ?? "Неизвестная ошибка");
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
+            _showRegTimeline = false;
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
         }
         finally
         {
             _regLoading = false;
         }
     }
+
+    private async Task RunRegTimelineAsync()
+    {
+        _regStep = 0;
+        StateHasChanged();
+
+        await Task.Delay(800);
+        if (!_showRegTimeline) return;
+
+        _regStep = 1;
+        StateHasChanged();
+
+        await Task.Delay(1200);
+        if (!_showRegTimeline) return;
+
+        _regStep = 2;
+        StateHasChanged();
+    }
+
+    private PointStyle RegStepStyle(int step) => step switch
+    {
+        _ when step < _regStep  => PointStyle.Success,
+        _ when step == _regStep => PointStyle.Primary,
+        _                       => PointStyle.Secondary
+    };
+
+    private string RegStepLabelStyle(int step) => step == _regStep
+        ? "color: var(--rz-primary); font-weight: 700;"
+        : step < _regStep
+            ? "color: var(--rz-success);"
+            : "color: var(--rz-text-disabled-color);";
+
+    private string RegStepDescStyle(int step) => step <= _regStep
+        ? string.Empty
+        : "color: var(--rz-text-disabled-color);";
 
     private static string GetInitials(string? name)
     {
@@ -305,7 +419,7 @@ else
         return local.Length >= 2 ? local[..2].ToUpper() : local.ToUpper();
     }
 
-    public class RegisterModel
+    private class RegisterModel
     {
         [Required(ErrorMessage = "Введите название компании")]
         [StringLength(100, MinimumLength = 2, ErrorMessage = "От 2 до 100 символов")]

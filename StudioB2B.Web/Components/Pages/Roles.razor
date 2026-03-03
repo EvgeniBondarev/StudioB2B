@@ -1,142 +1,278 @@
 @page "/roles"
-@inject GetRoles GetRoles
-@inject CreateRole CreateRole
-@inject UpdateRole UpdateRole
-@inject DeleteRole DeleteRole
-@inject ISnackbar Snackbar
-@inject IDialogService DialogService
+@using Microsoft.EntityFrameworkCore
+@using StudioB2B.Domain.Entities.Tenants
+@using StudioB2B.Infrastructure.Persistence.Master
+
+@inject MasterDbContext Db
+@inject NotificationService NotificationService
+@inject ContextMenuService ContextMenuService
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Роли — StudioB2B</PageTitle>
 
 <MasterOnlyGuard>
-    <MudText Typo="Typo.h5" GutterBottom="true" Style="font-weight:700;">Роли</MudText>
-    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-5">
+
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                 JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 0.5rem;">
+        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Роли</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+            <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                          Click="@ToggleDensity" Title="@GetDensityTitle()" />
+            <RadzenButton Icon="add" Text="Создать роль" ButtonStyle="ButtonStyle.Primary" Click="@InsertRow" />
+        </RadzenStack>
+    </RadzenStack>
+
+    <RadzenText TextStyle="TextStyle.Body2"
+                Style="color: var(--rz-text-secondary-color); margin-bottom: 1.5rem; display: block;">
         Роли хранятся в мастер-базе и автоматически копируются в базы всех тенантов.
-    </MudText>
+    </RadzenText>
 
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Add"
-               OnClick="OpenCreateDialog" Class="mb-4">
-        Создать роль
-    </MudButton>
+    <RadzenDataGrid @ref="_grid"
+                    TItem="MasterRole"
+                    Data="@_pageItems"
+                    Count="@_totalCount"
+                    LoadData="@LoadData"
+                    Density="@_density"
+                    Settings="@_gridSettings"
+                    SettingsChanged="@OnGridSettingsChanged"
+                    AllowFiltering="true"
+                    AllowColumnResize="true"
+                    AllowAlternatingRows="false"
+                    FilterMode="FilterMode.Advanced"
+                    LogicalFilterOperator="LogicalFilterOperator.Or"
+                    AllowSorting="true"
+                    AllowPaging="true"
+                    PageSize="15"
+                    PageSizeOptions="@_pageSizeOptions"
+                    ShowPagingSummary="true"
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    EditMode="DataGridEditMode.Single"
+                    RowCreate="@OnCreate"
+                    RowUpdate="@OnUpdate"
+                    CellContextMenu="@ShowContextMenu"
+                    IsLoading="@_loading"
+                    FilterText="@RadzenRuStrings.FilterText"
+                    ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
+                    ClearFilterText="@RadzenRuStrings.ClearFilterText"
+                    ContainsText="@RadzenRuStrings.ContainsText"
+                    DoesNotContainText="@RadzenRuStrings.DoesNotContainText"
+                    EqualsText="@RadzenRuStrings.EqualsText"
+                    NotEqualsText="@RadzenRuStrings.NotEqualsText"
+                    StartsWithText="@RadzenRuStrings.StartsWithText"
+                    EndsWithText="@RadzenRuStrings.EndsWithText"
+                    GreaterThanText="@RadzenRuStrings.GreaterThanText"
+                    GreaterThanOrEqualsText="@RadzenRuStrings.GreaterThanOrEqualsText"
+                    LessThanText="@RadzenRuStrings.LessThanText"
+                    LessThanOrEqualsText="@RadzenRuStrings.LessThanOrEqualsText"
+                    IsNullText="@RadzenRuStrings.IsNullText"
+                    IsNotNullText="@RadzenRuStrings.IsNotNullText"
+                    AndOperatorText="@RadzenRuStrings.AndOperatorText"
+                    OrOperatorText="@RadzenRuStrings.OrOperatorText"
+                    PageSizeText="@RadzenRuStrings.PageSizeText"
+                    PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                    EmptyText="@RadzenRuStrings.EmptyText">
+        <Columns>
 
-    @if (_loading)
-    {
-        <MudProgressLinear Indeterminate="true" Class="mb-4" />
-    }
+            <RadzenDataGridColumn TItem="MasterRole" Property="Name" Title="Название" Width="220px">
+                <EditTemplate Context="r">
+                    <RadzenTextBox @bind-Value="r.Name" Style="width: 100%;" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
 
-    <MudPaper Outlined="true">
-        <MudTable Items="@_roles" Hover="true" Dense="true" Loading="@_loading"
-                  LoadingProgressColor="Color.Primary" Elevation="0">
-            <HeaderContent>
-                <MudTh>Название</MudTh>
-                <MudTh>Описание</MudTh>
-                <MudTh>Системная</MudTh>
-                <MudTh>Создана</MudTh>
-                <MudTh Style="width:120px"></MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Название">
-                    <MudText Style="font-weight:500;">@context.Name</MudText>
-                </MudTd>
-                <MudTd DataLabel="Описание">
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">@(context.Description ?? "—")</MudText>
-                </MudTd>
-                <MudTd DataLabel="Системная">
-                    @if (context.IsSystemRole)
-                    {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">Системная</MudChip>
-                    }
-                </MudTd>
-                <MudTd DataLabel="Создана">
-                    <MudText Typo="Typo.body2">@context.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy")</MudText>
-                </MudTd>
-                <MudTd>
-                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small"
-                                   OnClick="@(() => OpenEditDialog(context))" />
-                    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
-                                   OnClick="@(() => ConfirmDelete(context))" />
-                </MudTd>
-            </RowTemplate>
-            <NoRecordsContent>
-                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4">Ролей пока нет</MudText>
-            </NoRecordsContent>
-        </MudTable>
-    </MudPaper>
+            <RadzenDataGridColumn TItem="MasterRole" Property="Description" Title="Описание" Width="300px">
+                <EditTemplate Context="r">
+                    <RadzenTextBox @bind-Value="r.Description" Style="width: 100%;" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="MasterRole" Property="IsSystemRole" Title="Системная" Width="140px"
+                                  TextAlign="TextAlign.Center">
+                <Template Context="r">
+                    <RadzenCheckBox TValue="bool" Value="@r.IsSystemRole" Disabled="true" />
+                </Template>
+                <EditTemplate Context="r">
+                    <RadzenCheckBox @bind-Value="r.IsSystemRole" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="MasterRole" Property="CreatedAtUtc" Title="Создана"
+                                  FormatString="{0:dd.MM.yyyy}" Width="160px" Filterable="false" />
+
+            <!-- Кнопки сохранения/отмены — только в режиме редактирования строки -->
+            <RadzenDataGridColumn TItem="MasterRole" Filterable="false" Sortable="false"
+                                  Width="110px" TextAlign="TextAlign.Center" Title="">
+                <Template Context="r">
+                </Template>
+                <EditTemplate Context="r">
+                    <RadzenButton Icon="check" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall"
+                                  Click="@(() => SaveRow(r))" Style="margin-right: 4px;" />
+                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                  Click="@(() => CancelRow(r))" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+        </Columns>
+    </RadzenDataGrid>
+
 </MasterOnlyGuard>
 
 @code {
-    private List<RoleDto> _roles = [];
-    private bool _loading = true;
+    private RadzenDataGrid<MasterRole>? _grid;
+    private IEnumerable<MasterRole> _pageItems = Array.Empty<MasterRole>();
+    private int _totalCount;
+    private Density _density = Density.Default;
+    private bool _loading;
+    private readonly int[] _pageSizeOptions = new[] { 10, 25, 50, 100 };
 
-    protected override async Task OnInitializedAsync()
+    private DataGridSettings? _gridSettings;
+    private const string GridSettingsKey = "roles-grid-settings";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadRolesAsync();
+        if (firstRender)
+        {
+            await LoadGridSettingsAsync();
+            if (_grid != null && _gridSettings == null)
+                await _grid.Reload();
+        }
     }
 
-    private async Task LoadRolesAsync()
+    private async Task LoadGridSettingsAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private void OnGridSettingsChanged(DataGridSettings settings)
+    {
+        _gridSettings = settings;
+        _ = SaveGridSettingsAsync();
+    }
+
+    private async Task SaveGridSettingsAsync()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+        }
+        catch { }
+    }
+
+    private async Task LoadData(LoadDataArgs args)
     {
         _loading = true;
-        _roles = await GetRoles.HandleAsync();
+        var query = Db.Roles.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrEmpty(args.Filter))
+            query = query.Where(args.Filter);
+
+        query = !string.IsNullOrEmpty(args.OrderBy)
+            ? query.OrderBy(args.OrderBy)
+            : query.OrderBy(r => r.Name);
+
+        _totalCount = await query.CountAsync();
+
+        var skip = args.Skip ?? 0;
+        var take = (args.Top is > 0) ? args.Top.Value : (_grid?.PageSize ?? 15);
+
+        _pageItems = await query.Skip(skip).Take(take).ToListAsync();
         _loading = false;
     }
 
-    // ── Create ────────────────────────────────────────────────────────────────
-
-    private async Task OpenCreateDialog()
+    private async Task InsertRow()
     {
-        var parameters = new DialogParameters<RoleFormDialog>
+        var role = new MasterRole
         {
-            { x => x.Title, "Создать роль" },
-            { x => x.Model, new RoleFormModel() }
+            Id = Guid.NewGuid(),
+            ConcurrencyStamp = Guid.NewGuid().ToString(),
+            CreatedAtUtc = DateTime.UtcNow
         };
-
-        var dialog = await DialogService.ShowAsync<RoleFormDialog>("Создать роль", parameters);
-        var result = await dialog.Result;
-
-        if (result is { Canceled: false, Data: RoleFormModel model })
-        {
-            await CreateRole.HandleAsync(new CreateRoleRequest(model.Name, model.Description, model.IsSystemRole));
-            Snackbar.Add("Роль создана", Severity.Success);
-            await LoadRolesAsync();
-        }
+        await _grid!.InsertRow(role);
     }
 
-    // ── Edit ──────────────────────────────────────────────────────────────────
+    private async Task EditRow(MasterRole role) => await _grid!.EditRow(role);
 
-    private async Task OpenEditDialog(RoleDto role)
+    private async Task SaveRow(MasterRole role) => await _grid!.UpdateRow(role);
+
+    private void CancelRow(MasterRole role) => _grid!.CancelEditRow(role);
+
+    private async Task OnCreate(MasterRole role)
     {
-        var parameters = new DialogParameters<RoleFormDialog>
+        try
         {
-            { x => x.Title, "Редактировать роль" },
-            { x => x.Model, new RoleFormModel { Name = role.Name, Description = role.Description, IsSystemRole = role.IsSystemRole } }
-        };
-
-        var dialog = await DialogService.ShowAsync<RoleFormDialog>("Редактировать роль", parameters);
-        var result = await dialog.Result;
-
-        if (result is { Canceled: false, Data: RoleFormModel model })
+            role.NormalizedName = role.Name.ToUpperInvariant();
+            Db.Roles.Add(role);
+            await Db.SaveChangesAsync();
+            NotificationService.Notify(NotificationSeverity.Success, "Роль создана");
+        }
+        catch (Exception ex)
         {
-            await UpdateRole.HandleAsync(role.Id, new UpdateRoleRequest(model.Name, model.Description, model.IsSystemRole));
-            Snackbar.Add("Роль обновлена", Severity.Success);
-            await LoadRolesAsync();
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
+            _grid!.CancelEditRow(role);
         }
     }
 
-    // ── Delete ────────────────────────────────────────────────────────────────
-
-    private async Task ConfirmDelete(RoleDto role)
+    private async Task OnUpdate(MasterRole role)
     {
-        var result = await DialogService.ShowMessageBox(
-            "Удаление роли",
-            $"Удалить роль «{role.Name}»? Она будет удалена из всех тенантов.",
-            yesText: "Удалить", cancelText: "Отмена");
-
-        if (result == true)
+        try
         {
-            await DeleteRole.HandleAsync(role.Id);
-            Snackbar.Add("Роль удалена", Severity.Success);
-            await LoadRolesAsync();
+            role.NormalizedName = role.Name.ToUpperInvariant();
+            await Db.SaveChangesAsync();
+            NotificationService.Notify(NotificationSeverity.Success, "Роль обновлена");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
         }
     }
+
+    private async Task DeleteRow(MasterRole role)
+    {
+        try
+        {
+            Db.Roles.Remove(role);
+            await Db.SaveChangesAsync();
+            await _grid!.Reload();
+            NotificationService.Notify(NotificationSeverity.Success, "Роль удалена");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
+        }
+    }
+
+    private void ShowContextMenu(DataGridCellMouseEventArgs<MasterRole> args)
+    {
+        ContextMenuService.Open(args,
+            [
+                new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" },
+                new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" }
+            ],
+            e =>
+            {
+                ContextMenuService.Close();
+                if (e.Value?.ToString() == "edit")
+                    InvokeAsync(() => EditRow(args.Data));
+                else if (e.Value?.ToString() == "delete")
+                    InvokeAsync(() => DeleteRow(args.Data));
+            });
+    }
+
+    private void ToggleDensity() =>
+        _density = _density == Density.Compact ? Density.Default : Density.Compact;
+
+    private string GetDensityTitle() => _density switch
+    {
+        Density.Compact => "Компактный режим строк",
+        _ => "Обычный режим строк"
+    };
 }
-

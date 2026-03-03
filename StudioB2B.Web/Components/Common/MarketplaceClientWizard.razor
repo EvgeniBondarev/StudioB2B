@@ -1,0 +1,362 @@
+@using Microsoft.EntityFrameworkCore
+@using Radzen
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Domain.Entities.Marketplace
+@using StudioB2B.Infrastructure.Features.Marketplace
+@using StudioB2B.Infrastructure.Integrations.Ozon
+@using StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
+@using StudioB2B.Shared.DTOs
+@using StudioB2B.Web.Helpers
+
+@inject ITenantDbContextFactory Factory
+@inject IOzonApiClient OzonApiClient
+@inject IKeyEncryptionService Encryption
+@inject AutoMapper.IMapper Mapper
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+<div style="padding: 0.5rem 0;">
+    <RadzenTimeline>
+        <Items>
+            <RadzenTimelineItem PointStyle="@StepStyle(0)" PointSize="PointSize.Medium">
+                <LabelContent>
+                    <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                Style="@StepLabelStyle(0)">Тип клиента</RadzenText>
+                </LabelContent>
+                <ChildContent>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="@StepDescStyle(0)">
+                        Выберите тип подключаемого маркетплейса. Сейчас поддерживается Ozon.
+                    </RadzenText>
+                </ChildContent>
+            </RadzenTimelineItem>
+
+            <RadzenTimelineItem PointStyle="@StepStyle(1)" PointSize="PointSize.Medium">
+                <LabelContent>
+                    <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                Style="@StepLabelStyle(1)">Режим работы</RadzenText>
+                </LabelContent>
+                <ChildContent>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="@StepDescStyle(1)">
+                        Укажите режим клиента — боевой, тестовый или иной.
+                    </RadzenText>
+                </ChildContent>
+            </RadzenTimelineItem>
+
+            <RadzenTimelineItem PointStyle="@StepStyle(2)" PointSize="PointSize.Medium">
+                <LabelContent>
+                    <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                Style="@StepLabelStyle(2)">Доступ к API</RadzenText>
+                </LabelContent>
+                <ChildContent>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="@StepDescStyle(2)">
+                        Введите API&nbsp;ID&nbsp;(Client-Id) и API‑ключ. Данные будут зашифрованы.
+                    </RadzenText>
+                </ChildContent>
+            </RadzenTimelineItem>
+
+            <RadzenTimelineItem PointStyle="@StepStyle(3)" PointSize="PointSize.Medium">
+                <LabelContent>
+                    <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                Style="@StepLabelStyle(3)">Подтверждение</RadzenText>
+                </LabelContent>
+                <ChildContent>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="@StepDescStyle(3)">
+                        Проверьте данные кабинета продавца и подтвердите создание клиента.
+                    </RadzenText>
+                </ChildContent>
+            </RadzenTimelineItem>
+        </Items>
+    </RadzenTimeline>
+</div>
+
+<hr style="margin: 0.5rem 0; border-color: var(--rz-border-color);" />
+
+@if (_step == 0)
+{
+    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+        <RadzenFormField Text="Тип клиента" Style="width:100%;">
+            <RadzenDropDown Data="@_ozonTypes.DefaultIfEmpty()"
+                            TextProperty="@nameof(MarketplaceClientType.Name)"
+                            ValueProperty="@nameof(MarketplaceClientType.Id)"
+                            @bind-Value="_model.ClientTypeId"
+                            Style="width:100%;" />
+        </RadzenFormField>
+
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            <RadzenButton Text="Далее"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Disabled="@(!_model.ClientTypeId.HasValue)"
+                          Click="@(() => _step = 1)" />
+            <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Light"
+                          Click="@Cancel" />
+        </RadzenStack>
+    </RadzenStack>
+}
+else if (_step == 1)
+{
+    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+        <RadzenFormField Text="Режим клиента" Style="width:100%;">
+            <RadzenDropDown Data="@_modes"
+                            TextProperty="@nameof(MarketplaceClientMode.Name)"
+                            ValueProperty="@nameof(MarketplaceClientMode.Id)"
+                            @bind-Value="_model.ModeId"
+                            Style="width:100%;" />
+        </RadzenFormField>
+
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            <RadzenButton Text="Назад" ButtonStyle="ButtonStyle.Light"
+                          Click="@(() => _step = 0)" />
+            <RadzenButton Text="Далее"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Disabled="@(!_model.ModeId.HasValue)"
+                          Click="@(() => _step = 2)" />
+        </RadzenStack>
+    </RadzenStack>
+}
+else if (_step == 2)
+{
+    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+        <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false">
+            Введите API&nbsp;ID и API‑ключ Ozon. Ключ будет сохранён в зашифрованном виде.
+        </RadzenAlert>
+
+        <RadzenRow Gap="1rem">
+            <RadzenColumn Size="12" SizeMD="6">
+                <RadzenFormField Text="API ID (Client-Id)" Style="width:100%;">
+                    <RadzenTextBox @bind-Value="_model.ApiId" Style="width:100%;" />
+                </RadzenFormField>
+            </RadzenColumn>
+            <RadzenColumn Size="12" SizeMD="6">
+                <RadzenFormField Text="API ключ (Api-Key)" Style="width:100%;">
+                    <RadzenPassword @bind-Value="_model.Key" Style="width:100%;" />
+                </RadzenFormField>
+            </RadzenColumn>
+        </RadzenRow>
+
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            <RadzenButton Text="Назад" ButtonStyle="ButtonStyle.Light"
+                          Click="@(() => _step = 1)" />
+            <RadzenButton Text="Загрузить данные из Ozon"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Icon="cloud_download"
+                          IsBusy="@_busy"
+                          Click="@LoadFromOzonAsync" />
+        </RadzenStack>
+    </RadzenStack>
+}
+else if (_step == 3)
+{
+    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+        @if (_sellerInfo?.Company is not null)
+        {
+            var c = _sellerInfo.Company;
+            <div class="rz-p-4 rz-border-radius-1" style="border: 1px solid var(--rz-border-color);">
+                <RadzenText TextStyle="TextStyle.H6" Style="margin-bottom: 0.5rem;">
+                    @(c.Name ?? c.LegalName)
+                </RadzenText>
+                <RadzenRow Gap="0.5rem">
+                    <RadzenColumn Size="12" SizeMD="6">
+                        <RadzenText TextStyle="TextStyle.Body2"><b>Юр. лицо:</b> @c.LegalName</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2"><b>ИНН:</b> @c.Inn</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2"><b>ОГРН:</b> @c.Ogrn</RadzenText>
+                    </RadzenColumn>
+                    <RadzenColumn Size="12" SizeMD="6">
+                        <RadzenText TextStyle="TextStyle.Body2"><b>Страна:</b> @c.Country</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2"><b>Валюта:</b> @c.Currency</RadzenText>
+                        <RadzenText TextStyle="TextStyle.Body2"><b>Форма собственности:</b> @c.OwnershipForm</RadzenText>
+                    </RadzenColumn>
+                </RadzenRow>
+            </div>
+        }
+
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            <RadzenButton Text="Назад" ButtonStyle="ButtonStyle.Light"
+                          Click="@(() => _step = 2)" />
+            <RadzenButton Text="Создать клиента"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Icon="check"
+                          IsBusy="@_busy"
+                          Click="@CreateClientAsync" />
+            <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Light"
+                          Click="@Cancel" />
+        </RadzenStack>
+    </RadzenStack>
+}
+
+@code {
+    private TenantDbContext? _db;
+    private List<MarketplaceClientType> _types = [];
+    private List<MarketplaceClientType> _ozonTypes = [];
+    private List<MarketplaceClientMode> _modes = [];
+
+    private int _step;
+    private bool _busy;
+    private NewClientModel _model = new();
+    private OzonSellerInfoResponse? _sellerInfo;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _db = Factory.CreateDbContext();
+
+        _types = await _db.MarketplaceClientTypes!
+            .AsNoTracking()
+            .OrderBy(t => t.Name)
+            .ToListAsync();
+
+        _ozonTypes = _types
+            .Where(t => t.Name.Equals("Ozon", StringComparison.OrdinalIgnoreCase) ||
+                        t.Name.Equals("OZON", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        _modes = await _db.MarketplaceClientModes!
+            .AsNoTracking()
+            .OrderBy(m => m.Name)
+            .ToListAsync();
+
+        _model.ClientTypeId = _ozonTypes.Count > 0
+            ? _ozonTypes[0].Id
+            : _types.FirstOrDefault()?.Id;
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Timeline helpers
+    // ──────────────────────────────────────────────────────────────────
+
+    private PointStyle StepStyle(int step) => step switch
+    {
+        _ when step < _step  => PointStyle.Success,
+        _ when step == _step => PointStyle.Primary,
+        _                    => PointStyle.Secondary
+    };
+
+    private string StepLabelStyle(int step) => step == _step
+        ? "color: var(--rz-primary); font-weight: 700;"
+        : step < _step
+            ? "color: var(--rz-success);"
+            : "color: var(--rz-text-disabled-color);";
+
+    private string StepDescStyle(int step) => step <= _step
+        ? string.Empty
+        : "color: var(--rz-text-disabled-color);";
+
+    // ──────────────────────────────────────────────────────────────────
+    // Actions
+    // ──────────────────────────────────────────────────────────────────
+
+    private void Cancel() => DialogService.Close(false);
+
+    private async Task LoadFromOzonAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_model.ApiId) || string.IsNullOrWhiteSpace(_model.Key))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning,
+                "Заполните поля", "Укажите API ID и API ключ.");
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var result = await OzonApiClient.GetSellerInfoAsync(_model.ApiId, _model.Key);
+            if (!result.IsSuccess || result.Data is null)
+            {
+                NotificationService.Notify(NotificationSeverity.Error,
+                    "Ошибка Ozon API",
+                    result.ErrorMessage ?? "Не удалось получить данные кабинета продавца.");
+                return;
+            }
+
+            _sellerInfo = result.Data;
+            _step = 3;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error,
+                "Ошибка при обращении к Ozon", ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task CreateClientAsync()
+    {
+        if (_db is null || _sellerInfo?.Company is null)
+        {
+            NotificationService.Notify(NotificationSeverity.Error,
+                "Нет данных", "Данные компании не загружены.");
+            return;
+        }
+
+        if (_model.ClientTypeId is null || _model.ModeId is null)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning,
+                "Не заполнены параметры", "Выберите тип и режим клиента.");
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var exists = await _db.MarketplaceClients!
+                .AsNoTracking()
+                .AnyAsync(c => c.ApiId == _model.ApiId);
+
+            if (exists)
+            {
+                NotificationService.Notify(NotificationSeverity.Warning,
+                    "Клиент уже существует",
+                    "Клиент с таким API ID уже добавлен.");
+                return;
+            }
+
+            var c = _sellerInfo.Company;
+
+            var request = new CreateMarketplaceClientRequest(
+                Name: c.Name ?? c.LegalName ?? "Ozon клиент",
+                ApiId: _model.ApiId,
+                Key: Encryption.Encrypt(_model.Key),   // store encrypted
+                ClientTypeId: _model.ClientTypeId,
+                ModeId: _model.ModeId,
+                Settings: null,
+                Settings1C: null,
+                Company: c.LegalName ?? c.Name,
+                Country: c.Country,
+                Currency: c.Currency,
+                INN: c.Inn,
+                LegalName: c.LegalName,
+                OzonName: c.Name,
+                OGRN: c.Ogrn,
+                OwnershipForm: c.OwnershipForm
+            );
+
+            await _db.CreateAsync(request, Mapper);
+
+            NotificationService.Notify(NotificationSeverity.Success,
+                "Клиент создан",
+                $"Ozon · {c.Name ?? c.LegalName ?? _model.ApiId} успешно добавлен.");
+
+            DialogService.Close(true);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error,
+                "Ошибка при сохранении", ex.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private sealed class NewClientModel
+    {
+        public Guid? ClientTypeId { get; set; }
+        public Guid? ModeId { get; set; }
+        public string ApiId { get; set; } = string.Empty;
+        public string Key { get; set; } = string.Empty;
+    }
+}

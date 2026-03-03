@@ -1,0 +1,678 @@
+@page "/orders"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.EntityFrameworkCore
+@using Radzen
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Domain.Entities.Marketplace
+@using StudioB2B.Domain.Entities.Warehouses
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
+@using StudioB2B.Infrastructure.Features.Orders
+@using StudioB2B.Infrastructure.Services
+@using StudioB2B.Web.Components.Common
+
+@inject ITenantProvider TenantProvider
+@inject ITenantDbContextFactory Factory
+@inject DialogService DialogService
+@inject IJSRuntime JSRuntime
+
+@implements IDisposable
+
+<PageTitle>Заказы</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+{
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                 JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
+        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Заказы</RadzenText>
+        <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                      Click="@ToggleDensity" Title="@GetDensityTitle()" />
+    </RadzenStack>
+
+    <RadzenDataGrid @ref="_grid"
+                    TItem="Order"
+                    Data="@_pageItems"
+                    Count="@_totalCount"
+                    LoadData="@LoadData"
+                    Settings="@_gridSettings"
+                    SettingsChanged="@OnGridSettingsChanged"
+                    Density="@_density"
+                    AllowFiltering="true"
+                    AllowColumnResize="true"
+                    AllowAlternatingRows="false"
+                    FilterMode="FilterMode.Advanced"
+                    LogicalFilterOperator="LogicalFilterOperator.Or"
+                    AllowSorting="true"
+                    AllowPaging="true"
+                    PageSize="15"
+                    PageSizeOptions="@_pageSizeOptions"
+                    ShowPagingSummary="true"
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    RowClick="@OnRowClick"
+                    IsLoading="@_loading"
+                    Style="cursor: pointer;"
+                    FilterText="@RadzenRuStrings.FilterText"
+                    ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
+                    ClearFilterText="@RadzenRuStrings.ClearFilterText"
+                    ContainsText="@RadzenRuStrings.ContainsText"
+                    DoesNotContainText="@RadzenRuStrings.DoesNotContainText"
+                    EqualsText="@RadzenRuStrings.EqualsText"
+                    NotEqualsText="@RadzenRuStrings.NotEqualsText"
+                    StartsWithText="@RadzenRuStrings.StartsWithText"
+                    EndsWithText="@RadzenRuStrings.EndsWithText"
+                    GreaterThanText="@RadzenRuStrings.GreaterThanText"
+                    GreaterThanOrEqualsText="@RadzenRuStrings.GreaterThanOrEqualsText"
+                    LessThanText="@RadzenRuStrings.LessThanText"
+                    LessThanOrEqualsText="@RadzenRuStrings.LessThanOrEqualsText"
+                    IsNullText="@RadzenRuStrings.IsNullText"
+                    IsNotNullText="@RadzenRuStrings.IsNotNullText"
+                    AndOperatorText="@RadzenRuStrings.AndOperatorText"
+                    OrOperatorText="@RadzenRuStrings.OrOperatorText"
+                    PageSizeText="@RadzenRuStrings.PageSizeText"
+                    PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                    EmptyText="@RadzenRuStrings.EmptyText">
+        <Columns>
+
+            <RadzenDataGridColumn TItem="Order" Property="Shipment.PostingNumber"
+                                  Title="Номер отправления" Width="200px" Frozen="true">
+                <Template Context="o">
+                    <CopyableText Text="@(o.Shipment?.PostingNumber ?? string.Empty)"
+                                  Style="font-family: monospace; font-size: 0.8rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;"
+                                  Tooltip="Нажмите, чтобы скопировать номер отправления">
+                        @o.Shipment?.PostingNumber
+                    </CopyableText>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Order" Property="Shipment.MarketplaceClient.Name"
+                                  Title="Клиент" Width="160px" Filterable="false" Sortable="true">
+                <HeaderTemplate>
+                    <div class="rz-header-filter-cell">
+                        <span class="rz-header-filter-title">Клиент</span>
+                        <RadzenDropDown @bind-Value="_filterClientId"
+                                        Data="@_clients"
+                                        TextProperty="Name"
+                                        ValueProperty="Id"
+                                        Placeholder="Все"
+                                        AllowClear="true"
+                                        Style="width: 100%; min-width: 0;"
+                                        Change="@OnFilterChange"
+                                        Size="ButtonSize.Small" />
+                    </div>
+                </HeaderTemplate>
+                <Template Context="o">
+                    <span style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;"
+                          title="@o.Shipment?.MarketplaceClient?.Name">@o.Shipment?.MarketplaceClient?.Name</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Order" Property="Shipment.InProcessAt"
+                                  Title="Принят" Width="130px" FormatString="{0:dd.MM.yyyy}">
+                <Template Context="o">
+                    <span title="@FormatDateTooltip(o.Shipment?.InProcessAt)">@FormatDateDisplay(o.Shipment?.InProcessAt)</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Order" Property="Shipment.ShipmentDate"
+                                  Title="Срок отгрузки" Width="130px" FormatString="{0:dd.MM.yyyy}">
+                <Template Context="o">
+                    <span title="@FormatDateTooltip(o.Shipment?.ShipmentDate)">@FormatDateDisplay(o.Shipment?.ShipmentDate)</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Order" Property="ProductInfo.Product.Article"
+                                  Title="Артикул" Width="160px" Filterable="true" Sortable="true">
+                <Template Context="o">
+                    <CopyableText Text="@(o.ProductInfo?.Product?.Article ?? string.Empty)"
+                                  Style="font-family: monospace; font-size: 0.8rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;"
+                                  Tooltip="Нажмите, чтобы скопировать артикул">
+                        @o.ProductInfo?.Product?.Article
+                    </CopyableText>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Order" Property="ProductInfo.Product.Name"
+                                  Title="Товар" Width="280px" Filterable="false" Sortable="false">
+                <Template Context="o">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Style="min-width: 0;">
+                        @if (!string.IsNullOrEmpty(o.ProductInfo?.Product?.ImageUrl))
+                        {
+                            <img src="@o.ProductInfo?.Product?.ImageUrl"
+                                 style="width: 32px; height: 32px; object-fit: contain; border-radius: 4px; flex-shrink: 0;"
+                                 alt="" />
+                        }
+                        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1;"
+                              title="@o.ProductInfo?.Product?.Name">
+                            @o.ProductInfo?.Product?.Name
+                        </span>
+                    </RadzenStack>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Order" Property="Quantity"
+                                  Title="Кол-во" Width="80px" TextAlign="TextAlign.Center">
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Order" Property="Status.Name"
+                                  Title="Статус маркетплейса" Width="190px" Filterable="false" Sortable="true">
+                <HeaderTemplate>
+                    <div class="rz-header-filter-cell">
+                        <span class="rz-header-filter-title">Статус маркетплейса</span>
+                        <RadzenDropDown @bind-Value="_filterStatusId"
+                                        Data="@_marketplaceStatuses"
+                                        TextProperty="Name"
+                                        ValueProperty="Id"
+                                        Placeholder="Все"
+                                        AllowClear="true"
+                                        Style="width: 100%; min-width: 0;"
+                                        Change="@OnFilterChange"
+                                        Size="ButtonSize.Small">
+                            <Template Context="status">
+                                @if (status is OrderStatus s)
+                                {
+                                    var bg = string.IsNullOrEmpty(s.Color) ? "#e0e0e0" : s.Color;
+                                    var fg = IsLightColor(bg) ? "#1a1a1a" : "#ffffff";
+                                    <span style="display: inline-block; padding: 2px 10px; border-radius: 12px;
+                                                 background: @bg; color: @fg; font-size: 0.75rem; font-weight: 600;">
+                                        @s.Name
+                                    </span>
+                                }
+                            </Template>
+                            <ValueTemplate Context="status">
+                                @if (status is OrderStatus s)
+                                {
+                                    var bg = string.IsNullOrEmpty(s.Color) ? "#e0e0e0" : s.Color;
+                                    var fg = IsLightColor(bg) ? "#1a1a1a" : "#ffffff";
+                                    <span style="display: inline-block; padding: 2px 10px; border-radius: 12px;
+                                                 background: @bg; color: @fg; font-size: 0.75rem; font-weight: 600;">
+                                        @s.Name
+                                    </span>
+                                }
+                            </ValueTemplate>
+                        </RadzenDropDown>
+                    </div>
+                </HeaderTemplate>
+                <Template Context="o">
+                    @if (o.Status != null)
+                    {
+                        var bg = string.IsNullOrEmpty(o.Status.Color) ? "#e0e0e0" : o.Status.Color;
+                        var fg = IsLightColor(bg) ? "#1a1a1a" : "#ffffff";
+                        <span style="display: inline-block; padding: 2px 10px; border-radius: 12px;
+                                     background: @bg; color: @fg; font-size: 0.75rem; font-weight: 600;
+                                     white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;"
+                              title="@o.Status.Name">
+                            @o.Status.Name
+                        </span>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Order" Property="SystemStatus.Name"
+                                  Title="Статус приложения" Width="190px" Filterable="false" Sortable="true">
+                <HeaderTemplate>
+                    <div class="rz-header-filter-cell">
+                        <span class="rz-header-filter-title">Статус приложения</span>
+                        <RadzenDropDown @bind-Value="_filterSystemStatusId"
+                                        Data="@_systemStatuses"
+                                        TextProperty="Name"
+                                        ValueProperty="Id"
+                                        Placeholder="Все"
+                                        AllowClear="true"
+                                        Style="width: 100%; min-width: 0;"
+                                        Change="@OnFilterChange"
+                                        Size="ButtonSize.Small">
+                            <Template Context="status">
+                                @if (status is OrderStatus s)
+                                {
+                                    var bg = string.IsNullOrEmpty(s.Color) ? "#e0e0e0" : s.Color;
+                                    var fg = IsLightColor(bg) ? "#1a1a1a" : "#ffffff";
+                                    <span style="display: inline-block; padding: 2px 10px; border-radius: 12px;
+                                                 background: @bg; color: @fg; font-size: 0.75rem; font-weight: 600;">
+                                        @s.Name
+                                    </span>
+                                }
+                            </Template>
+                            <ValueTemplate Context="status">
+                                @if (status is OrderStatus s)
+                                {
+                                    var bg = string.IsNullOrEmpty(s.Color) ? "#e0e0e0" : s.Color;
+                                    var fg = IsLightColor(bg) ? "#1a1a1a" : "#ffffff";
+                                    <span style="display: inline-block; padding: 2px 10px; border-radius: 12px;
+                                                 background: @bg; color: @fg; font-size: 0.75rem; font-weight: 600;">
+                                        @s.Name
+                                    </span>
+                                }
+                            </ValueTemplate>
+                        </RadzenDropDown>
+                    </div>
+                </HeaderTemplate>
+                <Template Context="o">
+                    @if (o.SystemStatus != null)
+                    {
+                        var bg = string.IsNullOrEmpty(o.SystemStatus.Color) ? "#e0e0e0" : o.SystemStatus.Color;
+                        var fg = IsLightColor(bg) ? "#1a1a1a" : "#ffffff";
+                        <span style="display: inline-block; padding: 2px 10px; border-radius: 12px;
+                                     background: @bg; color: @fg; font-size: 0.75rem; font-weight: 600;
+                                     white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;"
+                              title="@o.SystemStatus.Name">
+                            @o.SystemStatus.Name
+                        </span>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Order" Property="Shipment.DeliveryMethod.Name"
+                                  Title="Способ доставки" Width="180px" Filterable="false" Sortable="true">
+                <Template Context="o">
+                    <span style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;"
+                          title="@o.Shipment?.DeliveryMethod?.Name">@o.Shipment?.DeliveryMethod?.Name</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Order" Property="WarehouseInfo.SenderWarehouse.Name"
+                                  Title="Склад" Width="160px" Filterable="false" Sortable="true">
+                <HeaderTemplate>
+                    <div class="rz-header-filter-cell">
+                        <span class="rz-header-filter-title">Склад</span>
+                        <RadzenDropDown @bind-Value="_filterWarehouseId"
+                                        Data="@_warehouses"
+                                        TextProperty="Name"
+                                        ValueProperty="Id"
+                                        Placeholder="Все"
+                                        AllowClear="true"
+                                        Style="width: 100%; min-width: 0;"
+                                        Change="@OnFilterChange"
+                                        Size="ButtonSize.Small" />
+                    </div>
+                </HeaderTemplate>
+                <Template Context="o">
+                    <span style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;"
+                          title="@o.WarehouseInfo?.SenderWarehouse?.Name">@o.WarehouseInfo?.SenderWarehouse?.Name</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Order" Title="Цена" Width="120px"
+                                  Filterable="false" Sortable="false" TextAlign="TextAlign.Right">
+                <Template Context="o">
+                    @{
+                        var price = o.Prices.FirstOrDefault(p => p.PriceType?.Name == "Цена");
+                    }
+                    @if (price != null)
+                    {
+                        var priceText = $"{price.Value:N2} {price.Currency?.Code}";
+                        <span style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;"
+                              title="@priceText">@priceText</span>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+
+            @if (_calcRules.Count > 0)
+            {
+                @if (!_computedSplitByColumns)
+                {
+                    <RadzenDataGridColumn TItem="Order" Title="Расчёты" Width="200px"
+                                          Filterable="false" Sortable="false">
+                        <HeaderTemplate>
+                            <span style="cursor: pointer; text-decoration: underline; font-size: 0.85rem;"
+                                  title="Щёлкните, чтобы переключить режим отображения расчётов"
+                                  @onclick="ToggleComputedLayout">
+                                Расчёты
+                                (@(_computedSplitByColumns ? "по столбцам" : "в одном столбце"))
+                            </span>
+                        </HeaderTemplate>
+                        <Template Context="o">
+                            @if (_computed.TryGetValue(o.Id, out var fields) && fields.Count > 0)
+                            {
+                                <RadzenStack Gap="0.15rem">
+                                    @foreach (var rule in _calcRules)
+                                    {
+                                        @if (fields.TryGetValue(rule.ResultKey, out var val) && val != decimal.MinValue)
+                                        {
+                                            <span style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                                                  title="@rule.Formula">
+                                                <span style="color: var(--rz-text-secondary-color);">@rule.Name:</span>
+                                                <strong>@val.ToString("N2")</strong>
+                                            </span>
+                                        }
+                                    }
+                                </RadzenStack>
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                }
+                else
+                {
+                    @foreach (var rule in _calcRules)
+                    {
+                        var propName = $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(rule.ResultKey)}";
+                        <RadzenDataGridColumn TItem="Order"
+                                              Title="@rule.Name"
+                                              Property="@propName"
+                                              Width="120px"
+                                              Filterable="false"
+                                              Sortable="true"
+                                              TextAlign="TextAlign.Right">
+                            <Template Context="o">
+                                @if (_computed.TryGetValue(o.Id, out var fields) &&
+                                     fields.TryGetValue(rule.ResultKey, out var val) &&
+                                     val != decimal.MinValue)
+                                {
+                                    <span title="@rule.Formula">@val.ToString("N2")</span>
+                                }
+                            </Template>
+                        </RadzenDataGridColumn>
+                    }
+                }
+            }
+
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    private RadzenDataGrid<Order>? _grid;
+
+    private TenantDbContext? _db;
+    private IEnumerable<Order> _pageItems = Array.Empty<Order>();
+    private int _totalCount;
+    private Density _density = Density.Default;
+    private bool _loading;
+    private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+
+    private Guid? _filterClientId;
+    private Guid? _filterStatusId;
+    private Guid? _filterSystemStatusId;
+    private Guid? _filterWarehouseId;
+    private List<MarketplaceClient> _clients = new();
+    private List<OrderStatus> _marketplaceStatuses = new();
+    private List<OrderStatus> _systemStatuses = new();
+    private List<Warehouse> _warehouses = new();
+
+    private readonly CalculationEngine _calcEngine = new();
+    private List<CalculationRule> _calcRules = new();
+    private Dictionary<Guid, Dictionary<string, decimal>> _computed = new();
+    private bool _computedSplitByColumns;
+
+    private DataGridSettings? _gridSettings;
+    private const string GridSettingsKey = "orders-grid-settings";
+    private const string FiltersKey = "orders-filters";
+
+    private record OrderFilters(Guid? ClientId, Guid? StatusId, Guid? SystemStatusId, Guid? WarehouseId);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadGridSettingsAsync();
+            await LoadFiltersAsync();
+            // When settings are restored, Radzen reloads automatically via LoadSettingsInternal.
+            // Only trigger manually when there are no saved settings to avoid concurrent LoadData calls.
+            if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
+                await _grid.Reload();
+        }
+    }
+
+    private async Task LoadGridSettingsAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private void OnGridSettingsChanged(DataGridSettings settings)
+    {
+        _gridSettings = settings;
+        _ = SaveGridSettingsAsync();
+    }
+
+    private async Task SaveGridSettingsAsync()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+        }
+        catch { }
+    }
+
+    private async Task LoadFiltersAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", FiltersKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                var f = System.Text.Json.JsonSerializer.Deserialize<OrderFilters>(json);
+                if (f != null)
+                {
+                    _filterClientId = f.ClientId;
+                    _filterStatusId = f.StatusId;
+                    _filterSystemStatusId = f.SystemStatusId;
+                    _filterWarehouseId = f.WarehouseId;
+                    StateHasChanged();
+                }
+            }
+        }
+        catch { }
+    }
+
+    private async Task SaveFiltersAsync()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(
+                new OrderFilters(_filterClientId, _filterStatusId, _filterSystemStatusId, _filterWarehouseId));
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", FiltersKey, json);
+        }
+        catch { }
+    }
+
+    private async Task LoadData(LoadDataArgs args)
+    {
+        _loading = true;
+        await EnsureInitializedAsync();
+
+        var query = _db!.Orders
+            .IncludeForGrid()
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (_filterClientId.HasValue)
+            query = query.Where(o => o.Shipment.MarketplaceClientId == _filterClientId.Value);
+        if (_filterStatusId.HasValue)
+            query = query.Where(o => o.StatusId == _filterStatusId.Value);
+        if (_filterSystemStatusId.HasValue)
+            query = query.Where(o => o.SystemStatusId == _filterSystemStatusId.Value);
+        if (_filterWarehouseId.HasValue)
+            query = query.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId == _filterWarehouseId.Value);
+
+        if (!string.IsNullOrEmpty(args.Filter))
+            query = query.Where(args.Filter);
+
+        var appliedOrderBy = args.OrderBy;
+        var isComputedOrder = _computedSplitByColumns &&
+                              !string.IsNullOrEmpty(appliedOrderBy) &&
+                              appliedOrderBy.StartsWith("Computed_", StringComparison.OrdinalIgnoreCase);
+
+        // Базовая сортировка по датам, если не сортируем по вычисляемым полям.
+        if (!isComputedOrder)
+        {
+            query = !string.IsNullOrEmpty(appliedOrderBy)
+                ? query.OrderBy(appliedOrderBy)
+                : query.OrderByDescending(o => o.Shipment.InProcessAt)
+                       .ThenByDescending(o => o.Shipment.CreatedAt);
+        }
+
+        var baseList = isComputedOrder
+            ? await query.ToListAsync()
+            : null;
+
+        if (baseList == null)
+        {
+            _totalCount = await query.CountAsync();
+
+            var skip = args.Skip ?? 0;
+            var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 15);
+
+            _pageItems = await query.Skip(skip).Take(take).ToListAsync();
+        }
+        else
+        {
+            _pageItems = baseList;
+        }
+
+        _computed = _calcRules.Count > 0
+            ? _pageItems.ToDictionary(
+                o => o.Id,
+                o => _calcEngine.Calculate(o, _calcRules))
+            : new Dictionary<Guid, Dictionary<string, decimal>>();
+
+        // Сортировка по вычисляемому полю
+        if (isComputedOrder && baseList != null)
+        {
+            var parts = appliedOrderBy!.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var field = parts[0];
+            var desc = parts.Length > 1 &&
+                       parts[1].Equals("desc", StringComparison.OrdinalIgnoreCase);
+
+            var ruleByProp = _calcRules.ToDictionary(
+                r => $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(r.ResultKey)}",
+                r => r.ResultKey,
+                StringComparer.OrdinalIgnoreCase);
+
+            if (ruleByProp.TryGetValue(field, out var ruleKey))
+            {
+                decimal GetSortValue(Order o) =>
+                    _computed.TryGetValue(o.Id, out var dict) &&
+                    dict.TryGetValue(ruleKey, out var v) && v != decimal.MinValue ? v : 0m;
+
+                _pageItems = desc
+                    ? _pageItems.OrderByDescending(GetSortValue).ToList()
+                    : _pageItems.OrderBy(GetSortValue).ToList();
+            }
+        }
+
+        // Пагинация после всех in‑memory операций (для случаев с вычисляемыми полями)
+        if (baseList != null)
+        {
+            _totalCount = _pageItems.Count();
+
+            var skip = args.Skip ?? 0;
+            var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 15);
+
+            _pageItems = _pageItems.Skip(skip).Take(take).ToList();
+        }
+
+        _loading = false;
+    }
+
+    private async Task EnsureInitializedAsync()
+    {
+        if (_db != null) return;
+        _db = Factory.CreateDbContext();
+
+        _clients = await _db.MarketplaceClients!
+            .Include(c => c.ClientType)
+            .Include(c => c.Mode)
+            .Where(c => c.ClientType!.Name == "Ozon" && c.Mode!.Name == "FBS")
+            .OrderBy(c => c.Name)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _marketplaceStatuses = await _db.OrderStatuses
+            .Where(s => !s.IsInternal && !s.IsDeleted)
+            .OrderBy(s => s.Name)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _systemStatuses = await _db.OrderStatuses
+            .Where(s => s.IsInternal && !s.IsDeleted)
+            .OrderBy(s => s.Name)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _warehouses = await _db.Warehouses
+            .OrderBy(w => w.Name)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _calcRules = await _db.GetActiveRulesAsync();
+    }
+
+    private async Task OnFilterChange()
+    {
+        _ = SaveFiltersAsync();
+        StateHasChanged();
+        if (_grid != null)
+            await _grid.Reload();
+    }
+
+    private async Task OnRowClick(DataGridRowMouseEventArgs<Order> args)
+    {
+        await DialogService.OpenAsync<OrderDetailDialog>(
+            $"Заказ {args.Data.Shipment?.PostingNumber}",
+            new Dictionary<string, object?> { ["OrderId"] = args.Data.Id },
+            new DialogOptions
+            {
+                Width = "900px",
+                CloseDialogOnEsc = true,
+                CloseDialogOnOverlayClick = true,
+                ShowClose = true
+            });
+    }
+
+    private void ToggleComputedLayout() =>
+        _computedSplitByColumns = !_computedSplitByColumns;
+
+    // Returns true for light background colors (to use dark text)
+    private static bool IsLightColor(string hex)
+    {
+        try
+        {
+            hex = hex.TrimStart('#');
+            if (hex.Length < 6) return true;
+            var r = Convert.ToInt32(hex[..2], 16);
+            var g = Convert.ToInt32(hex[2..4], 16);
+            var b = Convert.ToInt32(hex[4..6], 16);
+            return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+        }
+        catch { return true; }
+    }
+
+    public void Dispose() => _db?.Dispose();
+
+    private static string FormatDateDisplay(DateTime? d)
+    {
+        if (!d.HasValue) return "";
+        return d.Value.Date == DateTime.Today ? d.Value.ToString("HH:mm") : d.Value.ToString("dd.MM.yyyy");
+    }
+
+    private static string FormatDateTooltip(DateTime? d)
+    {
+        if (!d.HasValue) return "";
+        return d.Value.Date == DateTime.Today ? d.Value.ToString("HH:mm") : d.Value.ToString("dd.MM.yyyy HH:mm");
+    }
+
+    private void ToggleDensity() =>
+        _density = _density == Density.Compact ? Density.Default : Density.Compact;
+
+    private string GetDensityTitle() => _density switch
+    {
+        Density.Compact => "Компактный режим строк",
+        _ => "Обычный режим строк"
+    };
+}

@@ -26,17 +26,5 @@ public class TenantConfiguration : IEntityTypeConfiguration<TenantEntity>
         builder.Property(t => t.ConnectionString)
             .IsRequired()
             .HasMaxLength(500);
-
-        builder.Property(t => t.LogoUrl)
-            .HasMaxLength(500);
-
-        builder.Property(t => t.Tariff)
-            .HasConversion<string>()
-            .HasMaxLength(50);
-
-        // Audit fields
-        builder.Property(t => t.CreatedAtUtc).IsRequired();
-        builder.Property(t => t.ModifiedAtUtc);
-        builder.Property(t => t.DeletedAtUtc);
     }
 }

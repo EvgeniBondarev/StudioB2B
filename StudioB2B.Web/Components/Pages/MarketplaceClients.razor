@@ -1,202 +1,404 @@
 @page "/marketplace-clients"
 @attribute [Authorize(Roles = "Admin")]
-@using AutoMapper
 @using AutoMapper.QueryableExtensions
-@using StudioB2B.Application.Common.Interfaces
-@using StudioB2B.Shared.DTOs
-@using StudioB2B.Web.Components.Common
-@using StudioB2B.Infrastructure.Features.Marketplace
 @using Microsoft.EntityFrameworkCore
+@using Radzen
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Domain.Entities.Marketplace
+@using StudioB2B.Infrastructure.Features.Marketplace
+@using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
+@using StudioB2B.Web.Components.Common
+
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory Factory
-@inject IMapper Mapper
-@inject IDialogService DialogService
-@inject ISnackbar Snackbar
+@inject IKeyEncryptionService Encryption
+@inject AutoMapper.IMapper Mapper
+@inject NotificationService NotificationService
+@inject ContextMenuService ContextMenuService
+@inject DialogService DialogService
+@inject IJSRuntime JSRuntime
+
+@implements IDisposable
 
 <PageTitle>Клиенты маркетплейсов</PageTitle>
 
 @if (!TenantProvider.IsResolved)
 {
-    <MudAlert Severity="Severity.Warning" Class="mt-4">
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
         Раздел доступен только внутри тенанта
-    </MudAlert>
+    </RadzenAlert>
 }
 else
 {
-    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-5">
-        <MudText Typo="Typo.h5" Style="font-weight:700;">Клиенты маркетплейсов</MudText>
-        <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                   StartIcon="@Icons.Material.Outlined.AddBusiness"
-                   OnClick="AddClient">
-            Добавить клиента
-        </MudButton>
-    </MudStack>
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                 JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
+        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Клиенты маркетплейсов</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+            <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                          Click="@ToggleDensity" Title="@GetDensityTitle()" />
+            <RadzenButton Icon="add" Text="Добавить" ButtonStyle="ButtonStyle.Primary"
+                          Click="@OpenCreateWizard" />
+        </RadzenStack>
+    </RadzenStack>
 
-    @if (_loading)
-    {
-        <MudProgressLinear Indeterminate="true" Class="mb-4" />
-    }
+    <RadzenDataGrid @ref="_grid"
+                    TItem="MarketplaceClient"
+                    Data="@_pageItems"
+                    Count="@_totalCount"
+                    LoadData="@LoadData"
+                    Density="@_density"
+                    Settings="@_gridSettings"
+                    SettingsChanged="@OnGridSettingsChanged"
+                    AllowFiltering="true"
+                    AllowColumnResize="true"
+                    AllowAlternatingRows="false"
+                    FilterMode="FilterMode.Advanced"
+                    LogicalFilterOperator="LogicalFilterOperator.Or"
+                    AllowSorting="true"
+                    AllowPaging="true"
+                    PageSize="15"
+                    PageSizeOptions="@_pageSizeOptions"
+                    ShowPagingSummary="true"
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    EditMode="DataGridEditMode.Single"
+                    RowUpdate="@OnUpdate"
+                    CellContextMenu="@ShowContextMenu"
+                    IsLoading="@_loading"
+                    FilterText="@RadzenRuStrings.FilterText"
+                    ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
+                    ClearFilterText="@RadzenRuStrings.ClearFilterText"
+                    ContainsText="@RadzenRuStrings.ContainsText"
+                    DoesNotContainText="@RadzenRuStrings.DoesNotContainText"
+                    EqualsText="@RadzenRuStrings.EqualsText"
+                    NotEqualsText="@RadzenRuStrings.NotEqualsText"
+                    StartsWithText="@RadzenRuStrings.StartsWithText"
+                    EndsWithText="@RadzenRuStrings.EndsWithText"
+                    GreaterThanText="@RadzenRuStrings.GreaterThanText"
+                    GreaterThanOrEqualsText="@RadzenRuStrings.GreaterThanOrEqualsText"
+                    LessThanText="@RadzenRuStrings.LessThanText"
+                    LessThanOrEqualsText="@RadzenRuStrings.LessThanOrEqualsText"
+                    IsNullText="@RadzenRuStrings.IsNullText"
+                    IsNotNullText="@RadzenRuStrings.IsNotNullText"
+                    AndOperatorText="@RadzenRuStrings.AndOperatorText"
+                    OrOperatorText="@RadzenRuStrings.OrOperatorText"
+                    PageSizeText="@RadzenRuStrings.PageSizeText"
+                    PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                    EmptyText="@RadzenRuStrings.EmptyText">
+        <Columns>
 
-    <MudPaper Outlined="true">
-        <MudTable Items="@_clients" Hover="true" Dense="true" Loading="@_loading"
-                  LoadingProgressColor="Color.Primary" Elevation="0">
-            <HeaderContent>
-                <MudTh>Название</MudTh>
-                <MudTh>API Id</MudTh>
-                <MudTh>Тип</MudTh>
-                <MudTh>Режим</MudTh>
-                <!-- created column removed -->
-                <MudTh Style="width:130px"></MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Название">
-                    <MudText Style="font-weight:500;">@context.Name</MudText>
-                </MudTd>
-                <MudTd DataLabel="API Id">@context.ApiId</MudTd>
-                <MudTd DataLabel="Тип">@context.ClientTypeName</MudTd>
-                <MudTd DataLabel="Режим">@context.ModeName</MudTd>
-                <MudTd>
-                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small"
-                                   Title="Редактировать" OnClick="@(() => EditClient(context))" />
-                    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small"
-                                   Color="Color.Error" Title="Удалить"
-                                   OnClick="@(() => DeleteClient(context))" />
-                </MudTd>
-            </RowTemplate>
-            <NoRecordsContent>
-                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4">Клиентов пока нет</MudText>
-            </NoRecordsContent>
-        </MudTable>
-    </MudPaper>
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Name" Title="Название" Width="220px" Frozen="true">
+                <EditTemplate Context="c">
+                    <RadzenTextBox @bind-Value="c.Name" Style="width: 100%;" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="ApiId" Title="API ID" Width="180px">
+                <EditTemplate Context="c">
+                    <RadzenTextBox @bind-Value="c.ApiId" Style="width: 100%;" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <!-- Masked key column with show/hide toggle -->
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Key" Title="API ключ" Width="240px"
+                                  Filterable="false" Sortable="false">
+                <Template Context="c">
+                    <div @key="c.Id" style="display:flex; align-items:center; gap:4px;"
+                         @onclick:stopPropagation="true">
+                        @if (_revealedKeys.Contains(c.Id))
+                        {
+                            <span style="font-family: monospace; font-size: 0.8rem; word-break: break-all; max-width:160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                @SafeDecrypt(c.Key)
+                            </span>
+                        }
+                        else
+                        {
+                            <span style="letter-spacing: 3px; color: var(--rz-text-secondary-color); font-size: 1rem;">
+                                ••••••••••••
+                            </span>
+                        }
+                        <RadzenButton Icon="@(_revealedKeys.Contains(c.Id) ? "visibility_off" : "visibility")"
+                                      ButtonStyle="ButtonStyle.Light"
+                                      Size="ButtonSize.ExtraSmall"
+                                      Variant="Variant.Text"
+                                      Click="@(() => ToggleKeyVisibility(c.Id))"
+                                      Title="@(_revealedKeys.Contains(c.Id) ? "Скрыть" : "Показать")"
+                                      Style="flex-shrink: 0;" />
+                    </div>
+                </Template>
+                <EditTemplate Context="c">
+                    <RadzenPassword @bind-Value="c.Key" Style="width: 100%;" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="ClientType.Name" Title="Тип" Width="180px"
+                                  Sortable="false" Filterable="false">
+                <EditTemplate Context="c">
+                    <RadzenDropDown Data="@_types"
+                                    TextProperty="@nameof(MarketplaceClientType.Name)"
+                                    ValueProperty="@nameof(MarketplaceClientType.Id)"
+                                    @bind-Value="c.ClientTypeId"
+                                    Style="width: 100%;" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Mode.Name" Title="Режим" Width="180px"
+                                  Sortable="false" Filterable="false">
+                <EditTemplate Context="c">
+                    <RadzenDropDown Data="@_modes"
+                                    TextProperty="@nameof(MarketplaceClientMode.Name)"
+                                    ValueProperty="@nameof(MarketplaceClientMode.Id)"
+                                    @bind-Value="c.ModeId"
+                                    Style="width: 100%;" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Company" Title="Компания" Width="200px">
+                <EditTemplate Context="c">
+                    <RadzenTextBox @bind-Value="c.Company" Style="width: 100%;" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="INN" Title="ИНН" Width="160px">
+                <EditTemplate Context="c">
+                    <RadzenTextBox @bind-Value="c.INN" Style="width: 100%;" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="MarketplaceClient" Filterable="false" Sortable="false"
+                                  Width="110px" TextAlign="TextAlign.Center" Title="">
+                <Template Context="c">
+                </Template>
+                <EditTemplate Context="c">
+                    <RadzenButton Icon="check" ButtonStyle="ButtonStyle.Success"
+                                  Size="ButtonSize.ExtraSmall"
+                                  Click="@(() => SaveRow(c))" Style="margin-right: 4px;" />
+                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light"
+                                  Size="ButtonSize.ExtraSmall"
+                                  Click="@(() => CancelRow(c))" />
+                </EditTemplate>
+            </RadzenDataGridColumn>
+
+        </Columns>
+    </RadzenDataGrid>
 }
 
 @code {
-    private List<MarketplaceClientDto> _clients = [];
-    private List<MarketplaceClientTypeDto> _types = [];
-    private List<MarketplaceClientModeDto> _modes = [];
-    private bool _loading = true;
+    private RadzenDataGrid<MarketplaceClient>? _grid;
 
-    protected override async Task OnInitializedAsync()
+    private TenantDbContext? _db;
+    private IEnumerable<MarketplaceClient> _pageItems = Array.Empty<MarketplaceClient>();
+    private int _totalCount;
+    private List<MarketplaceClientType> _types = [];
+    private List<MarketplaceClientMode> _modes = [];
+    private Density _density = Density.Default;
+    private bool _loading;
+    private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+
+    // tracks which rows have their key revealed
+    private readonly HashSet<Guid> _revealedKeys = [];
+
+    private DataGridSettings? _gridSettings;
+    private const string GridSettingsKey = "marketplace-clients-grid-settings";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (TenantProvider.IsResolved)
-            await LoadAsync();
-        else
-            _loading = false;
+        if (firstRender)
+        {
+            await LoadGridSettingsAsync();
+            if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
+                await _grid.Reload();
+        }
     }
 
-    private async Task LoadAsync()
+    private async Task LoadGridSettingsAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private void OnGridSettingsChanged(DataGridSettings settings)
+    {
+        _gridSettings = settings;
+        _ = SaveGridSettingsAsync();
+    }
+
+    private async Task SaveGridSettingsAsync()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+        }
+        catch { }
+    }
+
+    private async Task LoadData(LoadDataArgs args)
     {
         _loading = true;
-        using var db = Factory.CreateDbContext();
-        _types = await db.MarketplaceClientTypes!
-                        .AsNoTracking()
-                        .OrderBy(t => t.Name)
-                        .ProjectTo<MarketplaceClientTypeDto>(Mapper.ConfigurationProvider)
-                        .ToListAsync();
-        _modes = await db.MarketplaceClientModes!
-                        .AsNoTracking()
-                        .OrderBy(m => m.Name)
-                        .ProjectTo<MarketplaceClientModeDto>(Mapper.ConfigurationProvider)
-                        .ToListAsync();
-        _clients = await db.MarketplaceClients!.GetAllAsync(Mapper);
+        await EnsureInitializedAsync();
+
+        var query = _db!.MarketplaceClients!
+            .IncludeEverything()
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(args.Filter))
+            query = query.Where(args.Filter);
+
+        query = !string.IsNullOrEmpty(args.OrderBy)
+            ? query.OrderBy(args.OrderBy)
+            : query.OrderBy(c => c.Name);
+
+        _totalCount = await query.CountAsync();
+
+        var skip = args.Skip ?? 0;
+        var take = (args.Top is > 0) ? args.Top.Value : (_grid?.PageSize ?? 15);
+
+        _pageItems = await query.Skip(skip).Take(take).ToListAsync();
         _loading = false;
     }
 
-    private async Task AddClient()
+    private async Task EnsureInitializedAsync()
     {
-        var parameters = new DialogParameters<MarketplaceClientFormDialog>
+        if (_db != null) return;
+
+        _db = Factory.CreateDbContext();
+
+        _types = await _db.MarketplaceClientTypes!
+            .AsNoTracking().OrderBy(t => t.Name).ToListAsync();
+
+        _modes = await _db.MarketplaceClientModes!
+            .AsNoTracking().OrderBy(m => m.Name).ToListAsync();
+    }
+
+    // ── Wizard dialog ────────────────────────────────────────────────
+
+    private async Task OpenCreateWizard()
+    {
+        var created = await DialogService.OpenAsync<MarketplaceClientWizard>(
+            "Добавление клиента маркетплейса",
+            parameters: new Dictionary<string, object?>(),
+            options: new DialogOptions
+            {
+                Width = "680px",
+                CloseDialogOnEsc = true,
+                CloseDialogOnOverlayClick = false,
+                ShowClose = true
+            });
+
+        if (created is true && _grid != null)
+            await _grid.Reload();
+    }
+
+    // ── Key visibility toggle ────────────────────────────────────────
+
+    private void ToggleKeyVisibility(Guid clientId)
+    {
+        if (!_revealedKeys.Remove(clientId))
+            _revealedKeys.Add(clientId);
+        StateHasChanged();
+    }
+
+    private string SafeDecrypt(string? encryptedKey)
+    {
+        if (string.IsNullOrEmpty(encryptedKey)) return string.Empty;
+        try { return Encryption.Decrypt(encryptedKey); }
+        catch { return encryptedKey; }
+    }
+
+    // ── Grid editing ─────────────────────────────────────────────────
+
+    private async Task EditRow(MarketplaceClient client) => await _grid!.EditRow(client);
+
+    private async Task SaveRow(MarketplaceClient client) => await _grid!.UpdateRow(client);
+
+    private void CancelRow(MarketplaceClient client) => _grid!.CancelEditRow(client);
+
+    private async Task OnUpdate(MarketplaceClient client)
+    {
+        try
         {
-            { x => x.Title, "Добавить клиента" },
-            { x => x.Model, new MarketplaceClientFormModel() },
-            { x => x.ClientTypes, _types },
-            { x => x.Modes, _modes }
-        };
-        var dialog = await DialogService.ShowAsync<MarketplaceClientFormDialog>("Добавить клиента", parameters);
-        var result = await dialog.Result;
-        if (result is { Canceled: false, Data: MarketplaceClientFormModel m })
+            // If the key was changed and does NOT look like a base64 cipher text,
+            // encrypt it before persisting
+            if (!string.IsNullOrEmpty(client.Key) && !IsEncrypted(client.Key))
+                client.Key = Encryption.Encrypt(client.Key);
+
+            await _db!.SaveChangesAsync();
+            NotificationService.Notify(NotificationSeverity.Success, "Клиент обновлён");
+        }
+        catch (Exception ex)
         {
-            using var db = Factory.CreateDbContext();
-            var request = new CreateMarketplaceClientRequest(
-                m.Name ?? string.Empty,
-                m.ApiId ?? string.Empty,
-                m.Key ?? string.Empty,
-                m.ClientTypeId,
-                m.ModeId,
-                null,
-                null);
-            await db.CreateAsync(request, Mapper);
-            Snackbar.Add("Клиент создан", Severity.Success);
-            await LoadAsync();
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
         }
     }
 
-    private async Task EditClient(MarketplaceClientDto client)
+    /// <summary>
+    /// Heuristic: if the string is valid base64 and its byte length implies an AES
+    /// cipher text (> 16 bytes), treat it as already encrypted.
+    /// </summary>
+    private static bool IsEncrypted(string value)
     {
-        var model = new MarketplaceClientFormModel
+        if (value.Length < 24) return false;
+        try
         {
-            Id = client.Id,
-            Name = client.Name,
-            ApiId = client.ApiId,
-            Key = client.Key,
-            ClientTypeId = client.ClientTypeId,
-            ModeId = client.ModeId
-        };
-        var parameters = new DialogParameters<MarketplaceClientFormDialog>
+            var bytes = Convert.FromBase64String(value);
+            return bytes.Length > 16;
+        }
+        catch
         {
-            { x => x.Title, "Редактировать клиента" },
-            { x => x.Model, model },
-            { x => x.ClientTypes, _types },
-            { x => x.Modes, _modes }
-        };
-        var dialog = await DialogService.ShowAsync<MarketplaceClientFormDialog>("Редактировать клиента", parameters);
-        var result = await dialog.Result;
-        if (result is { Canceled: false, Data: MarketplaceClientFormModel m })
-        {
-            using var db = Factory.CreateDbContext();
-            var req = new UpdateMarketplaceClientRequest(
-                m.Id!.Value,
-                m.Name ?? string.Empty,
-                m.ApiId ?? string.Empty,
-                m.Key ?? string.Empty,
-                m.ClientTypeId,
-                m.ModeId,
-                null,
-                null);
-            var updated = await db.UpdateAsync(req, Mapper);
-            if (updated != null)
-            {
-                Snackbar.Add("Клиент обновлён", Severity.Success);
-                await LoadAsync();
-            }
-            else
-            {
-                Snackbar.Add("Ошибка обновления", Severity.Error);
-            }
+            return false;
         }
     }
 
-    private async Task DeleteClient(MarketplaceClientDto client)
+    private async Task DeleteRow(MarketplaceClient client)
     {
-        var confirmed = await DialogService.ShowMessageBox(
-            "Удаление клиента",
-            $"Удалить клиента «{client.Name}»? Действие необратимо.",
-            yesText: "Удалить", cancelText: "Отмена");
-        if (confirmed == true)
+        try
         {
-            using var db = Factory.CreateDbContext();
-            var deleted = await db.DeleteAsync(client.Id);
-            if (deleted)
-            {
-                Snackbar.Add("Клиент удалён", Severity.Success);
-                await LoadAsync();
-            }
-            else
-            {
-                Snackbar.Add("Ошибка удаления", Severity.Error);
-            }
+            _db!.MarketplaceClients!.Remove(client);
+            await _db.SaveChangesAsync();
+            await _grid!.Reload();
+            NotificationService.Notify(NotificationSeverity.Success, "Клиент удалён");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
         }
     }
 
+    private void ShowContextMenu(DataGridCellMouseEventArgs<MarketplaceClient> args)
+    {
+        ContextMenuService.Open(args,
+            [
+                new ContextMenuItem { Text = "Редактировать", Icon = "edit",   Value = "edit" },
+                new ContextMenuItem { Text = "Удалить",       Icon = "delete", Value = "delete" }
+            ],
+            e =>
+            {
+                ContextMenuService.Close();
+                if (e.Value?.ToString() == "edit")
+                    InvokeAsync(() => EditRow(args.Data));
+                else if (e.Value?.ToString() == "delete")
+                    InvokeAsync(() => DeleteRow(args.Data));
+            });
+    }
+
+    public void Dispose() => _db?.Dispose();
+
+    private void ToggleDensity() =>
+        _density = _density == Density.Compact ? Density.Default : Density.Compact;
+
+    private string GetDensityTitle() => _density switch
+    {
+        Density.Compact => "Компактный режим строк",
+        _ => "Обычный режим строк"
+    };
 }

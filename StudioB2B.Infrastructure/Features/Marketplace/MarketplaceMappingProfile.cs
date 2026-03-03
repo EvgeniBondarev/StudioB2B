@@ -8,7 +8,6 @@ public class MarketplaceMappingProfile : Profile
 {
     public MarketplaceMappingProfile()
     {
-        // entity -> dto
         CreateMap<MarketplaceClient, MarketplaceClientDto>()
             .ForMember(d => d.ClientTypeName, o => o.MapFrom(s => s.ClientType != null ? s.ClientType.Name : null))
             .ForMember(d => d.ModeName, o => o.MapFrom(s => s.Mode != null ? s.Mode.Name : null));
@@ -17,8 +16,6 @@ public class MarketplaceMappingProfile : Profile
         CreateMap<MarketplaceClientMode, MarketplaceClientModeDto>();
         CreateMap<MarketplaceClientSettings, MarketplaceClientSettingDto>();
         CreateMap<MarketplaceClient1CSettings, MarketplaceClient1CSettingsDto>();
-
-        // request -> entity
         CreateMap<CreateMarketplaceClientRequest, MarketplaceClient>();
         CreateMap<UpdateMarketplaceClientRequest, MarketplaceClient>();
     }

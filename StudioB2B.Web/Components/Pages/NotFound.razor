@@ -1,15 +1,14 @@
-﻿@page "/not-found"
+@page "/not-found"
 
-<PageTitle>Страница не найдена - StudioB2B</PageTitle>
+<PageTitle>Страница не найдена — StudioB2B</PageTitle>
 
-<MudGrid Justify="Justify.Center" Class="mt-8">
-    <MudItem xs="12" sm="8" md="5">
-        <MudPaper Outlined="true" Class="pa-8 d-flex flex-column align-center">
-            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Default" Class="mb-4" Style="font-size:6rem;" />
-            <MudText Typo="Typo.h3" GutterBottom="true">404</MudText>
-            <MudText Typo="Typo.h5" GutterBottom="true">Страница не найдена</MudText>
-            <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-5">Запрошенная страница не существует.</MudText>
-            <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary">Вернуться на главную</MudButton>
-        </MudPaper>
-    </MudItem>
-</MudGrid>
+<div style="display: flex; justify-content: center; padding-top: 4rem; text-align: center;">
+    <div style="max-width: 400px;">
+        <RadzenIcon Icon="search_off" Style="font-size: 6rem; color: var(--rz-text-secondary-color); display: block; margin-bottom: 1rem;" />
+        <RadzenText TextStyle="TextStyle.H3" Style="font-weight: 700; margin-bottom: 0.5rem;">404</RadzenText>
+        <RadzenText TextStyle="TextStyle.H5" Style="margin-bottom: 0.5rem;">Страница не найдена</RadzenText>
+        <RadzenText TextStyle="TextStyle.Body1" Style="color: var(--rz-text-secondary-color); margin-bottom: 2rem;">
+            Запрошенная страница не существует.
+        </RadzenText>
+    </div>
+</div>

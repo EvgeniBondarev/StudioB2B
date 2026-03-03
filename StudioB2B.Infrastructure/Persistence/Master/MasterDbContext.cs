@@ -1,12 +1,12 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using StudioB2B.Domain.Entities.Common;
 using StudioB2B.Domain.Entities.Tenants;
 using TenantEntity = StudioB2B.Domain.Entities.Tenants.Tenant;
 
 namespace StudioB2B.Infrastructure.Persistence.Master;
 
-/// <summary>
-/// Master Database Context - хранит данные о тенантах, тарифах, глобальные настройки
-/// </summary>
 public class MasterDbContext : DbContext
 {
     public MasterDbContext(DbContextOptions<MasterDbContext> options) : base(options)
@@ -24,7 +24,22 @@ public class MasterDbContext : DbContext
             typeof(MasterDbContext).Assembly,
             type => type.Namespace?.Contains("Master") == true);
 
-        // Global Query Filter для Soft Delete
-        modelBuilder.Entity<TenantEntity>().HasQueryFilter(t => !t.IsDeleted);
+        ApplySoftDeleteFilters(modelBuilder);
+    }
+
+    private static void ApplySoftDeleteFilters(ModelBuilder modelBuilder)
+    {
+        foreach (IMutableEntityType entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (!typeof(ISoftDelete).IsAssignableFrom(entityType.ClrType))
+                continue;
+
+            ParameterExpression param = Expression.Parameter(entityType.ClrType, "e");
+            MemberExpression isDeletedProp = Expression.Property(param, nameof(ISoftDelete.IsDeleted));
+            UnaryExpression notDeleted = Expression.Not(isDeletedProp);
+            LambdaExpression lambda = Expression.Lambda(notDeleted, param);
+
+            entityType.SetQueryFilter(lambda);
+        }
     }
 }

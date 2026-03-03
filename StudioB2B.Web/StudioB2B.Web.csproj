@@ -8,8 +8,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="Components\Controllers\" />
-      <Folder Include="Components\Common\" />
       <Folder Include="logs\" />
       <Folder Include="wwwroot\lib\" />
     </ItemGroup>
@@ -19,7 +17,7 @@
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         <PrivateAssets>all</PrivateAssets>
       </PackageReference>
-      <PackageReference Include="MudBlazor" Version="7.20.*" />
+      <PackageReference Include="Radzen.Blazor" Version="9.0.6" />
       <PackageReference Include="Serilog.AspNetCore" Version="9.0.*" />
       <PackageReference Include="Serilog.Sinks.Console" Version="6.0.*" />
       <PackageReference Include="Serilog.Sinks.File" Version="6.0.*" />
@@ -29,6 +27,10 @@
       <ProjectReference Include="..\StudioB2B.Infrastructure\StudioB2B.Infrastructure.csproj" />
       <ProjectReference Include="..\StudioB2B.Application\StudioB2B.Application.csproj" />
       <ProjectReference Include="..\StudioB2B.Shared\StudioB2B.Shared.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Remove="Components\Common\CrudTable.razor" />
     </ItemGroup>
 
 </Project>

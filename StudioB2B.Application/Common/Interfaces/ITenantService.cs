@@ -31,11 +31,6 @@ public interface ITenantService
         string adminEmail,
         string adminPassword,
         CancellationToken ct = default);
-
-    /// <summary>
-    /// Активировать/деактивировать тенанта
-    /// </summary>
-    Task<bool> SetActiveStateAsync(Guid tenantId, bool isActive, CancellationToken ct = default);
 }
 
 /// <summary>

@@ -1,96 +1,227 @@
 @page "/users"
 @attribute [Authorize(Roles = "Admin")]
 @using StudioB2B.Application.Common.Interfaces
+
 @inject GetUsers GetUsers
 @inject GetAvailableRoles GetAvailableRoles
 @inject CreateUser CreateUser
 @inject UpdateUser UpdateUser
-@inject DeleteUser DeleteUser
+@inject DeleteUser DeleteUserService
 @inject ITenantProvider TenantProvider
-@inject ISnackbar Snackbar
-@inject IDialogService DialogService
+@inject NotificationService NotificationService
+@inject ContextMenuService ContextMenuService
+@inject IJSRuntime JSRuntime
+
 <PageTitle>Пользователи</PageTitle>
+
 @if (!TenantProvider.IsResolved)
 {
-    <MudAlert Severity="Severity.Warning" Class="mt-4">
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
         Раздел доступен только внутри тенанта
-    </MudAlert>
+    </RadzenAlert>
 }
 else
 {
-    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-5">
-        <MudText Typo="Typo.h5" Style="font-weight:700;">Пользователи</MudText>
-        <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                   StartIcon="@Icons.Material.Outlined.PersonAdd"
-                   OnClick="OpenCreateDialog">
-            Добавить пользователя
-        </MudButton>
-    </MudStack>
-    @if (_loading)
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                 JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
+        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Пользователи</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+            <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                          Click="@ToggleDensity" Title="@GetDensityTitle()" />
+            <RadzenButton Icon="person_add" Text="Добавить пользователя" ButtonStyle="ButtonStyle.Primary"
+                          Click="@OpenCreateForm" />
+        </RadzenStack>
+    </RadzenStack>
+
+    @if (_editUser != null)
     {
-        <MudProgressLinear Indeterminate="true" Class="mb-4" />
+        <div style="background: var(--rz-sidebar-background-color); border: 1px solid var(--rz-border-color);
+                    border-radius: var(--rz-border-radius); padding: 1.5rem; margin-bottom: 1.5rem;">
+            <RadzenText TextStyle="TextStyle.H6" Style="margin-bottom: 1rem; font-weight: 600;">
+                @(_editUser.Id == Guid.Empty ? "Новый пользователь" : "Редактировать пользователя")
+            </RadzenText>
+
+            <RadzenTemplateForm TItem="UserEditModel" Data="_editUser" Submit="@SaveUser">
+                <RadzenStack Gap="1rem">
+
+                    <RadzenRow Gap="1rem">
+                        <RadzenColumn Size="12" SizeMD="4">
+                            <RadzenFormField Text="Фамилия" Style="width: 100%;">
+                                <RadzenTextBox @bind-Value="_editUser.LastName" Name="LastName" Style="width: 100%;" />
+                            </RadzenFormField>
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="4">
+                            <RadzenFormField Text="Имя" Style="width: 100%;">
+                                <RadzenTextBox @bind-Value="_editUser.FirstName" Name="FirstName" Style="width: 100%;" />
+                            </RadzenFormField>
+                        </RadzenColumn>
+                        <RadzenColumn Size="12" SizeMD="4">
+                            <RadzenFormField Text="Отчество" Style="width: 100%;">
+                                <RadzenTextBox @bind-Value="_editUser.MiddleName" Name="MiddleName" Style="width: 100%;" />
+                            </RadzenFormField>
+                        </RadzenColumn>
+                    </RadzenRow>
+
+                    @if (_editUser.Id == Guid.Empty)
+                    {
+                        <RadzenRow Gap="1rem">
+                            <RadzenColumn Size="12" SizeMD="6">
+                                <RadzenFormField Text="Email" Style="width: 100%;">
+                                    <RadzenTextBox @bind-Value="_editUser.Email" Name="Email" Style="width: 100%;" />
+                                </RadzenFormField>
+                            </RadzenColumn>
+                            <RadzenColumn Size="12" SizeMD="6">
+                                <RadzenFormField Text="Пароль" Style="width: 100%;">
+                                    <RadzenPassword @bind-Value="_editUser.Password" Name="Password" Style="width: 100%;" />
+                                </RadzenFormField>
+                            </RadzenColumn>
+                        </RadzenRow>
+                    }
+
+                    <RadzenFormField Text="Роли" Style="width: 100%;">
+                        <RadzenDropDown Data="@_availableRoles"
+                                        @bind-Value="_editUser.Roles"
+                                        Multiple="true"
+                                        AllowClear="true"
+                                        Style="width: 100%;" />
+                    </RadzenFormField>
+
+                    <RadzenRow>
+                        <RadzenColumn>
+                            <RadzenCheckBox @bind-Value="_editUser.IsActive" Name="IsActive" />
+                            <RadzenLabel Text="Активен" Component="IsActive" Style="margin-left: 0.5rem;" />
+                        </RadzenColumn>
+                    </RadzenRow>
+
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                        <RadzenButton ButtonType="ButtonType.Submit" Text="Сохранить"
+                                      ButtonStyle="ButtonStyle.Primary" IsBusy="@_saving" />
+                        <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Light"
+                                      Click="@(() => _editUser = null)" />
+                    </RadzenStack>
+
+                </RadzenStack>
+            </RadzenTemplateForm>
+        </div>
     }
-    <MudPaper Outlined="true">
-        <MudTable Items="@_users" Hover="true" Dense="true" Loading="@_loading"
-                  LoadingProgressColor="Color.Primary" Elevation="0">
-            <HeaderContent>
-                <MudTh>Пользователь</MudTh>
-                <MudTh>Email</MudTh>
-                <MudTh>Роли</MudTh>
-                <MudTh>Статус</MudTh>
-                <MudTh>Создан</MudTh>
-                <MudTh Style="width:130px"></MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Пользователь">
-                    <MudText Style="font-weight:500;">
-                        @context.LastName @context.FirstName@(context.MiddleName is not null ? $" {context.MiddleName}" : "")
-                    </MudText>
-                </MudTd>
-                <MudTd DataLabel="Email">
-                    <MudText Typo="Typo.body2">@context.Email</MudText>
-                </MudTd>
-                <MudTd DataLabel="Роли">
-                    <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
-                        @foreach (var role in context.Roles)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Primary"
-                                     Variant="Variant.Outlined">@role</MudChip>
-                        }
-                    </MudStack>
-                </MudTd>
-                <MudTd DataLabel="Статус">
-                    @if (context.IsActive)
-                    {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Активен</MudChip>
-                    }
-                    else
-                    {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">Отключён</MudChip>
-                    }
-                </MudTd>
-                <MudTd DataLabel="Создан">
-                    <MudText Typo="Typo.body2">@context.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy")</MudText>
-                </MudTd>
-                <MudTd>
-                    <MudIconButton Icon="@Icons.Material.Outlined.Edit" Size="Size.Small"
-                                   Title="Редактировать" OnClick="@(() => OpenEditDialog(context))" />
-                    <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small"
-                                   Color="Color.Error" Title="Удалить"
-                                   OnClick="@(() => ConfirmDelete(context))" />
-                </MudTd>
-            </RowTemplate>
-            <NoRecordsContent>
-                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4">Пользователей пока нет</MudText>
-            </NoRecordsContent>
-        </MudTable>
-    </MudPaper>
+
+    <RadzenDataGrid @ref="_grid"
+                    TItem="UserListDto"
+                    Data="@_users"
+                    Density="@_density"
+                    Settings="@_gridSettings"
+                    SettingsChanged="@OnGridSettingsChanged"
+                    AllowFiltering="true"
+                    AllowColumnResize="true"
+                    AllowAlternatingRows="false"
+                    FilterMode="FilterMode.Advanced"
+                    LogicalFilterOperator="LogicalFilterOperator.Or"
+                    AllowSorting="true"
+                    AllowPaging="true"
+                    PageSize="15"
+                    PageSizeOptions="@_pageSizeOptions"
+                    ShowPagingSummary="true"
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    ColumnWidth="180px"
+                    IsLoading="@_loading"
+                    CellContextMenu="@ShowContextMenu"
+                    FilterText="@RadzenRuStrings.FilterText"
+                    ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
+                    ClearFilterText="@RadzenRuStrings.ClearFilterText"
+                    ContainsText="@RadzenRuStrings.ContainsText"
+                    DoesNotContainText="@RadzenRuStrings.DoesNotContainText"
+                    EqualsText="@RadzenRuStrings.EqualsText"
+                    NotEqualsText="@RadzenRuStrings.NotEqualsText"
+                    StartsWithText="@RadzenRuStrings.StartsWithText"
+                    EndsWithText="@RadzenRuStrings.EndsWithText"
+                    GreaterThanText="@RadzenRuStrings.GreaterThanText"
+                    GreaterThanOrEqualsText="@RadzenRuStrings.GreaterThanOrEqualsText"
+                    LessThanText="@RadzenRuStrings.LessThanText"
+                    LessThanOrEqualsText="@RadzenRuStrings.LessThanOrEqualsText"
+                    IsNullText="@RadzenRuStrings.IsNullText"
+                    IsNotNullText="@RadzenRuStrings.IsNotNullText"
+                    AndOperatorText="@RadzenRuStrings.AndOperatorText"
+                    OrOperatorText="@RadzenRuStrings.OrOperatorText"
+                    PageSizeText="@RadzenRuStrings.PageSizeText"
+                    PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                    EmptyText="@RadzenRuStrings.EmptyText">
+        <Columns>
+
+            <RadzenDataGridColumn TItem="UserListDto" Property="LastName" Title="Фамилия" Width="180px" Frozen="true" />
+            <RadzenDataGridColumn TItem="UserListDto" Property="FirstName" Title="Имя" Width="160px" />
+            <RadzenDataGridColumn TItem="UserListDto" Property="MiddleName" Title="Отчество" Width="160px" />
+            <RadzenDataGridColumn TItem="UserListDto" Property="Email" Title="Email" Width="240px" />
+
+            <RadzenDataGridColumn TItem="UserListDto" Property="IsActive" Title="Активен"
+                                  Width="110px" TextAlign="TextAlign.Center" Filterable="false">
+                <Template Context="u">
+                    <RadzenCheckBox TValue="bool" Value="@u.IsActive" Disabled="true" />
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="UserListDto" Title="Роли" Width="220px"
+                                  Sortable="false" Filterable="false">
+                <Template Context="u">
+                    @string.Join(", ", u.Roles)
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="UserListDto" Property="CreatedAtUtc" Title="Создан"
+                                  FormatString="{0:dd.MM.yyyy}" Width="140px" Filterable="false" />
+
+        </Columns>
+    </RadzenDataGrid>
 }
+
 @code {
+    private RadzenDataGrid<UserListDto>? _grid;
     private List<UserListDto> _users = [];
     private List<string> _availableRoles = [];
     private bool _loading = true;
+    private bool _saving;
+    private Density _density = Density.Default;
+    private UserEditModel? _editUser;
+    private readonly int[] _pageSizeOptions = new[] { 10, 25, 50, 100 };
+
+    private DataGridSettings? _gridSettings;
+    private const string GridSettingsKey = "tenant-users-grid-settings";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await LoadGridSettingsAsync();
+    }
+
+    private async Task LoadGridSettingsAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private void OnGridSettingsChanged(DataGridSettings settings)
+    {
+        _gridSettings = settings;
+        _ = SaveGridSettingsAsync();
+    }
+
+    private async Task SaveGridSettingsAsync()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+        }
+        catch { }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         if (TenantProvider.IsResolved)
@@ -98,6 +229,7 @@ else
         else
             _loading = false;
     }
+
     private async Task LoadAsync()
     {
         _loading = true;
@@ -105,64 +237,119 @@ else
         _users = await GetUsers.HandleAsync();
         _loading = false;
     }
-    private async Task OpenCreateDialog()
+
+    private void OpenCreateForm()
     {
-        var parameters = new DialogParameters<UserFormDialog>
+        _editUser = new UserEditModel { Id = Guid.Empty, IsActive = true };
+    }
+
+    private void OpenEditForm(UserListDto user)
+    {
+        _editUser = new UserEditModel
         {
-            { x => x.Title, "Добавить пользователя" },
-            { x => x.Model, new UserFormModel() },
-            { x => x.AvailableRoles, _availableRoles },
-            { x => x.IsEdit, false }
+            Id = user.Id,
+            Email = user.Email,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            MiddleName = user.MiddleName,
+            IsActive = user.IsActive,
+            Roles = user.Roles.ToList()
         };
-        var dialog = await DialogService.ShowAsync<UserFormDialog>("Добавить пользователя", parameters);
-        var result = await dialog.Result;
-        if (result is { Canceled: false, Data: UserFormModel m })
+    }
+
+    private async Task SaveUser(UserEditModel model)
+    {
+        _saving = true;
+        try
         {
-            var (ok, error) = await CreateUser.HandleAsync(
-                new CreateUserRequest(m.Email, m.FirstName, m.LastName, m.MiddleName, m.Password, m.SelectedRoles));
-            if (ok) { Snackbar.Add("Пользователь создан", Severity.Success); await LoadAsync(); }
-            else Snackbar.Add(error ?? "Ошибка создания", Severity.Error);
+            if (model.Id == Guid.Empty)
+            {
+                var (ok, error) = await CreateUser.HandleAsync(
+                    new CreateUserRequest(model.Email, model.FirstName, model.LastName,
+                                         model.MiddleName, model.Password ?? "P@ssw0rd", model.Roles));
+                if (ok)
+                {
+                    NotificationService.Notify(NotificationSeverity.Success, "Пользователь создан");
+                    _editUser = null;
+                    await LoadAsync();
+                }
+                else
+                {
+                    NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Ошибка создания");
+                }
+            }
+            else
+            {
+                var (ok, error) = await UpdateUser.HandleAsync(model.Id,
+                    new UpdateUserRequest(model.FirstName, model.LastName, model.MiddleName,
+                                         model.IsActive, model.Roles));
+                if (ok)
+                {
+                    NotificationService.Notify(NotificationSeverity.Success, "Пользователь обновлён");
+                    _editUser = null;
+                    await LoadAsync();
+                }
+                else
+                {
+                    NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Ошибка обновления");
+                }
+            }
+        }
+        finally
+        {
+            _saving = false;
         }
     }
-    private async Task OpenEditDialog(UserListDto user)
+
+    private async Task DeleteUser(UserListDto user)
     {
-        var model = new UserFormModel
+        var (ok, error) = await DeleteUserService.HandleAsync(user.Id);
+        if (ok)
         {
-            Email         = user.Email,
-            FirstName     = user.FirstName,
-            LastName      = user.LastName,
-            MiddleName    = user.MiddleName,
-            IsActive      = user.IsActive,
-            SelectedRoles = [..user.Roles]
-        };
-        var parameters = new DialogParameters<UserFormDialog>
+            NotificationService.Notify(NotificationSeverity.Success, "Пользователь удалён");
+            await LoadAsync();
+        }
+        else
         {
-            { x => x.Title, "Редактировать пользователя" },
-            { x => x.Model, model },
-            { x => x.AvailableRoles, _availableRoles },
-            { x => x.IsEdit, true }
-        };
-        var dialog = await DialogService.ShowAsync<UserFormDialog>("Редактировать пользователя", parameters);
-        var result = await dialog.Result;
-        if (result is { Canceled: false, Data: UserFormModel m })
-        {
-            var (ok, error) = await UpdateUser.HandleAsync(user.Id,
-                new UpdateUserRequest(m.FirstName, m.LastName, m.MiddleName, m.IsActive, m.SelectedRoles));
-            if (ok) { Snackbar.Add("Пользователь обновлён", Severity.Success); await LoadAsync(); }
-            else Snackbar.Add(error ?? "Ошибка обновления", Severity.Error);
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Ошибка удаления");
         }
     }
-    private async Task ConfirmDelete(UserListDto user)
+
+    private void ShowContextMenu(DataGridCellMouseEventArgs<UserListDto> args)
     {
-        var confirmed = await DialogService.ShowMessageBox(
-            "Удаление пользователя",
-            $"Удалить пользователя «{user.LastName} {user.FirstName}»? Действие необратимо.",
-            yesText: "Удалить", cancelText: "Отмена");
-        if (confirmed == true)
-        {
-            var (ok, error) = await DeleteUser.HandleAsync(user.Id);
-            if (ok) { Snackbar.Add("Пользователь удалён", Severity.Success); await LoadAsync(); }
-            else Snackbar.Add(error ?? "Ошибка удаления", Severity.Error);
-        }
+        ContextMenuService.Open(args,
+            [
+                new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" },
+                new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" }
+            ],
+            e =>
+            {
+                ContextMenuService.Close();
+                if (e.Value?.ToString() == "edit")
+                    InvokeAsync(() => { OpenEditForm(args.Data); return Task.CompletedTask; });
+                else if (e.Value?.ToString() == "delete")
+                    InvokeAsync(() => DeleteUser(args.Data));
+            });
     }
+
+    private class UserEditModel
+    {
+        public Guid Id { get; set; }
+        public string Email { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string? MiddleName { get; set; }
+        public string? Password { get; set; }
+        public bool IsActive { get; set; } = true;
+        public List<string> Roles { get; set; } = [];
+    }
+
+    private void ToggleDensity() =>
+        _density = _density == Density.Compact ? Density.Default : Density.Compact;
+
+    private string GetDensityTitle() => _density switch
+    {
+        Density.Compact => "Компактный режим строк",
+        _ => "Обычный режим строк"
+    };
 }

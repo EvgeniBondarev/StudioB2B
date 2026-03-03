@@ -1,0 +1,53 @@
+@using Radzen
+@inject IJSRuntime Js
+@inject NotificationService NotificationService
+
+<span @onclick="OnClick"
+      style="@BuildStyle()"
+      class="@Class"
+      title="@BuildTitle()">
+    @if (ChildContent is not null)
+    {
+        @ChildContent
+    }
+    else
+    {
+        @Text
+    }
+</span>
+
+@code {
+    [Parameter] public string Text { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Tooltip { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+    [Parameter] public bool ShowNotification { get; set; } = true;
+
+    private async Task OnClick()
+    {
+        if (string.IsNullOrEmpty(Text))
+            return;
+
+        var ok = await Js.InvokeAsync<bool>("studioCopyText", Text);
+        if (ok && ShowNotification)
+        {
+            NotificationService.Notify(NotificationSeverity.Info,
+                "Скопировано",
+                Text,
+                duration: 2000);
+        }
+    }
+
+    private string BuildStyle()
+    {
+        var baseStyle = "cursor: pointer;";
+        return string.IsNullOrWhiteSpace(Style) ? baseStyle : $"{Style} {baseStyle}";
+    }
+
+    private string BuildTitle() =>
+        string.IsNullOrWhiteSpace(Tooltip)
+            ? "Нажмите, чтобы скопировать"
+            : Tooltip!;
+}
+

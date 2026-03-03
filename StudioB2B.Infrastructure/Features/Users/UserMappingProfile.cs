@@ -33,20 +33,7 @@ public class UserMappingProfile : Profile
             .ForMember(dest => dest.LastName, opt => opt.MapFrom(src => src.LastName.Trim()))
             .ForMember(dest => dest.MiddleName, opt => opt.MapFrom(src => src.MiddleName == null ? null : src.MiddleName.Trim()))
             .ForMember(dest => dest.EmailConfirmed, opt => opt.MapFrom(_ => true))
-            .ForMember(dest => dest.IsActive, opt => opt.MapFrom(_ => true))
-            .ForMember(dest => dest.CreatedAtUtc, opt => opt.Ignore())
-            .ForMember(dest => dest.LastLoginAtUtc, opt => opt.Ignore())
-            .ForMember(dest => dest.NormalizedUserName, opt => opt.Ignore())
-            .ForMember(dest => dest.NormalizedEmail, opt => opt.Ignore())
-            .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
-            .ForMember(dest => dest.SecurityStamp, opt => opt.Ignore())
-            .ForMember(dest => dest.ConcurrencyStamp, opt => opt.Ignore())
-            .ForMember(dest => dest.PhoneNumber, opt => opt.Ignore())
-            .ForMember(dest => dest.PhoneNumberConfirmed, opt => opt.Ignore())
-            .ForMember(dest => dest.TwoFactorEnabled, opt => opt.Ignore())
-            .ForMember(dest => dest.LockoutEnd, opt => opt.Ignore())
-            .ForMember(dest => dest.LockoutEnabled, opt => opt.Ignore())
-            .ForMember(dest => dest.AccessFailedCount, opt => opt.Ignore());
+            .ForMember(dest => dest.IsActive, opt => opt.MapFrom(_ => true));
 
         // UpdateUserRequest → ApplicationUser (patch existing entity)
         CreateMap<UpdateUserRequest, ApplicationUser>()

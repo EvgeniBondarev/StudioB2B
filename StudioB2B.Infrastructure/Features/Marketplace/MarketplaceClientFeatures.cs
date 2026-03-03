@@ -1,9 +1,9 @@
 using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Shared.DTOs;
 using StudioB2B.Domain.Entities.Marketplace;
-using StudioB2B.Infrastructure.Extensions;
 
 namespace StudioB2B.Infrastructure.Features.Marketplace;
 
@@ -23,11 +23,23 @@ public static class MarketplaceClientExtensions
         IMapper mapper,
         CancellationToken ct = default)
     {
+        // Legacy: fetch all
         return q
                  .AsNoTracking()
                  .IncludeEverything()
-                 .CastToDto<MarketplaceClient, MarketplaceClientDto>(mapper)
+                 .ProjectTo<MarketplaceClientDto>(mapper.ConfigurationProvider)
                  .ToListAsync(ct);
+    }
+
+    // Paging logic moved to web project for MudBlazor dependency
+    public static IQueryable<MarketplaceClientDto> ProjectToDto(
+        this IQueryable<MarketplaceClient> q,
+        IMapper mapper)
+    {
+        return q
+            .AsNoTracking()
+            .IncludeEverything()
+            .ProjectTo<MarketplaceClientDto>(mapper.ConfigurationProvider);
     }
 
     public static Task<MarketplaceClientDto?> GetByIdAsync(
@@ -40,7 +52,7 @@ public static class MarketplaceClientExtensions
                  .AsNoTracking()
                  .IncludeEverything()
                  .Where(c => c.Id == id)
-                 .CastToDto<MarketplaceClient, MarketplaceClientDto>(mapper)
+                 .ProjectTo<MarketplaceClientDto>(mapper.ConfigurationProvider)
                  .FirstOrDefaultAsync(ct);
     }
 
