@@ -8,13 +8,16 @@ namespace StudioB2B.Infrastructure.Services;
 public class TenantDbContextFactory : ITenantDbContextFactory
 {
     private readonly ITenantProvider _tenantProvider;
+    private readonly ICurrentUserProvider _currentUserProvider;
     private readonly ILogger<TenantDbContextFactory> _logger;
 
     public TenantDbContextFactory(
         ITenantProvider tenantProvider,
+        ICurrentUserProvider currentUserProvider,
         ILogger<TenantDbContextFactory> logger)
     {
         _tenantProvider = tenantProvider;
+        _currentUserProvider = currentUserProvider;
         _logger = logger;
     }
 
@@ -32,7 +35,7 @@ public class TenantDbContextFactory : ITenantDbContextFactory
 
         _logger.LogDebug("Creating TenantDbContext for tenant {TenantId}", _tenantProvider.TenantId);
 
-        var context = new TenantDbContext(optionsBuilder.Options);
+        var context = new TenantDbContext(optionsBuilder.Options, _currentUserProvider);
 
         try
         {
