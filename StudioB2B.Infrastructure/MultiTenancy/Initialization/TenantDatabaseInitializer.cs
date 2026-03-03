@@ -46,6 +46,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         }
 
         await SeedMarketplaceDataAsync(context, ct);
+        await EnsureRobotUserAsync(context, ct);
     }
 
     public async Task CreateAdminUserAsync(
@@ -73,7 +74,46 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         var builder = new DbContextOptionsBuilder<TenantDbContext>();
         builder.UseMySql(connectionString,
             await ServerVersion.AutoDetectAsync(connectionString, ct));
-        return new TenantDbContext(builder.Options);
+        // ICurrentUserProvider = null → все изменения при инициализации записываются на робота
+        return new TenantDbContext(builder.Options, currentUserProvider: null);
+    }
+
+    private static async Task EnsureRobotUserAsync(TenantDbContext ctx, CancellationToken ct)
+    {
+        if (await ctx.Users.AnyAsync(u => u.Id == SystemUser.RobotId, ct))
+            return;
+
+        var store = new UserStore<ApplicationUser, ApplicationRole, TenantDbContext, Guid>(ctx);
+
+        using var mgr = new UserManager<ApplicationUser>(
+            store,
+            Options.Create(new IdentityOptions()),
+            new PasswordHasher<ApplicationUser>(),
+            new[] { new UserValidator<ApplicationUser>() },
+            new[] { new PasswordValidator<ApplicationUser>() },
+            new UpperInvariantLookupNormalizer(),
+            new IdentityErrorDescriber(),
+            null!,
+            NullLogger<UserManager<ApplicationUser>>.Instance);
+
+        var robot = new ApplicationUser
+        {
+            Id             = SystemUser.RobotId,
+            UserName       = SystemUser.RobotUserName,
+            Email          = SystemUser.RobotEmail,
+            EmailConfirmed = true,
+            FirstName      = SystemUser.RobotFirstName,
+            LastName       = SystemUser.RobotLastName,
+            IsActive       = false
+        };
+
+        // Создаём без пароля — робот не должен иметь возможности войти
+        var result = await mgr.CreateAsync(robot);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            throw new InvalidOperationException($"Failed to create robot user: {errors}");
+        }
     }
 
     private static async Task SeedMarketplaceDataAsync(TenantDbContext ctx, CancellationToken ct)
