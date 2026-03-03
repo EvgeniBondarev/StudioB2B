@@ -6,6 +6,7 @@
 @inject MasterDbContext Db
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Роли — StudioB2B</PageTitle>
 
@@ -32,6 +33,8 @@
                     Count="@_totalCount"
                     LoadData="@LoadData"
                     Density="@_density"
+                    Settings="@_gridSettings"
+                    SettingsChanged="@OnGridSettingsChanged"
                     AllowFiltering="true"
                     AllowColumnResize="true"
                     AllowAlternatingRows="false"
@@ -47,7 +50,27 @@
                     RowCreate="@OnCreate"
                     RowUpdate="@OnUpdate"
                     CellContextMenu="@ShowContextMenu"
-                    IsLoading="@_loading">
+                    IsLoading="@_loading"
+                    FilterText="@RadzenRuStrings.FilterText"
+                    ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
+                    ClearFilterText="@RadzenRuStrings.ClearFilterText"
+                    ContainsText="@RadzenRuStrings.ContainsText"
+                    DoesNotContainText="@RadzenRuStrings.DoesNotContainText"
+                    EqualsText="@RadzenRuStrings.EqualsText"
+                    NotEqualsText="@RadzenRuStrings.NotEqualsText"
+                    StartsWithText="@RadzenRuStrings.StartsWithText"
+                    EndsWithText="@RadzenRuStrings.EndsWithText"
+                    GreaterThanText="@RadzenRuStrings.GreaterThanText"
+                    GreaterThanOrEqualsText="@RadzenRuStrings.GreaterThanOrEqualsText"
+                    LessThanText="@RadzenRuStrings.LessThanText"
+                    LessThanOrEqualsText="@RadzenRuStrings.LessThanOrEqualsText"
+                    IsNullText="@RadzenRuStrings.IsNullText"
+                    IsNotNullText="@RadzenRuStrings.IsNotNullText"
+                    AndOperatorText="@RadzenRuStrings.AndOperatorText"
+                    OrOperatorText="@RadzenRuStrings.OrOperatorText"
+                    PageSizeText="@RadzenRuStrings.PageSizeText"
+                    PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                    EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
             <RadzenDataGridColumn TItem="MasterRole" Property="Name" Title="Название" Width="220px">
@@ -100,6 +123,49 @@
     private Density _density = Density.Default;
     private bool _loading;
     private readonly int[] _pageSizeOptions = new[] { 10, 25, 50, 100 };
+
+    private DataGridSettings? _gridSettings;
+    private const string GridSettingsKey = "roles-grid-settings";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadGridSettingsAsync();
+            if (_grid != null && _gridSettings == null)
+                await _grid.Reload();
+        }
+    }
+
+    private async Task LoadGridSettingsAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private void OnGridSettingsChanged(DataGridSettings settings)
+    {
+        _gridSettings = settings;
+        _ = SaveGridSettingsAsync();
+    }
+
+    private async Task SaveGridSettingsAsync()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+        }
+        catch { }
+    }
 
     private async Task LoadData(LoadDataArgs args)
     {

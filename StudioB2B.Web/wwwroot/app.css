@@ -74,3 +74,130 @@ h1:focus {
 .sidebar-compact .rz-navigation-item-toggle-icon {
     display: none !important;
 }
+
+/* ─── Orders: compact header filters ──────────────────────── */
+
+.rz-header-filter-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    width: 100%;
+}
+
+.rz-header-filter-title {
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.rz-header-filter-cell .rz-dropdown {
+    min-height: 28px !important;
+}
+
+.rz-header-filter-cell .rz-dropdown .rz-inputtext {
+    padding: 0.2rem 0.4rem !important;
+    font-size: 0.8rem !important;
+}
+
+/* ─── Компактная пагинация Radzen DataGrid ────────────────── */
+
+.rz-datatable .rz-paginator,
+.rz-datatable .rz-pager {
+    min-height: 28px !important;
+    padding: 0.2rem 0.5rem !important;
+}
+
+.rz-datatable .rz-paginator .rz-paginator-element,
+.rz-datatable .rz-pager .rz-paginator-element {
+    min-height: 24px !important;
+    padding: 0.15rem 0.4rem !important;
+    font-size: 0.8rem !important;
+}
+
+.rz-datatable .rz-paginator .rz-dropdown,
+.rz-datatable .rz-pager .rz-dropdown {
+    min-height: 24px !important;
+}
+
+.rz-datatable .rz-datatable-footer {
+    min-height: 28px !important;
+    padding: 0.2rem 0.5rem !important;
+}
+
+/* ─── Браузерная панель вкладок ──────────────────────────── */
+
+.app-tab-bar {
+    display: flex;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--rz-border-color);
+    background: var(--rz-base-background-color);
+    scrollbar-width: thin;
+    flex-shrink: 0;
+}
+
+.app-tab-bar::-webkit-scrollbar {
+    height: 3px;
+}
+
+.app-tab-bar::-webkit-scrollbar-thumb {
+    background: var(--rz-border-color);
+    border-radius: 2px;
+}
+
+.app-tab {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 10px;
+    height: 34px;
+    cursor: pointer;
+    border-right: 1px solid var(--rz-border-color);
+    min-width: 110px;
+    max-width: 180px;
+    flex-shrink: 0;
+    user-select: none;
+    font-size: 0.8rem;
+    color: var(--rz-text-secondary-color);
+    transition: background 0.15s;
+}
+
+.app-tab:hover {
+    background: var(--rz-surface-color);
+    color: var(--rz-text-color);
+}
+
+.app-tab.active {
+    border-bottom: 2px solid var(--rz-primary);
+    background: var(--rz-surface-color);
+    color: var(--rz-text-color);
+    font-weight: 600;
+}
+
+.app-tab-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.app-tab-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0;
+    border-radius: 3px;
+    padding: 1px;
+    transition: opacity 0.15s, background 0.15s;
+}
+
+.app-tab:hover .app-tab-close,
+.app-tab.active .app-tab-close {
+    opacity: 0.5;
+}
+
+.app-tab-close:hover {
+    opacity: 1 !important;
+    background: var(--rz-danger-lighter);
+    color: var(--rz-danger);
+}

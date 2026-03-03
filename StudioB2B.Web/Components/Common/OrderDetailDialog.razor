@@ -72,7 +72,10 @@ else
                                                 AllowFiltering="false"
                                                 AllowPaging="@(product.Attributes.Count > 15)"
                                                 PageSize="15"
-                                                Style="max-height: 320px; overflow-y: auto;">
+                                                Style="max-height: 320px; overflow-y: auto;"
+                                                PageSizeText="@RadzenRuStrings.PageSizeText"
+                                                PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                                                EmptyText="@RadzenRuStrings.EmptyText">
                                     <Columns>
                                         <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Products.ProductAttributeValue"
                                                               Title="Характеристика"
@@ -115,7 +118,8 @@ else
                                         Density="Density.Compact"
                                         AllowSorting="true"
                                         AllowFiltering="false"
-                                        AllowPaging="false">
+                                        AllowPaging="false"
+                                        EmptyText="@RadzenRuStrings.EmptyText">
                             <Columns>
                                 <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
                                                       Property="PriceType.Name"
@@ -153,7 +157,8 @@ else
                                         Density="Density.Compact"
                                         AllowSorting="false"
                                         AllowFiltering="false"
-                                        AllowPaging="false">
+                                        AllowPaging="false"
+                                        EmptyText="@RadzenRuStrings.EmptyText">
                             <Columns>
                                 <RadzenDataGridColumn TItem="CalculationResultRow" Title="Название" Width="180px">
                                     <Template Context="row">
@@ -285,7 +290,10 @@ else
                                             AllowFiltering="false"
                                             AllowPaging="@(_shipmentOrders.Count > 10)"
                                             PageSize="10"
-                                            Style="max-height: 280px; overflow-y: auto;">
+                                            Style="max-height: 280px; overflow-y: auto;"
+                                            PageSizeText="@RadzenRuStrings.PageSizeText"
+                                            PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                                            EmptyText="@RadzenRuStrings.EmptyText">
                                 <Columns>
                                     <RadzenDataGridColumn TItem="Order" Title="Товар" Width="240px">
                                         <Template Context="o">

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.HttpOverrides;
 using Radzen;
 using StudioB2B.Infrastructure;
+using StudioB2B.Web.Services;
 using Microsoft.AspNetCore.Components;
 
 namespace StudioB2B.Web.Extensions;
@@ -34,6 +35,7 @@ public static class ServiceExtensions
         services.AddScoped<NotificationService>();
         services.AddScoped<TooltipService>();
         services.AddScoped<ContextMenuService>();
+        services.AddScoped<TabService>();
 
         ConfigureAuthentication(services, environment);
         ConfigureCors(services, environment);

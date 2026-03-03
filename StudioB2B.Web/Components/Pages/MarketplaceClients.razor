@@ -17,6 +17,7 @@
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
 @inject DialogService DialogService
+@inject IJSRuntime JSRuntime
 
 @implements IDisposable
 
@@ -47,6 +48,8 @@ else
                     Count="@_totalCount"
                     LoadData="@LoadData"
                     Density="@_density"
+                    Settings="@_gridSettings"
+                    SettingsChanged="@OnGridSettingsChanged"
                     AllowFiltering="true"
                     AllowColumnResize="true"
                     AllowAlternatingRows="false"
@@ -61,7 +64,27 @@ else
                     EditMode="DataGridEditMode.Single"
                     RowUpdate="@OnUpdate"
                     CellContextMenu="@ShowContextMenu"
-                    IsLoading="@_loading">
+                    IsLoading="@_loading"
+                    FilterText="@RadzenRuStrings.FilterText"
+                    ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
+                    ClearFilterText="@RadzenRuStrings.ClearFilterText"
+                    ContainsText="@RadzenRuStrings.ContainsText"
+                    DoesNotContainText="@RadzenRuStrings.DoesNotContainText"
+                    EqualsText="@RadzenRuStrings.EqualsText"
+                    NotEqualsText="@RadzenRuStrings.NotEqualsText"
+                    StartsWithText="@RadzenRuStrings.StartsWithText"
+                    EndsWithText="@RadzenRuStrings.EndsWithText"
+                    GreaterThanText="@RadzenRuStrings.GreaterThanText"
+                    GreaterThanOrEqualsText="@RadzenRuStrings.GreaterThanOrEqualsText"
+                    LessThanText="@RadzenRuStrings.LessThanText"
+                    LessThanOrEqualsText="@RadzenRuStrings.LessThanOrEqualsText"
+                    IsNullText="@RadzenRuStrings.IsNullText"
+                    IsNotNullText="@RadzenRuStrings.IsNotNullText"
+                    AndOperatorText="@RadzenRuStrings.AndOperatorText"
+                    OrOperatorText="@RadzenRuStrings.OrOperatorText"
+                    PageSizeText="@RadzenRuStrings.PageSizeText"
+                    PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                    EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
             <RadzenDataGridColumn TItem="MarketplaceClient" Property="Name" Title="Название" Width="220px" Frozen="true">
@@ -175,10 +198,47 @@ else
     // tracks which rows have their key revealed
     private readonly HashSet<Guid> _revealedKeys = [];
 
+    private DataGridSettings? _gridSettings;
+    private const string GridSettingsKey = "marketplace-clients-grid-settings";
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && TenantProvider.IsResolved && _grid != null)
-            await _grid.Reload();
+        if (firstRender)
+        {
+            await LoadGridSettingsAsync();
+            if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
+                await _grid.Reload();
+        }
+    }
+
+    private async Task LoadGridSettingsAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private void OnGridSettingsChanged(DataGridSettings settings)
+    {
+        _gridSettings = settings;
+        _ = SaveGridSettingsAsync();
+    }
+
+    private async Task SaveGridSettingsAsync()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+        }
+        catch { }
     }
 
     private async Task LoadData(LoadDataArgs args)

@@ -14,6 +14,7 @@
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
 @inject DialogService DialogService
+@inject IJSRuntime JSRuntime
 
 @implements IDisposable
 
@@ -38,39 +39,14 @@ else
         </RadzenStack>
     </RadzenStack>
 
-    <RadzenStack Gap="1rem" Style="margin-bottom: 1rem;">
-        <RadzenStack Orientation="Orientation.Horizontal" Gap="1.5rem" AlignItems="AlignItems.End" FlexWrap="FlexWrap.Wrap">
-            <RadzenStack Gap="0.25rem">
-                <RadzenLabel Text="Тип" />
-                <RadzenDropDown @bind-Value="_filterType"
-                                Data="@_typeFilterOptions"
-                                TextProperty="Label"
-                                ValueProperty="Value"
-                                Placeholder="Все"
-                                AllowClear="true"
-                                Style="min-width: 180px;"
-                                Change="@OnFilterChange" />
-            </RadzenStack>
-            <RadzenStack Gap="0.25rem">
-                <RadzenLabel Text="Маркетплейс" />
-                <RadzenDropDown @bind-Value="_filterMarketplaceTypeId"
-                                Data="@_clientTypes"
-                                TextProperty="Name"
-                                ValueProperty="Id"
-                                Placeholder="Все"
-                                AllowClear="true"
-                                Style="min-width: 180px;"
-                                Change="@OnFilterChange" />
-            </RadzenStack>
-        </RadzenStack>
-    </RadzenStack>
-
     <RadzenDataGrid @ref="_grid"
                     TItem="OrderStatus"
                     Data="@_pageItems"
                     Count="@_totalCount"
                     LoadData="@LoadData"
                     Density="@_density"
+                    Settings="@_gridSettings"
+                    SettingsChanged="@OnGridSettingsChanged"
                     AllowFiltering="true"
                     AllowColumnResize="true"
                     AllowAlternatingRows="false"
@@ -86,7 +62,27 @@ else
                     RowUpdate="@OnUpdate"
                     RowCreate="@OnCreate"
                     CellContextMenu="@ShowContextMenu"
-                    IsLoading="@_loading">
+                    IsLoading="@_loading"
+                    FilterText="@RadzenRuStrings.FilterText"
+                    ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
+                    ClearFilterText="@RadzenRuStrings.ClearFilterText"
+                    ContainsText="@RadzenRuStrings.ContainsText"
+                    DoesNotContainText="@RadzenRuStrings.DoesNotContainText"
+                    EqualsText="@RadzenRuStrings.EqualsText"
+                    NotEqualsText="@RadzenRuStrings.NotEqualsText"
+                    StartsWithText="@RadzenRuStrings.StartsWithText"
+                    EndsWithText="@RadzenRuStrings.EndsWithText"
+                    GreaterThanText="@RadzenRuStrings.GreaterThanText"
+                    GreaterThanOrEqualsText="@RadzenRuStrings.GreaterThanOrEqualsText"
+                    LessThanText="@RadzenRuStrings.LessThanText"
+                    LessThanOrEqualsText="@RadzenRuStrings.LessThanOrEqualsText"
+                    IsNullText="@RadzenRuStrings.IsNullText"
+                    IsNotNullText="@RadzenRuStrings.IsNotNullText"
+                    AndOperatorText="@RadzenRuStrings.AndOperatorText"
+                    OrOperatorText="@RadzenRuStrings.OrOperatorText"
+                    PageSizeText="@RadzenRuStrings.PageSizeText"
+                    PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                    EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="Name" Title="Название" Width="220px" Frozen="true">
@@ -141,6 +137,20 @@ else
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="IsInternal" Title="Системный"
                                   Width="110px" TextAlign="TextAlign.Center" Filterable="false">
+                <HeaderTemplate>
+                    <div class="rz-header-filter-cell">
+                        <span class="rz-header-filter-title">Тип</span>
+                        <RadzenDropDown @bind-Value="_filterType"
+                                        Data="@_typeFilterOptions"
+                                        TextProperty="Label"
+                                        ValueProperty="Value"
+                                        Placeholder="Все"
+                                        AllowClear="true"
+                                        Style="width: 100%; min-width: 0;"
+                                        Change="@OnFilterChange"
+                                        Size="ButtonSize.Small" />
+                    </div>
+                </HeaderTemplate>
                 <Template Context="s">
                     @if (s.IsInternal)
                     {
@@ -176,6 +186,20 @@ else
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="MarketplaceClientType.Name"
                                   Title="Маркетплейс" Width="160px" Sortable="false" Filterable="false">
+                <HeaderTemplate>
+                    <div class="rz-header-filter-cell">
+                        <span class="rz-header-filter-title">Маркетплейс</span>
+                        <RadzenDropDown @bind-Value="_filterMarketplaceTypeId"
+                                        Data="@_clientTypes"
+                                        TextProperty="Name"
+                                        ValueProperty="Id"
+                                        Placeholder="Все"
+                                        AllowClear="true"
+                                        Style="width: 100%; min-width: 0;"
+                                        Change="@OnFilterChange"
+                                        Size="ButtonSize.Small" />
+                    </div>
+                </HeaderTemplate>
                 <Template Context="s">
                     @if (s.MarketplaceClientType != null)
                     {
@@ -238,10 +262,80 @@ else
         new("Маркетплейсовые", "marketplace")
     ];
 
+    private DataGridSettings? _gridSettings;
+    private const string GridSettingsKey = "order-statuses-grid-settings";
+    private const string FiltersKey = "order-statuses-filters";
+
+    private record StatusFilters(string? FilterType, Guid? MarketplaceTypeId);
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && TenantProvider.IsResolved && _grid != null)
-            await _grid.Reload();
+        if (firstRender)
+        {
+            await LoadGridSettingsAsync();
+            await LoadFiltersAsync();
+            if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
+                await _grid.Reload();
+        }
+    }
+
+    private async Task LoadGridSettingsAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private void OnGridSettingsChanged(DataGridSettings settings)
+    {
+        _gridSettings = settings;
+        _ = SaveGridSettingsAsync();
+    }
+
+    private async Task SaveGridSettingsAsync()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+        }
+        catch { }
+    }
+
+    private async Task LoadFiltersAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", FiltersKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                var f = System.Text.Json.JsonSerializer.Deserialize<StatusFilters>(json);
+                if (f != null)
+                {
+                    _filterType = f.FilterType;
+                    _filterMarketplaceTypeId = f.MarketplaceTypeId;
+                    StateHasChanged();
+                }
+            }
+        }
+        catch { }
+    }
+
+    private async Task SaveFiltersAsync()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(new StatusFilters(_filterType, _filterMarketplaceTypeId));
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", FiltersKey, json);
+        }
+        catch { }
     }
 
     private async Task LoadData(LoadDataArgs args)
@@ -290,6 +384,7 @@ else
 
     private async Task OnFilterChange()
     {
+        _ = SaveFiltersAsync();
         if (_grid != null)
             await _grid.Reload();
     }
