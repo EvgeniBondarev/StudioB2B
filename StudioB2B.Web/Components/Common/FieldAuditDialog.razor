@@ -1,0 +1,194 @@
+@using Microsoft.EntityFrameworkCore
+@using StudioB2B.Domain.Entities.Common
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
+@using System.Text.Json
+
+@inject ITenantDbContextFactory Factory
+@inject DialogService DialogService
+
+@implements IDisposable
+
+<div style="min-width: min(720px, 90vw);">
+    @if (_loading)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 180px;">
+            <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
+        </RadzenStack>
+    }
+    else if (_logs.Count == 0)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 120px; gap: 0.5rem;">
+            <RadzenIcon Icon="history" Style="font-size: 2rem; color: var(--rz-text-disabled-color);" />
+            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                История изменений отсутствует
+            </RadzenText>
+        </RadzenStack>
+    }
+    else
+    {
+        <!-- Фильтр по полю -->
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem"
+                     Style="margin-bottom: 1rem; flex-wrap: wrap;">
+            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color); white-space: nowrap;">
+                Поле:
+            </RadzenText>
+            <RadzenDropDown @bind-Value="_selectedField"
+                            Data="@_fields"
+                            Placeholder="Все поля"
+                            AllowClear="true"
+                            Style="min-width: 200px;"
+                            Change="@ApplyFilter" />
+            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-disabled-color); margin-left: auto;">
+                Записей: @_filtered.Count
+            </RadzenText>
+        </RadzenStack>
+
+        <RadzenDataGrid TItem="FieldAuditLog"
+                        Data="@_filtered"
+                        AllowPaging="true"
+                        PageSize="20"
+                        AllowSorting="true"
+                        AllowFiltering="false"
+                        Density="Density.Compact"
+                        PageSizeText="@RadzenRuStrings.PageSizeText"
+                        PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                        EmptyText="@RadzenRuStrings.EmptyText"
+                        Style="max-height: 520px;">
+            <Columns>
+                <RadzenDataGridColumn TItem="FieldAuditLog" Property="ChangedAtUtc"
+                                      Title="Дата" Width="140px" Sortable="true">
+                    <Template Context="log">
+                        <span title="@log.ChangedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")">
+                            @log.ChangedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                        </span>
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="FieldAuditLog" Property="ChangeType"
+                                      Title="Операция" Width="100px" Sortable="true">
+                    <Template Context="log">
+                        @{
+                            var (icon, color, label) = log.ChangeType switch
+                            {
+                                "Added"    => ("add_circle",    "var(--rz-success)", "Создано"),
+                                "Modified" => ("edit",          "var(--rz-info)",    "Изменено"),
+                                "Deleted"  => ("delete",        "var(--rz-danger)",  "Удалено"),
+                                _          => ("help_outline",  "var(--rz-text-secondary-color)", log.ChangeType)
+                            };
+                        }
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                            <RadzenIcon Icon="@icon" Style="@($"font-size: 1rem; color: {color};")" />
+                            <span style="@($"font-size: 0.8rem; color: {color}; font-weight: 600;")">@label</span>
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="FieldAuditLog" Property="FieldName"
+                                      Title="Поле" Width="160px" Sortable="true">
+                    <Template Context="log">
+                        <span style="font-family: monospace; font-size: 0.8rem;">@log.FieldName</span>
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="FieldAuditLog" Title="Было" Width="200px" Sortable="false">
+                    <Template Context="log">
+                        <span style="color: var(--rz-danger); font-size: 0.85rem; word-break: break-word;">
+                            @FormatValue(log.OldValue)
+                        </span>
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="FieldAuditLog" Title="Стало" Width="200px" Sortable="false">
+                    <Template Context="log">
+                        <span style="color: var(--rz-success); font-size: 0.85rem; word-break: break-word;">
+                            @FormatValue(log.NewValue)
+                        </span>
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="FieldAuditLog" Property="ChangedByUserName"
+                                      Title="Кто изменил" Width="160px" Sortable="true">
+                    <Template Context="log">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.3rem">
+                            <RadzenIcon Icon="@(log.ChangedByUserName == SystemUser.RobotEmail ? "smart_toy" : "person")"
+                                        Style="font-size: 0.9rem; color: var(--rz-text-secondary-color);" />
+                            <span style="font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                                  title="@log.ChangedByUserName">
+                                @(log.ChangedByUserName == SystemUser.RobotEmail ? "Система" : log.ChangedByUserName)
+                            </span>
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    }
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End"
+                 Style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--rz-border-color);">
+        <RadzenButton Text="Закрыть" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close())" />
+    </RadzenStack>
+</div>
+
+@code {
+    [Parameter] public string EntityName  { get; set; } = string.Empty;
+    [Parameter] public string EntityId    { get; set; } = string.Empty;
+
+    private TenantDbContext? _db;
+    private List<FieldAuditLog> _logs     = [];
+    private List<FieldAuditLog> _filtered = [];
+    private List<string>        _fields   = [];
+    private string?             _selectedField;
+    private bool                _loading  = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _db = Factory.CreateDbContext();
+
+        _logs = await _db.FieldAuditLogs
+            .Where(x => x.EntityName == EntityName && x.EntityId == EntityId)
+            .OrderByDescending(x => x.ChangedAtUtc)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _fields = _logs.Select(x => x.FieldName).Distinct().OrderBy(x => x).ToList();
+        _filtered = _logs;
+        _loading  = false;
+    }
+
+    private void ApplyFilter()
+    {
+        _filtered = string.IsNullOrEmpty(_selectedField)
+            ? _logs
+            : _logs.Where(x => x.FieldName == _selectedField).ToList();
+    }
+
+    /// <summary>Разворачивает JSON-значение в читабельную строку.</summary>
+    private static string FormatValue(string? raw)
+    {
+        if (raw is null)     return "—";
+        if (raw == "null")   return "—";
+
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            var el = doc.RootElement;
+            return el.ValueKind switch
+            {
+                JsonValueKind.String  => el.GetString() ?? "—",
+                JsonValueKind.Number  => el.GetRawText(),
+                JsonValueKind.True    => "да",
+                JsonValueKind.False   => "нет",
+                JsonValueKind.Null    => "—",
+                _                    => raw
+            };
+        }
+        catch
+        {
+            return raw;
+        }
+    }
+
+    public void Dispose() => _db?.Dispose();
+}
+

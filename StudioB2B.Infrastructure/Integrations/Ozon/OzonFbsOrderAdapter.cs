@@ -54,6 +54,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
 
         var result = new OrderSyncResult();
 
+        _db.SuppressAudit = true;
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
         try
         {
@@ -71,6 +72,10 @@ public class OzonFbsOrderAdapter : IOrderAdapter
                 "Sync failed for client {ClientId}, all changes rolled back.",
                 client.ApiId);
             throw;
+        }
+        finally
+        {
+            _db.SuppressAudit = false;
         }
 
         return result;
@@ -92,28 +97,36 @@ public class OzonFbsOrderAdapter : IOrderAdapter
 
         var result = new OrderSyncResult();
 
-        foreach (var shipment in shipments)
+        _db.SuppressAudit = true;
+        try
         {
-            try
+            foreach (var shipment in shipments)
             {
-                var apiResult = await _api.GetFbsPostingAsync(client.ApiId, client.Key, shipment.PostingNumber, ct);
-
-                if (!apiResult.IsSuccess || apiResult.Data?.Result == null)
+                try
                 {
-                    _logger.LogWarning(
-                        "Failed to fetch posting {PostingNumber} for client {ClientId}: {Error}",
-                        shipment.PostingNumber, client.ApiId, apiResult.ErrorMessage);
-                    continue;
-                }
+                    var apiResult = await _api.GetFbsPostingAsync(client.ApiId, client.Key, shipment.PostingNumber, ct);
 
-                await UpdateShipmentStatusAsync(shipment, client.Name, apiResult.Data.Result, result, ct);
+                    if (!apiResult.IsSuccess || apiResult.Data?.Result == null)
+                    {
+                        _logger.LogWarning(
+                            "Failed to fetch posting {PostingNumber} for client {ClientId}: {Error}",
+                            shipment.PostingNumber, client.ApiId, apiResult.ErrorMessage);
+                        continue;
+                    }
+
+                    await UpdateShipmentStatusAsync(shipment, client.Name, apiResult.Data.Result, result, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        "Error updating shipment {PostingNumber} for client {ClientId}.",
+                        shipment.PostingNumber, client.ApiId);
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "Error updating shipment {PostingNumber} for client {ClientId}.",
-                    shipment.PostingNumber, client.ApiId);
-            }
+        }
+        finally
+        {
+            _db.SuppressAudit = false;
         }
 
         if (result.ShipmentsUpdated > 0)
