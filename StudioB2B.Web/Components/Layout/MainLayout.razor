@@ -1,7 +1,12 @@
 @inherits LayoutComponentBase
 @using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Web.Services
+@using System.Text.Json
 @inject ITenantProvider TenantProvider
 @inject NavigationManager Navigation
+@inject TabService TabService
+@inject IJSRuntime JSRuntime
+@implements IDisposable
 
 <RadzenLayout Style="min-height: 100vh;">
 
@@ -76,6 +81,7 @@
     </RadzenHeader>
 
     <RadzenBody>
+        <AppTabBar />
         <div style="padding: 1.5rem 2rem;">
             @Body
         </div>
@@ -89,6 +95,80 @@
 
 @code {
     private bool _sidebarExpanded = true;
+    private const string TabsStorageKey = "app-tabs";
+
+    protected override void OnInitialized()
+    {
+        TabService.TabsChanged += OnTabsChanged;
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadTabsFromStorageAsync();
+            // Ensure the current page is open as a tab
+            OpenCurrentTab();
+        }
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        OpenCurrentTab();
+    }
+
+    private void OpenCurrentTab()
+    {
+        var path = new Uri(Navigation.Uri).AbsolutePath;
+        if (string.IsNullOrEmpty(path)) path = "/";
+        TabService.EnsureOpen(path);
+        // Fire-and-forget save
+        _ = SaveTabsToStorageAsync();
+    }
+
+    private void OnTabsChanged()
+    {
+        _ = SaveTabsToStorageAsync();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadTabsFromStorageAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", TabsStorageKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                var entries = JsonSerializer.Deserialize<List<TabEntry>>(json);
+                if (entries is { Count: > 0 })
+                    TabService.Restore(entries);
+            }
+        }
+        catch
+        {
+            // Ignore storage errors
+        }
+    }
+
+    private async Task SaveTabsToStorageAsync()
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(TabService.Tabs.ToList());
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", TabsStorageKey, json);
+        }
+        catch
+        {
+            // Ignore storage errors
+        }
+    }
 
     private void ToggleSidebar() => _sidebarExpanded = !_sidebarExpanded;
+
+    public void Dispose()
+    {
+        TabService.TabsChanged -= OnTabsChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
 }

@@ -1,0 +1,73 @@
+@using StudioB2B.Web.Services
+@inject TabService TabService
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@if (TabService.Tabs.Count > 0)
+{
+    <div class="app-tab-bar">
+        @foreach (var tab in TabService.Tabs)
+        {
+            var isActive = IsActive(tab.Path);
+            <div class="app-tab @(isActive ? "active" : "")"
+                 @onclick="@(() => OnTabClick(tab.Path))"
+                 title="@tab.Title">
+                <i class="notranslate rzi" style="font-size: 0.9rem; flex-shrink: 0;">@tab.Icon</i>
+                <span class="app-tab-title">@tab.Title</span>
+                <span class="app-tab-close"
+                      @onclick="@(() => OnCloseClick(tab.Path))"
+                      @onclick:stopPropagation="true"
+                      title="Закрыть">
+                    <i class="notranslate rzi" style="font-size: 0.75rem;">close</i>
+                </span>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        TabService.TabsChanged += OnTabsChanged;
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnTabsChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private bool IsActive(string path)
+    {
+        var current = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
+        var tabPath = path.TrimEnd('/');
+        return string.Equals(current, tabPath, StringComparison.OrdinalIgnoreCase)
+               || (current == string.Empty && tabPath == string.Empty);
+    }
+
+    private void OnTabClick(string path)
+    {
+        if (!IsActive(path))
+            Navigation.NavigateTo(path);
+    }
+
+    private void OnCloseClick(string path)
+    {
+        var isActive = IsActive(path);
+        var navigateTo = TabService.Close(path);
+
+        if (isActive && navigateTo != null)
+            Navigation.NavigateTo(navigateTo);
+    }
+
+    public void Dispose()
+    {
+        TabService.TabsChanged -= OnTabsChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

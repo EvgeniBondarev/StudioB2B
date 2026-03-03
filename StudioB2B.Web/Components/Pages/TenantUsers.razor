@@ -10,6 +10,7 @@
 @inject ITenantProvider TenantProvider
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Пользователи</PageTitle>
 
@@ -108,6 +109,8 @@ else
                     TItem="UserListDto"
                     Data="@_users"
                     Density="@_density"
+                    Settings="@_gridSettings"
+                    SettingsChanged="@OnGridSettingsChanged"
                     AllowFiltering="true"
                     AllowColumnResize="true"
                     AllowAlternatingRows="false"
@@ -121,7 +124,27 @@ else
                     PagerHorizontalAlign="HorizontalAlign.Left"
                     ColumnWidth="180px"
                     IsLoading="@_loading"
-                    CellContextMenu="@ShowContextMenu">
+                    CellContextMenu="@ShowContextMenu"
+                    FilterText="@RadzenRuStrings.FilterText"
+                    ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
+                    ClearFilterText="@RadzenRuStrings.ClearFilterText"
+                    ContainsText="@RadzenRuStrings.ContainsText"
+                    DoesNotContainText="@RadzenRuStrings.DoesNotContainText"
+                    EqualsText="@RadzenRuStrings.EqualsText"
+                    NotEqualsText="@RadzenRuStrings.NotEqualsText"
+                    StartsWithText="@RadzenRuStrings.StartsWithText"
+                    EndsWithText="@RadzenRuStrings.EndsWithText"
+                    GreaterThanText="@RadzenRuStrings.GreaterThanText"
+                    GreaterThanOrEqualsText="@RadzenRuStrings.GreaterThanOrEqualsText"
+                    LessThanText="@RadzenRuStrings.LessThanText"
+                    LessThanOrEqualsText="@RadzenRuStrings.LessThanOrEqualsText"
+                    IsNullText="@RadzenRuStrings.IsNullText"
+                    IsNotNullText="@RadzenRuStrings.IsNotNullText"
+                    AndOperatorText="@RadzenRuStrings.AndOperatorText"
+                    OrOperatorText="@RadzenRuStrings.OrOperatorText"
+                    PageSizeText="@RadzenRuStrings.PageSizeText"
+                    PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                    EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
             <RadzenDataGridColumn TItem="UserListDto" Property="LastName" Title="Фамилия" Width="180px" Frozen="true" />
@@ -159,6 +182,45 @@ else
     private Density _density = Density.Default;
     private UserEditModel? _editUser;
     private readonly int[] _pageSizeOptions = new[] { 10, 25, 50, 100 };
+
+    private DataGridSettings? _gridSettings;
+    private const string GridSettingsKey = "tenant-users-grid-settings";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await LoadGridSettingsAsync();
+    }
+
+    private async Task LoadGridSettingsAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private void OnGridSettingsChanged(DataGridSettings settings)
+    {
+        _gridSettings = settings;
+        _ = SaveGridSettingsAsync();
+    }
+
+    private async Task SaveGridSettingsAsync()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+        }
+        catch { }
+    }
 
     protected override async Task OnInitializedAsync()
     {
