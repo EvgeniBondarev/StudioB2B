@@ -1,0 +1,74 @@
+@using StudioB2B.Application.Common
+@using StudioB2B.Domain.Entities.Orders
+
+@if (Summary is not null)
+{
+    <RadzenStack Gap="1rem">
+        @if (JobType == SyncJobType.Sync)
+        {
+            @if (Summary.PerClient.Count > 0)
+            {
+                <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Итог по клиентам</RadzenText>
+                <RadzenDataGrid TItem="ClientSyncResultItem" Data="@Summary.PerClient"
+                                Density="Density.Compact" AllowSorting="true">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ClientName" Title="Клиент" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="Mode" Title="Режим" Width="80px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ShipmentsCreated" Title="Отправлений создано" Width="130px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ShipmentsUpdated" Title="Обновлено" Width="100px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersCreated" Title="Заказов создано" Width="120px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersUpdated" Title="Обновлено" Width="100px" />
+                    </Columns>
+                </RadzenDataGrid>
+
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="2rem" Wrap="FlexWrap.Wrap">
+                    <RadzenText TextStyle="TextStyle.Body2">
+                        <strong>Всего отправлений:</strong> создано @Summary.Total.ShipmentsCreated, обновлено @Summary.Total.ShipmentsUpdated
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2">
+                        <strong>Всего заказов:</strong> создано @Summary.Total.OrdersCreated, обновлено @Summary.Total.OrdersUpdated
+                    </RadzenText>
+                </RadzenStack>
+            }
+        }
+        else
+        {
+            @if (Summary.PerClient.Count > 0)
+            {
+                <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Итог по клиентам</RadzenText>
+                <RadzenDataGrid TItem="ClientSyncResultItem" Data="@Summary.PerClient"
+                                Density="Density.Compact" AllowSorting="true">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ClientName" Title="Клиент" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="Mode" Title="Режим" Width="80px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ShipmentsUpdated" Title="Отправлений обновлено" Width="150px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Title="Изменённые поля">
+                            <Template Context="c">@c.UpdatedFieldsSummary</Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            }
+
+            @if (Summary.UpdatedShipments.Count > 0)
+            {
+                <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Детализация изменений статусов</RadzenText>
+                <RadzenDataGrid TItem="ShipmentUpdateItem" Data="@Summary.UpdatedShipments"
+                                Density="Density.Compact" AllowSorting="true"
+                                AllowPaging="true" PageSize="15">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="ShipmentUpdateItem" Property="PostingNumber" Title="Номер отправления" />
+                        <RadzenDataGridColumn TItem="ShipmentUpdateItem" Property="ClientName" Title="Клиент" />
+                        <RadzenDataGridColumn TItem="ShipmentUpdateItem" Property="OldStatusName" Title="Было" />
+                        <RadzenDataGridColumn TItem="ShipmentUpdateItem" Property="NewStatusName" Title="Стало" />
+                    </Columns>
+                </RadzenDataGrid>
+            }
+        }
+    </RadzenStack>
+}
+
+@code {
+    [Parameter, EditorRequired] public OrderSyncSummary Summary { get; set; } = null!;
+    [Parameter, EditorRequired] public SyncJobType JobType { get; set; }
+}
+
