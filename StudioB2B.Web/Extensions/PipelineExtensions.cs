@@ -1,7 +1,7 @@
 using Serilog;
-using StudioB2B.Infrastructure.MultiTenancy;
 using StudioB2B.Infrastructure.MultiTenancy.Middleware;
 using StudioB2B.Web.Components;
+using StudioB2B.Web.Hubs;
 
 namespace StudioB2B.Web.Extensions;
 
@@ -23,6 +23,10 @@ public static class PipelineExtensions
 
         app.MapControllers();
         app.MapStaticAssets();
+
+        // SignalR Hub для уведомлений о завершении задач — до MapRazorComponents
+        app.MapHub<SyncNotificationHub>("/hubs/sync");
+
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();
 

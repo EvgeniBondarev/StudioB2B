@@ -90,6 +90,9 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
     // ── Audit ────────────────────────────────────────────────────────
     public DbSet<FieldAuditLog> FieldAuditLogs { get; set; } = null!;
 
+    // ── Background Jobs ──────────────────────────────────────────────
+    public DbSet<SyncJobHistory> SyncJobHistories { get; set; } = null!;
+
     public TenantDbContext(
         DbContextOptions<TenantDbContext> options,
         ICurrentUserProvider? currentUserProvider = null) : base(options)
