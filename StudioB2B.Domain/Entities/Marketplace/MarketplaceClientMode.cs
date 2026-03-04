@@ -3,6 +3,7 @@ using StudioB2B.Domain.Entities.Common;
 
 namespace StudioB2B.Domain.Entities.Marketplace;
 
+[Display(Name = "Режим клиента")]
 public class MarketplaceClientMode : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор режима клиента")]

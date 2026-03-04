@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// <summary>
 /// Адрес доставки получателя заказа.
 /// </summary>
+[Display(Name = "Адрес")]
 public class Address : IBaseEntity
 {
     [Display(Name = "Идентификатор адреса")]

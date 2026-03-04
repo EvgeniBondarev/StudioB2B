@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// <summary>
 /// Получатель заказа (customer из Ozon API).
 /// </summary>
+[Display(Name = "Получатель")]
 public class Recipient : IBaseEntity
 {
     [Display(Name = "Идентификатор получателя")]

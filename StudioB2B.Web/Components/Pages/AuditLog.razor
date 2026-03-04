@@ -42,7 +42,14 @@ else
                             Placeholder="Все"
                             AllowClear="true"
                             Style="min-width: 180px;"
-                            Change="@OnFilterChange" />
+                            Change="@OnFilterChange">
+                <Template Context="entityName">
+                    @AuditDisplayHelper.GetEntityDisplayName((string)entityName)
+                </Template>
+                <ValueTemplate Context="entityName">
+                    @AuditDisplayHelper.GetEntityDisplayName((string)entityName)
+                </ValueTemplate>
+            </RadzenDropDown>
         </RadzenStack>
 
         <RadzenStack Gap="0.25rem">
@@ -137,7 +144,7 @@ else
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="EntityName"
                                   Title="Сущность" Width="150px" Sortable="true">
                 <Template Context="log">
-                    <span style="font-size: 0.85rem; font-weight: 500;">@TranslateEntity(log.EntityName)</span>
+                    <span style="font-size: 0.85rem; font-weight: 500;">@AuditDisplayHelper.GetEntityDisplayName(log.EntityName)</span>
                 </Template>
             </RadzenDataGridColumn>
 
@@ -154,7 +161,7 @@ else
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="FieldName"
                                   Title="Поле" Width="160px" Sortable="true">
                 <Template Context="log">
-                    <span style="font-family: monospace; font-size: 0.8rem;">@log.FieldName</span>
+                    <span style="font-size: 0.8rem;">@AuditDisplayHelper.GetFieldDisplayName(log.EntityName, log.FieldName)</span>
                 </Template>
             </RadzenDataGridColumn>
 
@@ -340,7 +347,7 @@ else
     private async Task OpenEntityHistory(FieldAuditLog log)
     {
         await DialogService.OpenAsync<FieldAuditDialog>(
-            $"История: {TranslateEntity(log.EntityName)}",
+            $"История: {AuditDisplayHelper.GetEntityDisplayName(log.EntityName)}",
             new Dictionary<string, object?>
             {
                 [nameof(FieldAuditDialog.EntityName)] = log.EntityName,
@@ -384,40 +391,8 @@ else
         catch { return raw; }
     }
 
-    private static string TranslateEntity(string name) => name switch
-    {
-        "Order"                   => "Заказ",
-        "Shipment"                => "Отправление",
-        "ShipmentDate"            => "Дата отправления",
-        "OrderStatus"             => "Статус заказа",
-        "OrderPrice"              => "Цена заказа",
-        "OrderProductInfo"        => "Товар в заказе",
-        "Product"                 => "Товар",
-        "ProductAttribute"        => "Атрибут товара",
-        "ProductAttributeValue"   => "Значение атрибута",
-        "Category"                => "Категория",
-        "Manufacturer"            => "Производитель",
-        "Supplier"                => "Поставщик",
-        "MarketplaceClient"       => "Клиент маркетплейса",
-        "MarketplaceClientType"   => "Тип клиента",
-        "MarketplaceClientMode"   => "Режим клиента",
-        "MarketplaceClientSettings" => "Настройки клиента",
-        "Warehouse"               => "Склад",
-        "WarehouseStock"          => "Остаток на складе",
-        "WarehouseInfo"           => "Информация о складе",
-        "Currency"                => "Валюта",
-        "PriceType"               => "Тип цены",
-        "DeliveryMethod"          => "Способ доставки",
-        "DeliveryType"            => "Тип доставки",
-        "Address"                 => "Адрес",
-        "Recipient"               => "Получатель",
-        "CalculationRule"         => "Правило расчёта",
-        "StatusColor"             => "Цвет статуса",
-        "ApplicationUser"         => "Пользователь",
-        "ApplicationRole"         => "Роль",
-        _                         => name
-    };
-
     public void Dispose() => _db?.Dispose();
 }
+
+
 
