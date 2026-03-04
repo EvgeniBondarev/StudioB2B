@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StudioB2B.Application.Common.Interfaces;
+using StudioB2B.Infrastructure.Features.Orders;
 using StudioB2B.Infrastructure.Features.Roles;
 using StudioB2B.Infrastructure.Features.Users;
 using StudioB2B.Infrastructure.Http.Handlers;
@@ -132,6 +133,13 @@ public static class DependencyInjection
         services.AddScoped<CreateUser>();
         services.AddScoped<UpdateUser>();
         services.AddScoped<DeleteUser>();
+
+        // ── Hangfire per-tenant manager ────────────────────────────────────────
+        services.AddSingleton<TenantHangfireManager>();
+        services.AddHostedService(sp => sp.GetRequiredService<TenantHangfireManager>());
+
+        // ── Background job services ────────────────────────────────────────────
+        services.AddScoped<IOrderSyncJobService, OrderSyncJobService>();
 
         return services;
     }
