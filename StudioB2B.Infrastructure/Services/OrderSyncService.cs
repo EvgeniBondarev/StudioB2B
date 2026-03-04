@@ -83,6 +83,7 @@ public class OrderSyncService : IOrderSyncService
 
         foreach (var client in ozonClients)
         {
+            ct.ThrowIfCancellationRequested();
             try
             {
                 _logger.LogInformation(
