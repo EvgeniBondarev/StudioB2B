@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.References;
 /// <summary>
 /// Тип цены (цена продажи, скидочная цена, рекомендованная розничная и т.д.).
 /// </summary>
+[Display(Name = "Тип цены")]
 public class PriceType : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор типа цены")]

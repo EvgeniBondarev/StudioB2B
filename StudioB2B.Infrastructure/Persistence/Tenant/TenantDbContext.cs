@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -16,24 +18,35 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant;
 
 public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>
 {
-    /// <summary>Поля Identity, которые не нужно аудировать.</summary>
+    /// <summary>Поля Identity и системные поля, которые не нужно аудировать.</summary>
     private static readonly HashSet<string> ExcludedProperties = new(StringComparer.OrdinalIgnoreCase)
     {
         "PasswordHash",
         "SecurityStamp",
         "ConcurrencyStamp",
         "NormalizedUserName",
-        "NormalizedEmail"
+        "NormalizedEmail",
+        nameof(ISoftDelete.IsDeleted)
     };
+
+    /// <summary>Кэш: CLR-тип → набор имён свойств, помеченных [SkipAudit].</summary>
+    private static readonly ConcurrentDictionary<Type, HashSet<string>> _skipAuditCache = new();
 
     private readonly ICurrentUserProvider? _currentUserProvider;
 
     /// <summary>
-    /// Когда <c>true</c> — аудит изменений не записывается.
-    /// Используется в фоновых операциях массового импорта (синхронизация заказов),
-    /// чтобы не генерировать тысячи INSERT в FieldAuditLogs за одну транзакцию.
+    /// Когда <c>true</c> — аудит изменений не записывается совсем.
     /// </summary>
     public bool SuppressAudit { get; set; }
+
+    /// <summary>
+    /// Когда <c>true</c> — аудит-записи накапливаются в <see cref="_deferredAuditBuffer"/>
+    /// и НЕ вставляются в БД внутри текущей транзакции.
+    /// Вызовите <see cref="FlushDeferredAuditAsync"/> чтобы сбросить буфер отдельными пакетами.
+    /// </summary>
+    public bool DeferAudit { get; set; }
+
+    private readonly List<FieldAuditLog> _deferredAuditBuffer = [];
 
     // ── Marketplace ──────────────────────────────────────────────────
     public DbSet<MarketplaceClient>? MarketplaceClients { get; set; }
@@ -90,10 +103,38 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
         {
             var auditLogs = BuildAuditLogs();
             if (auditLogs.Count > 0)
-                FieldAuditLogs.AddRange(auditLogs);
+            {
+                if (DeferAudit)
+                    _deferredAuditBuffer.AddRange(auditLogs);
+                else
+                    FieldAuditLogs.AddRange(auditLogs);
+            }
         }
 
         return await base.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Сбрасывает накопленный буфер аудита в БД пакетами по <paramref name="batchSize"/> записей.
+    /// Каждый пакет сохраняется в отдельной мини-транзакции, поэтому не влияет на основные данные.
+    /// После успешного сброса буфер очищается.
+    /// </summary>
+    public async Task FlushDeferredAuditAsync(int batchSize = 200, CancellationToken ct = default)
+    {
+        if (_deferredAuditBuffer.Count == 0)
+            return;
+
+        for (var i = 0; i < _deferredAuditBuffer.Count; i += batchSize)
+        {
+            var batch = _deferredAuditBuffer.GetRange(i, Math.Min(batchSize, _deferredAuditBuffer.Count - i));
+            FieldAuditLogs.AddRange(batch);
+
+            // Сохраняем вне любой внешней транзакции: используем SuppressAudit чтобы
+            // не попасть в рекурсию (FieldAuditLog сам не является IBaseEntity).
+            await base.SaveChangesAsync(ct);
+        }
+
+        _deferredAuditBuffer.Clear();
     }
 
     private List<FieldAuditLog> BuildAuditLogs()
@@ -116,9 +157,37 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
             var changeType = entry.State.ToString(); // "Added" / "Modified" / "Deleted"
             var changedAt  = DateTime.UtcNow;
 
+            var clrType   = entry.Entity.GetType();
+            var skipProps = _skipAuditCache.GetOrAdd(clrType, t =>
+            {
+                var set = new HashSet<string>(StringComparer.Ordinal);
+
+                // Свойства самого класса с [SkipAudit]
+                foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                {
+                    if (p.GetCustomAttribute<SkipAuditAttribute>() != null)
+                        set.Add(p.Name);
+                }
+
+                // Свойства интерфейсов с [SkipAudit] (например ISoftDelete.IsDeleted)
+                foreach (var iface in t.GetInterfaces())
+                {
+                    foreach (var p in iface.GetProperties())
+                    {
+                        if (p.GetCustomAttribute<SkipAuditAttribute>() != null)
+                            set.Add(p.Name);
+                    }
+                }
+
+                return set;
+            });
+
             foreach (PropertyEntry prop in entry.Properties)
             {
                 if (ExcludedProperties.Contains(prop.Metadata.Name))
+                    continue;
+
+                if (skipProps.Contains(prop.Metadata.Name))
                     continue;
 
                 // Пропускаем неизменённые поля при Modified

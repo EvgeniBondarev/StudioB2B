@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// <summary>
 /// Метод доставки конкретного отправления (delivery_method из Ozon API).
 /// </summary>
+[Display(Name = "Способ доставки")]
 public class DeliveryMethod : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор метода доставки")]

@@ -7,6 +7,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// Цветовой хэш, привязанный к статусу заказа.
 /// Один статус может иметь несколько цветовых меток (например, для разных тем UI).
 /// </summary>
+[Display(Name = "Цвет статуса")]
 public class StatusColor : IBaseEntity
 {
     [Display(Name = "Идентификатор цвета статуса")]
