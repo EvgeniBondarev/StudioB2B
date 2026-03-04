@@ -7,6 +7,7 @@ namespace StudioB2B.Domain.Entities.Warehouses;
 /// <summary>
 /// Остатки товара на складе.
 /// </summary>
+[Display(Name = "Остаток на складе")]
 public class WarehouseStock : IBaseEntity
 {
     [Display(Name = "Идентификатор остатка")]

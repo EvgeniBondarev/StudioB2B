@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.Products;
 /// <summary>
 /// Категория товара. Поддерживает иерархию через <see cref="ParentId"/>.
 /// </summary>
+[Display(Name = "Категория")]
 public class Category : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор категории")]

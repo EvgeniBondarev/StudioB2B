@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant;
 
 /// <summary>
 /// Пользователь приложения (хранится в базе тенанта)
 /// </summary>
+[Display(Name = "Пользователь")]
 public class ApplicationUser : IdentityUser<Guid>
 {
     public string FirstName { get; set; } = null!;

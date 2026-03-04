@@ -7,6 +7,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// Правило вычисления поля «на лету» по формуле (DynamicExpresso).
 /// Переменные берутся из цен заказа (PriceType.Name → SanitizeKey).
 /// </summary>
+[Display(Name = "Правило расчёта")]
 public class CalculationRule : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор")]

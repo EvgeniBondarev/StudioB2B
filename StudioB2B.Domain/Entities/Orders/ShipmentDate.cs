@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// <summary>
 /// Дата, связанная с отправлением (например дата доставки, дата создания и т.п.).
 /// </summary>
+[Display(Name = "Дата отправления")]
 public class ShipmentDate : IBaseEntity
 {
     [Display(Name = "Идентификатор даты отправления")]

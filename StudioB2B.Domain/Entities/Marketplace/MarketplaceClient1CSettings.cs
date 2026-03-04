@@ -1,7 +1,9 @@
+using System.ComponentModel.DataAnnotations;
 using StudioB2B.Domain.Entities.Common;
 
 namespace StudioB2B.Domain.Entities.Marketplace;
 
+[Display(Name = "Настройки 1С клиента")]
 public class MarketplaceClient1CSettings : IBaseEntity, ISoftDelete
 {
     public Guid Id { get; set; }

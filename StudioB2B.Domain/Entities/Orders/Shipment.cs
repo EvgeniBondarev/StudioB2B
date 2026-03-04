@@ -8,6 +8,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// Отправление (posting в терминах Ozon API).
 /// Одно отправление содержит несколько позиций заказа (<see cref="Order"/>).
 /// </summary>
+[Display(Name = "Отправление")]
 public class Shipment : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор отправления")]

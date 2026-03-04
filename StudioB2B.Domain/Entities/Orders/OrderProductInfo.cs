@@ -7,6 +7,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// <summary>
 /// Связь позиции заказа с товаром и поставщиком.
 /// </summary>
+[Display(Name = "Товар в заказе")]
 public class OrderProductInfo : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор связки заказ–товар")]

@@ -8,6 +8,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// Статус заказа / отправления. Поддерживает цветовую маркировку, признак конечного статуса
 /// и синоним для маппинга из API маркетплейса.
 /// </summary>
+[Display(Name = "Статус заказа")]
 public class OrderStatus : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор статуса")]
