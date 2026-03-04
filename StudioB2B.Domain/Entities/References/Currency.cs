@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.References;
 /// <summary>
 /// Валюта (RUB, USD, EUR и т.д.).
 /// </summary>
+[Display(Name = "Валюта")]
 public class Currency : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор валюты")]

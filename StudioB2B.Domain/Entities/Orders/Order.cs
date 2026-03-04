@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// <summary>
 /// Позиция заказа внутри отправления — конкретный товар с количеством и ценами.
 /// </summary>
+[Display(Name = "Заказ")]
 public class Order : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор позиции заказа")]

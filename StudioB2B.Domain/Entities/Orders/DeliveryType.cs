@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// <summary>
 /// Схема доставки маркетплейса: FBS, FBO, Express.
 /// </summary>
+[Display(Name = "Тип доставки")]
 public class DeliveryType : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор схемы доставки")]

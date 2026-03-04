@@ -3,6 +3,7 @@ using StudioB2B.Domain.Entities.Common;
 
 namespace StudioB2B.Domain.Entities.Marketplace;
 
+[Display(Name = "Клиент маркетплейса")]
 public class MarketplaceClient : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор")]

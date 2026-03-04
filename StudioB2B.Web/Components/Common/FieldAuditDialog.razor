@@ -38,7 +38,14 @@
                             Placeholder="Все поля"
                             AllowClear="true"
                             Style="min-width: 200px;"
-                            Change="@ApplyFilter" />
+                            Change="@ApplyFilter">
+                <Template Context="fieldName">
+                    @AuditDisplayHelper.GetFieldDisplayName(EntityName, (string)fieldName)
+                </Template>
+                <ValueTemplate Context="fieldName">
+                    @AuditDisplayHelper.GetFieldDisplayName(EntityName, (string)fieldName)
+                </ValueTemplate>
+            </RadzenDropDown>
             <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-disabled-color); margin-left: auto;">
                 Записей: @_filtered.Count
             </RadzenText>
@@ -87,7 +94,7 @@
                 <RadzenDataGridColumn TItem="FieldAuditLog" Property="FieldName"
                                       Title="Поле" Width="160px" Sortable="true">
                     <Template Context="log">
-                        <span style="font-family: monospace; font-size: 0.8rem;">@log.FieldName</span>
+                        <span style="font-size: 0.8rem;">@AuditDisplayHelper.GetFieldDisplayName(log.EntityName, log.FieldName)</span>
                     </Template>
                 </RadzenDataGridColumn>
 
