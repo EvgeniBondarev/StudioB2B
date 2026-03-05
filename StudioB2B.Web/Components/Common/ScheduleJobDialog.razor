@@ -1,0 +1,311 @@
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Domain.Entities.Orders
+
+<RadzenStack Gap="1.25rem">
+
+    <!-- Тип задачи -->
+    <RadzenStack Gap="0.5rem">
+        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Тип задачи</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.75rem">
+            <RadzenCard Style="@CardStyle(SyncJobType.Sync)" @onclick="@(() => _schedule.JobType = SyncJobType.Sync)" class="rz-cursor-pointer">
+                <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center" Style="min-width:140px; padding:0.5rem 0.25rem;">
+                    <RadzenIcon Icon="cloud_sync" Style="font-size:2rem; color:var(--rz-primary);" />
+                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Загрузка заказов</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+            <RadzenCard Style="@CardStyle(SyncJobType.Update)" @onclick="@(() => _schedule.JobType = SyncJobType.Update)" class="rz-cursor-pointer">
+                <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center" Style="min-width:140px; padding:0.5rem 0.25rem;">
+                    <RadzenIcon Icon="sync" Style="font-size:2rem; color:var(--rz-secondary);" />
+                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Обновление статусов</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenStack>
+    </RadzenStack>
+
+    <!-- Тип расписания -->
+    <RadzenStack Gap="0.5rem">
+        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Тип расписания</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+            @foreach (var opt in _scheduleTypeOptions)
+            {
+                <RadzenButton Text="@opt.Label"
+                              ButtonStyle="@(_schedule.ScheduleType == opt.Value ? ButtonStyle.Primary : ButtonStyle.Light)"
+                              Size="ButtonSize.Small"
+                              Click="@(() => _schedule.ScheduleType = opt.Value)" />
+            }
+        </RadzenStack>
+    </RadzenStack>
+
+    <!-- Параметры расписания -->
+    <RadzenStack Gap="0.5rem">
+        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Параметры</RadzenText>
+
+        @if (_schedule.ScheduleType == ScheduleType.EveryNMinutes)
+        {
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
+                <RadzenText TextStyle="TextStyle.Body2">Каждые</RadzenText>
+                <RadzenNumeric TValue="int" @bind-Value="_intervalMinutes" Min="1" Max="1440" Style="width:90px;" />
+                <RadzenText TextStyle="TextStyle.Body2">минут</RadzenText>
+            </RadzenStack>
+        }
+        else if (_schedule.ScheduleType == ScheduleType.EveryNHours)
+        {
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
+                <RadzenText TextStyle="TextStyle.Body2">Каждые</RadzenText>
+                <RadzenNumeric TValue="int" @bind-Value="_intervalHours" Min="1" Max="23" Style="width:80px;" />
+                <RadzenText TextStyle="TextStyle.Body2">часов</RadzenText>
+            </RadzenStack>
+        }
+        else if (_schedule.ScheduleType == ScheduleType.EveryNDays)
+        {
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+                <RadzenText TextStyle="TextStyle.Body2">Каждые</RadzenText>
+                <RadzenNumeric TValue="int" @bind-Value="_intervalDays" Min="1" Max="30" Style="width:80px;" />
+                <RadzenText TextStyle="TextStyle.Body2">дней в</RadzenText>
+                <RadzenDatePicker TValue="DateTime" @bind-Value="_timeValue" ShowTime="true" TimeOnly="true"
+                                  DateFormat="HH:mm" Style="width:110px;" />
+            </RadzenStack>
+        }
+        else if (_schedule.ScheduleType == ScheduleType.DailyAt)
+        {
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
+                <RadzenText TextStyle="TextStyle.Body2">Ежедневно в</RadzenText>
+                <RadzenDatePicker TValue="DateTime" @bind-Value="_timeValue" ShowTime="true" TimeOnly="true"
+                                  DateFormat="HH:mm" Style="width:110px;" />
+            </RadzenStack>
+        }
+        else if (_schedule.ScheduleType == ScheduleType.WeeklyAt)
+        {
+            <RadzenStack Gap="0.5rem">
+                <RadzenText TextStyle="TextStyle.Body2">Дни недели:</RadzenText>
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.35rem" Wrap="FlexWrap.Wrap">
+                    @foreach (var d in _weekDays)
+                    {
+                        var selected = _selectedDays.Contains(d.Value);
+                        <RadzenButton Text="@d.Label"
+                                      Size="ButtonSize.ExtraSmall"
+                                      ButtonStyle="@(selected ? ButtonStyle.Primary : ButtonStyle.Light)"
+                                      Click="@(() => ToggleDay(d.Value))" />
+                    }
+                </RadzenStack>
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Style="margin-top:0.25rem;">
+                    <RadzenText TextStyle="TextStyle.Body2">В</RadzenText>
+                    <RadzenDatePicker TValue="DateTime" @bind-Value="_timeValue" ShowTime="true" TimeOnly="true"
+                                      DateFormat="HH:mm" Style="width:110px;" />
+                </RadzenStack>
+            </RadzenStack>
+        }
+        else if (_schedule.ScheduleType == ScheduleType.MonthlyAt)
+        {
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
+                <RadzenText TextStyle="TextStyle.Body2">Числа</RadzenText>
+                <RadzenNumeric TValue="int" @bind-Value="_dayOfMonth" Min="1" Max="28" Style="width:70px;" />
+                <RadzenText TextStyle="TextStyle.Body2">в</RadzenText>
+                <RadzenDatePicker TValue="DateTime" @bind-Value="_timeValue" ShowTime="true" TimeOnly="true"
+                                  DateFormat="HH:mm" Style="width:110px;" />
+            </RadzenStack>
+        }
+        else if (_schedule.ScheduleType == ScheduleType.CustomCron)
+        {
+            <RadzenStack Gap="0.35rem">
+                <RadzenTextBox @bind-Value="_cronExpression" Placeholder="* * * * *" Style="font-family:monospace; width:100%;" />
+                <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);">
+                    Формат: мин час день_мес месяц день_нед. Например: <b>0 9 * * 1-5</b> — каждый будний день в 09:00.
+                    <a href="https://crontab.guru" target="_blank">Справка</a>
+                </RadzenText>
+            </RadzenStack>
+        }
+    </RadzenStack>
+
+    <!-- Параметры Sync -->
+    @if (_schedule.JobType == SyncJobType.Sync)
+    {
+        <RadzenStack Gap="0.35rem">
+            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Параметры синхронизации</RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
+                <RadzenText TextStyle="TextStyle.Body2">Глубина периода:</RadzenText>
+                <RadzenNumeric TValue="int" @bind-Value="_schedule.SyncDaysBack" Min="1" Max="90" Style="width:80px;" />
+                <RadzenText TextStyle="TextStyle.Body2">дней назад</RadzenText>
+            </RadzenStack>
+            <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);">
+                Период: от (сегодня − N дней) до сегодня.
+            </RadzenText>
+        </RadzenStack>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin:0;">
+            @_errorMessage
+        </RadzenAlert>
+    }
+
+    <!-- Кнопки -->
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.75rem" JustifyContent="JustifyContent.End">
+        <RadzenButton Text="Отмена"    ButtonStyle="ButtonStyle.Light"   Click="@(() => DialogService.Close(false))" />
+        <RadzenButton Text="@SaveText" ButtonStyle="ButtonStyle.Primary" Icon="save"
+                      IsBusy="@_isBusy" Disabled="@_isBusy" Click="@SubmitAsync" />
+    </RadzenStack>
+
+</RadzenStack>
+
+@code {
+    [Parameter] public IOrderSyncJobService JobService    { get; set; } = null!;
+    [Parameter] public DialogService        DialogService { get; set; } = null!;
+    [Parameter] public SyncJobSchedule?     EditSchedule  { get; set; }
+
+    private SyncJobSchedule _schedule       = new();
+    private int      _intervalMinutes       = 15;
+    private int      _intervalHours         = 1;
+    private int      _intervalDays          = 3;
+    private int      _dayOfMonth            = 1;
+    private DateTime _timeValue             = DateTime.Today.AddHours(9);
+    private string   _cronExpression        = "0 9 * * *";
+    private HashSet<int> _selectedDays      = new() { 1, 2, 3, 4, 5 }; // пн–пт
+    private bool     _isBusy;
+    private string?  _errorMessage;
+
+    private bool IsEdit => EditSchedule is not null;
+    private string SaveText => IsEdit ? "Сохранить" : "Создать";
+
+    private record ScheduleTypeOption(string Label, ScheduleType Value);
+    private record WeekDayOption(string Label, int Value);
+
+    private readonly List<ScheduleTypeOption> _scheduleTypeOptions = new()
+    {
+        new("Каждые N мин.",  ScheduleType.EveryNMinutes),
+        new("Каждые N ч.",    ScheduleType.EveryNHours),
+        new("Каждые N дней",  ScheduleType.EveryNDays),
+        new("Ежедневно",      ScheduleType.DailyAt),
+        new("По дням недели", ScheduleType.WeeklyAt),
+        new("Раз в месяц",    ScheduleType.MonthlyAt),
+        new("Свой cron",      ScheduleType.CustomCron),
+    };
+
+    private readonly List<WeekDayOption> _weekDays = new()
+    {
+        new("Пн", 1), new("Вт", 2), new("Ср", 3),
+        new("Чт", 4), new("Пт", 5), new("Сб", 6), new("Вс", 0),
+    };
+
+    protected override void OnInitialized()
+    {
+        if (EditSchedule is null) return;
+
+        _schedule = new SyncJobSchedule
+        {
+            Id                     = EditSchedule.Id,
+            JobType                = EditSchedule.JobType,
+            ScheduleType           = EditSchedule.ScheduleType,
+            IsEnabled              = EditSchedule.IsEnabled,
+            IntervalMinutes        = EditSchedule.IntervalMinutes,
+            IntervalHours          = EditSchedule.IntervalHours,
+            IntervalDays           = EditSchedule.IntervalDays,
+            TimeOfDay              = EditSchedule.TimeOfDay,
+            DaysOfWeek             = EditSchedule.DaysOfWeek,
+            DayOfMonth             = EditSchedule.DayOfMonth,
+            CronExpression         = EditSchedule.CronExpression,
+            SyncDaysBack           = EditSchedule.SyncDaysBack,
+            HangfireRecurringJobId = EditSchedule.HangfireRecurringJobId,
+        };
+
+        _intervalMinutes = EditSchedule.IntervalMinutes ?? 15;
+        _intervalHours   = EditSchedule.IntervalHours   ?? 1;
+        _intervalDays    = EditSchedule.IntervalDays    ?? 3;
+        _dayOfMonth      = EditSchedule.DayOfMonth      ?? 1;
+        _cronExpression  = EditSchedule.CronExpression  ?? "0 9 * * *";
+        _timeValue       = EditSchedule.TimeOfDay.HasValue
+            ? DateTime.Today.Add(EditSchedule.TimeOfDay.Value)
+            : DateTime.Today.AddHours(9);
+
+        if (!string.IsNullOrEmpty(EditSchedule.DaysOfWeek))
+            _selectedDays = EditSchedule.DaysOfWeek.Split(',')
+                .Select(p => int.TryParse(p, out var n) ? n : -1)
+                .Where(n => n >= 0)
+                .ToHashSet();
+    }
+
+    private void ToggleDay(int day)
+    {
+        if (!_selectedDays.Remove(day))
+            _selectedDays.Add(day);
+    }
+
+    private string CardStyle(SyncJobType t) =>
+        _schedule.JobType == t
+            ? "border:2px solid var(--rz-primary); background:var(--rz-primary-lighter); cursor:pointer;"
+            : "border:2px solid transparent; cursor:pointer;";
+
+    private async Task SubmitAsync()
+    {
+        _errorMessage = null;
+
+        // Сбрасываем все параметры, заполняем только нужные
+        _schedule.IntervalMinutes = null;
+        _schedule.IntervalHours   = null;
+        _schedule.IntervalDays    = null;
+        _schedule.TimeOfDay       = null;
+        _schedule.DaysOfWeek      = null;
+        _schedule.DayOfMonth      = null;
+        _schedule.CronExpression  = null;
+
+        switch (_schedule.ScheduleType)
+        {
+            case ScheduleType.EveryNMinutes:
+                if (_intervalMinutes < 1) { _errorMessage = "Интервал должен быть не менее 1 минуты."; return; }
+                _schedule.IntervalMinutes = _intervalMinutes;
+                break;
+
+            case ScheduleType.EveryNHours:
+                if (_intervalHours < 1) { _errorMessage = "Интервал должен быть не менее 1 часа."; return; }
+                _schedule.IntervalHours = _intervalHours;
+                break;
+
+            case ScheduleType.EveryNDays:
+                if (_intervalDays < 1) { _errorMessage = "Интервал должен быть не менее 1 дня."; return; }
+                _schedule.IntervalDays = _intervalDays;
+                _schedule.TimeOfDay    = _timeValue.TimeOfDay;
+                break;
+
+            case ScheduleType.DailyAt:
+                _schedule.TimeOfDay = _timeValue.TimeOfDay;
+                break;
+
+            case ScheduleType.WeeklyAt:
+                if (_selectedDays.Count == 0) { _errorMessage = "Выберите хотя бы один день недели."; return; }
+                _schedule.DaysOfWeek = string.Join(",", _selectedDays.OrderBy(d => d));
+                _schedule.TimeOfDay  = _timeValue.TimeOfDay;
+                break;
+
+            case ScheduleType.MonthlyAt:
+                if (_dayOfMonth is < 1 or > 28) { _errorMessage = "День месяца: от 1 до 28."; return; }
+                _schedule.DayOfMonth = _dayOfMonth;
+                _schedule.TimeOfDay  = _timeValue.TimeOfDay;
+                break;
+
+            case ScheduleType.CustomCron:
+                if (string.IsNullOrWhiteSpace(_cronExpression)) { _errorMessage = "Введите cron-выражение."; return; }
+                _schedule.CronExpression = _cronExpression.Trim();
+                break;
+        }
+
+        _isBusy = true;
+        try
+        {
+            if (IsEdit)
+                await JobService.UpdateScheduleAsync(_schedule);
+            else
+                await JobService.CreateScheduleAsync(_schedule);
+
+            DialogService.Close(true);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+}
