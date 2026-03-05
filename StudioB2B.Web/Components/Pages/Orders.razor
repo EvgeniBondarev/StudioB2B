@@ -15,6 +15,7 @@
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
 @inject IJSRuntime JSRuntime
 
 @implements IDisposable
@@ -56,6 +57,7 @@ else
                     ShowPagingSummary="true"
                     PagerHorizontalAlign="HorizontalAlign.Left"
                     RowClick="@OnRowClick"
+                    CellContextMenu="@ShowContextMenu"
                     IsLoading="@_loading"
                     Style="cursor: pointer;"
                     FilterText="@RadzenRuStrings.FilterText"
@@ -621,11 +623,14 @@ else
             await _grid.Reload();
     }
 
-    private async Task OnRowClick(DataGridRowMouseEventArgs<Order> args)
+    private async Task OnRowClick(DataGridRowMouseEventArgs<Order> args) =>
+        await OpenOrderDetailAsync(args.Data);
+
+    private async Task OpenOrderDetailAsync(Order order)
     {
         await DialogService.OpenAsync<OrderDetailDialog>(
-            $"Заказ {args.Data.Shipment?.PostingNumber}",
-            new Dictionary<string, object?> { ["OrderId"] = args.Data.Id },
+            $"Заказ {order.Shipment?.PostingNumber}",
+            new Dictionary<string, object?> { ["OrderId"] = order.Id },
             new DialogOptions
             {
                 Width = "900px",
@@ -651,6 +656,39 @@ else
             return (r * 299 + g * 587 + b * 114) / 1000 > 128;
         }
         catch { return true; }
+    }
+
+    private void ShowContextMenu(DataGridCellMouseEventArgs<Order> args)
+    {
+        ContextMenuService.Open(args,
+            [
+                new ContextMenuItem { Text = "Открыть",           Icon = "open_in_new", Value = "open"    },
+                new ContextMenuItem { Text = "История изменений", Icon = "history",     Value = "history" }
+            ],
+            async e =>
+            {
+                ContextMenuService.Close();
+                if (e.Value?.ToString() == "open")
+                    await OpenOrderDetailAsync(args.Data);
+                else if (e.Value?.ToString() == "history")
+                    await OpenAuditHistoryAsync(args.Data);
+            });
+    }
+
+    private async Task OpenAuditHistoryAsync(Order order)
+    {
+        var subjects = new List<AuditSubject>
+        {
+            new("Order",    order.Id.ToString(),         "Заказ"),
+            new("Shipment", order.ShipmentId.ToString(), "Отправление"),
+        };
+        if (order.ProductInfo?.ProductId is { } pid)
+            subjects.Add(new("Product", pid.ToString(), "Товар"));
+
+        await DialogService.OpenAsync<AuditHistoryDialog>(
+            "История изменений",
+            new Dictionary<string, object?> { [nameof(AuditHistoryDialog.Subjects)] = (IReadOnlyList<AuditSubject>)subjects },
+            new DialogOptions { Width = "min(960px, 95vw)", Resizable = true, Draggable = true });
     }
 
     public void Dispose() => _db?.Dispose();

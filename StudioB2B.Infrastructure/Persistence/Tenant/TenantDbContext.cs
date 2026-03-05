@@ -151,7 +151,7 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
 
         foreach (EntityEntry entry in ChangeTracker.Entries<IBaseEntity>())
         {
-            if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted))
+            if (entry.State is not (EntityState.Modified or EntityState.Deleted))
                 continue;
 
             var entityName = entry.Metadata.ShortName();
@@ -207,6 +207,10 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
 
                 // Не пишем запись если оба значения одинаковы (актуально для Added с дефолтами)
                 if (entry.State == EntityState.Added && oldValue == newValue)
+                    continue;
+
+                // Пропускаем «заполнение» пустых полей системой (sync) — по сути как создание значения
+                if (entry.State == EntityState.Modified && oldValue == null && userId == SystemUser.RobotId)
                     continue;
 
                 logs.Add(new FieldAuditLog
