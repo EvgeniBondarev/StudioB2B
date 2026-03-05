@@ -14,17 +14,20 @@ public partial class TenantService : ITenantService
 {
     private readonly MasterDbContext _masterDb;
     private readonly ITenantDatabaseInitializer _dbInitializer;
+    private readonly TenantHangfireManager _hangfireManager;
     private readonly ILogger<TenantService> _logger;
     private readonly MultiTenancyOptions _options;
 
     public TenantService(
         MasterDbContext masterDb,
         ITenantDatabaseInitializer dbInitializer,
+        TenantHangfireManager hangfireManager,
         ILogger<TenantService> logger,
         IOptions<MultiTenancyOptions> options)
     {
         _masterDb = masterDb;
         _dbInitializer = dbInitializer;
+        _hangfireManager = hangfireManager;
         _logger = logger;
         _options = options.Value;
     }
@@ -78,6 +81,7 @@ public partial class TenantService : ITenantService
             {
                 await _dbInitializer.MigrateAndSeedAsync(connectionString, ct);
                 await _dbInitializer.CreateAdminUserAsync(connectionString, adminEmail, adminPassword, ct);
+                await _hangfireManager.AddTenant(tenant.Id, connectionString, ct);
 
                 _logger.LogInformation("Tenant registration completed: {TenantId}", tenant.Id);
                 return new TenantRegistrationResult(true, tenant.Id);

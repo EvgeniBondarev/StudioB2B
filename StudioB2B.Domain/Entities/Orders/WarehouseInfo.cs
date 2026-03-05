@@ -7,6 +7,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// <summary>
 /// Информация о складах в рамках отправления: склад-получатель и склад-отправитель.
 /// </summary>
+[Display(Name = "Информация о складе")]
 public class WarehouseInfo : IBaseEntity
 {
     [Display(Name = "Идентификатор связки складов")]

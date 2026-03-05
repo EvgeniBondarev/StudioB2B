@@ -21,7 +21,7 @@ public class TenantDbContextDesignTimeFactory : IDesignTimeDbContextFactory<Tena
             designTimeConnectionString,
             ServerVersion.AutoDetect(designTimeConnectionString));
 
-        return new TenantDbContext(optionsBuilder.Options);
+        return new TenantDbContext(optionsBuilder.Options, currentUserProvider: null);
     }
 }
 

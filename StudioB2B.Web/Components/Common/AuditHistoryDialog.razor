@@ -1,0 +1,236 @@
+@using Microsoft.EntityFrameworkCore
+@using StudioB2B.Domain.Entities.Common
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using System.Text.Json
+@using StudioB2B.Infrastructure.Services
+
+@inject ITenantDbContextFactory Factory
+@inject DialogService DialogService
+
+@implements IDisposable
+
+<div style="min-width: min(760px, 90vw);">
+
+    @if (_loading)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 220px;">
+            <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
+        </RadzenStack>
+    }
+    else if (_totalCount == 0)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 140px; gap: 0.5rem;">
+            <RadzenIcon Icon="history" Style="font-size: 2rem; color: var(--rz-text-disabled-color);" />
+            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                История изменений отсутствует
+            </RadzenText>
+        </RadzenStack>
+    }
+    else if (Subjects.Count == 1)
+    {
+        <AuditSubjectPanel Subject="@Subjects[0]" Logs="@GetLogs(Subjects[0])" ValueResolver="@_resolver" />
+    }
+    else
+    {
+        <RadzenTabs>
+            <Tabs>
+                @foreach (var subject in Subjects)
+                {
+                    var s    = subject;
+                    var logs = GetLogs(s);
+                    <RadzenTabsItem>
+                        <Template>
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                                <span>@s.Label</span>
+                                @if (logs.Count > 0)
+                                {
+                                    <RadzenBadge BadgeStyle="BadgeStyle.Info"
+                                                 Text="@logs.Count.ToString()"
+                                                 Style="font-size: 0.7rem; padding: 0.1rem 0.4rem; min-width: 20px;" />
+                                }
+                            </RadzenStack>
+                        </Template>
+                        <ChildContent>
+                            <div style="padding-top: 0.75rem;">
+                                <AuditSubjectPanel Subject="@s" Logs="@logs" ValueResolver="@_resolver" />
+                            </div>
+                        </ChildContent>
+                    </RadzenTabsItem>
+                }
+            </Tabs>
+        </RadzenTabs>
+    }
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End"
+                 Style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--rz-border-color);">
+        <RadzenButton Text="Закрыть" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close())" />
+    </RadzenStack>
+
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<AuditSubject> Subjects { get; set; } = [];
+
+    private TenantDbContext? _db;
+    private bool _loading    = true;
+    private int  _totalCount = 0;
+
+    private readonly Dictionary<string, List<FieldAuditLog>> _logsByKey = new();
+    private IReadOnlyDictionary<string, string> _resolver = new Dictionary<string, string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _db = Factory.CreateDbContext();
+
+        if (Subjects.Count == 0)
+        {
+            _loading = false;
+            return;
+        }
+
+        var entityNames = Subjects.Select(s => s.EntityName).Distinct().ToList();
+        var entityIds   = Subjects.Select(s => s.EntityId).Distinct().ToList();
+
+        var allLogs = await _db.FieldAuditLogs
+            .Where(x => entityNames.Contains(x.EntityName) && entityIds.Contains(x.EntityId))
+            .OrderByDescending(x => x.ChangedAtUtc)
+            .AsNoTracking()
+            .ToListAsync();
+
+        foreach (var subject in Subjects)
+        {
+            _logsByKey[SubjectKey(subject)] = allLogs
+                .Where(x => x.EntityName == subject.EntityName && x.EntityId == subject.EntityId)
+                .ToList();
+        }
+
+        _totalCount = allLogs.Count;
+        _resolver   = await BuildResolverAsync(allLogs);
+        _loading    = false;
+    }
+
+    // ── Value resolver ───────────────────────────────────────────────
+
+    private async Task<IReadOnlyDictionary<string, string>> BuildResolverAsync(List<FieldAuditLog> logs)
+    {
+        var d = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        var statusIds = ExtractGuids(logs, "StatusId", "SystemStatusId");
+        if (statusIds.Count > 0)
+        {
+            var items = await _db!.OrderStatuses.IgnoreQueryFilters()
+                .Where(x => statusIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name })
+                .ToListAsync();
+            foreach (var item in items) d[item.Id.ToString()] = item.Name;
+        }
+
+        var methodIds = ExtractGuids(logs, "DeliveryMethodId");
+        if (methodIds.Count > 0)
+        {
+            var items = await _db!.DeliveryMethods.IgnoreQueryFilters()
+                .Where(x => methodIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name })
+                .ToListAsync();
+            foreach (var item in items) d[item.Id.ToString()] = item.Name;
+        }
+
+        var clientIds = ExtractGuids(logs, "MarketplaceClientId");
+        if (clientIds.Count > 0 && _db!.MarketplaceClients != null)
+        {
+            var items = await _db.MarketplaceClients.IgnoreQueryFilters()
+                .Where(x => clientIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name })
+                .ToListAsync();
+            foreach (var item in items) d[item.Id.ToString()] = item.Name;
+        }
+
+        var categoryIds = ExtractGuids(logs, "CategoryId");
+        if (categoryIds.Count > 0)
+        {
+            var items = await _db!.Categories.IgnoreQueryFilters()
+                .Where(x => categoryIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name })
+                .ToListAsync();
+            foreach (var item in items) d[item.Id.ToString()] = item.Name;
+        }
+
+        var mfgIds = ExtractGuids(logs, "ManufacturerId");
+        if (mfgIds.Count > 0)
+        {
+            var items = await _db!.Manufacturers.IgnoreQueryFilters()
+                .Where(x => mfgIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name })
+                .ToListAsync();
+            foreach (var item in items) d[item.Id.ToString()] = item.Name;
+        }
+
+        var ptIds = ExtractGuids(logs, "PriceTypeId");
+        if (ptIds.Count > 0)
+        {
+            var items = await _db!.PriceTypes.IgnoreQueryFilters()
+                .Where(x => ptIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name })
+                .ToListAsync();
+            foreach (var item in items) d[item.Id.ToString()] = item.Name;
+        }
+
+        var currencyIds = ExtractGuids(logs, "CurrencyId");
+        if (currencyIds.Count > 0)
+        {
+            var items = await _db!.Currencies.IgnoreQueryFilters()
+                .Where(x => currencyIds.Contains(x.Id))
+                .Select(x => new { x.Id, Display = x.Name ?? x.Code })
+                .ToListAsync();
+            foreach (var item in items) d[item.Id.ToString()] = item.Display;
+        }
+
+        var warehouseIds = ExtractGuids(logs, "WarehouseId", "SenderWarehouseId");
+        if (warehouseIds.Count > 0)
+        {
+            var items = await _db!.Warehouses.IgnoreQueryFilters()
+                .Where(x => warehouseIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name })
+                .ToListAsync();
+            foreach (var item in items) d[item.Id.ToString()] = item.Name;
+        }
+
+        return d;
+    }
+
+    private static HashSet<Guid> ExtractGuids(List<FieldAuditLog> logs, params string[] fieldNames)
+    {
+        var set = new HashSet<Guid>();
+        foreach (var log in logs)
+        {
+            if (!fieldNames.Contains(log.FieldName)) continue;
+            if (TryParseGuidJson(log.OldValue, out var g1)) set.Add(g1);
+            if (TryParseGuidJson(log.NewValue, out var g2)) set.Add(g2);
+        }
+        return set;
+    }
+
+    private static bool TryParseGuidJson(string? json, out Guid guid)
+    {
+        guid = Guid.Empty;
+        if (json is null) return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var el = doc.RootElement;
+            if (el.ValueKind == JsonValueKind.String)
+                return Guid.TryParse(el.GetString(), out guid);
+        }
+        catch { }
+        return false;
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────
+
+    private List<FieldAuditLog> GetLogs(AuditSubject subject) =>
+        _logsByKey.GetValueOrDefault(SubjectKey(subject)) ?? [];
+
+    private static string SubjectKey(AuditSubject s) => $"{s.EntityName}|{s.EntityId}";
+
+    public void Dispose() => _db?.Dispose();
+}

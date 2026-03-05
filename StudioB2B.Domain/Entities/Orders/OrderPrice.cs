@@ -7,6 +7,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 /// <summary>
 /// Цена позиции заказа: тип цены (скидочная, рекомендованная и т.д.) + сумма + валюта.
 /// </summary>
+[Display(Name = "Цена заказа")]
 public class OrderPrice : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор цены")]

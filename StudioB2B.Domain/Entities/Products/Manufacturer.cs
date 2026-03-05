@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.Products;
 /// <summary>
 /// Производитель товара.
 /// </summary>
+[Display(Name = "Производитель")]
 public class Manufacturer : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор производителя")]

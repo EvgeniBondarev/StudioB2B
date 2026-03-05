@@ -7,6 +7,7 @@ namespace StudioB2B.Domain.Entities.Products;
 /// Значение атрибута конкретного товара.
 /// Составной первичный ключ: (ProductId, AttributeId).
 /// </summary>
+[Display(Name = "Значение атрибута")]
 public class ProductAttributeValue : IBaseEntity
 {
     /// <summary>Суррогатный PK — используется для совместимости с IBaseEntity.</summary>
