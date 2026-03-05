@@ -109,9 +109,10 @@ else
                     }
                 </Template>
                 <EditTemplate Context="s">
-                    <RadzenColorPicker @bind-Value="s.Color"
+                    <RadzenColorPicker Value="@s.Color"
+                                       ValueChanged="@(v => OnColorChanged(s, v))"
                                        ShowHSV="true"
-                                       ShowRGBA="true"
+                                       ShowRGBA="false"
                                        ShowColors="true"
                                        ShowButton="true"
                                        Style="min-width: 120px;" />
@@ -410,6 +411,7 @@ else
     {
         try
         {
+            s.Color = ToHex(s.Color) ?? s.Color;
             await _db!.UpdateOrderStatusAsync(s);
             NotificationService.Notify(NotificationSeverity.Success, "Статус обновлён");
         }
@@ -423,6 +425,7 @@ else
     {
         try
         {
+            s.Color = ToHex(s.Color) ?? s.Color;
             await _db!.CreateOrderStatusAsync(s);
             NotificationService.Notify(NotificationSeverity.Success, "Статус создан");
         }
@@ -472,6 +475,40 @@ else
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private void OnColorChanged(OrderStatus status, string? value)
+    {
+        status.Color = ToHex(value);
+        StateHasChanged();
+    }
+
+    private static string? ToHex(string? color)
+    {
+        if (string.IsNullOrWhiteSpace(color)) return null;
+
+        color = color.Trim();
+        if (color.StartsWith("#"))
+        {
+            var hex = color.TrimStart('#');
+            if (hex.Length == 6 && hex.All(c => "0123456789abcdefABCDEF".Contains(c)))
+                return "#" + hex.ToUpperInvariant();
+            if (hex.Length == 3 && hex.All(c => "0123456789abcdefABCDEF".Contains(c)))
+                return "#" + string.Concat(hex.Select(c => $"{c}{c}")).ToUpperInvariant();
+            return null;
+        }
+
+        var rgba = System.Text.RegularExpressions.Regex.Match(
+            color, @"rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*[\d.]+)?\s*\)");
+        if (rgba.Success)
+        {
+            var r = int.Parse(rgba.Groups[1].Value);
+            var g = int.Parse(rgba.Groups[2].Value);
+            var b = int.Parse(rgba.Groups[3].Value);
+            return $"#{r:X2}{g:X2}{b:X2}";
+        }
+
+        return null;
+    }
 
     private static bool IsLightColor(string hex)
     {
