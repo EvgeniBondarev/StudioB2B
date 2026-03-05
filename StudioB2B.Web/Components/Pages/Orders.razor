@@ -9,12 +9,12 @@
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
-@using StudioB2B.Infrastructure.Services
 @using StudioB2B.Web.Components.Common
 
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
+@inject ContextMenuService ContextMenuService
 @inject IJSRuntime JSRuntime
 
 @implements IDisposable
@@ -60,6 +60,7 @@ else
         ShowPagingSummary="true"
         PagerHorizontalAlign="HorizontalAlign.Left"
         RowClick="@OnRowClick"
+        CellContextMenu="@ShowContextMenu"
         IsLoading="@_loading"
         Style="cursor: pointer;"
         FilterText="@RadzenRuStrings.FilterText"
@@ -82,8 +83,8 @@ else
         PageSizeText="@RadzenRuStrings.PageSizeText"
         PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
         EmptyText="@RadzenRuStrings.EmptyText">
+        
         <Columns>
-
             <RadzenDataGridColumn TItem="Order" Property="Shipment.PostingNumber"
                                   Title="Номер отправления" Width="200px" Frozen="true"
                                   HeaderCssClass="half-painted-header">
@@ -121,7 +122,6 @@ else
                 </FilterTemplate>
 
                 <Template Context="o">
-
                     <RadzenText TextStyle="TextStyle.Body2"
                                 Class="rz-text-truncate"
                                 title="@o.Shipment?.MarketplaceClient?.Name">@o.Shipment?.MarketplaceClient?.Name
@@ -325,13 +325,11 @@ else
 
                 </FilterTemplate>
                 <Template Context="o">
-
                     <RadzenText TextStyle="TextStyle.Body2"
                                 Class="rz-text-truncate"
                                 title="@o.WarehouseInfo?.SenderWarehouse?.Name">
                         @o.WarehouseInfo?.SenderWarehouse?.Name
                     </RadzenText>
-
                 </Template>
             </RadzenDataGridColumn>
 
@@ -416,7 +414,6 @@ else
                     }
                 }
             }
-
         </Columns>
     </RadzenDataGrid>
 }
@@ -457,8 +454,6 @@ else
         {
             await LoadGridSettingsAsync();
             await LoadFiltersAsync();
-            // When settings are restored, Radzen reloads automatically via LoadSettingsInternal.
-            // Only trigger manually when there are no saved settings to avoid concurrent LoadData calls.
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
                 await _grid.Reload();
         }
@@ -561,7 +556,6 @@ else
                               !string.IsNullOrEmpty(appliedOrderBy) &&
                               appliedOrderBy.StartsWith("Computed_", StringComparison.OrdinalIgnoreCase);
 
-        // Базовая сортировка по датам, если не сортируем по вычисляемым полям.
         if (!isComputedOrder)
         {
             query = !string.IsNullOrEmpty(appliedOrderBy)
@@ -594,7 +588,6 @@ else
                 o => _calcEngine.Calculate(o, _calcRules))
             : new Dictionary<Guid, Dictionary<string, decimal>>();
 
-        // Сортировка по вычисляемому полю
         if (isComputedOrder && baseList != null)
         {
             var parts = appliedOrderBy!.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -621,7 +614,6 @@ else
             }
         }
 
-        // Пагинация после всех in‑memory операций (для случаев с вычисляемыми полями)
         if (baseList != null)
         {
             _totalCount = _pageItems.Count();
@@ -682,11 +674,14 @@ else
         await OnFilterChange();
     }
 
-    private async Task OnRowClick(DataGridRowMouseEventArgs<Order> args)
+    private async Task OnRowClick(DataGridRowMouseEventArgs<Order> args) =>
+        await OpenOrderDetailAsync(args.Data);
+
+    private async Task OpenOrderDetailAsync(Order order)
     {
         await DialogService.OpenAsync<OrderDetailDialog>(
-            $"Заказ {args.Data.Shipment?.PostingNumber}",
-            new Dictionary<string, object?> { ["OrderId"] = args.Data.Id },
+            $"Заказ {order.Shipment?.PostingNumber}",
+            new Dictionary<string, object?> { ["OrderId"] = order.Id },
             new DialogOptions
             {
                 Width = "900px",
@@ -699,7 +694,6 @@ else
     private void ToggleComputedLayout() =>
         _computedSplitByColumns = !_computedSplitByColumns;
 
-    // Returns true for light background colors (to use dark text)
     private static bool IsLightColor(string hex)
     {
         try
@@ -728,7 +722,6 @@ else
         var g = Convert.ToInt32(color[2..4], 16);
         var b = Convert.ToInt32(color[4..6], 16);
 
-        // делаем пастельную версию
         r = (int)(r + (255 - r) * 0.7);
         g = (int)(g + (255 - g) * 0.7);
         b = (int)(b + (255 - b) * 0.7);
@@ -739,6 +732,39 @@ else
     string GetTextColor(string bg)
     {
         return IsLightColor(bg) ? "#1f2937" : "#ffffff";
+    }
+
+    private void ShowContextMenu(DataGridCellMouseEventArgs<Order> args)
+    {
+        ContextMenuService.Open(args,
+            [
+                new ContextMenuItem { Text = "Открыть",           Icon = "open_in_new", Value = "open"    },
+                new ContextMenuItem { Text = "История изменений", Icon = "history",     Value = "history" }
+            ],
+            async e =>
+            {
+                ContextMenuService.Close();
+                if (e.Value?.ToString() == "open")
+                    await OpenOrderDetailAsync(args.Data);
+                else if (e.Value?.ToString() == "history")
+                    await OpenAuditHistoryAsync(args.Data);
+            });
+    }
+
+    private async Task OpenAuditHistoryAsync(Order order)
+    {
+        var subjects = new List<AuditSubject>
+        {
+            new("Order",    order.Id.ToString(),         "Заказ"),
+            new("Shipment", order.ShipmentId.ToString(), "Отправление"),
+        };
+        if (order.ProductInfo?.ProductId is { } pid)
+            subjects.Add(new("Product", pid.ToString(), "Товар"));
+
+        await DialogService.OpenAsync<AuditHistoryDialog>(
+            "История изменений",
+            new Dictionary<string, object?> { [nameof(AuditHistoryDialog.Subjects)] = (IReadOnlyList<AuditSubject>)subjects },
+            new DialogOptions { Width = "min(960px, 95vw)", Resizable = true, Draggable = true });
     }
 
     public void Dispose() => _db?.Dispose();
@@ -763,5 +789,4 @@ else
         Density.Compact => "Компактный режим строк",
         _ => "Обычный режим строк"
     };
-
 }

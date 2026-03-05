@@ -6,6 +6,7 @@
 @using StudioB2B.Infrastructure.Features.Orders
 @using System.Collections.Generic
 @using System.Text.RegularExpressions
+@using StudioB2B.Domain.Entities.Common
 
 @inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
@@ -321,8 +322,11 @@ else
         </Tabs>
     </RadzenTabs>
 
-    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End"
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween"
                  Style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--rz-border-color);">
+        <RadzenButton Icon="history" Text="История изменений" ButtonStyle="ButtonStyle.Light"
+                      Size="ButtonSize.Small"
+                      Click="@OpenAuditHistory" />
         <RadzenButton Text="Закрыть" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close())" />
     </RadzenStack>
 }
@@ -379,6 +383,26 @@ else
     }
 
     public void Dispose() => _db?.Dispose();
+
+    private async Task OpenAuditHistory()
+    {
+        var subjects = new List<AuditSubject>
+        {
+            new("Order",    OrderId.ToString(),                  "Заказ"),
+            new("Shipment", _order!.ShipmentId.ToString(),       "Отправление"),
+        };
+        if (_order.ProductInfo?.ProductId is { } pid)
+            subjects.Add(new("Product", pid.ToString(), "Товар"));
+        if (_order.RecipientId is { } rid)
+            subjects.Add(new("Recipient", rid.ToString(), "Получатель"));
+        if (_order.Recipient?.Address?.Id is { } aid)
+            subjects.Add(new("Address", aid.ToString(), "Адрес"));
+
+        await DialogService.OpenAsync<AuditHistoryDialog>(
+            "История изменений заказа",
+            new Dictionary<string, object?> { [nameof(AuditHistoryDialog.Subjects)] = (IReadOnlyList<AuditSubject>)subjects },
+            new DialogOptions { Width = "min(960px, 95vw)", Resizable = true, Draggable = true });
+    }
 
     private static string FormatDateDisplay(DateTime? d)
     {

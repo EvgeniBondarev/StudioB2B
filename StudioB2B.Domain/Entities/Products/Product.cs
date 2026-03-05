@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.Products;
 /// <summary>
 /// Товар из каталога маркетплейса (Ozon: product).
 /// </summary>
+[Display(Name = "Товар")]
 public class Product : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор товара")]

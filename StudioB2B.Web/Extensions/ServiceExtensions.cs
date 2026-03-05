@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.HttpOverrides;
 using Radzen;
+using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure;
 using StudioB2B.Web.Services;
 using Microsoft.AspNetCore.Components;
@@ -30,6 +31,9 @@ public static class ServiceExtensions
         });
 
         services.AddInfrastructure(configuration);
+
+        services.AddSignalR();
+        services.AddScoped<ISyncNotificationSender, SyncNotificationSender>();
 
         services.AddScoped<DialogService>();
         services.AddScoped<NotificationService>();

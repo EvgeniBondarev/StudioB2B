@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.Products;
 /// <summary>
 /// Тип атрибута товара (например «Цвет», «Размер», «Материал»).
 /// </summary>
+[Display(Name = "Атрибут товара")]
 public class ProductAttribute : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор атрибута")]

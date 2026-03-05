@@ -1,6 +1,5 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Application.Common;
 using StudioB2B.Application.Common.Interfaces;
@@ -54,23 +53,35 @@ public class OzonFbsOrderAdapter : IOrderAdapter
 
         var result = new OrderSyncResult();
 
-        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        _db.DeferAudit = true;
         try
         {
             foreach (var posting in allPostings)
             {
-                await UpsertShipmentAsync(client, posting, priceByOfferId, attributesByOfferId, result, tx, ct);
+                await using var tx = await _db.Database.BeginTransactionAsync(ct);
+                try
+                {
+                    await UpsertShipmentAsync(client, posting, priceByOfferId, attributesByOfferId, result, ct);
+                    await tx.CommitAsync(ct);
+                }
+                catch (Exception ex)
+                {
+                    await tx.RollbackAsync(ct);
+                    _db.ChangeTracker.Clear();
+                    _logger.LogError(ex,
+                        "Sync failed for posting {PostingNumber} of client {ClientId}, rolled back.",
+                        posting.PostingNumber, client.ApiId);
+                    throw;
+                }
+
+                // Сбрасываем накопленный аудит после каждого постинга вне основной транзакции,
+                // чтобы не перегружать одну транзакцию тысячами INSERT.
+                await _db.FlushDeferredAuditAsync(ct: ct);
             }
-            await tx.CommitAsync(ct);
         }
-        catch (Exception ex)
+        finally
         {
-            await tx.RollbackAsync(ct);
-            _db.ChangeTracker.Clear();
-            _logger.LogError(ex,
-                "Sync failed for client {ClientId}, all changes rolled back.",
-                client.ApiId);
-            throw;
+            _db.DeferAudit = false;
         }
 
         return result;
@@ -92,28 +103,39 @@ public class OzonFbsOrderAdapter : IOrderAdapter
 
         var result = new OrderSyncResult();
 
-        foreach (var shipment in shipments)
+        _db.DeferAudit = true;
+        try
         {
-            try
+            foreach (var shipment in shipments)
             {
-                var apiResult = await _api.GetFbsPostingAsync(client.ApiId, client.Key, shipment.PostingNumber, ct);
-
-                if (!apiResult.IsSuccess || apiResult.Data?.Result == null)
+                try
                 {
-                    _logger.LogWarning(
-                        "Failed to fetch posting {PostingNumber} for client {ClientId}: {Error}",
-                        shipment.PostingNumber, client.ApiId, apiResult.ErrorMessage);
-                    continue;
-                }
+                    var apiResult = await _api.GetFbsPostingAsync(client.ApiId, client.Key, shipment.PostingNumber, ct);
 
-                await UpdateShipmentStatusAsync(shipment, client.Name, apiResult.Data.Result, result, ct);
+                    if (!apiResult.IsSuccess || apiResult.Data?.Result == null)
+                    {
+                        _logger.LogWarning(
+                            "Failed to fetch posting {PostingNumber} for client {ClientId}: {Error}",
+                            shipment.PostingNumber, client.ApiId, apiResult.ErrorMessage);
+                        continue;
+                    }
+
+                    await UpdateShipmentStatusAsync(shipment, client.Name, apiResult.Data.Result, result, ct);
+
+                    // Сбрасываем аудит после каждого отправления вне его транзакции
+                    await _db.FlushDeferredAuditAsync(ct: ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        "Error updating shipment {PostingNumber} for client {ClientId}.",
+                        shipment.PostingNumber, client.ApiId);
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "Error updating shipment {PostingNumber} for client {ClientId}.",
-                    shipment.PostingNumber, client.ApiId);
-            }
+        }
+        finally
+        {
+            _db.DeferAudit = false;
         }
 
         if (result.ShipmentsUpdated > 0)
@@ -300,7 +322,6 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         Dictionary<string, OzonProductPriceItemDto> priceByOfferId,
         Dictionary<string, OzonProductAttributeItemDto> attributesByOfferId,
         OrderSyncResult stats,
-        IDbContextTransaction transaction,
         CancellationToken ct)
     {
         var deliveryMethod = await EnsureDeliveryMethodAsync(posting, ct);

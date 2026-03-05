@@ -6,6 +6,7 @@ namespace StudioB2B.Domain.Entities.Warehouses;
 /// <summary>
 /// Склад (собственный или Ozon). ExternalId соответствует warehouse_id из Ozon API.
 /// </summary>
+[Display(Name = "Склад")]
 public class Warehouse : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор склада")]
