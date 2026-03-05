@@ -91,7 +91,8 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
     public DbSet<FieldAuditLog> FieldAuditLogs { get; set; } = null!;
 
     // ── Background Jobs ──────────────────────────────────────────────
-    public DbSet<SyncJobHistory> SyncJobHistories { get; set; } = null!;
+    public DbSet<SyncJobHistory>   SyncJobHistories  { get; set; } = null!;
+    public DbSet<SyncJobSchedule>  SyncJobSchedules  { get; set; } = null!;
 
     public TenantDbContext(
         DbContextOptions<TenantDbContext> options,
