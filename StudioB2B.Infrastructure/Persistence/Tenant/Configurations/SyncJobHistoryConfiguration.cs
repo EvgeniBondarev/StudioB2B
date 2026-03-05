@@ -26,11 +26,17 @@ public class SyncJobHistoryConfiguration : IEntityTypeConfiguration<SyncJobHisto
         builder.Property(x => x.StartedAtUtc)
             .IsRequired();
 
+        builder.Property(x => x.ParametersJson)
+            .HasColumnType("longtext");
+
         builder.Property(x => x.ResultJson)
             .HasColumnType("longtext");
 
         builder.Property(x => x.ErrorMessage)
             .HasMaxLength(2000);
+
+        builder.Property(x => x.InitiatedByEmail)
+            .HasMaxLength(256);
     }
 }
 

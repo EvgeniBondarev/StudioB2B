@@ -35,6 +35,8 @@ public class OrderSyncJob
         _loggerFactory      = loggerFactory;
     }
 
+    // ── Public entry-points ──────────────────────────────────────────────────
+
     [AutomaticRetry(Attempts = 0)]
     public async Task ExecuteSyncAsync(
         Guid tenantId,
@@ -42,11 +44,11 @@ public class OrderSyncJob
         Guid historyId,
         DateTime from,
         DateTime to,
-        IJobCancellationToken jobToken)
+        CancellationToken cancellationToken = default)
     {
         await using var db = CreateDbContext(connectionString);
 
-        var history = await db.SyncJobHistories.FirstOrDefaultAsync(h => h.Id == historyId);
+        var history = await db.SyncJobHistories.FirstOrDefaultAsync(h => h.Id == historyId, cancellationToken);
         if (history is null)
         {
             _loggerFactory.CreateLogger<OrderSyncJob>()
@@ -54,8 +56,100 @@ public class OrderSyncJob
             return;
         }
 
+        await ExecuteSyncCoreAsync(db, history, tenantId, from, to, cancellationToken);
+    }
+
+    [AutomaticRetry(Attempts = 0)]
+    public async Task ExecuteUpdateAsync(
+        Guid tenantId,
+        string connectionString,
+        Guid historyId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = CreateDbContext(connectionString);
+
+        var history = await db.SyncJobHistories.FirstOrDefaultAsync(h => h.Id == historyId, cancellationToken);
+        if (history is null)
+        {
+            _loggerFactory.CreateLogger<OrderSyncJob>()
+                .LogWarning("UpdateJob: history record {HistoryId} not found, aborting.", historyId);
+            return;
+        }
+
+        await ExecuteUpdateCoreAsync(db, history, tenantId, cancellationToken);
+    }
+
+    [AutomaticRetry(Attempts = 0)]
+    public async Task ExecuteScheduledAsync(
+        Guid tenantId,
+        string connectionString,
+        Guid scheduleId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = CreateDbContext(connectionString);
+
+        var schedule = await db.SyncJobSchedules.FirstOrDefaultAsync(s => s.Id == scheduleId, cancellationToken);
+        if (schedule is null)
+        {
+            _loggerFactory.CreateLogger<OrderSyncJob>()
+                .LogWarning("ScheduledJob: schedule {ScheduleId} not found, aborting.", scheduleId);
+            return;
+        }
+
+        if (!schedule.IsEnabled)
+        {
+            _loggerFactory.CreateLogger<OrderSyncJob>()
+                .LogInformation("ScheduledJob: schedule {ScheduleId} is disabled, skipping.", scheduleId);
+            return;
+        }
+
+        var history = new SyncJobHistory
+        {
+            JobType        = schedule.JobType,
+            Status         = SyncJobStatus.Enqueued,
+            ParametersJson = schedule.JobType == SyncJobType.Sync
+                ? JsonSerializer.Serialize(new
+                {
+                    From = DateTime.UtcNow.Date.AddDays(-schedule.SyncDaysBack),
+                    To   = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1)
+                })
+                : null
+        };
+
+        db.SyncJobHistories.Add(history);
+        await db.SaveChangesAsync(cancellationToken);
+
+        // Уведомляем UI сразу — чтобы запись появилась в таблице без ожидания polling
+        await _notificationSender.SendJobStartedAsync(
+            tenantId,
+            history.Id,
+            schedule.JobType == SyncJobType.Sync ? "Sync" : "Update",
+            CancellationToken.None);
+
+        if (schedule.JobType == SyncJobType.Sync)
+        {
+            var from = DateTime.UtcNow.Date.AddDays(-schedule.SyncDaysBack);
+            var to   = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
+            await ExecuteSyncCoreAsync(db, history, tenantId, from, to, cancellationToken);
+        }
+        else
+        {
+            await ExecuteUpdateCoreAsync(db, history, tenantId, cancellationToken);
+        }
+    }
+
+    // ── Core logic ───────────────────────────────────────────────────────────
+
+    private async Task ExecuteSyncCoreAsync(
+        TenantDbContext db,
+        SyncJobHistory history,
+        Guid tenantId,
+        DateTime from,
+        DateTime to,
+        CancellationToken cancellationToken)
+    {
         history.Status = SyncJobStatus.Processing;
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(CancellationToken.None);
 
         var logger = _loggerFactory.CreateLogger<OrderSyncJob>();
         try
@@ -65,7 +159,7 @@ public class OrderSyncJob
                 tenantId, from, to);
 
             var syncService = BuildSyncService(db);
-            var summary     = await syncService.SyncAllAsync(from, to, jobToken.ShutdownToken);
+            var summary     = await syncService.SyncAllAsync(from, to, cancellationToken);
 
             history.Status        = SyncJobStatus.Succeeded;
             history.FinishedAtUtc = DateTime.UtcNow;
@@ -88,40 +182,28 @@ public class OrderSyncJob
         }
         finally
         {
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(CancellationToken.None);
             await _notificationSender.SendJobCompletedAsync(
-                tenantId, historyId, history.Status.ToString(), "Sync");
+                tenantId, history.Id, history.Status.ToString(), "Sync", CancellationToken.None);
         }
     }
 
-    [AutomaticRetry(Attempts = 0)]
-    public async Task ExecuteUpdateAsync(
+    private async Task ExecuteUpdateCoreAsync(
+        TenantDbContext db,
+        SyncJobHistory history,
         Guid tenantId,
-        string connectionString,
-        Guid historyId,
-        IJobCancellationToken jobToken)
+        CancellationToken cancellationToken)
     {
-        await using var db = CreateDbContext(connectionString);
-
-        var history = await db.SyncJobHistories.FirstOrDefaultAsync(h => h.Id == historyId);
-        if (history is null)
-        {
-            _loggerFactory.CreateLogger<OrderSyncJob>()
-                .LogWarning("UpdateJob: history record {HistoryId} not found, aborting.", historyId);
-            return;
-        }
-
         history.Status = SyncJobStatus.Processing;
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(CancellationToken.None);
 
         var logger = _loggerFactory.CreateLogger<OrderSyncJob>();
         try
         {
-            logger.LogInformation(
-                "UpdateJob: starting status update for tenant {TenantId}.", tenantId);
+            logger.LogInformation("UpdateJob: starting status update for tenant {TenantId}.", tenantId);
 
             var syncService = BuildSyncService(db);
-            var summary     = await syncService.UpdateAllAsync(jobToken.ShutdownToken);
+            var summary     = await syncService.UpdateAllAsync(cancellationToken);
 
             history.Status        = SyncJobStatus.Succeeded;
             history.FinishedAtUtc = DateTime.UtcNow;
@@ -144,9 +226,9 @@ public class OrderSyncJob
         }
         finally
         {
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(CancellationToken.None);
             await _notificationSender.SendJobCompletedAsync(
-                tenantId, historyId, history.Status.ToString(), "Update");
+                tenantId, history.Id, history.Status.ToString(), "Update", CancellationToken.None);
         }
     }
 
@@ -154,7 +236,6 @@ public class OrderSyncJob
 
     /// <summary>
     /// Строит OrderSyncService с явным TenantDbContext и OzonFbsOrderAdapter.
-    /// Ни один из них не проходит через scoped DI — нет зависимости от HTTP-контекста.
     /// </summary>
     private OrderSyncService BuildSyncService(TenantDbContext db)
     {
