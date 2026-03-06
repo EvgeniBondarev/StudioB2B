@@ -70,6 +70,8 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
     public DbSet<Order> Orders { get; set; } = null!;
     public DbSet<OrderPrice> OrderPrices { get; set; } = null!;
     public DbSet<OrderProductInfo> OrderProductInfos { get; set; } = null!;
+    public DbSet<OrderTransaction> OrderTransactions { get; set; } = null!;
+    public DbSet<OrderTransactionRule> OrderTransactionRules { get; set; } = null!;
 
     // ── Products ─────────────────────────────────────────────────────
     public DbSet<Category> Categories { get; set; } = null!;
@@ -91,7 +93,8 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
     public DbSet<FieldAuditLog> FieldAuditLogs { get; set; } = null!;
 
     // ── Background Jobs ──────────────────────────────────────────────
-    public DbSet<SyncJobHistory> SyncJobHistories { get; set; } = null!;
+    public DbSet<SyncJobHistory>   SyncJobHistories  { get; set; } = null!;
+    public DbSet<SyncJobSchedule>  SyncJobSchedules  { get; set; } = null!;
 
     public TenantDbContext(
         DbContextOptions<TenantDbContext> options,
