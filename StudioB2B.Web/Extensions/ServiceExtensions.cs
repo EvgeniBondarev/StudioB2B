@@ -40,6 +40,7 @@ public static class ServiceExtensions
         services.AddScoped<TooltipService>();
         services.AddScoped<ContextMenuService>();
         services.AddScoped<TabService>();
+        services.AddScoped<BulkOrderTransactionContext>();
 
         ConfigureAuthentication(services, environment);
         ConfigureCors(services, environment);
