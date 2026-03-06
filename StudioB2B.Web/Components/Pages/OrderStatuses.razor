@@ -85,23 +85,26 @@ else
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
-            <RadzenDataGridColumn TItem="OrderStatus" Property="Name" Title="Название" Width="220px" Frozen="true">
+            <RadzenDataGridColumn TItem="OrderStatus" Property="Name"
+                                  Title="Название" Width="220px" Frozen="true">
                 <EditTemplate Context="s">
                     <RadzenTextBox @bind-Value="s.Name" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="Color" Title="Цвет"
-                                  Width="120px" Filterable="false" Sortable="false">
+                                  Width="120px" TextAlign="TextAlign.Center"
+                                  Filterable="false" Sortable="false">
                 <Template Context="s">
                     @if (!string.IsNullOrEmpty(s.Color))
                     {
-                        var bg = s.Color;
-                        var fg = IsLightColor(bg) ? "#1a1a1a" : "#ffffff";
-                        <span style="display: inline-block; padding: 2px 12px; border-radius: 12px;
-                                     background: @bg; color: @fg; font-size: 0.75rem; font-weight: 600;">
-                            @bg
-                        </span>
+                        var bg = GetSoftBackground(s.Color);
+                        var fg = GetTextColor(bg);
+
+                        <RadzenBadge Text="@s.Name"
+                                     Style="@($"background:{bg}; color:{fg};")"
+                                     Class="status-badge"/>
+
                     }
                     else
                     {
@@ -123,7 +126,8 @@ else
                 <Template Context="s">
                     @if (s.IsTerminal)
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Да" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success"
+                                     Class="status-badge" Text="Да" />
                     }
                     else
                     {
@@ -136,25 +140,27 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="IsInternal" Title="Системный"
-                                  Width="110px" TextAlign="TextAlign.Center" Filterable="false">
-                <HeaderTemplate>
-                    <div class="rz-header-filter-cell">
-                        <span class="rz-header-filter-title">Тип</span>
-                        <RadzenDropDown @bind-Value="_filterType"
-                                        Data="@_typeFilterOptions"
-                                        TextProperty="Label"
-                                        ValueProperty="Value"
-                                        Placeholder="Все"
-                                        AllowClear="true"
-                                        Style="width: 100%; min-width: 0;"
-                                        Change="@OnFilterChange"
-                                        Size="ButtonSize.Small" />
+                                  Width="110px" TextAlign="TextAlign.Center" Filterable="true">
+
+                <FilterTemplate>
+                    <div class="filter-all-item @( _filterType == null ? "active" : "" )"
+                         @onclick="() => ClearFilter(() => _filterType = null)">
+                        Все
                     </div>
-                </HeaderTemplate>
+                    <RadzenListBox @bind-Value="_filterType"
+                                   Data="@_typeFilterOptions"
+                                   TextProperty="Label"
+                                   ValueProperty="Value"
+                                   Placeholder="Все"
+                                   AllowClear="true"
+                                   Style="width:100%; max-height: 370px;"
+                                   Change="@OnFilterChange"/>
+                </FilterTemplate>
                 <Template Context="s">
                     @if (s.IsInternal)
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Да" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Info"
+                                     Class="status-badge" Text="Да" />
                     }
                     else
                     {
@@ -185,29 +191,35 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="MarketplaceClientType.Name"
-                                  Title="Маркетплейс" Width="160px" Sortable="false" Filterable="false">
-                <HeaderTemplate>
-                    <div class="rz-header-filter-cell">
-                        <span class="rz-header-filter-title">Маркетплейс</span>
-                        <RadzenDropDown @bind-Value="_filterMarketplaceTypeId"
-                                        Data="@_clientTypes"
-                                        TextProperty="Name"
-                                        ValueProperty="Id"
-                                        Placeholder="Все"
-                                        AllowClear="true"
-                                        Style="width: 100%; min-width: 0;"
-                                        Change="@OnFilterChange"
-                                        Size="ButtonSize.Small" />
+                                  Title="Маркетплейс" Width="160px" Sortable="false" Filterable="true">
+                <FilterTemplate>
+                    <div class="filter-all-item @( _filterMarketplaceTypeId == null ? "active" : "" )"
+                         @onclick="() => ClearFilter(() => _filterMarketplaceTypeId = null)">
+                        Все
                     </div>
-                </HeaderTemplate>
+                    <RadzenListBox @bind-Value="_filterMarketplaceTypeId"
+                                   Data="@_clientTypes"
+                                   TextProperty="Name"
+                                   ValueProperty="Id"
+                                   Placeholder="Все"
+                                   AllowClear="true"
+                                   Style="width: 100%; min-width: 0; max-height: 370px;"
+                                   Change="@OnFilterChange"/>
+
+                </FilterTemplate>
+
                 <Template Context="s">
                     @if (s.MarketplaceClientType != null)
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Secondary" Text="@s.MarketplaceClientType.Name" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Secondary"
+                                     Class="status-badge"
+                                     Text="@s.MarketplaceClientType.Name" />
                     }
                     else if (s.IsInternal)
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Системный" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Info"
+                                     Class="status-badge"
+                                     Text="Системный" />
                     }
                     else
                     {
@@ -389,6 +401,12 @@ else
             await _grid.Reload();
     }
 
+    private async Task ClearFilter(Action clear)
+    {
+        clear();
+        await OnFilterChange();
+    }
+
     // ── Add row ──────────────────────────────────────────────────────────────
 
     private async Task AddRow()
@@ -485,6 +503,30 @@ else
             return (r * 299 + g * 587 + b * 114) / 1000 > 128;
         }
         catch { return true; }
+    }
+
+    string GetSoftBackground(string color)
+    {
+        if (string.IsNullOrEmpty(color))
+            return "#ececff";
+
+        color = color.TrimStart('#');
+
+        var r = Convert.ToInt32(color[..2], 16);
+        var g = Convert.ToInt32(color[2..4], 16);
+        var b = Convert.ToInt32(color[4..6], 16);
+
+        // делаем пастельную версию
+        r = (int)(r + (255 - r) * 0.6);
+        g = (int)(g + (255 - g) * 0.6);
+        b = (int)(b + (255 - b) * 0.6);
+
+        return $"#{r:X2}{g:X2}{b:X2}";
+    }
+
+    string GetTextColor(string bg)
+    {
+        return IsLightColor(bg) ? "#1f2937" : "#ffffff";
     }
 
     public void Dispose() => _db?.Dispose();

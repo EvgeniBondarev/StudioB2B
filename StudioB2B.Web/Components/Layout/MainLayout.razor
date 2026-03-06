@@ -19,10 +19,14 @@
         <div class="sidebar-inner @(_sidebarExpanded ? "" : "sidebar-compact")">
 
             <div class="sidebar-logo">
-                <RadzenIcon Icon="business_center" Style="color: var(--rz-primary); font-size: 1.3rem; flex-shrink: 0;" />
+                <RadzenIcon Icon="business_center"
+                            Style="color: var(--rz-primary); font-size: 1.4rem; flex-shrink: 0;" />
+
                 @if (_sidebarExpanded)
                 {
-                    <span>StudioB2B</span>
+                    <RadzenText Text="StudioB2B"
+                                TextStyle="TextStyle.H6"
+                                Style="color: var(--rz-primary); margin:0; font-weight:600;" />
                 }
             </div>
 
@@ -68,7 +72,7 @@
                     <Authorized>
                         <!-- Имя пользователя — того же цвета, что и кнопка "Выйти" -->
                         <RadzenText TextStyle="TextStyle.Body2"
-                                    Style="color: var(--rz-text-color); margin: 0; font-weight: 500;">
+                                    Style="color: var(--rz-base-light); margin: 0; font-weight: 500;">
                             @context.User.Identity?.Name
                         </RadzenText>
                         <RadzenButton Text="Выйти" Icon="logout" ButtonStyle="ButtonStyle.Light"
