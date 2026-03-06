@@ -43,7 +43,6 @@ h1:focus {
   gap: 0.5rem;
   overflow: hidden;
   flex-shrink: 0;
-  opacity: 0.9;
 }
 
 /* ─── Compact (icon-only) mode ────────────────────────────── */
