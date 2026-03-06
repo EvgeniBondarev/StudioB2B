@@ -20,8 +20,6 @@
 
 @implements IDisposable
 
-<link rel="stylesheet" href="css/orders.css"/>
-
 <PageTitle>Заказы</PageTitle>
 
 @if (!TenantProvider.IsResolved)
@@ -40,7 +38,6 @@ else
     </RadzenStack>
 
     <RadzenDataGrid
-        class="orders-grid"
         @ref="_grid"
         TItem="Order"
         Data="@_pageItems"
