@@ -14,6 +14,11 @@ public class OrderSyncResult
     /// <summary>Заказы в выборке, по которым не было изменений (пока не используется, всегда 0).</summary>
     public int OrdersUntouched { get; set; }
 
+    /// <summary>Заказы, выбранные для обновления статуса (без конечного статуса). Для проверки фильтрации.</summary>
+    public int OrdersSelectedForUpdate { get; set; }
+    /// <summary>Заказы, пропущенные из-за конечного статуса.</summary>
+    public int OrdersSkipped { get; set; }
+
     /// <summary>Сводка обновлённых полей (для режима обновления статусов), например: «Статус, Номер заказа, Дата отгрузки».</summary>
     public string? UpdatedFieldsSummary { get; set; }
 
@@ -28,5 +33,7 @@ public class OrderSyncResult
         OrdersCreated += other.OrdersCreated;
         OrdersUpdated += other.OrdersUpdated;
         OrdersUntouched += other.OrdersUntouched;
+        OrdersSelectedForUpdate += other.OrdersSelectedForUpdate;
+        OrdersSkipped += other.OrdersSkipped;
     }
 }

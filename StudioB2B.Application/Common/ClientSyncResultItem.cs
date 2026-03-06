@@ -13,6 +13,10 @@ public class ClientSyncResultItem
     public int OrdersCreated { get; set; }
     public int OrdersUpdated { get; set; }
     public int OrdersUntouched { get; set; }
+    /// <summary>Заказы, выбранные для обновления статуса (без конечного статуса).</summary>
+    public int OrdersSelectedForUpdate { get; set; }
+    /// <summary>Заказы, пропущенные из-за конечного статуса.</summary>
+    public int OrdersSkipped { get; set; }
     /// <summary>Сводка обновлённых полей по отправлениям (для режима обновления).</summary>
     public string? UpdatedFieldsSummary { get; set; }
 }
