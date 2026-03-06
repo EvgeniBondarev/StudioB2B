@@ -8,18 +8,21 @@ namespace StudioB2B.Infrastructure.MultiTenancy;
 /// </summary>
 public sealed class TenantHangfireContext : IDisposable
 {
-    public IBackgroundJobClient Client { get; }
-    public BackgroundJobServer Server { get; }
-    public MySqlStorage Storage { get; }
+    public IBackgroundJobClient  Client              { get; }
+    public BackgroundJobServer   Server              { get; }
+    public MySqlStorage          Storage             { get; }
+    public RecurringJobManager   RecurringJobManager { get; }
 
     public TenantHangfireContext(
-        IBackgroundJobClient client,
-        BackgroundJobServer server,
-        MySqlStorage storage)
+        IBackgroundJobClient  client,
+        BackgroundJobServer   server,
+        MySqlStorage          storage,
+        RecurringJobManager   recurringJobManager)
     {
-        Client  = client;
-        Server  = server;
-        Storage = storage;
+        Client              = client;
+        Server              = server;
+        Storage             = storage;
+        RecurringJobManager = recurringJobManager;
     }
 
     public void Dispose()
@@ -28,4 +31,3 @@ public sealed class TenantHangfireContext : IDisposable
         Storage.Dispose();
     }
 }
-

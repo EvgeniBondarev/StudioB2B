@@ -17,6 +17,7 @@ using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
 using TenantService = StudioB2B.Infrastructure.MultiTenancy.Services.TenantService;
+using StudioB2B.Infrastructure.MultiTenancy.Services;
 
 namespace StudioB2B.Infrastructure;
 
@@ -92,6 +93,10 @@ public static class DependencyInjection
             return new TenantDbContext(optionsBuilder.Options, currentUserProvider);
         });
 
+        // Factory — для сервисов, которым нужно создавать независимые контексты
+        // (например OrderSyncJobService, вызываемый параллельно из polling + UI)
+        services.AddScoped<Features.Orders.ITenantDbContextCreator, TenantDbContextCreator>();
+
         services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
             {
                 // Password settings
@@ -140,6 +145,10 @@ public static class DependencyInjection
 
         // ── Background job services ────────────────────────────────────────────
         services.AddScoped<IOrderSyncJobService, OrderSyncJobService>();
+
+        // ── Transaction services ───────────────────────────────────────────────
+        services.AddScoped<CalculationEngine>();
+        services.AddScoped<IOrderTransactionService, OrderTransactionService>();
 
         return services;
     }

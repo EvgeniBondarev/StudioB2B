@@ -138,6 +138,17 @@ public class OzonFbsOrderAdapter : IOrderAdapter
             _db.DeferAudit = false;
         }
 
+        // Учитываем заказы в отправлениях с конечным статусом (мы их не обрабатываем, но они «пропущены»)
+        var terminalShipmentIds = await _db.Shipments
+            .Include(s => s.Status)
+            .Where(s => s.MarketplaceClientId == client.Id
+                        && s.StatusId != null && s.Status != null && s.Status.IsTerminal)
+            .Select(s => s.Id)
+            .ToListAsync(ct);
+        var ordersInTerminalShipments = await _db.Orders
+            .CountAsync(o => terminalShipmentIds.Contains(o.ShipmentId), ct);
+        result.OrdersSkipped += ordersInTerminalShipments;
+
         if (result.ShipmentsUpdated > 0)
             result.UpdatedFieldsSummary = "Статус, Номер заказа, Дата отгрузки, Дата принятия, Трек-номер, Способ доставки";
 
@@ -167,22 +178,26 @@ public class OzonFbsOrderAdapter : IOrderAdapter
             shipment.TrackingNumber = posting.TrackingNumber;
             shipment.InProcessAt = posting.InProcessAt;
 
+            var totalOrders = await _db.Orders.CountAsync(o => o.ShipmentId == shipment.Id, ct);
             var orders = await _db.Orders
                 .Include(o => o.Status)
-                .Where(o => o.ShipmentId == shipment.Id)
+                .Where(o => o.ShipmentId == shipment.Id
+                            && (o.StatusId == null || o.Status == null || !o.Status.IsTerminal))
                 .ToListAsync(ct);
 
             foreach (var order in orders)
-            {
-                if (order.StatusId == null || order.Status == null || !order.Status.IsTerminal)
-                    order.StatusId = status.Id;
-            }
+                order.StatusId = status.Id;
 
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
+            var ordersSelected = orders.Count;
+            var ordersSkipped = totalOrders - ordersSelected;
+
             stats.ShipmentsUpdated++;
-            stats.OrdersUpdated += orders.Count;
+            stats.OrdersUpdated += ordersSelected;
+            stats.OrdersSelectedForUpdate += ordersSelected;
+            stats.OrdersSkipped += ordersSkipped;
             if (oldStatusName != newStatusName)
             {
                 stats.UpdatedShipments.Add(new ShipmentUpdateItem
@@ -1085,7 +1100,8 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         {
             Id = Guid.NewGuid(),
             Name = name,
-            DeliveryScheme = deliveryScheme
+            DeliveryScheme = deliveryScheme,
+            IsUserDefined = false
         };
         _db.PriceTypes.Add(priceType);
         await _db.SaveChangesAsync(ct);
