@@ -1,0 +1,30 @@
+using StudioB2B.Domain.Entities.Orders;
+
+namespace StudioB2B.Application.Common;
+
+/// <summary>
+/// Предпросмотр применения транзакции: правила и значения для ввода.
+/// </summary>
+public class TransactionApplyPreview
+{
+    public string TransactionName { get; set; } = string.Empty;
+    public string ToStatusName { get; set; } = string.Empty;
+    public List<TransactionApplyRulePreview> Rules { get; set; } = [];
+}
+
+/// <summary>
+/// Предпросмотр одного правила: тип цены, источник, вычисленное значение или необходимость ввода.
+/// </summary>
+public class TransactionApplyRulePreview
+{
+    public Guid RuleId { get; set; }
+    public Guid PriceTypeId { get; set; }
+    public string PriceTypeName { get; set; } = string.Empty;
+    public Guid? ProductId { get; set; }
+    public string? ProductName { get; set; }
+    public TransactionValueSource ValueSource { get; set; }
+    /// <summary>Вычисленное значение (для Formula).</summary>
+    public decimal? ComputedValue { get; set; }
+    /// <summary>Требуется ввод пользователя при проведении.</summary>
+    public bool RequiresUserInput => ValueSource == TransactionValueSource.UserInput;
+}

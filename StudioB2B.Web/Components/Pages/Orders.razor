@@ -13,6 +13,7 @@
 
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory Factory
+@inject IOrderTransactionService TransactionService
 @inject DialogService DialogService
 @inject ContextMenuService ContextMenuService
 @inject IJSRuntime JSRuntime
@@ -733,17 +734,35 @@ else
     {
         ContextMenuService.Open(args,
             [
-                new ContextMenuItem { Text = "Открыть",           Icon = "open_in_new", Value = "open"    },
-                new ContextMenuItem { Text = "История изменений", Icon = "history",     Value = "history" }
+                new ContextMenuItem { Text = "Открыть",               Icon = "open_in_new", Value = "open"    },
+                new ContextMenuItem { Text = "Применить транзакцию",  Icon = "swap_horiz",  Value = "apply"  },
+                new ContextMenuItem { Text = "История изменений",     Icon = "history",     Value = "history" }
             ],
             async e =>
             {
                 ContextMenuService.Close();
                 if (e.Value?.ToString() == "open")
                     await OpenOrderDetailAsync(args.Data);
+                else if (e.Value?.ToString() == "apply")
+                    await OpenApplyTransactionDialogAsync(args.Data);
                 else if (e.Value?.ToString() == "history")
                     await OpenAuditHistoryAsync(args.Data);
             });
+    }
+
+    private async Task OpenApplyTransactionDialogAsync(Order order)
+    {
+        var result = await DialogService.OpenAsync<ApplyTransactionDialog>(
+            "Применить транзакцию",
+            new Dictionary<string, object?>
+            {
+                ["OrderId"] = order.Id,
+                ["CurrentSystemStatusId"] = order.SystemStatusId
+            },
+            new DialogOptions { Width = "500px", CloseDialogOnEsc = true });
+
+        if (result is bool b && b && _grid != null)
+            await _grid.Reload();
     }
 
     private async Task OpenAuditHistoryAsync(Order order)
