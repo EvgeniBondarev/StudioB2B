@@ -10,6 +10,7 @@
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
 @using StudioB2B.Web.Components.Common
+@using StudioB2B.Web.Services
 
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory Factory
@@ -17,6 +18,9 @@
 @inject DialogService DialogService
 @inject ContextMenuService ContextMenuService
 @inject IJSRuntime JSRuntime
+@inject TabService TabService
+@inject NavigationManager NavigationManager
+@inject BulkOrderTransactionContext BulkOrderContext
 
 @implements IDisposable
 
@@ -33,8 +37,16 @@ else
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
         <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Заказы</RadzenText>
-        <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                      Click="@ToggleDensity" Title="@GetDensityTitle()"/>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+            <RadzenButton Icon="swap_horiz"
+                          Text="Транзакция для выбранных"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Size="ButtonSize.Small"
+                          Disabled="@(_selectedOrderIds.Count == 0)"
+                          Click="@OpenBulkTransactionTabAsync" />
+            <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                          Click="@ToggleDensity" Title="@GetDensityTitle()"/>
+        </RadzenStack>
     </RadzenStack>
 
     <RadzenDataGrid
@@ -81,6 +93,18 @@ else
         EmptyText="@RadzenRuStrings.EmptyText">
         
         <Columns>
+            <RadzenDataGridColumn TItem="Order" Width="40px" Filterable="false" Sortable="false" TextAlign="TextAlign.Center">
+                <HeaderTemplate>
+                    <RadzenCheckBox TValue="bool"
+                                    Value="@IsAllCurrentPageSelected"
+                                    Change="@ToggleSelectAllCurrentPage" />
+                </HeaderTemplate>
+                <Template Context="o">
+                    <RadzenCheckBox TValue="bool"
+                                    Value="@_selectedOrderIds.Contains(o.Id)"
+                                    Change="@(checkedValue => OnRowSelectedChanged(o, checkedValue))" />
+                </Template>
+            </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="Order" Property="Shipment.PostingNumber"
                                   Title="Номер отправления" Width="200px" Frozen="true"
                                   HeaderCssClass="half-painted-header">
@@ -104,7 +128,7 @@ else
                                   HeaderCssClass="half-painted-header">
                 <FilterTemplate>
                     <div class="filter-all-item @( _filterClientId == null ? "active" : "" )"
-                         @onclick="() => ClearFilter(() => _filterClientId = null)">
+                         @onclick="@(async () => await ClearFilter(() => _filterClientId = null))">
                         Все
                     </div>
                     <RadzenListBox @bind-Value="_filterClientId"
@@ -114,7 +138,7 @@ else
                                    Placeholder="Все"
                                    AllowClear="true"
                                    Style="width:100%;"
-                                   Change="@OnFilterChange"/>
+                                   Change="@(async () => await OnFilterChange())"/>
                 </FilterTemplate>
 
                 <Template Context="o">
@@ -203,7 +227,7 @@ else
 
                 <FilterTemplate>
                     <div class="filter-all-item @( _filterStatusId == null ? "active" : "" )"
-                         @onclick="() => ClearFilter(() => _filterStatusId = null)">
+                         @onclick="@(async () => await ClearFilter(() => _filterStatusId = null))">
                         Все
                     </div>
                     <RadzenListBox TItem="OrderStatus"
@@ -214,7 +238,7 @@ else
                                    AllowClear="true"
                                    Placeholder="Все"
                                    Style="width:100%; max-height:370px"
-                                   Change="@OnFilterChange">
+                                   Change="@(async () => await OnFilterChange())">
 
                         <Template Context="item">
                             <RadzenBadge Text="@item.Name"
@@ -252,7 +276,7 @@ else
 
                 <FilterTemplate>
                     <div class="filter-all-item @( _filterSystemStatusId == null ? "active" : "" )"
-                         @onclick="() => ClearFilter(() => _filterSystemStatusId = null)">
+                         @onclick="@(async () => await ClearFilter(() => _filterSystemStatusId = null))">
                         Все
                     </div>
                     <RadzenListBox TItem="OrderStatus"
@@ -263,7 +287,7 @@ else
                                    Placeholder="Все"
                                    AllowClear="true"
                                    Style="width:100%; max-height: 370px;"
-                                   Change="@OnFilterChange">
+                                   Change="@(async () => await OnFilterChange())">
 
                         <Template Context="item">
                             <RadzenBadge Text="@item.Name"
@@ -307,7 +331,7 @@ else
 
                 <FilterTemplate>
                     <div class="filter-all-item @( _filterWarehouseId == null ? "active" : "" )"
-                         @onclick="() => ClearFilter(() => _filterWarehouseId = null)">
+                         @onclick="@(async () => await ClearFilter(() => _filterWarehouseId = null))">
                         Все
                     </div>
                     <RadzenListBox @bind-Value="_filterWarehouseId"
@@ -317,7 +341,7 @@ else
                                    Placeholder="Все"
                                    AllowClear="true"
                                    Style="width: 100%; min-width: 0; max-height: 370px;"
-                                   Change="@OnFilterChange"/>
+                                   Change="@(async () => await OnFilterChange())"/>
 
                 </FilterTemplate>
                 <Template Context="o">
@@ -419,6 +443,7 @@ else
 
     private TenantDbContext? _db;
     private IEnumerable<Order> _pageItems = Array.Empty<Order>();
+    private readonly HashSet<Guid> _selectedOrderIds = new();
     private int _totalCount;
     private Density _density = Density.Default;
     private bool _loading;
@@ -443,6 +468,9 @@ else
     private const string FiltersKey = "orders-filters";
 
     private record OrderFilters(Guid? ClientId, Guid? StatusId, Guid? SystemStatusId, Guid? WarehouseId);
+
+    private bool IsAllCurrentPageSelected =>
+        _pageItems.Any() && _pageItems.All(o => _selectedOrderIds.Contains(o.Id));
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -522,6 +550,28 @@ else
         }
         catch
         {
+        }
+    }
+
+    private void OnRowSelectedChanged(Order order, bool isSelected)
+    {
+        if (isSelected)
+            _selectedOrderIds.Add(order.Id);
+        else
+            _selectedOrderIds.Remove(order.Id);
+    }
+
+    private void ToggleSelectAllCurrentPage(bool isSelected)
+    {
+        if (isSelected)
+        {
+            foreach (var o in _pageItems)
+                _selectedOrderIds.Add(o.Id);
+        }
+        else
+        {
+            foreach (var o in _pageItems)
+                _selectedOrderIds.Remove(o.Id);
         }
     }
 
@@ -760,6 +810,16 @@ else
 
         if (result is bool b && b && _grid != null)
             await _grid.Reload();
+    }
+
+    private async Task OpenBulkTransactionTabAsync()
+    {
+        if (_selectedOrderIds.Count == 0)
+            return;
+
+        BulkOrderContext.SetSelection(_selectedOrderIds);
+        TabService.EnsureOpen("/orders-bulk-transaction");
+        NavigationManager.NavigateTo("/orders-bulk-transaction");
     }
 
     private async Task OpenAuditHistoryAsync(Order order)
