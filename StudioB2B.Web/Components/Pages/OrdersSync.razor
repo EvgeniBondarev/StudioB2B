@@ -197,6 +197,12 @@ else
                     { <span style="color:var(--rz-text-secondary-color)">—</span> }
                 </Template>
             </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="SyncJobHistory" Title="Продолжительность" Width="140px"
+                                  HeaderCssClass="half-painted-header">
+                <Template Context="h">
+                    <RadzenText TextStyle="TextStyle.Body2">@FormatDuration(h)</RadzenText>
+                </Template>
+            </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="InitiatedByEmail" Title="Запустил"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="h">
@@ -626,6 +632,16 @@ else
             return h.ParametersJson;
         }
         catch { return h.ParametersJson; }
+    }
+
+    private static string FormatDuration(SyncJobHistory h)
+    {
+        if (!h.FinishedAtUtc.HasValue) return "—";
+        var d = h.FinishedAtUtc.Value - h.StartedAtUtc;
+        if (d < TimeSpan.Zero) return "—";
+        var mins = (int)d.TotalMinutes;
+        var secs = d.Seconds;
+        return mins > 0 ? $"{mins} мин {secs} сек" : $"{secs} сек";
     }
 
     private static BadgeStyle StatusBadgeStyle(SyncJobStatus s) => s switch
