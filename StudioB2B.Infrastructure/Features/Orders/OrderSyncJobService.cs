@@ -1,4 +1,5 @@
 using Hangfire;
+using Hangfire.Common;
 using Hangfire.States;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -174,14 +175,12 @@ public class OrderSyncJobService : IOrderSyncJobService
         db.SyncJobSchedules.Add(schedule);
         await db.SaveChangesAsync();
 
+        schedule.CronDescription = ScheduleCronBuilder.Describe(schedule);
+
         if (schedule.IsEnabled)
         {
-            var cron    = ScheduleCronBuilder.Build(schedule);
             var manager = _hangfireManager.GetRecurringManager(tenantId);
-            manager.AddOrUpdate<OrderSyncJob>(
-                schedule.HangfireRecurringJobId,
-                j => j.ExecuteScheduledAsync(tenantId, connectionString, schedule.Id),
-                cron);
+            RegisterSchedule(manager, schedule.HangfireRecurringJobId!, tenantId, connectionString, schedule.Id, schedule.CronExpression);
         }
 
         return schedule;
@@ -200,15 +199,9 @@ public class OrderSyncJobService : IOrderSyncJobService
             ?? throw new InvalidOperationException($"Schedule {schedule.Id} not found.");
 
         existing.JobType         = schedule.JobType;
-        existing.ScheduleType    = schedule.ScheduleType;
-        existing.IntervalMinutes = schedule.IntervalMinutes;
-        existing.IntervalHours   = schedule.IntervalHours;
-        existing.IntervalDays    = schedule.IntervalDays;
-        existing.TimeOfDay       = schedule.TimeOfDay;
-        existing.DaysOfWeek      = schedule.DaysOfWeek;
-        existing.DayOfMonth      = schedule.DayOfMonth;
         existing.CronExpression  = schedule.CronExpression;
-        existing.SyncDaysBack    = schedule.SyncDaysBack;
+        existing.CronDescription = ScheduleCronBuilder.Describe(schedule);
+        existing.SyncParams      = schedule.SyncParams;
         existing.UpdatedAtUtc    = DateTime.UtcNow;
 
         await db.SaveChangesAsync();
@@ -216,11 +209,7 @@ public class OrderSyncJobService : IOrderSyncJobService
         var manager = _hangfireManager.GetRecurringManager(tenantId);
         if (existing.IsEnabled)
         {
-            var cron = ScheduleCronBuilder.Build(existing);
-            manager.AddOrUpdate<OrderSyncJob>(
-                existing.HangfireRecurringJobId!,
-                j => j.ExecuteScheduledAsync(tenantId, connectionString, existing.Id),
-                cron);
+            RegisterSchedule(manager, existing.HangfireRecurringJobId!, tenantId, connectionString, existing.Id, existing.CronExpression);
         }
     }
 
@@ -243,11 +232,7 @@ public class OrderSyncJobService : IOrderSyncJobService
         var manager = _hangfireManager.GetRecurringManager(tenantId);
         if (enabled)
         {
-            var cron = ScheduleCronBuilder.Build(schedule);
-            manager.AddOrUpdate<OrderSyncJob>(
-                schedule.HangfireRecurringJobId!,
-                j => j.ExecuteScheduledAsync(tenantId, connectionString, schedule.Id),
-                cron);
+            RegisterSchedule(manager, schedule.HangfireRecurringJobId!, tenantId, connectionString, schedule.Id, schedule.CronExpression);
         }
         else
         {
@@ -280,6 +265,23 @@ public class OrderSyncJobService : IOrderSyncJobService
         if (!_tenantProvider.IsResolved)
             throw new InvalidOperationException(
                 "Tenant is not resolved. Cannot enqueue sync job.");
+    }
+
+    /// <summary>
+    /// Регистрирует recurring job в Hangfire, явно разрешая неоднозначность перегрузок AddOrUpdate.
+    /// </summary>
+    private static void RegisterSchedule(
+        RecurringJobManager manager,
+        string recurringJobId,
+        Guid tenantId,
+        string connectionString,
+        Guid scheduleId,
+        string cron)
+    {
+        // Используем прямой вызов через Job-объект чтобы избежать CS0121 (ambiguous overloads)
+        var job = Job.FromExpression<OrderSyncJob>(
+            j => j.ExecuteScheduledAsync(tenantId, connectionString, scheduleId));
+        manager.AddOrUpdate(recurringJobId, job, cron, new RecurringJobOptions());
     }
 }
 

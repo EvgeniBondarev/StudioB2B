@@ -17,12 +17,13 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     JobType = table.Column<int>(type: "int", nullable: false),
-                    ScheduleType = table.Column<int>(type: "int", nullable: false),
                     IsEnabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    IntervalMinutes = table.Column<int>(type: "int", nullable: true),
-                    TimeOfDay = table.Column<TimeSpan>(type: "time(6)", nullable: true),
-                    DayOfMonth = table.Column<int>(type: "int", nullable: true),
-                    SyncDaysBack = table.Column<int>(type: "int", nullable: false),
+                    CronExpression = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false, defaultValue: "0 9 * * *")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CronDescription = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    SyncParams = table.Column<string>(type: "json", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     HangfireRecurringJobId = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAtUtc = table.Column<DateTime>(type: "datetime(6)", nullable: false),
@@ -47,8 +48,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "SyncJobSchedules");
+            migrationBuilder.DropTable(name: "SyncJobSchedules");
         }
     }
 }
