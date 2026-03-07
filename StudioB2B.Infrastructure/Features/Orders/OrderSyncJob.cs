@@ -103,6 +103,19 @@ public class OrderSyncJob
             return;
         }
 
+        // Читаем параметры из SyncParams JSON
+        int daysBack = 7;
+        if (!string.IsNullOrEmpty(schedule.SyncParams))
+        {
+            try
+            {
+                var p = JsonSerializer.Deserialize<JsonElement>(schedule.SyncParams);
+                if (p.TryGetProperty("DaysBack", out var db2) && db2.TryGetInt32(out var d))
+                    daysBack = d;
+            }
+            catch { /* используем значение по умолчанию */ }
+        }
+
         var history = new SyncJobHistory
         {
             JobType        = schedule.JobType,
@@ -110,7 +123,7 @@ public class OrderSyncJob
             ParametersJson = schedule.JobType == SyncJobType.Sync
                 ? JsonSerializer.Serialize(new
                 {
-                    From = DateTime.UtcNow.Date.AddDays(-schedule.SyncDaysBack),
+                    From = DateTime.UtcNow.Date.AddDays(-daysBack),
                     To   = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1)
                 })
                 : null
@@ -128,7 +141,7 @@ public class OrderSyncJob
 
         if (schedule.JobType == SyncJobType.Sync)
         {
-            var from = DateTime.UtcNow.Date.AddDays(-schedule.SyncDaysBack);
+            var from = DateTime.UtcNow.Date.AddDays(-daysBack);
             var to   = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
             await ExecuteSyncCoreAsync(db, history, tenantId, from, to, cancellationToken);
         }

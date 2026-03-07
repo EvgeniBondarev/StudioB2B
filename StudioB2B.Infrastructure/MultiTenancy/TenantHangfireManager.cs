@@ -248,12 +248,13 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
 
             foreach (var schedule in schedules)
             {
-                var cron = ScheduleCronBuilder.Build(schedule);
-
-                ctx.RecurringJobManager.AddOrUpdate<OrderSyncJob>(
+                var job = Hangfire.Common.Job.FromExpression<OrderSyncJob>(
+                    j => j.ExecuteScheduledAsync(tenantId, connectionString, schedule.Id));
+                ctx.RecurringJobManager.AddOrUpdate(
                     schedule.HangfireRecurringJobId!,
-                    j => j.ExecuteScheduledAsync(tenantId, connectionString, schedule.Id),
-                    cron);
+                    job,
+                    schedule.CronExpression,
+                    new RecurringJobOptions());
             }
 
             _logger.LogInformation(

@@ -1,86 +1,75 @@
-using Hangfire;
 using StudioB2B.Domain.Entities.Orders;
 
 namespace StudioB2B.Infrastructure.Features.Orders;
 
 /// <summary>
-/// Строит cron-выражение для Hangfire по параметрам <see cref="SyncJobSchedule"/>.
+/// Вспомогательный класс для работы с cron-расписаниями.
 /// </summary>
 public static class ScheduleCronBuilder
 {
-    public static string Build(SyncJobSchedule schedule) => schedule.ScheduleType switch
+    /// <summary>
+    /// Возвращает человекочитаемое описание cron-выражения на русском языке.
+    /// </summary>
+    public static string Describe(SyncJobSchedule s)
+        => DescribeCron(s.CronExpression);
+
+    /// <summary>
+    /// Парсит стандартное 5-польное cron-выражение и возвращает описание на русском.
+    /// </summary>
+    public static string DescribeCron(string? cron)
     {
-        ScheduleType.EveryNMinutes => Cron.MinuteInterval(
-            schedule.IntervalMinutes ?? throw new InvalidOperationException("IntervalMinutes required.")),
+        if (string.IsNullOrWhiteSpace(cron)) return "—";
 
-        ScheduleType.EveryNHours => Cron.HourInterval(
-            schedule.IntervalHours ?? throw new InvalidOperationException("IntervalHours required.")),
+        try
+        {
+            var parts = cron.Trim().Split(' ');
+            if (parts.Length != 5) return $"Cron: {cron}";
 
-        ScheduleType.EveryNDays => BuildEveryNDays(
-            schedule.IntervalDays ?? throw new InvalidOperationException("IntervalDays required."),
-            schedule.TimeOfDay    ?? TimeSpan.Zero),
+            var (min, hour, dom, month, dow) = (parts[0], parts[1], parts[2], parts[3], parts[4]);
 
-        ScheduleType.DailyAt => Cron.Daily(
-            (schedule.TimeOfDay ?? TimeSpan.Zero).Hours,
-            (schedule.TimeOfDay ?? TimeSpan.Zero).Minutes),
+            // Каждые N минут: */N * * * *
+            if (min.StartsWith("*/") && hour == "*" && dom == "*" && month == "*" && dow == "*")
+                return $"Каждые {min[2..]} мин.";
 
-        ScheduleType.WeeklyAt => BuildWeeklyAt(
-            schedule.DaysOfWeek ?? throw new InvalidOperationException("DaysOfWeek required."),
-            schedule.TimeOfDay  ?? TimeSpan.Zero),
+            // Каждые N часов: 0 */N * * *
+            if (hour.StartsWith("*/") && dom == "*" && month == "*" && dow == "*")
+                return $"Каждые {hour[2..]} ч. в :{min.PadLeft(2, '0')}";
 
-        ScheduleType.MonthlyAt => BuildMonthlyAt(
-            schedule.DayOfMonth ?? throw new InvalidOperationException("DayOfMonth required."),
-            schedule.TimeOfDay  ?? TimeSpan.Zero),
+            // Каждые N дней: M H */N * *
+            if (dom.StartsWith("*/") && month == "*" && dow == "*")
+                return $"Каждые {dom[2..]} дн. в {hour.PadLeft(2, '0')}:{min.PadLeft(2, '0')}";
 
-        ScheduleType.CustomCron => !string.IsNullOrWhiteSpace(schedule.CronExpression)
-            ? schedule.CronExpression
-            : throw new InvalidOperationException("CronExpression required."),
+            // По дням недели: M H * * d[,d]
+            if (dom == "*" && month == "*" && dow != "*")
+            {
+                var time = $"{hour.PadLeft(2, '0')}:{min.PadLeft(2, '0')}";
+                if (dow == "1-5") return $"Пн–Пт в {time}";
+                if (dow == "0,6" || dow == "6,0") return $"Сб, Вс в {time}";
+                return $"По {DescribeDow(dow)} в {time}";
+            }
 
-        _ => throw new InvalidOperationException($"Unknown ScheduleType: {schedule.ScheduleType}")
-    };
+            // Ежедневно: M H * * *
+            if (dom == "*" && month == "*" && dow == "*")
+                return $"Ежедневно в {hour.PadLeft(2, '0')}:{min.PadLeft(2, '0')}";
 
-    private static string BuildEveryNDays(int days, TimeSpan time)
-    {
-        if (days < 1) throw new ArgumentOutOfRangeException(nameof(days));
-        // cron: мин час */дней * *
-        return $"{time.Minutes} {time.Hours} */{days} * *";
+            // Раз в месяц: M H D * *
+            if (month == "*" && dow == "*" && !dom.Contains('*') && !dom.Contains('/'))
+                return $"{dom}-го числа в {hour.PadLeft(2, '0')}:{min.PadLeft(2, '0')}";
+
+            return $"Cron: {cron}";
+        }
+        catch
+        {
+            return $"Cron: {cron}";
+        }
     }
 
-    private static string BuildWeeklyAt(string daysOfWeek, TimeSpan time)
+    private static string DescribeDow(string dow)
     {
-        // daysOfWeek = "1,3,5"  (пн,ср,пт)
-        var parts = daysOfWeek.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length == 0) throw new InvalidOperationException("At least one day of week required.");
-        var dow = string.Join(",", parts);
-        return $"{time.Minutes} {time.Hours} * * {dow}";
-    }
-
-    private static string BuildMonthlyAt(int day, TimeSpan time)
-    {
-        if (day is < 1 or > 28)
-            throw new ArgumentOutOfRangeException(nameof(day), "Day of month must be between 1 and 28.");
-        return $"{time.Minutes} {time.Hours} {day} * *";
-    }
-
-    /// <summary>Возвращает человекочитаемое описание расписания на русском.</summary>
-    public static string Describe(SyncJobSchedule s) => s.ScheduleType switch
-    {
-        ScheduleType.EveryNMinutes => $"Каждые {s.IntervalMinutes} мин.",
-        ScheduleType.EveryNHours   => $"Каждые {s.IntervalHours} ч.",
-        ScheduleType.EveryNDays    => $"Каждые {s.IntervalDays} дн. в {s.TimeOfDay:hh\\:mm}",
-        ScheduleType.DailyAt       => $"Ежедневно в {s.TimeOfDay:hh\\:mm}",
-        ScheduleType.WeeklyAt      => $"По {DescribeDaysOfWeek(s.DaysOfWeek)} в {s.TimeOfDay:hh\\:mm}",
-        ScheduleType.MonthlyAt     => $"{s.DayOfMonth}-го числа в {s.TimeOfDay:hh\\:mm}",
-        ScheduleType.CustomCron    => $"Cron: {s.CronExpression}",
-        _                          => "—"
-    };
-
-    private static string DescribeDaysOfWeek(string? dow)
-    {
-        if (string.IsNullOrEmpty(dow)) return "?";
-        var names = new[] { "вс", "пн", "вт", "ср", "чт", "пт", "сб" };
-        var parts = dow.Split(',')
-            .Select(p => int.TryParse(p.Trim(), out var d) && d < names.Length ? names[d] : p);
-        return string.Join(", ", parts);
+        var names = new[] { "Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб" };
+        var parts = dow.Split(',');
+        var labels = parts.Select(p =>
+            int.TryParse(p.Trim(), out var d) && d < names.Length ? names[d] : p);
+        return string.Join(", ", labels);
     }
 }
