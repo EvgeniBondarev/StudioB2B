@@ -1,3 +1,4 @@
+using StudioB2B.Infrastructure.Integrations.Ozon.Models.Chat;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.FbsUnfulfilled;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductAttributes;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductPrices;
@@ -57,5 +58,53 @@ public interface IOzonApiClient
         string clientId,
         string apiKey,
         string postingNumber,
+        CancellationToken ct = default);
+
+    // ── Chat ─────────────────────────────────────────────────────────────────
+
+    /// <summary>Gets paginated list of chats via /v3/chat/list.</summary>
+    Task<OzonApiResult<OzonChatListResponse>> GetChatListAsync(
+        string clientId,
+        string apiKey,
+        OzonChatListRequest request,
+        CancellationToken ct = default);
+
+    /// <summary>Gets chat message history via /v3/chat/history.</summary>
+    Task<OzonApiResult<OzonChatHistoryResponse>> GetChatHistoryAsync(
+        string clientId,
+        string apiKey,
+        OzonChatHistoryRequest request,
+        CancellationToken ct = default);
+
+    /// <summary>Sends a text message to a chat via /v1/chat/send/message.</summary>
+    Task<OzonApiResult<OzonSendMessageResponse>> SendChatMessageAsync(
+        string clientId,
+        string apiKey,
+        string chatId,
+        string text,
+        CancellationToken ct = default);
+
+    /// <summary>Sends a file/image to a chat via /v1/chat/send/file.</summary>
+    Task<OzonApiResult<OzonSendFileResponse>> SendChatFileAsync(
+        string clientId,
+        string apiKey,
+        string chatId,
+        string base64Content,
+        string fileName,
+        CancellationToken ct = default);
+
+    /// <summary>Marks messages as read up to the given message id via /v2/chat/read.</summary>
+    Task<OzonApiResult<OzonReadChatResponse>> ReadChatAsync(
+        string clientId,
+        string apiKey,
+        string chatId,
+        ulong? fromMessageId = null,
+        CancellationToken ct = default);
+
+    /// <summary>Downloads a chat file/image from Ozon API URL with Client-Id/Api-Key auth.</summary>
+    Task<(Stream? Content, string ContentType, bool Success)> DownloadChatFileAsync(
+        string clientId,
+        string apiKey,
+        string fileUrl,
         CancellationToken ct = default);
 }
