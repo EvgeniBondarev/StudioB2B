@@ -17,14 +17,17 @@ public class SyncJobScheduleConfiguration : IEntityTypeConfiguration<SyncJobSche
             .IsUnique()
             .HasFilter("HangfireRecurringJobId IS NOT NULL");
 
-        builder.Property(x => x.DaysOfWeek)
-            .HasMaxLength(20);
-
         builder.Property(x => x.CronExpression)
-            .HasMaxLength(200);
+            .HasMaxLength(200)
+            .IsRequired();
+
+        builder.Property(x => x.CronDescription)
+            .HasMaxLength(500);
+
+        builder.Property(x => x.SyncParams)
+            .HasColumnType("json");
 
         builder.Property(x => x.CreatedByEmail)
             .HasMaxLength(256);
     }
 }
-
