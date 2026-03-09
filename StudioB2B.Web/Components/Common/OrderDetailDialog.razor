@@ -127,11 +127,13 @@ else
                                                       Title="Тип цены"
                                                       Width="280px" />
                                 <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
-                                                      Property="Value"
                                                       Title="Значение"
                                                       Width="140px"
-                                                      TextAlign="TextAlign.Right"
-                                                      FormatString="{0:N2}" />
+                                                      TextAlign="TextAlign.Right">
+                                    <Template Context="p">
+                                        <span style="@GetPriceColor(p.Value)">@p.Value.ToString("N2")</span>
+                                    </Template>
+                                </RadzenDataGridColumn>
                                 <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
                                                       Property="Currency.Code"
                                                       Title="Валюта"
@@ -198,7 +200,8 @@ else
                                         }
                                         else
                                         {
-                                            <strong>@row.Result.ToString("N2")</strong>
+                                            var breakdown = $"Формула: {row.Formula}\nПодстановка: {row.RenderedFormula} = {row.Result:N2}";
+                                            <strong style="@($"cursor: help; {GetPriceColor(row.Result)}")" title="@breakdown">@row.Result.ToString("N2")</strong>
                                         }
                                     </Template>
                                 </RadzenDataGridColumn>
@@ -383,6 +386,9 @@ else
     }
 
     public void Dispose() => _db?.Dispose();
+
+    private static string GetPriceColor(decimal value) =>
+        value < 0 ? "color: var(--rz-danger);" : "";
 
     private async Task OpenAuditHistory()
     {

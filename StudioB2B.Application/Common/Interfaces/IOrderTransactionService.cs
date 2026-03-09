@@ -13,6 +13,9 @@ public interface IOrderTransactionService
     /// <summary>Предпросмотр с учётом введённых пользователем значений (для динамического пересчёта формул).</summary>
     Task<TransactionApplyPreview?> GetApplyPreviewWithUserValuesAsync(Guid orderId, Guid transactionId, IReadOnlyDictionary<Guid, decimal> userValues, CancellationToken ct = default);
 
+    /// <summary>Контекст для расчёта (Order + UserValues) — для динамического расчёта правил на странице транзакции.</summary>
+    Task<IReadOnlyDictionary<string, decimal>?> GetMergedContextAsync(Guid orderId, Guid transactionId, IReadOnlyDictionary<Guid, decimal> userValues, CancellationToken ct = default);
+
     /// <summary>Применить транзакцию. ruleValues — введённые пользователем значения для правил с UserInput (RuleId -> Value).</summary>
     Task<TransactionApplyResult> ApplyAsync(Guid orderId, Guid transactionId, IReadOnlyDictionary<Guid, decimal>? ruleValues = null, CancellationToken ct = default);
 }

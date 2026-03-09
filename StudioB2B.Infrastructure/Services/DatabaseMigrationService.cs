@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using StudioB2B.Infrastructure.MultiTenancy.Initialization;
 using StudioB2B.Infrastructure.Persistence.Master;
 
 namespace StudioB2B.Infrastructure.Services;
@@ -69,6 +70,28 @@ public class DatabaseMigrationService : IHostedService
             {
                 _logger.LogInformation("No pending migrations found");
             }
+
+            // Применяем миграции для всех тенантов
+            var initializer = scope.ServiceProvider.GetRequiredService<ITenantDatabaseInitializer>();
+            var tenants = await masterDbContext.Tenants
+                .Select(t => new { t.Id, t.ConnectionString })
+                .ToListAsync(cancellationToken);
+
+            _logger.LogInformation("Migrating {Count} tenant database(s).", tenants.Count);
+
+            foreach (var tenant in tenants)
+            {
+                try
+                {
+                    await initializer.MigrateOnlyAsync(tenant.ConnectionString, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to migrate tenant {TenantId}.", tenant.Id);
+                }
+            }
+
+            _logger.LogInformation("All tenant migrations completed.");
         }
         catch (Exception ex)
         {
