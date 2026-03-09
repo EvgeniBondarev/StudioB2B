@@ -11,9 +11,13 @@ public class TabService
             ["/users"]               = ("Пользователи",  "people"),
             ["/marketplace-clients"] = ("Маркетплейс",   "store"),
             ["/orders"]              = ("Заказы",         "receipt_long"),
+            ["/orders/apply-transaction"] = ("Транзакция заказов", "swap_horiz"),
             ["/orders-sync"]         = ("Загрузка",       "cloud_sync"),
             ["/order-statuses"]      = ("Статусы",        "label"),
+            ["/price-types"]         = ("Типы цен",       "payments"),
+            ["/transactions"]        = ("Транзакции",     "swap_horiz"),
             ["/calculation-rules"]   = ("Расчёты",        "calculate"),
+            ["/audit"]               = ("Журнал",         "history"),
             ["/roles"]               = ("Роли",           "security"),
             ["/chats"]               = ("Чаты",           "chat"),
         };
@@ -29,7 +33,7 @@ public class TabService
         if (!KnownPages.TryGetValue(path, out var info))
             return;
 
-        if (_tabs.Any(t => t.Path == path))
+        if (_tabs.Any(t => GetBasePath(t.Path) == GetBasePath(path)))
         {
             TabsChanged?.Invoke();
             return;
@@ -37,6 +41,25 @@ public class TabService
 
         _tabs.Add(new TabEntry(path, info.Title, info.Icon));
         TabsChanged?.Invoke();
+    }
+
+    /// <summary>Opens a tab with custom path and title (e.g. for pages with query params).</summary>
+    public void OpenTab(string path, string title, string icon = "swap_horiz")
+    {
+        if (_tabs.Any(t => GetBasePath(t.Path) == GetBasePath(path)))
+        {
+            TabsChanged?.Invoke();
+            return;
+        }
+
+        _tabs.Add(new TabEntry(path, title, icon));
+        TabsChanged?.Invoke();
+    }
+
+    private static string GetBasePath(string path)
+    {
+        var idx = path.IndexOf('?');
+        return idx >= 0 ? path[..idx] : path;
     }
 
     public string? Close(string path)

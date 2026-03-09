@@ -93,6 +93,19 @@ public class CalculationEngine
     }
 
     /// <summary>
+    /// Вычислить формулу с заданным контекстом переменных.
+    /// Используется для правил транзакций.
+    /// </summary>
+    public decimal EvaluateFormula(string formula, IReadOnlyDictionary<string, decimal> context)
+    {
+        var parameters = context
+            .Select(kv => new Parameter(kv.Key, typeof(decimal), kv.Value))
+            .ToArray();
+        var result = _interpreter.Eval(formula, parameters);
+        return Convert.ToDecimal(result);
+    }
+
+    /// <summary>
     /// Попытка вычислить формулу на тестовых нулевых значениях переменных.
     /// Возвращает null при успехе, сообщение об ошибке при неудаче.
     /// </summary>
