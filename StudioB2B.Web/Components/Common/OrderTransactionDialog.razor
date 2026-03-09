@@ -66,12 +66,12 @@ else
             @if (_priceTypes.Count == 0)
             {
                 <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false">
-                    Создайте пользовательские типы цен на странице <a href="/price-types" target="_blank">Типы цен</a>, чтобы добавить правила.
+                    Типы цен не найдены. Создайте типы цен на странице <a href="/price-types" target="_blank">Типы цен</a> или дождитесь синхронизации с маркетплейсом.
                 </RadzenAlert>
             }
             @if (_rules.Count > 0)
             {
-                <RadzenDataGrid TItem="RuleRow" Data="@_rules" Density="Density.Compact"
+                <RadzenDataGrid TItem="RuleRow" Data="@_rules" DataKey="Id" @key="_rules.Count" Density="Density.Compact"
                                AllowSorting="false" AllowFiltering="false" AllowPaging="false"
                                EmptyText="@RadzenRuStrings.EmptyText">
                     <Columns>
@@ -160,6 +160,7 @@ else
 
     private class RuleRow
     {
+        public Guid Id { get; set; } = Guid.NewGuid();
         public Guid PriceTypeId { get; set; }
         public TransactionValueSource ValueSource { get; set; }
         public string? Formula { get; set; }
@@ -177,7 +178,7 @@ else
             .ToListAsync();
 
         _priceTypes = await _db.PriceTypes
-            .Where(p => !p.IsDeleted && p.IsUserDefined)
+            .Where(p => !p.IsDeleted)
             .OrderBy(p => p.Name)
             .AsNoTracking()
             .ToListAsync();
@@ -205,6 +206,7 @@ else
                     .OrderBy(r => r.SortOrder)
                     .Select(r => new RuleRow
                     {
+                        Id = r.Id,
                         PriceTypeId = r.PriceTypeId,
                         ValueSource = r.ValueSource,
                         Formula = r.Formula,
@@ -213,6 +215,10 @@ else
                     .ToList();
             }
         }
+        else if (_priceTypes.Count > 0)
+        {
+            AddRule();
+        }
 
         _loading = false;
     }
@@ -220,14 +226,19 @@ else
     private void AddRule()
     {
         if (_priceTypes.Count == 0) return;
-        _rules.Add(new RuleRow
+        _rules = [.._rules, new RuleRow
         {
             PriceTypeId = _priceTypes[0].Id,
             ValueSource = TransactionValueSource.UserInput
-        });
+        }];
+        StateHasChanged();
     }
 
-    private void RemoveRule(RuleRow r) => _rules.Remove(r);
+    private void RemoveRule(RuleRow r)
+    {
+        _rules = _rules.Where(x => x.Id != r.Id).ToList();
+        StateHasChanged();
+    }
 
     private async Task SaveAsync()
     {
