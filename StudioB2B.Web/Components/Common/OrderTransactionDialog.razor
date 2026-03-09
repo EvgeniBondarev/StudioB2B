@@ -1,0 +1,332 @@
+@using Microsoft.EntityFrameworkCore
+@using Radzen
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Domain.Entities.Products
+@using StudioB2B.Domain.Entities.References
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
+
+@inject ITenantDbContextFactory Factory
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+@implements IDisposable
+
+@if (_loading)
+{
+    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 200px;">
+        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
+    </RadzenStack>
+}
+else
+{
+    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+        <RadzenStack Gap="0.5rem">
+            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Основные параметры</RadzenText>
+            <RadzenStack Gap="0.5rem">
+                <RadzenFormField Text="Название">
+                    <RadzenTextBox @bind-Value="_name" Style="width: 100%;" Placeholder="Закупка подтверждена" />
+                </RadzenFormField>
+                <RadzenRow Gap="1rem">
+                    <RadzenColumn Size="12" SizeMD="6">
+                        <RadzenFormField Text="Исходный статус">
+                            <RadzenDropDown Data="@_internalStatuses"
+                                            TextProperty="Name"
+                                            ValueProperty="Id"
+                                            @bind-Value="_fromStatusId"
+                                            Style="width: 100%;"
+                                            Placeholder="Выберите" />
+                        </RadzenFormField>
+                    </RadzenColumn>
+                    <RadzenColumn Size="12" SizeMD="6">
+                        <RadzenFormField Text="Целевой статус">
+                            <RadzenDropDown Data="@_internalStatuses"
+                                            TextProperty="Name"
+                                            ValueProperty="Id"
+                                            @bind-Value="_toStatusId"
+                                            Style="width: 100%;"
+                                            Placeholder="Выберите" />
+                        </RadzenFormField>
+                    </RadzenColumn>
+                </RadzenRow>
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                    <RadzenCheckBox @bind-Value="_isEnabled" />
+                    <RadzenLabel Text="Активна" />
+                </RadzenStack>
+            </RadzenStack>
+        </RadzenStack>
+
+        <RadzenStack Gap="0.5rem">
+            <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Правила изменения цен</RadzenText>
+                <RadzenButton Icon="add" Text="Добавить правило" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Click="@AddRule" Disabled="@(_priceTypes.Count == 0)" />
+            </RadzenStack>
+            @if (_priceTypes.Count == 0)
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false">
+                    Типы цен не найдены. Создайте типы цен на странице <a href="/price-types" target="_blank">Типы цен</a> или дождитесь синхронизации с маркетплейсом.
+                </RadzenAlert>
+            }
+            @if (_rules.Count > 0)
+            {
+                <RadzenDataGrid TItem="RuleRow" Data="@_rules" DataKey="Id" @key="_rules.Count" Density="Density.Compact"
+                               AllowSorting="false" AllowFiltering="false" AllowPaging="false"
+                               EmptyText="@RadzenRuStrings.EmptyText">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="RuleRow" Title="Тип цены" Width="180px">
+                            <Template Context="r">
+                                <RadzenDropDown Data="@_priceTypes"
+                                                TextProperty="Name"
+                                                ValueProperty="Id"
+                                                @bind-Value="r.PriceTypeId"
+                                                Style="width: 100%;"
+                                                Placeholder="Выберите" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="RuleRow" Title="Источник" Width="160px">
+                            <Template Context="r">
+                                <RadzenDropDown @bind-Value="r.ValueSource"
+                                                Data="@_valueSourceOptions"
+                                                TextProperty="Text"
+                                                ValueProperty="Value"
+                                                Style="width: 100%;" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="RuleRow" Title="Формула" Width="220px">
+                            <Template Context="r">
+                                @if (r.ValueSource == TransactionValueSource.Formula)
+                                {
+                                    <RadzenTextBox @bind-Value="r.Formula" Style="width: 100%; font-family: monospace;"
+                                                   Placeholder="Цена * 0.85 (переменные — типы цен)" />
+                                }
+                                else
+                                {
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-base-500);">Вводится при проведении</RadzenText>
+                                }
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="RuleRow" Title="Товар" Width="200px">
+                            <Template Context="r">
+                                <RadzenDropDown Data="@_products"
+                                                TextProperty="Name"
+                                                ValueProperty="Id"
+                                                @bind-Value="r.ProductId"
+                                                Style="width: 100%;"
+                                                Placeholder="Все товары"
+                                                AllowClear="true" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="RuleRow" Title="" Width="60px" Filterable="false" Sortable="false">
+                            <Template Context="r">
+                                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Size="ButtonSize.ExtraSmall"
+                                              Variant="Variant.Text"
+                                              Click="@(() => RemoveRule(r))" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            }
+        </RadzenStack>
+
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem" Style="margin-top: 0.75rem;">
+            <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close(false))" />
+            <RadzenButton Text="Сохранить" ButtonStyle="ButtonStyle.Primary" Click="@SaveAsync" />
+        </RadzenStack>
+    </RadzenStack>
+}
+
+@code {
+    [Parameter] public Guid? TransactionId { get; set; }
+
+    private TenantDbContext? _db;
+    private bool _loading = true;
+    private string _name = string.Empty;
+    private Guid? _fromStatusId;
+    private Guid? _toStatusId;
+    private bool _isEnabled = true;
+    private List<OrderStatus> _internalStatuses = [];
+    private List<PriceType> _priceTypes = [];
+    private List<Product> _products = [];
+    private List<RuleRow> _rules = [];
+    private static readonly List<ValueSourceOption> _valueSourceOptions =
+    [
+        new ValueSourceOption(TransactionValueSource.Formula, "Формула"),
+        new ValueSourceOption(TransactionValueSource.UserInput, "Ввод при проведении")
+    ];
+
+    private record ValueSourceOption(TransactionValueSource Value, string Text);
+
+    private class RuleRow
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public Guid PriceTypeId { get; set; }
+        public TransactionValueSource ValueSource { get; set; }
+        public string? Formula { get; set; }
+        public Guid? ProductId { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _db = Factory.CreateDbContext();
+
+        _internalStatuses = await _db.OrderStatuses
+            .Where(s => s.IsInternal && !s.IsDeleted)
+            .OrderBy(s => s.Name)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _priceTypes = await _db.PriceTypes
+            .Where(p => !p.IsDeleted)
+            .OrderBy(p => p.Name)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _products = await _db.Products
+            .Where(p => !p.IsDeleted)
+            .OrderBy(p => p.Article)
+            .Take(500)
+            .AsNoTracking()
+            .ToListAsync();
+
+        if (TransactionId.HasValue)
+        {
+            var t = await _db.OrderTransactions
+                .Include(x => x.Rules).ThenInclude(r => r.PriceType)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == TransactionId.Value);
+            if (t != null)
+            {
+                _name = t.Name;
+                _fromStatusId = t.FromSystemStatusId;
+                _toStatusId = t.ToSystemStatusId;
+                _isEnabled = t.IsEnabled;
+                _rules = t.Rules
+                    .OrderBy(r => r.SortOrder)
+                    .Select(r => new RuleRow
+                    {
+                        Id = r.Id,
+                        PriceTypeId = r.PriceTypeId,
+                        ValueSource = r.ValueSource,
+                        Formula = r.Formula,
+                        ProductId = r.ProductId
+                    })
+                    .ToList();
+            }
+        }
+        else if (_priceTypes.Count > 0)
+        {
+            AddRule();
+        }
+
+        _loading = false;
+    }
+
+    private void AddRule()
+    {
+        if (_priceTypes.Count == 0) return;
+        _rules = [.._rules, new RuleRow
+        {
+            PriceTypeId = _priceTypes[0].Id,
+            ValueSource = TransactionValueSource.UserInput
+        }];
+        StateHasChanged();
+    }
+
+    private void RemoveRule(RuleRow r)
+    {
+        _rules = _rules.Where(x => x.Id != r.Id).ToList();
+        StateHasChanged();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_name))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Ошибка", "Укажите название транзакции.");
+            return;
+        }
+        if (!_fromStatusId.HasValue || !_toStatusId.HasValue)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Ошибка", "Укажите исходный и целевой статусы.");
+            return;
+        }
+        if (_rules.Count == 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Ошибка", "Добавьте хотя бы одно правило.");
+            return;
+        }
+
+        try
+        {
+            if (TransactionId.HasValue)
+            {
+                var t = await _db!.OrderTransactions
+                    .Include(x => x.Rules)
+                    .FirstOrDefaultAsync(x => x.Id == TransactionId.Value);
+                if (t != null)
+                {
+                    t.Name = _name.Trim();
+                    t.FromSystemStatusId = _fromStatusId.Value;
+                    t.ToSystemStatusId = _toStatusId.Value;
+                    t.IsEnabled = _isEnabled;
+                    _db.OrderTransactionRules.RemoveRange(t.Rules);
+                    var sortOrder = 0;
+                    foreach (var r in _rules)
+                    {
+                        _db.OrderTransactionRules.Add(new OrderTransactionRule
+                        {
+                            Id = Guid.NewGuid(),
+                            OrderTransactionId = t.Id,
+                            PriceTypeId = r.PriceTypeId,
+                            ValueSource = r.ValueSource,
+                            Formula = r.ValueSource == TransactionValueSource.Formula ? r.Formula : null,
+                            ProductId = r.ProductId,
+                            SortOrder = sortOrder++
+                        });
+                    }
+                    await _db.SaveChangesAsync();
+                    NotificationService.Notify(NotificationSeverity.Success, "Транзакция обновлена");
+                }
+            }
+            else
+            {
+                var t = new OrderTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    Name = _name.Trim(),
+                    FromSystemStatusId = _fromStatusId.Value,
+                    ToSystemStatusId = _toStatusId.Value,
+                    IsEnabled = _isEnabled,
+                    SortOrder = 0
+                };
+                _db!.OrderTransactions.Add(t);
+                await _db.SaveChangesAsync();
+                var sortOrder = 0;
+                foreach (var r in _rules)
+                {
+                    _db.OrderTransactionRules.Add(new OrderTransactionRule
+                    {
+                        Id = Guid.NewGuid(),
+                        OrderTransactionId = t.Id,
+                        PriceTypeId = r.PriceTypeId,
+                        ValueSource = r.ValueSource,
+                        Formula = r.ValueSource == TransactionValueSource.Formula ? r.Formula : null,
+                        ProductId = r.ProductId,
+                        SortOrder = sortOrder++
+                    });
+                }
+                await _db.SaveChangesAsync();
+                NotificationService.Notify(NotificationSeverity.Success, "Транзакция создана");
+            }
+            DialogService.Close(true);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка сохранения", ex.Message);
+        }
+    }
+
+    public void Dispose() => _db?.Dispose();
+}

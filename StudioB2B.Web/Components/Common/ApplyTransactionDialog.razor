@@ -1,0 +1,192 @@
+@using Microsoft.EntityFrameworkCore
+@using Radzen
+@using StudioB2B.Application.Common
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
+
+@inject ITenantDbContextFactory Factory
+@inject IOrderTransactionService TransactionService
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+@implements IDisposable
+
+@if (_loading)
+{
+    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 150px;">
+        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
+    </RadzenStack>
+}
+else if (_preview != null)
+{
+    @* Шаг 2: ввод значений и применение *@
+    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+            @_preview.TransactionName → @_preview.ToStatusName
+        </RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2">
+            Укажите значения для пользовательских цен и нажмите «Применить».
+        </RadzenText>
+        <RadzenStack Gap="0.75rem">
+            @foreach (var rule in _preview.Rules)
+            {
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Center" Style="flex-wrap: wrap;">
+                    <RadzenText TextStyle="TextStyle.Body2" Style="min-width: 140px;">
+                        @rule.PriceTypeName
+                        @if (rule.ProductName != null)
+                        {
+                            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-base-500);"> (@rule.ProductName)</RadzenText>
+                        }
+                    </RadzenText>
+                    @if (rule.RequiresUserInput)
+                    {
+                        <RadzenNumeric @bind-Value="_userValues[rule.RuleId]"
+                                       Style="@($"width: 140px; {GetPriceColor(_userValues.GetValueOrDefault(rule.RuleId))}")" Min="0" Format="N2"
+                                       Placeholder="Введите значение" />
+                    }
+                    else
+                    {
+                        var cv = rule.ComputedValue;
+                        var breakdown = rule.FormulaBreakdown ?? rule.Formula ?? "";
+                        <RadzenText TextStyle="TextStyle.Body2" Style="@($"cursor: help; {GetPriceColor(cv)}")" title="@breakdown">
+                            @(cv?.ToString("N2") ?? "—")
+                        </RadzenText>
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-base-500);">(по формуле)</RadzenText>
+                    }
+                </RadzenStack>
+            }
+        </RadzenStack>
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" Gap="0.5rem" Style="margin-top: 0.5rem;">
+            <RadzenButton Text="Назад" ButtonStyle="ButtonStyle.Light" Click="@BackToSelect" />
+            <RadzenButton Text="Применить" ButtonStyle="ButtonStyle.Primary" Click="@ApplyAsync" />
+        </RadzenStack>
+    </RadzenStack>
+}
+else if (_transactions.Count == 0)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
+        Нет доступных транзакций для текущего статуса заказа (@(_currentStatusName ?? "—")). Создайте транзакцию на странице «Транзакции».
+    </RadzenAlert>
+}
+else
+{
+    @* Шаг 1: выбор транзакции *@
+    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+        <RadzenText TextStyle="TextStyle.Body2">
+            Выберите транзакцию для применения к заказу @OrderId:
+        </RadzenText>
+        <RadzenDataGrid TItem="OrderTransaction"
+                        Data="@_transactions"
+                        Density="Density.Compact"
+                        AllowSorting="false"
+                        AllowFiltering="false"
+                        AllowPaging="false"
+                        RowClick="@OnRowClick"
+                        Style="cursor: pointer;"
+                        EmptyText="@RadzenRuStrings.EmptyText">
+            <Columns>
+                <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Транзакция" Width="220px" />
+                <RadzenDataGridColumn TItem="OrderTransaction" Title="Целевой статус" Width="180px">
+                    <Template Context="t">
+                        @t.ToSystemStatus?.Name
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="OrderTransaction" Title="Правил" Width="80px" TextAlign="TextAlign.Center">
+                    <Template Context="t">
+                        @(t.Rules?.Count ?? 0)
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenStack>
+}
+
+@code {
+    [Parameter] public Guid OrderId { get; set; }
+    [Parameter] public Guid? CurrentSystemStatusId { get; set; }
+
+    private TenantDbContext? _db;
+    private bool _loading = true;
+    private List<OrderTransaction> _transactions = [];
+    private string? _currentStatusName;
+    private TransactionApplyPreview? _preview;
+    private Guid? _selectedTransactionId;
+    private Dictionary<Guid, decimal> _userValues = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _db = Factory.CreateDbContext();
+
+        if (CurrentSystemStatusId.HasValue)
+        {
+            var status = await _db.OrderStatuses
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == CurrentSystemStatusId.Value);
+            _currentStatusName = status?.Name;
+
+            _transactions = await _db.OrderTransactions
+                .Include(t => t.FromSystemStatus)
+                .Include(t => t.ToSystemStatus)
+                .Include(t => t.Rules)
+                .Where(t => !t.IsDeleted && t.IsEnabled && t.FromSystemStatusId == CurrentSystemStatusId.Value)
+                .OrderBy(t => t.Name)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        _loading = false;
+    }
+
+    private async Task OnRowClick(DataGridRowMouseEventArgs<OrderTransaction> args)
+    {
+        var t = args.Data;
+        if (t == null) return;
+
+        _loading = true;
+        StateHasChanged();
+
+        _preview = await TransactionService.GetApplyPreviewAsync(OrderId, t.Id);
+        _selectedTransactionId = t.Id;
+
+        if (_preview != null)
+        {
+            _userValues = _preview.Rules
+                .Where(r => r.RequiresUserInput)
+                .ToDictionary(r => r.RuleId, _ => 0m);
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private void BackToSelect()
+    {
+        _preview = null;
+        _selectedTransactionId = null;
+        _userValues = [];
+    }
+
+    private async Task ApplyAsync()
+    {
+        if (!_selectedTransactionId.HasValue) return;
+
+        var result = await TransactionService.ApplyAsync(OrderId, _selectedTransactionId.Value, _userValues);
+        if (result.Success)
+        {
+            NotificationService.Notify(NotificationSeverity.Success, "Транзакция применена",
+                result.PricesUpdated > 0 ? $"Обновлено цен: {result.PricesUpdated}" : "Статус изменён");
+            DialogService.Close(true);
+        }
+        else
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", result.ErrorMessage ?? "Не удалось применить транзакцию");
+        }
+    }
+
+    public void Dispose() => _db?.Dispose();
+
+    private static string GetPriceColor(decimal? value) =>
+        value is null || value < 0 ? "color: var(--rz-danger);" : "";
+}

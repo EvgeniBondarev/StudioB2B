@@ -151,7 +151,7 @@ h1:focus {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 0 10px;
+  padding: 0 10px 10px 10px;
   height: 34px;
   cursor: pointer;
   border-right: 1px solid var(--rz-border-color);
@@ -224,3 +224,94 @@ h1:focus {
   min-height: 0;
 }
 
+/* Общий стиль всех таблиц Radzen */
+.rz-data-grid {
+  border-radius: 10px;
+  overflow: hidden;
+
+  border: 1px solid #e9ecf8;
+  box-shadow:
+    0 16px 32px rgba(15, 23, 42, 0.10),
+    0 3px 8px rgba(15, 23, 42, 0.05);
+}
+
+/* Hover строк */
+.rz-data-row {
+  border: 1px solid #eef1ff;
+}
+
+.rz-data-row:hover {
+  background-color: #f2f5ff !important;
+  transition: background-color 0.2s ease;
+}
+
+/* Заголовки */
+.rz-data-grid th {
+  vertical-align: bottom;
+  background: var(--rz-base-200) !important;
+}
+
+.rz-data-grid th .rz-column-title-content,
+.rz-data-grid th .rz-header-filter-title {
+  font-size: 15px;
+  color:var(--rz-base-dark) !important;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.rz-grid-table{
+  border-bottom: 1px solid #e7ebff;
+}
+
+/* Отступы заголовков */
+.rz-grid-table thead th > div:not(.rz-cell-filter) {
+  padding: 15px 0;
+}
+
+/* Pager */
+.rz-datatable .rz-pager.rz-unselectable-text {
+  padding: 0.7rem 1rem !important;
+}
+
+/* Ячейки текста */
+.rz-data-grid .rz-cell-data p {
+  margin: 0 !important;
+  line-height: 1.4 !important;
+}
+
+/* Фильтр "Все" в шапке таблиц */
+.filter-all-item{
+  padding:8px 12px;
+  cursor:pointer;
+  border:1px solid #dcdcdc;
+  border-bottom:none;
+  border-radius:6px 6px 0 0;
+  background:white;
+}
+
+.filter-all-item:hover{
+  background:#f5f6ff;
+}
+
+.filter-all-item.active{
+  background:#ececff;
+  font-weight:500;
+}
+
+.rz-listbox{
+  border-radius: 0 0 4px 4px;
+}
+
+/* Badge */
+.status-badge {
+  border-radius: 10px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #4b5563;
+  background: #ececff;
+}
+
+.rz-badge {
+  text-transform: none !important;
+}

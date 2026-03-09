@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
 using DynamicExpresso;
 using StudioB2B.Domain.Entities.Orders;
 
@@ -68,6 +70,45 @@ public class CalculationEngine
     }
 
     /// <summary>
+    /// Вычислить правила с заданным контекстом (для динамического расчёта с переопределёнными значениями).
+    /// </summary>
+    public Dictionary<string, decimal> CalculateWithContext(IReadOnlyDictionary<string, decimal> initialContext, IEnumerable<CalculationRule> rules)
+    {
+        _errors.Clear();
+        var context = new Dictionary<string, decimal>(initialContext, StringComparer.OrdinalIgnoreCase);
+        var results = new Dictionary<string, decimal>();
+
+        foreach (var rule in rules.OrderBy(r => r.SortOrder))
+        {
+            if (string.IsNullOrWhiteSpace(rule.Formula))
+                continue;
+
+            try
+            {
+                var parameters = context
+                    .Select(kv => new Parameter(kv.Key, typeof(decimal), kv.Value))
+                    .ToArray();
+
+                var result = _interpreter.Eval(rule.Formula, parameters);
+                var decimalResult = Convert.ToDecimal(result);
+
+                results[rule.ResultKey] = decimalResult;
+
+                var sanitizedKey = SanitizeKey(rule.ResultKey);
+                if (!string.IsNullOrEmpty(sanitizedKey))
+                    context[sanitizedKey] = decimalResult;
+            }
+            catch (Exception ex)
+            {
+                results[rule.ResultKey] = decimal.MinValue;
+                _errors[rule.ResultKey] = ex.Message;
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
     /// Возвращает список доступных имён переменных для данного заказа (для отображения в UI).
     /// </summary>
     public static IReadOnlyList<string> GetAvailableVariables(Order order) =>
@@ -90,6 +131,19 @@ public class CalculationEngine
         var names = new List<string> { "Quantity" };
         names.AddRange(priceTypeNames.Select(SanitizeKey));
         return names.Distinct().ToList();
+    }
+
+    /// <summary>
+    /// Вычислить формулу с заданным контекстом переменных.
+    /// Используется для правил транзакций.
+    /// </summary>
+    public decimal EvaluateFormula(string formula, IReadOnlyDictionary<string, decimal> context)
+    {
+        var parameters = context
+            .Select(kv => new Parameter(kv.Key, typeof(decimal), kv.Value))
+            .ToArray();
+        var result = _interpreter.Eval(formula, parameters);
+        return Convert.ToDecimal(result);
     }
 
     /// <summary>
@@ -130,6 +184,28 @@ public class CalculationEngine
         }
 
         return context;
+    }
+
+    /// <summary>
+    /// Строит расшифровку формулы для tooltip: формула с именами полей, затем подстановка со значениями и результат.
+    /// </summary>
+    public static string BuildFormulaBreakdown(string formula, IReadOnlyDictionary<string, decimal> context, decimal result)
+    {
+        if (string.IsNullOrWhiteSpace(formula))
+            return result.ToString("N2", CultureInfo.InvariantCulture);
+
+        var expanded = formula;
+        foreach (var kv in context.OrderByDescending(x => x.Key.Length))
+        {
+            if (string.IsNullOrWhiteSpace(kv.Key)) continue;
+            expanded = Regex.Replace(
+                expanded,
+                $@"\b{Regex.Escape(kv.Key)}\b",
+                kv.Value.ToString("G29", CultureInfo.InvariantCulture),
+                RegexOptions.IgnoreCase);
+        }
+        var substitution = $"{expanded} = {result.ToString("G29", CultureInfo.InvariantCulture)}";
+        return $"Формула: {formula}\nПодстановка: {substitution}";
     }
 
     /// <summary>
