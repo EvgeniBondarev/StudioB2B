@@ -7,7 +7,4 @@ public record UserListDto(
     string LastName,
     string? MiddleName,
     bool IsActive,
-    DateTime CreatedAtUtc,
-    DateTime? LastLoginAtUtc,
     List<string> Roles);
-
