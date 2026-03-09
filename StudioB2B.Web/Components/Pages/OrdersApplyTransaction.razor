@@ -5,8 +5,10 @@
 @using StudioB2B.Application.Common
 @using StudioB2B.Application.Common.Interfaces
 @using StudioB2B.Domain.Entities.Orders
-@using StudioB2B.Domain.Entities.Marketplace
+@using StudioB2B.Domain.Entities.Products
+@using StudioB2B.Domain.Entities.References
 @using StudioB2B.Domain.Entities.Warehouses
+@using StudioB2B.Domain.Entities.Marketplace
 @using StudioB2B.Infrastructure.Features.Orders
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
@@ -17,6 +19,7 @@
 @inject IOrderTransactionService TransactionService
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
+@inject DialogService DialogService
 @inject StudioB2B.Web.Services.TabService TabService
 
 @implements IDisposable
@@ -75,9 +78,14 @@ else if (_preview == null)
                         @t.ToSystemStatus?.Name
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="OrderTransaction" Title="Правил" Width="80px" TextAlign="TextAlign.Center">
+                <RadzenDataGridColumn TItem="OrderTransaction" Title="Правил цен" Width="90px" TextAlign="TextAlign.Center">
                     <Template Context="t">
                         @(t.Rules?.Count ?? 0)
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="OrderTransaction" Title="Правил полей" Width="100px" TextAlign="TextAlign.Center">
+                    <Template Context="t">
+                        @(t.FieldRules?.Count ?? 0)
                     </Template>
                 </RadzenDataGridColumn>
             </Columns>
@@ -93,9 +101,34 @@ else
             </RadzenText>
             <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
                 <RadzenButton Text="Назад" ButtonStyle="ButtonStyle.Light" Click="@BackToSelect" />
-                <RadzenButton Text="Применить ко всем" ButtonStyle="ButtonStyle.Primary" Click="@ApplyAllAsync" />
+                <RadzenButton Text="Применить ко всем" ButtonStyle="ButtonStyle.Primary" Click="@ApplyAllAsync"
+                              Disabled="@(_preview != null && GetValidationErrors().Count > 0)" />
             </RadzenStack>
         </RadzenStack>
+
+        @if (_preview.FieldRules.Any(x => x.RequiresUserInput))
+        {
+            <RadzenStack Gap="0.5rem" Style="margin-bottom: 0.5rem;">
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Center">
+                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">Режим изменения полей:</RadzenText>
+                    <RadzenRadioButtonList TValue="string" @bind-Value="_fieldEditMode" Data="@_fieldModeOptions"
+                                          TextProperty="Text" ValueProperty="Value"
+                                          Style="flex-direction: row; gap: 1rem;" />
+                </RadzenStack>
+                @if (_fieldEditMode == "Mass")
+                {
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" Style="flex-wrap: wrap;">
+                        @foreach (var fr in _preview.FieldRules.Where(x => x.RequiresUserInput))
+                        {
+                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                                <RadzenLabel Text="@(fr.DisplayName + (fr.IsRequired ? " *" : ""))" Style="min-width: 140px;" />
+                                @RenderFieldControlMass(fr)
+                            </RadzenStack>
+                        }
+                    </RadzenStack>
+                }
+            </RadzenStack>
+        }
 
         <RadzenDataGrid TItem="Order" Data="@_orders" Density="Density.Compact"
                         AllowSorting="false" AllowFiltering="false" AllowPaging="false"
@@ -302,9 +335,20 @@ else
                         }
                     }
                 }
+                @if (_fieldEditMode == "PerOrder")
+                {
+                    @foreach (var fr in _preview.FieldRules.Where(x => x.RequiresUserInput))
+                    {
+                        <RadzenDataGridColumn TItem="Order" Title="@(fr.DisplayName + (fr.IsRequired ? " *" : ""))" Width="180px" @key="fr.RuleId">
+                            <Template Context="o">
+                                @RenderFieldControlPerOrder(o.Id, fr)
+                            </Template>
+                        </RadzenDataGridColumn>
+                    }
+                }
                 @foreach (var rule in _preview.Rules)
                 {
-                    <RadzenDataGridColumn TItem="Order" Title="@rule.PriceTypeName" Width="140px" @key="rule.RuleId">
+                    <RadzenDataGridColumn TItem="Order" Title="@(rule.PriceTypeName + (rule.IsRequired ? " *" : ""))" Width="140px" @key="rule.RuleId">
                         <Template Context="o">
                             @{
                                 var orderPreview = _orderPreviews.GetValueOrDefault(o.Id);
@@ -351,7 +395,24 @@ else
     private TransactionApplyPreview? _preview;
     private Dictionary<Guid, TransactionApplyPreview> _orderPreviews = [];
     private Dictionary<Guid, Dictionary<Guid, decimal>> _userValues = [];
+    private Dictionary<Guid, string> _fieldUserValues = [];
+    private Dictionary<Guid, Dictionary<Guid, string>> _fieldUserValuesPerOrder = [];
+    private string _fieldEditMode = "Mass";
+    private static readonly List<object> _fieldModeOptions =
+    [
+        new { Value = "Mass", Text = "Массово (одно значение для всех)" },
+        new { Value = "PerOrder", Text = "По каждому заказу" }
+    ];
     private int _statusGroups;
+    private List<OrderStatus> _orderStatuses = [];
+    private List<Product> _products = [];
+    private List<Supplier> _suppliers = [];
+    private List<Warehouse> _warehouses = [];
+    private List<DeliveryMethod> _deliveryMethods = [];
+    private List<Recipient> _recipients = [];
+    private List<Address> _addresses = [];
+    private List<WarehouseInfo> _warehouseInfos = [];
+    private List<OrderProductInfo> _orderProductInfos = [];
     private List<CalculationRule> _calcRules = [];
     private Dictionary<Guid, Dictionary<string, decimal>> _computed = [];
     private Dictionary<Guid, Dictionary<string, string>> _computedBreakdown = [];
@@ -402,6 +463,7 @@ else
                 _transactions = await _db.OrderTransactions
                     .Include(t => t.ToSystemStatus)
                     .Include(t => t.Rules)
+                    .Include(t => t.FieldRules)
                     .Where(t => !t.IsDeleted && t.IsEnabled && t.FromSystemStatusId == statusId)
                     .OrderBy(t => t.Name)
                     .AsNoTracking()
@@ -459,6 +521,7 @@ else
         _selectedTransactionId = t.Id;
         _orderPreviews = [];
         _userValues = [];
+        _fieldUserValues = [];
 
         foreach (var order in _orders)
         {
@@ -476,6 +539,18 @@ else
                 }
             }
         }
+        foreach (var fr in _preview?.FieldRules.Where(r => r.RequiresUserInput) ?? [])
+        {
+            _fieldUserValues[fr.RuleId] = string.Empty;
+            foreach (var order in _orders)
+            {
+                if (!_fieldUserValuesPerOrder.ContainsKey(order.Id))
+                    _fieldUserValuesPerOrder[order.Id] = [];
+                _fieldUserValuesPerOrder[order.Id][fr.RuleId] = string.Empty;
+            }
+        }
+        if (_preview != null)
+            await LoadReferenceDataAsync(_preview.FieldRules.Where(r => r.RequiresUserInput));
 
         foreach (var order in _orders)
         {
@@ -520,31 +595,257 @@ else
         _selectedTransactionId = null;
         _orderPreviews = [];
         _userValues = [];
+        _fieldUserValues = [];
+        _fieldUserValuesPerOrder = [];
+    }
+
+    private async Task LoadReferenceDataAsync(IEnumerable<TransactionApplyFieldRulePreview> fieldRules)
+    {
+        if (_db == null) return;
+        var refTypes = fieldRules.Select(f => f.ReferenceType).Distinct().ToList();
+        if (refTypes.Contains(FieldReferenceType.OrderStatus))
+            _orderStatuses = await _db.OrderStatuses.Where(s => !s.IsDeleted).OrderBy(s => s.Name).AsNoTracking().ToListAsync();
+        if (refTypes.Contains(FieldReferenceType.Product))
+            _products = await _db.Products.Where(p => !p.IsDeleted).OrderBy(p => p.Article).Take(1000).AsNoTracking().ToListAsync();
+        if (refTypes.Contains(FieldReferenceType.Supplier))
+            _suppliers = await _db.Suppliers.Where(s => !s.IsDeleted).OrderBy(s => s.Name).AsNoTracking().ToListAsync();
+        if (refTypes.Contains(FieldReferenceType.Warehouse))
+            _warehouses = await _db.Warehouses.Where(w => !w.IsDeleted).OrderBy(w => w.Name).AsNoTracking().ToListAsync();
+        if (refTypes.Contains(FieldReferenceType.DeliveryMethod))
+            _deliveryMethods = await _db.DeliveryMethods.Where(d => !d.IsDeleted).OrderBy(d => d.Name).AsNoTracking().ToListAsync();
+        if (refTypes.Contains(FieldReferenceType.Recipient))
+            _recipients = await _db.Recipients.OrderBy(r => r.Name).Take(500).AsNoTracking().ToListAsync();
+        if (refTypes.Contains(FieldReferenceType.Address))
+            _addresses = await _db.Addresses.Take(500).AsNoTracking().ToListAsync();
+        if (refTypes.Contains(FieldReferenceType.WarehouseInfo))
+            _warehouseInfos = await _db.WarehouseInfos
+                .Include(wi => wi.RecipientWarehouse)
+                .Include(wi => wi.SenderWarehouse)
+                .OrderBy(wi => wi.Id)
+                .Take(500)
+                .AsNoTracking()
+                .ToListAsync();
+        if (refTypes.Contains(FieldReferenceType.OrderProductInfo))
+            _orderProductInfos = await _db.OrderProductInfos
+                .Include(opi => opi.Product)
+                .Where(opi => !opi.IsDeleted)
+                .OrderBy(opi => opi.Product != null ? opi.Product.Article : "")
+                .Take(500)
+                .AsNoTracking()
+                .ToListAsync();
+    }
+
+    private RenderFragment RenderFieldControlMass(TransactionApplyFieldRulePreview fr) => builder =>
+    {
+        var value = _fieldUserValues.GetValueOrDefault(fr.RuleId) ?? "";
+        RenderFieldControlInternal(builder, fr, value, v => { _fieldUserValues[fr.RuleId] = v; });
+    };
+
+    private RenderFragment RenderFieldControlPerOrder(Guid orderId, TransactionApplyFieldRulePreview fr) => builder =>
+    {
+        var dict = _fieldUserValuesPerOrder.GetValueOrDefault(orderId);
+        var value = dict != null && dict.TryGetValue(fr.RuleId, out var v) ? v : "";
+        RenderFieldControlInternal(builder, fr, value, v =>
+        {
+            if (!_fieldUserValuesPerOrder.ContainsKey(orderId))
+                _fieldUserValuesPerOrder[orderId] = [];
+            _fieldUserValuesPerOrder[orderId][fr.RuleId] = v;
+        });
+    };
+
+    private void RenderFieldControlInternal(
+        Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder,
+        TransactionApplyFieldRulePreview fr,
+        string value,
+        Action<string> setValue)
+    {
+        if (fr.ReferenceType != FieldReferenceType.None && fr.ValueType == TransactionFieldValueType.Guid)
+        {
+            var items = GetReferenceItems(fr.ReferenceType);
+            var currentGuid = Guid.TryParse(value, out var g) ? g : (Guid?)null;
+            builder.OpenComponent<RadzenDropDown<Guid?>>(0);
+            builder.AddAttribute(1, "Data", items);
+            builder.AddAttribute(2, "ValueProperty", "Id");
+            builder.AddAttribute(3, "TextProperty", "Name");
+            builder.AddAttribute(4, "Value", currentGuid);
+            builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<Guid?>(this, v => { setValue(v?.ToString() ?? ""); StateHasChanged(); }));
+            builder.AddAttribute(6, "Style", "width: 100%; min-width: 140px;");
+            builder.AddAttribute(7, "Placeholder", "Выберите...");
+            builder.AddAttribute(8, "AllowClear", true);
+            builder.CloseComponent();
+        }
+        else if (fr.ValueType == TransactionFieldValueType.DateTime)
+        {
+            var dt = DateTime.TryParse(value, out var d) ? d : (DateTime?)null;
+            builder.OpenComponent<RadzenDatePicker<DateTime?>>(0);
+            builder.AddAttribute(1, "Value", dt);
+            builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<DateTime?>(this, v => { setValue(v?.ToString("yyyy-MM-dd") ?? ""); StateHasChanged(); }));
+            builder.AddAttribute(3, "Style", "width: 100%;");
+            builder.AddAttribute(4, "Placeholder", "гггг-мм-дд");
+            builder.CloseComponent();
+        }
+        else if (fr.ValueType == TransactionFieldValueType.Int)
+        {
+            var n = int.TryParse(value, out var v) ? v : (int?)null;
+            builder.OpenComponent<RadzenNumeric<int?>>(0);
+            builder.AddAttribute(1, "Value", n);
+            builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => { setValue(v?.ToString() ?? ""); StateHasChanged(); }));
+            builder.AddAttribute(3, "Style", "width: 100%;");
+            builder.AddAttribute(4, "Format", "D0");
+            builder.AddAttribute(5, "Placeholder", "Число");
+            builder.CloseComponent();
+        }
+        else if (fr.ValueType == TransactionFieldValueType.Decimal)
+        {
+            var n = decimal.TryParse(value, out var v) ? v : (decimal?)null;
+            builder.OpenComponent<RadzenNumeric<decimal?>>(0);
+            builder.AddAttribute(1, "Value", n);
+            builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => { setValue(v?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? ""); StateHasChanged(); }));
+            builder.AddAttribute(3, "Style", "width: 100%;");
+            builder.AddAttribute(4, "Format", "N2");
+            builder.AddAttribute(5, "Placeholder", "Число");
+            builder.CloseComponent();
+        }
+        else
+        {
+            builder.OpenComponent<RadzenTextBox>(0);
+            builder.AddAttribute(1, "Value", value);
+            builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => { setValue(v ?? ""); StateHasChanged(); }));
+            builder.AddAttribute(3, "Style", "width: 100%;");
+            builder.AddAttribute(4, "Placeholder", "Значение");
+            builder.CloseComponent();
+        }
+    }
+
+    private object GetReferenceItems(FieldReferenceType refType) => refType switch
+    {
+        FieldReferenceType.OrderStatus => _orderStatuses.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
+        FieldReferenceType.Product => _products.Select(p => new { p.Id, Name = $"{p.Article} — {p.Name}" }).ToList(),
+        FieldReferenceType.Supplier => _suppliers.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
+        FieldReferenceType.Warehouse => _warehouses.Select(w => new { w.Id, Name = w.Name ?? "" }).ToList(),
+        FieldReferenceType.WarehouseInfo => _warehouseInfos.Select(wi => new { wi.Id, Name = $"{wi.SenderWarehouse?.Name ?? "—"} → {wi.RecipientWarehouse?.Name ?? "—"}" }).ToList(),
+        FieldReferenceType.DeliveryMethod => _deliveryMethods.Select(d => new { d.Id, Name = d.Name ?? "" }).ToList(),
+        FieldReferenceType.OrderProductInfo => _orderProductInfos.Select(opi => new { opi.Id, Name = $"{opi.Product?.Article ?? "—"} — {opi.Product?.Name ?? ""}" }).ToList(),
+        FieldReferenceType.Recipient => _recipients.Select(r => new { r.Id, Name = r.Name ?? "" }).ToList(),
+        FieldReferenceType.Address => _addresses.Select(a => new { a.Id, Name = $"{a.City} {a.Street}".Trim() }).ToList(),
+        _ => Array.Empty<object>()
+    };
+
+    private List<string> GetValidationErrors()
+    {
+        if (_preview == null) return [];
+        var errors = new List<string>();
+
+        foreach (var order in _orders)
+        {
+            var orderPreview = _orderPreviews.GetValueOrDefault(order.Id);
+            var postingNumber = order.Shipment?.PostingNumber ?? order.Id.ToString("N")[..8];
+            var ruleValues = _userValues.GetValueOrDefault(order.Id);
+
+            foreach (var rule in orderPreview?.Rules.Where(r => r.RequiresUserInput && r.IsRequired) ?? [])
+            {
+                if (ruleValues == null || !ruleValues.ContainsKey(rule.RuleId))
+                    errors.Add($"Заказ {postingNumber}: {rule.PriceTypeName}");
+            }
+        }
+
+        var requiredFieldRules = _preview.FieldRules.Where(r => r.RequiresUserInput && r.IsRequired).ToList();
+        if (_fieldEditMode == "Mass")
+        {
+            foreach (var fr in requiredFieldRules)
+            {
+                var value = _fieldUserValues.GetValueOrDefault(fr.RuleId) ?? "";
+                if (IsFieldValueEmpty(value, fr.ValueType))
+                    errors.Add(fr.DisplayName);
+            }
+        }
+        else
+        {
+            foreach (var order in _orders)
+            {
+                var dict = _fieldUserValuesPerOrder.GetValueOrDefault(order.Id);
+                var postingNumber = order.Shipment?.PostingNumber ?? order.Id.ToString("N")[..8];
+                foreach (var fr in requiredFieldRules)
+                {
+                    var value = dict != null && dict.TryGetValue(fr.RuleId, out var v) ? v : "";
+                    if (IsFieldValueEmpty(value, fr.ValueType))
+                        errors.Add($"Заказ {postingNumber}: {fr.DisplayName}");
+                }
+            }
+        }
+        return errors;
+    }
+
+    private static bool IsFieldValueEmpty(string value, TransactionFieldValueType valueType)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return true;
+        return valueType switch
+        {
+            TransactionFieldValueType.Guid => !Guid.TryParse(value.Trim(), out var g) || g == Guid.Empty,
+            TransactionFieldValueType.DateTime => !DateTime.TryParse(value, out _),
+            TransactionFieldValueType.Int => !int.TryParse(value, out _),
+            TransactionFieldValueType.Decimal => !decimal.TryParse(value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _),
+            _ => false
+        };
     }
 
     private async Task ApplyAllAsync()
     {
         if (!_selectedTransactionId.HasValue) return;
 
+        var validationErrors = GetValidationErrors();
+        if (validationErrors.Count > 0)
+        {
+            await DialogService.OpenAsync<TransactionErrorDialog>(
+                "Ошибка валидации",
+                new Dictionary<string, object?>
+                {
+                    [nameof(TransactionErrorDialog.Title)] = "Ошибка валидации",
+                    [nameof(TransactionErrorDialog.Message)] = "Не заполнены обязательные поля. Заполните все поля, отмеченные звёздочкой (*).",
+                    [nameof(TransactionErrorDialog.ValidationErrors)] = validationErrors
+                });
+            return;
+        }
+
         var successCount = 0;
         var errorCount = 0;
+        var applyErrors = new List<string>();
 
         foreach (var order in _orders)
         {
             var ruleValues = _userValues.GetValueOrDefault(order.Id);
-            var result = await TransactionService.ApplyAsync(order.Id, _selectedTransactionId.Value, ruleValues);
+            var fieldValues = _fieldEditMode == "Mass"
+                ? _fieldUserValues
+                : _fieldUserValuesPerOrder.GetValueOrDefault(order.Id) ?? new Dictionary<Guid, string>();
+            var result = await TransactionService.ApplyAsync(order.Id, _selectedTransactionId.Value, ruleValues, fieldValues);
             if (result.Success)
                 successCount++;
             else
+            {
                 errorCount++;
+                var postingNumber = order.Shipment?.PostingNumber ?? order.Id.ToString("N")[..8];
+                applyErrors.Add($"Заказ {postingNumber}: {result.ErrorMessage ?? "Неизвестная ошибка"}");
+                foreach (var ve in result.ValidationErrors)
+                    applyErrors.Add($"  • {ve}");
+            }
         }
 
         if (errorCount > 0)
-            NotificationService.Notify(NotificationSeverity.Warning, "Результат",
-                $"Применено: {successCount}, ошибок: {errorCount}");
+        {
+            await DialogService.OpenAsync<TransactionErrorDialog>(
+                "Результат проведения",
+                new Dictionary<string, object?>
+                {
+                    [nameof(TransactionErrorDialog.Title)] = "Результат проведения",
+                    [nameof(TransactionErrorDialog.Message)] = $"Применено: {successCount}, ошибок: {errorCount}",
+                    [nameof(TransactionErrorDialog.ValidationErrors)] = applyErrors
+                });
+        }
         else
+        {
             NotificationService.Notify(NotificationSeverity.Success, "Транзакция применена",
                 $"Обновлено заказов: {successCount}");
+        }
 
         var path = new Uri(Navigation.Uri).PathAndQuery;
         var navigateTo = TabService.Close(path);
@@ -573,16 +874,25 @@ else
 
     private static string GetSoftBackground(string color)
     {
-        if (string.IsNullOrEmpty(color))
+        if (string.IsNullOrWhiteSpace(color))
             return "#ececff";
-        color = color.TrimStart('#');
-        var r = Convert.ToInt32(color[..2], 16);
-        var g = Convert.ToInt32(color[2..4], 16);
-        var b = Convert.ToInt32(color[4..6], 16);
-        r = (int)(r + (255 - r) * 0.7);
-        g = (int)(g + (255 - g) * 0.7);
-        b = (int)(b + (255 - b) * 0.7);
-        return $"#{r:X2}{g:X2}{b:X2}";
+        color = color.TrimStart('#').Trim();
+        if (color.Length < 6)
+            return "#ececff";
+        try
+        {
+            var r = Convert.ToInt32(color[..2], 16);
+            var g = Convert.ToInt32(color[2..4], 16);
+            var b = Convert.ToInt32(color[4..6], 16);
+            r = (int)(r + (255 - r) * 0.7);
+            g = (int)(g + (255 - g) * 0.7);
+            b = (int)(b + (255 - b) * 0.7);
+            return $"#{r:X2}{g:X2}{b:X2}";
+        }
+        catch (FormatException)
+        {
+            return "#ececff";
+        }
     }
 
     private static string GetTextColor(string bg) =>
