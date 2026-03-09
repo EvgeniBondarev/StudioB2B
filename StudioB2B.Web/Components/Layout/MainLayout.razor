@@ -43,6 +43,7 @@
                             <RadzenPanelMenuItem Text="Загрузка" Path="/orders-sync" Icon="cloud_sync" />
                             <RadzenPanelMenuItem Text="Статусы" Path="/order-statuses" Icon="label" />
                             <RadzenPanelMenuItem Text="Расчёты" Path="/calculation-rules" Icon="calculate" />
+                            <RadzenPanelMenuItem Text="Чаты" Path="/chats" Icon="chat" />
                             <RadzenPanelMenuItem Text="Журнал" Path="/audit" Icon="history" />
                         </Authorized>
                     </AuthorizeView>
@@ -87,9 +88,18 @@
 
     <RadzenBody>
         <AppTabBar />
-        <div style="padding: 1rem 1.5rem;">
-            @Body
-        </div>
+        @if (_isFullHeight)
+        {
+            <div class="body-full-height">
+                @Body
+            </div>
+        }
+        else
+        {
+            <div style="padding: 1rem 1.5rem;">
+                @Body
+            </div>
+        }
     </RadzenBody>
 
 </RadzenLayout>
@@ -101,6 +111,12 @@
 @code {
     private bool _sidebarExpanded = true;
     private const string TabsStorageKey = "app-tabs";
+
+    // Страницы где контент занимает весь экран без padding
+    private static readonly HashSet<string> FullHeightPages = ["/chats"];
+
+    private bool _isFullHeight =>
+        FullHeightPages.Contains(new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant());
 
     protected override void OnInitialized()
     {

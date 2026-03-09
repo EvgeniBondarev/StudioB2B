@@ -42,11 +42,21 @@
                         <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ClientName" Title="Клиент" />
                         <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="Mode" Title="Режим" Width="80px" />
                         <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ShipmentsUpdated" Title="Отправлений обновлено" Width="150px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersSelectedForUpdate" Title="Заказов выбрано для обновления" Width="200px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersSkipped" Title="Заказов пропущено" Width="140px" />
                         <RadzenDataGridColumn TItem="ClientSyncResultItem" Title="Изменённые поля">
                             <Template Context="c">@c.UpdatedFieldsSummary</Template>
                         </RadzenDataGridColumn>
                     </Columns>
                 </RadzenDataGrid>
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="2rem" Wrap="FlexWrap.Wrap">
+                    <RadzenText TextStyle="TextStyle.Body2">
+                        <strong>Заказов выбрано для обновления:</strong> @Summary.Total.OrdersSelectedForUpdate
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2">
+                        <strong>Заказов пропущено (конечный статус):</strong> @Summary.Total.OrdersSkipped
+                    </RadzenText>
+                </RadzenStack>
             }
 
             @if (Summary.UpdatedShipments.Count > 0)

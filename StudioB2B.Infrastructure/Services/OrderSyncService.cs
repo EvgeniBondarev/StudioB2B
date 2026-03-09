@@ -103,6 +103,8 @@ public class OrderSyncService : IOrderSyncService
                     OrdersCreated = clientResult.OrdersCreated,
                     OrdersUpdated = clientResult.OrdersUpdated,
                     OrdersUntouched = clientResult.OrdersUntouched,
+                    OrdersSelectedForUpdate = clientResult.OrdersSelectedForUpdate,
+                    OrdersSkipped = clientResult.OrdersSkipped,
                     UpdatedFieldsSummary = clientResult.UpdatedFieldsSummary
                 });
             }

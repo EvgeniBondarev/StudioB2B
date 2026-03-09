@@ -21,5 +21,25 @@ public interface IOrderSyncJobService
 
     /// <summary>Возвращает последние записи истории задач (новые первыми).</summary>
     Task<List<SyncJobHistory>> GetHistoryAsync(int limit = 20);
+
+    /// <summary>Удаляет запись из истории. Нельзя удалить активную задачу.</summary>
+    Task DeleteJobAsync(Guid historyId);
+
+    // ── Расписания ───────────────────────────────────────────────────────────
+
+    /// <summary>Возвращает все расписания тенанта.</summary>
+    Task<List<SyncJobSchedule>> GetSchedulesAsync();
+
+    /// <summary>Создаёт новое расписание и регистрирует его в Hangfire.</summary>
+    Task<SyncJobSchedule> CreateScheduleAsync(SyncJobSchedule schedule);
+
+    /// <summary>Обновляет параметры расписания и перерегистрирует recurring job.</summary>
+    Task UpdateScheduleAsync(SyncJobSchedule schedule);
+
+    /// <summary>Включает или отключает расписание (не удаляя запись из БД).</summary>
+    Task SetScheduleEnabledAsync(Guid scheduleId, bool enabled);
+
+    /// <summary>Удаляет расписание и отменяет recurring job в Hangfire.</summary>
+    Task DeleteScheduleAsync(Guid scheduleId);
 }
 

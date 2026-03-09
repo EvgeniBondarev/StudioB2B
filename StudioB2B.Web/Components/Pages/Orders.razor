@@ -56,10 +56,8 @@ else
         PageSizeOptions="@_pageSizeOptions"
         ShowPagingSummary="true"
         PagerHorizontalAlign="HorizontalAlign.Left"
-        RowClick="@OnRowClick"
         CellContextMenu="@ShowContextMenu"
         IsLoading="@_loading"
-        Style="cursor: pointer;"
         FilterText="@RadzenRuStrings.FilterText"
         ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
         ClearFilterText="@RadzenRuStrings.ClearFilterText"
@@ -670,9 +668,6 @@ else
         clear();
         await OnFilterChange();
     }
-
-    private async Task OnRowClick(DataGridRowMouseEventArgs<Order> args) =>
-        await OpenOrderDetailAsync(args.Data);
 
     private async Task OpenOrderDetailAsync(Order order)
     {
