@@ -21,7 +21,7 @@
 }
 else
 {
-    <RadzenTabs>
+    <RadzenTabs Style="height: 630px;">
         <Tabs>
 
             <!-- ── Товар ──────────────────────────────────────────── -->
@@ -127,11 +127,13 @@ else
                                                       Title="Тип цены"
                                                       Width="280px" />
                                 <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
-                                                      Property="Value"
                                                       Title="Значение"
                                                       Width="140px"
-                                                      TextAlign="TextAlign.Right"
-                                                      FormatString="{0:N2}" />
+                                                      TextAlign="TextAlign.Right">
+                                    <Template Context="p">
+                                        <span style="@GetPriceColor(p.Value)">@p.Value.ToString("N2")</span>
+                                    </Template>
+                                </RadzenDataGridColumn>
                                 <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
                                                       Property="Currency.Code"
                                                       Title="Валюта"
@@ -198,7 +200,8 @@ else
                                         }
                                         else
                                         {
-                                            <strong>@row.Result.ToString("N2")</strong>
+                                            var breakdown = $"Формула: {row.Formula}\nПодстановка: {row.RenderedFormula} = {row.Result:N2}";
+                                            <strong style="@($"cursor: help; {GetPriceColor(row.Result)}")" title="@breakdown">@row.Result.ToString("N2")</strong>
                                         }
                                     </Template>
                                 </RadzenDataGridColumn>
@@ -324,10 +327,10 @@ else
 
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween"
                  Style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--rz-border-color);">
-        <RadzenButton Icon="history" Text="История изменений" ButtonStyle="ButtonStyle.Light"
+        <RadzenButton Icon="history" Text="История изменений" Shade="Shade.Light" ButtonStyle="ButtonStyle.Primary"
                       Size="ButtonSize.Small"
                       Click="@OpenAuditHistory" />
-        <RadzenButton Text="Закрыть" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close())" />
+        <RadzenButton Text="Закрыть" ButtonStyle="ButtonStyle.Primary" Shade="Shade.Light" Click="@(() => DialogService.Close())" />
     </RadzenStack>
 }
 
@@ -383,6 +386,9 @@ else
     }
 
     public void Dispose() => _db?.Dispose();
+
+    private static string GetPriceColor(decimal value) =>
+        value < 0 ? "color: var(--rz-danger);" : "";
 
     private async Task OpenAuditHistory()
     {

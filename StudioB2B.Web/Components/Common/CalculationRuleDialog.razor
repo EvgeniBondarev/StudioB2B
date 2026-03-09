@@ -142,9 +142,10 @@ else
                         }
                         else if (_exampleResult.HasValue)
                         {
+                            var breakdown = $"Формула: {_formula}\nПодстановка: {(_exampleFormulaRendered ?? _formula)} = {_exampleResult.Value:N2}";
                             <RadzenStack Gap="0.2rem">
                                 <RadzenText TextStyle="TextStyle.Body2">
-                                    Результат: <b>@_exampleResult.Value.ToString("N2")</b>
+                                    Результат: <b style="@($"cursor: help; {GetPriceColor(_exampleResult.Value)}")" title="@breakdown">@_exampleResult.Value.ToString("N2")</b>
                                 </RadzenText>
                                 @if (!string.IsNullOrWhiteSpace(_exampleFormulaRendered))
                                 {
@@ -189,7 +190,7 @@ else
                                                           Width="140px"
                                                           TextAlign="TextAlign.Right">
                                         <Template Context="row">
-                                            @row.Value.ToString("N2")
+                                            <span style="@GetPriceColor(row.Value)">@row.Value.ToString("N2")</span>
                                         </Template>
                                     </RadzenDataGridColumn>
                                 </Columns>
@@ -376,6 +377,9 @@ else
             _exampleError = ex.Message;
         }
     }
+
+    private static string GetPriceColor(decimal value) =>
+        value < 0 ? "color: var(--rz-danger);" : "";
 
     private async Task SaveAsync()
     {

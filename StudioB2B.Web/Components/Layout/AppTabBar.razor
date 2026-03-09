@@ -44,10 +44,11 @@
 
     private bool IsActive(string path)
     {
-        var current = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/');
-        var tabPath = path.TrimEnd('/');
-        return string.Equals(current, tabPath, StringComparison.OrdinalIgnoreCase)
-               || (current == string.Empty && tabPath == string.Empty);
+        var uri = new Uri(Navigation.Uri);
+        var current = (uri.PathAndQuery ?? uri.AbsolutePath).TrimEnd('/');
+        var tab = path.TrimEnd('/');
+        return string.Equals(current, tab, StringComparison.OrdinalIgnoreCase)
+               || (current == string.Empty && tab == string.Empty);
     }
 
     private void OnTabClick(string path)

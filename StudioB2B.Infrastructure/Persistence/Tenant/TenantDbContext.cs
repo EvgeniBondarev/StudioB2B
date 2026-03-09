@@ -70,6 +70,9 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
     public DbSet<Order> Orders { get; set; } = null!;
     public DbSet<OrderPrice> OrderPrices { get; set; } = null!;
     public DbSet<OrderProductInfo> OrderProductInfos { get; set; } = null!;
+    public DbSet<OrderTransaction> OrderTransactions { get; set; } = null!;
+    public DbSet<OrderTransactionRule> OrderTransactionRules { get; set; } = null!;
+    public DbSet<OrderTransactionHistory> OrderTransactionHistories { get; set; } = null!;
 
     // ── Products ─────────────────────────────────────────────────────
     public DbSet<Category> Categories { get; set; } = null!;

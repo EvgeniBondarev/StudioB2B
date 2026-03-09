@@ -1100,7 +1100,8 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         {
             Id = Guid.NewGuid(),
             Name = name,
-            DeliveryScheme = deliveryScheme
+            DeliveryScheme = deliveryScheme,
+            IsUserDefined = false
         };
         _db.PriceTypes.Add(priceType);
         await _db.SaveChangesAsync(ct);

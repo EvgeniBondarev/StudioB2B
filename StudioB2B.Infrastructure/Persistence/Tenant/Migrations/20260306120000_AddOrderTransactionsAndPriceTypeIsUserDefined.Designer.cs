@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -11,9 +12,11 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 {
     [DbContext(typeof(TenantDbContext))]
-    partial class TenantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260306120000_AddOrderTransactionsAndPriceTypeIsUserDefined")]
+    partial class AddOrderTransactionsAndPriceTypeIsUserDefined
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -794,18 +797,29 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
 
-                    b.Property<string>("CronDescription")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
                     b.Property<string>("CronExpression")
-                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
+
+                    b.Property<int?>("DayOfMonth")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DaysOfWeek")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
 
                     b.Property<string>("HangfireRecurringJobId")
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
+
+                    b.Property<int?>("IntervalDays")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("IntervalHours")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("IntervalMinutes")
+                        .HasColumnType("int");
 
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("tinyint(1)");
@@ -813,8 +827,14 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<int>("JobType")
                         .HasColumnType("int");
 
-                    b.Property<string>("SyncParams")
-                        .HasColumnType("json");
+                    b.Property<int>("ScheduleType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SyncDaysBack")
+                        .HasColumnType("int");
+
+                    b.Property<TimeSpan?>("TimeOfDay")
+                        .HasColumnType("time(6)");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime(6)");
@@ -1139,49 +1159,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("OrderTransactionRules");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(2000)
-                        .HasColumnType("varchar(2000)");
-
-                    b.Property<Guid>("OrderId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid>("OrderTransactionId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime>("PerformedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid?>("PerformedByUserId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("PerformedByUserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
-                    b.Property<int>("PricesUpdated")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("Success")
-                        .HasColumnType("tinyint(1)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrderId", "OrderTransactionId");
-
-                    b.HasIndex("PerformedAtUtc");
-
-                    b.HasIndex("PerformedByUserId");
-
-                    b.ToTable("OrderTransactionHistories");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouses.Warehouse", b =>
@@ -1598,30 +1575,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("PriceType");
 
                     b.Navigation("Product");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>
-                {
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.Order", "Order")
-                        .WithMany()
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderTransaction", "OrderTransaction")
-                        .WithMany()
-                        .HasForeignKey("OrderTransactionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("StudioB2B.Infrastructure.Persistence.Tenant.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("PerformedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Order");
-
-                    b.Navigation("OrderTransaction");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Recipient", b =>
