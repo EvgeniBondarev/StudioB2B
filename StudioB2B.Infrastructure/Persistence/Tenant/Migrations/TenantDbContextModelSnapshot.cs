@@ -1078,6 +1078,10 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("Color")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -1128,6 +1132,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<int>("ValueSource")
                         .HasColumnType("int");
 
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("tinyint(1)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CurrencyId");
@@ -1139,6 +1146,39 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.HasIndex("ProductId");
 
                     b.ToTable("OrderTransactionRules");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionFieldRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("EntityPath")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<Guid>("OrderTransactionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("FixedValue")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ValueSource")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderTransactionId");
+
+                    b.ToTable("OrderTransactionFieldRules");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>
@@ -1166,6 +1206,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<string>("PerformedByUserName")
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
+
+                    b.Property<int>("FieldsUpdated")
+                        .HasColumnType("int");
 
                     b.Property<int>("PricesUpdated")
                         .HasColumnType("int");
@@ -1598,6 +1641,17 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("PriceType");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionFieldRule", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderTransaction", "OrderTransaction")
+                        .WithMany("FieldRules")
+                        .HasForeignKey("OrderTransactionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrderTransaction");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>

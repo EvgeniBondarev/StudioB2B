@@ -27,5 +27,10 @@ public class OrderTransactionConfiguration : IEntityTypeConfiguration<OrderTrans
             .WithOne(r => r.OrderTransaction)
             .HasForeignKey(r => r.OrderTransactionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(t => t.FieldRules)
+            .WithOne(r => r.OrderTransaction)
+            .HasForeignKey(r => r.OrderTransactionId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
