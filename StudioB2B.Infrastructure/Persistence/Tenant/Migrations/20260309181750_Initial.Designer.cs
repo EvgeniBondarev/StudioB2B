@@ -12,7 +12,7 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 {
     [DbContext(typeof(TenantDbContext))]
-    [Migration("20260309173027_Initial")]
+    [Migration("20260309181750_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -517,6 +517,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("Color")
+                        .HasColumnType("longtext");
+
                     b.Property<Guid>("FromSystemStatusId")
                         .HasColumnType("char(36)");
 
@@ -546,6 +549,39 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("OrderTransactions", (string)null);
                 });
 
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionFieldRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("EntityPath")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("FixedValue")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid>("OrderTransactionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ValueSource")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderTransactionId");
+
+                    b.ToTable("OrderTransactionFieldRules", (string)null);
+                });
+
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -555,6 +591,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<string>("ErrorMessage")
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
+
+                    b.Property<int>("FieldsUpdated")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("OrderId")
                         .HasColumnType("char(36)");
@@ -605,6 +644,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
                     b.Property<string>("Formula")
                         .HasColumnType("longtext");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<Guid>("OrderTransactionId")
                         .HasColumnType("char(36)");
@@ -1378,6 +1420,17 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("ToSystemStatus");
                 });
 
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionFieldRule", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderTransaction", "OrderTransaction")
+                        .WithMany("FieldRules")
+                        .HasForeignKey("OrderTransactionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrderTransaction");
+                });
+
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>
                 {
                     b.HasOne("StudioB2B.Domain.Entities.Orders.Order", "Order")
@@ -1619,6 +1672,8 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransaction", b =>
                 {
+                    b.Navigation("FieldRules");
+
                     b.Navigation("Rules");
                 });
 
