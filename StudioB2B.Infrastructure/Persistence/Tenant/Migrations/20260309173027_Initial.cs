@@ -6,11 +6,14 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 {
     /// <inheritdoc />
-    public partial class AddOrdersAndProducts : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AlterDatabase()
+                .Annotation("MySql:CharSet", "utf8mb4");
+
             migrationBuilder.CreateTable(
                 name: "Addresses",
                 columns: table => new
@@ -34,6 +37,27 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Addresses", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "CalculationRules",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Name = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ResultKey = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Formula = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CalculationRules", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -107,6 +131,34 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "FieldAuditLogs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    EntityName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    EntityId = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    FieldName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OldValue = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    NewValue = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ChangedByUserId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    ChangedByUserName = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ChangedAtUtc = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    ChangeType = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FieldAuditLogs", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Manufacturers",
                 columns: table => new
                 {
@@ -126,22 +178,32 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "OrderStatuses",
+                name: "MarketplaceClientModes",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     Name = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Color = table.Column<string>(type: "longtext", nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    IsTerminal = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    Synonym = table.Column<string>(type: "longtext", nullable: true)
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MarketplaceClientModes", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "MarketplaceClientTypes",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Name = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_OrderStatuses", x => x.Id);
+                    table.PrimaryKey("PK_MarketplaceClientTypes", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -156,6 +218,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     DeliveryScheme = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsUserDefined = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
@@ -182,6 +245,21 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "Roles",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Name = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Roles", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Suppliers",
                 columns: table => new
                 {
@@ -197,6 +275,83 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Suppliers", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "SyncJobHistories",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    HangfireJobId = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    JobType = table.Column<int>(type: "int", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    StartedAtUtc = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    FinishedAtUtc = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    ParametersJson = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ResultJson = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ErrorMessage = table.Column<string>(type: "varchar(2000)", maxLength: 2000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    InitiatedByUserId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    InitiatedByEmail = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SyncJobHistories", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "SyncJobSchedules",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    JobType = table.Column<int>(type: "int", nullable: false),
+                    IsEnabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CronExpression = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CronDescription = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    SyncParams = table.Column<string>(type: "json", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    HangfireRecurringJobId = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedAtUtc = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAtUtc = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    CreatedByEmail = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SyncJobSchedules", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Users",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Email = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    HashPassword = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    FirstName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    LastName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    MiddleName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Users", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -303,21 +458,99 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "StatusColors",
+                name: "MarketplaceClients",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    OrderStatusId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Hash = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                    Name = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ApiId = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Key = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ClientTypeId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    ModeId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    Company = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Country = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Currency = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    INN = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    LegalName = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OzonName = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OGRN = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OwnershipForm = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_StatusColors", x => x.Id);
+                    table.PrimaryKey("PK_MarketplaceClients", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_StatusColors_OrderStatuses_OrderStatusId",
-                        column: x => x.OrderStatusId,
-                        principalTable: "OrderStatuses",
+                        name: "FK_MarketplaceClients_MarketplaceClientModes_ModeId",
+                        column: x => x.ModeId,
+                        principalTable: "MarketplaceClientModes",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_MarketplaceClients_MarketplaceClientTypes_ClientTypeId",
+                        column: x => x.ClientTypeId,
+                        principalTable: "MarketplaceClientTypes",
+                        principalColumn: "Id");
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "OrderStatuses",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Name = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Color = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsTerminal = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    Synonym = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsInternal = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    MarketplaceClientTypeId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OrderStatuses", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OrderStatuses_MarketplaceClientTypes_MarketplaceClientTypeId",
+                        column: x => x.MarketplaceClientTypeId,
+                        principalTable: "MarketplaceClientTypes",
+                        principalColumn: "Id");
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "UserRoles",
+                columns: table => new
+                {
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    RoleId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserRoles", x => new { x.UserId, x.RoleId });
+                    table.ForeignKey(
+                        name: "FK_UserRoles_Roles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "Roles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_UserRoles_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -346,6 +579,151 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         principalTable: "Warehouses",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "ProductAttributeValues",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    ProductId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    AttributeId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Value = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ProductAttributeValues", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ProductAttributeValues_ProductAttributes_AttributeId",
+                        column: x => x.AttributeId,
+                        principalTable: "ProductAttributes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ProductAttributeValues_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "WarehouseStocks",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    WarehouseId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    ProductId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WarehouseStocks", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WarehouseStocks_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_WarehouseStocks_Warehouses_WarehouseId",
+                        column: x => x.WarehouseId,
+                        principalTable: "Warehouses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "MarketplaceClient1CSettings",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    MarketplaceClientId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    INN = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Country = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Currency = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    LegalName = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OzonName = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OGRN = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    OwnershipForm = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MarketplaceClient1CSettings", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MarketplaceClient1CSettings_MarketplaceClients_MarketplaceCl~",
+                        column: x => x.MarketplaceClientId,
+                        principalTable: "MarketplaceClients",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "MarketplaceClientSettings",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    MarketplaceClientId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Key = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Value = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MarketplaceClientSettings", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MarketplaceClientSettings_MarketplaceClients_MarketplaceClie~",
+                        column: x => x.MarketplaceClientId,
+                        principalTable: "MarketplaceClients",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "OrderTransactions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    FromSystemStatusId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    ToSystemStatusId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    IsEnabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OrderTransactions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OrderTransactions_OrderStatuses_FromSystemStatusId",
+                        column: x => x.FromSystemStatusId,
+                        principalTable: "OrderStatuses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_OrderTransactions_OrderStatuses_ToSystemStatusId",
+                        column: x => x.ToSystemStatusId,
+                        principalTable: "OrderStatuses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -393,58 +771,68 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "ProductAttributeValues",
+                name: "StatusColors",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    ProductId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    AttributeId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Value = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: false)
+                    OrderStatusId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Hash = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ProductAttributeValues", x => x.Id);
+                    table.PrimaryKey("PK_StatusColors", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_ProductAttributeValues_ProductAttributes_AttributeId",
-                        column: x => x.AttributeId,
-                        principalTable: "ProductAttributes",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ProductAttributeValues_Products_ProductId",
-                        column: x => x.ProductId,
-                        principalTable: "Products",
+                        name: "FK_StatusColors_OrderStatuses_OrderStatusId",
+                        column: x => x.OrderStatusId,
+                        principalTable: "OrderStatuses",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "WarehouseStocks",
+                name: "OrderTransactionRules",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    WarehouseId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    ProductId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Quantity = table.Column<int>(type: "int", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                    OrderTransactionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    PriceTypeId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    ValueSource = table.Column<int>(type: "int", nullable: false),
+                    FixedValue = table.Column<decimal>(type: "decimal(65,30)", nullable: true),
+                    Formula = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ProductId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    CurrencyId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    SortOrder = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_WarehouseStocks", x => x.Id);
+                    table.PrimaryKey("PK_OrderTransactionRules", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_WarehouseStocks_Products_ProductId",
+                        name: "FK_OrderTransactionRules_Currencies_CurrencyId",
+                        column: x => x.CurrencyId,
+                        principalTable: "Currencies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_OrderTransactionRules_OrderTransactions_OrderTransactionId",
+                        column: x => x.OrderTransactionId,
+                        principalTable: "OrderTransactions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_OrderTransactionRules_PriceTypes_PriceTypeId",
+                        column: x => x.PriceTypeId,
+                        principalTable: "PriceTypes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_OrderTransactionRules_Products_ProductId",
                         column: x => x.ProductId,
                         principalTable: "Products",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_WarehouseStocks_Warehouses_WarehouseId",
-                        column: x => x.WarehouseId,
-                        principalTable: "Warehouses",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -591,6 +979,46 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
+            migrationBuilder.CreateTable(
+                name: "OrderTransactionHistories",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    OrderId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    OrderTransactionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    PerformedAtUtc = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    PerformedByUserId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    PerformedByUserName = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Success = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    ErrorMessage = table.Column<string>(type: "varchar(2000)", maxLength: 2000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PricesUpdated = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OrderTransactionHistories", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OrderTransactionHistories_OrderTransactions_OrderTransaction~",
+                        column: x => x.OrderTransactionId,
+                        principalTable: "OrderTransactions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_OrderTransactionHistories_Orders_OrderId",
+                        column: x => x.OrderId,
+                        principalTable: "Orders",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_OrderTransactionHistories_Users_PerformedByUserId",
+                        column: x => x.PerformedByUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
             migrationBuilder.CreateIndex(
                 name: "IX_Categories_ParentId",
                 table: "Categories",
@@ -600,6 +1028,37 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 name: "IX_DeliveryMethods_DeliveryTypeId",
                 table: "DeliveryMethods",
                 column: "DeliveryTypeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FieldAuditLogs_ChangedAtUtc",
+                table: "FieldAuditLogs",
+                column: "ChangedAtUtc");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FieldAuditLogs_EntityName_EntityId",
+                table: "FieldAuditLogs",
+                columns: new[] { "EntityName", "EntityId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MarketplaceClient1CSettings_MarketplaceClientId",
+                table: "MarketplaceClient1CSettings",
+                column: "MarketplaceClientId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MarketplaceClients_ClientTypeId",
+                table: "MarketplaceClients",
+                column: "ClientTypeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MarketplaceClients_ModeId",
+                table: "MarketplaceClients",
+                column: "ModeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MarketplaceClientSettings_MarketplaceClientId",
+                table: "MarketplaceClientSettings",
+                column: "MarketplaceClientId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_OrderPrices_CurrencyId",
@@ -658,6 +1117,61 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 column: "WarehouseInfoId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_OrderStatuses_MarketplaceClientTypeId",
+                table: "OrderStatuses",
+                column: "MarketplaceClientTypeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderTransactionHistories_OrderId_OrderTransactionId",
+                table: "OrderTransactionHistories",
+                columns: new[] { "OrderId", "OrderTransactionId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderTransactionHistories_OrderTransactionId",
+                table: "OrderTransactionHistories",
+                column: "OrderTransactionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderTransactionHistories_PerformedAtUtc",
+                table: "OrderTransactionHistories",
+                column: "PerformedAtUtc");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderTransactionHistories_PerformedByUserId",
+                table: "OrderTransactionHistories",
+                column: "PerformedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderTransactionRules_CurrencyId",
+                table: "OrderTransactionRules",
+                column: "CurrencyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderTransactionRules_OrderTransactionId",
+                table: "OrderTransactionRules",
+                column: "OrderTransactionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderTransactionRules_PriceTypeId",
+                table: "OrderTransactionRules",
+                column: "PriceTypeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderTransactionRules_ProductId",
+                table: "OrderTransactionRules",
+                column: "ProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderTransactions_FromSystemStatusId",
+                table: "OrderTransactions",
+                column: "FromSystemStatusId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderTransactions_ToSystemStatusId",
+                table: "OrderTransactions",
+                column: "ToSystemStatusId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ProductAttributeValues_AttributeId",
                 table: "ProductAttributeValues",
                 column: "AttributeId");
@@ -682,6 +1196,12 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 name: "IX_Recipients_AddressId",
                 table: "Recipients",
                 column: "AddressId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Roles_Name",
+                table: "Roles",
+                column: "Name",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_ShipmentDates_DateTypeId",
@@ -720,6 +1240,29 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 column: "OrderStatusId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_SyncJobHistories_HangfireJobId",
+                table: "SyncJobHistories",
+                column: "HangfireJobId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SyncJobSchedules_HangfireRecurringJobId",
+                table: "SyncJobSchedules",
+                column: "HangfireRecurringJobId",
+                unique: true,
+                filter: "HangfireRecurringJobId IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserRoles_RoleId",
+                table: "UserRoles",
+                column: "RoleId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_Email",
+                table: "Users",
+                column: "Email",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_WarehouseInfos_RecipientWarehouseId",
                 table: "WarehouseInfos",
                 column: "RecipientWarehouseId");
@@ -745,10 +1288,28 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "CalculationRules");
+
+            migrationBuilder.DropTable(
+                name: "FieldAuditLogs");
+
+            migrationBuilder.DropTable(
+                name: "MarketplaceClient1CSettings");
+
+            migrationBuilder.DropTable(
+                name: "MarketplaceClientSettings");
+
+            migrationBuilder.DropTable(
                 name: "OrderPrices");
 
             migrationBuilder.DropTable(
                 name: "OrderProductInfos");
+
+            migrationBuilder.DropTable(
+                name: "OrderTransactionHistories");
+
+            migrationBuilder.DropTable(
+                name: "OrderTransactionRules");
 
             migrationBuilder.DropTable(
                 name: "ProductAttributeValues");
@@ -760,25 +1321,43 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 name: "StatusColors");
 
             migrationBuilder.DropTable(
+                name: "SyncJobHistories");
+
+            migrationBuilder.DropTable(
+                name: "SyncJobSchedules");
+
+            migrationBuilder.DropTable(
+                name: "UserRoles");
+
+            migrationBuilder.DropTable(
                 name: "WarehouseStocks");
 
             migrationBuilder.DropTable(
-                name: "Currencies");
-
-            migrationBuilder.DropTable(
-                name: "PriceTypes");
+                name: "Suppliers");
 
             migrationBuilder.DropTable(
                 name: "Orders");
 
             migrationBuilder.DropTable(
-                name: "Suppliers");
+                name: "Currencies");
+
+            migrationBuilder.DropTable(
+                name: "OrderTransactions");
+
+            migrationBuilder.DropTable(
+                name: "PriceTypes");
 
             migrationBuilder.DropTable(
                 name: "ProductAttributes");
 
             migrationBuilder.DropTable(
                 name: "DateTypes");
+
+            migrationBuilder.DropTable(
+                name: "Roles");
+
+            migrationBuilder.DropTable(
+                name: "Users");
 
             migrationBuilder.DropTable(
                 name: "Products");
@@ -805,6 +1384,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 name: "DeliveryMethods");
 
             migrationBuilder.DropTable(
+                name: "MarketplaceClients");
+
+            migrationBuilder.DropTable(
                 name: "OrderStatuses");
 
             migrationBuilder.DropTable(
@@ -812,6 +1394,12 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
             migrationBuilder.DropTable(
                 name: "DeliveryTypes");
+
+            migrationBuilder.DropTable(
+                name: "MarketplaceClientModes");
+
+            migrationBuilder.DropTable(
+                name: "MarketplaceClientTypes");
         }
     }
 }

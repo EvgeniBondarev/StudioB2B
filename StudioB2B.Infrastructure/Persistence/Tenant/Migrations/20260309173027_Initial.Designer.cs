@@ -12,8 +12,8 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 {
     [DbContext(typeof(TenantDbContext))]
-    [Migration("20260227121351_OrderStatusType")]
-    partial class OrderStatusType
+    [Migration("20260309173027_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,107 +25,55 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Common.FieldAuditLog", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ClaimType")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ClaimValue")
-                        .HasColumnType("longtext");
-
-                    b.Property<Guid>("RoleId")
                         .HasColumnType("char(36)");
+
+                    b.Property<string>("ChangeType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("ChangedByUserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("ChangedByUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("EntityName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("FieldName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("NewValue")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("OldValue")
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RoleId");
+                    b.HasIndex("ChangedAtUtc");
 
-                    b.ToTable("AspNetRoleClaims", (string)null);
-                });
+                    b.HasIndex("EntityName", "EntityId");
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ClaimType")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ClaimValue")
-                        .HasColumnType("longtext");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("AspNetUserClaims", (string)null);
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
-                {
-                    b.Property<string>("LoginProvider")
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("ProviderKey")
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("ProviderDisplayName")
-                        .HasColumnType("longtext");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("LoginProvider", "ProviderKey");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("AspNetUserLogins", (string)null);
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid>("RoleId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("UserId", "RoleId");
-
-                    b.HasIndex("RoleId");
-
-                    b.ToTable("AspNetUserRoles", (string)null);
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("LoginProvider")
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("Name")
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("Value")
-                        .HasColumnType("longtext");
-
-                    b.HasKey("UserId", "LoginProvider", "Name");
-
-                    b.ToTable("AspNetUserTokens", (string)null);
+                    b.ToTable("FieldAuditLogs", (string)null);
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", b =>
@@ -322,6 +270,38 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Addresses");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.CalculationRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Formula")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ResultKey")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CalculationRules");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.DateType", b =>
@@ -531,6 +511,129 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("OrderStatuses");
                 });
 
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("FromSystemStatusId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ToSystemStatusId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromSystemStatusId");
+
+                    b.HasIndex("ToSystemStatusId");
+
+                    b.ToTable("OrderTransactions", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("OrderTransactionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("PerformedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("PerformedByUserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("PerformedByUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<int>("PricesUpdated")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("tinyint(1)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderTransactionId");
+
+                    b.HasIndex("PerformedAtUtc");
+
+                    b.HasIndex("PerformedByUserId");
+
+                    b.HasIndex("OrderId", "OrderTransactionId");
+
+                    b.ToTable("OrderTransactionHistories", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("CurrencyId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal?>("FixedValue")
+                        .HasColumnType("decimal(65,30)");
+
+                    b.Property<string>("Formula")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid>("OrderTransactionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("PriceTypeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ValueSource")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurrencyId");
+
+                    b.HasIndex("OrderTransactionId");
+
+                    b.HasIndex("PriceTypeId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("OrderTransactionRules", (string)null);
+                });
+
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Recipient", b =>
                 {
                     b.Property<Guid>("Id")
@@ -652,6 +755,100 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.HasIndex("OrderStatusId");
 
                     b.ToTable("StatusColors");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.SyncJobHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<DateTime?>("FinishedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("HangfireJobId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("InitiatedByEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<Guid?>("InitiatedByUserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("JobType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ParametersJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ResultJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HangfireJobId");
+
+                    b.ToTable("SyncJobHistories", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.SyncJobSchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("CreatedByEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<string>("CronDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("CronExpression")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("HangfireRecurringJobId")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("JobType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SyncParams")
+                        .HasColumnType("json");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HangfireRecurringJobId")
+                        .IsUnique()
+                        .HasFilter("HangfireRecurringJobId IS NOT NULL");
+
+                    b.ToTable("SyncJobSchedules");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.WarehouseInfo", b =>
@@ -805,8 +1002,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -878,6 +1074,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool>("IsUserDefined")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -885,6 +1084,87 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("PriceTypes");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.Role", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Roles", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("HashPassword")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("MiddleName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.UserRole", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("UserId", "RoleId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("UserRoles", (string)null);
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouses.Warehouse", b =>
@@ -937,178 +1217,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .IsUnique();
 
                     b.ToTable("WarehouseStocks", (string)null);
-                });
-
-            modelBuilder.Entity("StudioB2B.Infrastructure.Persistence.Tenant.ApplicationRole", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("ConcurrencyStamp")
-                        .IsConcurrencyToken()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsSystemRole")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
-                    b.Property<string>("NormalizedName")
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NormalizedName")
-                        .IsUnique()
-                        .HasDatabaseName("RoleNameIndex");
-
-                    b.ToTable("AspNetRoles", (string)null);
-                });
-
-            modelBuilder.Entity("StudioB2B.Infrastructure.Persistence.Tenant.ApplicationUser", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<int>("AccessFailedCount")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ConcurrencyStamp")
-                        .IsConcurrencyToken()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
-                    b.Property<bool>("EmailConfirmed")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<DateTime?>("LastLoginAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("LockoutEnabled")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<DateTimeOffset?>("LockoutEnd")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("MiddleName")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("NormalizedEmail")
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
-                    b.Property<string>("NormalizedUserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
-                    b.Property<string>("PasswordHash")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("PhoneNumberConfirmed")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("SecurityStamp")
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("TwoFactorEnabled")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("UserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NormalizedEmail")
-                        .HasDatabaseName("EmailIndex");
-
-                    b.HasIndex("NormalizedUserName")
-                        .IsUnique()
-                        .HasDatabaseName("UserNameIndex");
-
-                    b.ToTable("AspNetUsers", (string)null);
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
-                {
-                    b.HasOne("StudioB2B.Infrastructure.Persistence.Tenant.ApplicationRole", null)
-                        .WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
-                {
-                    b.HasOne("StudioB2B.Infrastructure.Persistence.Tenant.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
-                {
-                    b.HasOne("StudioB2B.Infrastructure.Persistence.Tenant.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
-                {
-                    b.HasOne("StudioB2B.Infrastructure.Persistence.Tenant.ApplicationRole", null)
-                        .WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("StudioB2B.Infrastructure.Persistence.Tenant.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
-                {
-                    b.HasOne("StudioB2B.Infrastructure.Persistence.Tenant.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", b =>
@@ -1251,6 +1359,82 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("MarketplaceClientType");
                 });
 
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransaction", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderStatus", "FromSystemStatus")
+                        .WithMany()
+                        .HasForeignKey("FromSystemStatusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderStatus", "ToSystemStatus")
+                        .WithMany()
+                        .HasForeignKey("ToSystemStatusId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FromSystemStatus");
+
+                    b.Navigation("ToSystemStatus");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Orders.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderTransaction", "OrderTransaction")
+                        .WithMany()
+                        .HasForeignKey("OrderTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Domain.Entities.Tenants.User", null)
+                        .WithMany()
+                        .HasForeignKey("PerformedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Order");
+
+                    b.Navigation("OrderTransaction");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionRule", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.References.Currency", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderTransaction", "OrderTransaction")
+                        .WithMany("Rules")
+                        .HasForeignKey("OrderTransactionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Domain.Entities.References.PriceType", "PriceType")
+                        .WithMany()
+                        .HasForeignKey("PriceTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Domain.Entities.Products.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Currency");
+
+                    b.Navigation("OrderTransaction");
+
+                    b.Navigation("PriceType");
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Recipient", b =>
                 {
                     b.HasOne("StudioB2B.Domain.Entities.Orders.Address", "Address")
@@ -1376,6 +1560,25 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.UserRole", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Tenants.Role", "Role")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Domain.Entities.Tenants.User", "User")
+                        .WithMany("UserRoles")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Role");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouses.WarehouseStock", b =>
                 {
                     b.HasOne("StudioB2B.Domain.Entities.Products.Product", "Product")
@@ -1414,6 +1617,11 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Colors");
                 });
 
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransaction", b =>
+                {
+                    b.Navigation("Rules");
+                });
+
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Shipment", b =>
                 {
                     b.Navigation("Dates");
@@ -1429,6 +1637,16 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
             modelBuilder.Entity("StudioB2B.Domain.Entities.Products.Product", b =>
                 {
                     b.Navigation("Attributes");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.Role", b =>
+                {
+                    b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.User", b =>
+                {
+                    b.Navigation("UserRoles");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouses.Warehouse", b =>
