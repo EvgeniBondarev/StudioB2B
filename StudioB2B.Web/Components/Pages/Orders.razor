@@ -72,6 +72,7 @@ else
         ShowPagingSummary="true"
         PagerHorizontalAlign="HorizontalAlign.Left"
         CellContextMenu="@ShowContextMenu"
+        RowRender="@OnRowRender"
         IsLoading="@_loading"
         FilterText="@RadzenRuStrings.FilterText"
         ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
@@ -463,6 +464,7 @@ else
     private List<CalculationRule> _calcRules = new();
     private Dictionary<Guid, Dictionary<string, decimal>> _computed = new();
     private bool _computedSplitByColumns;
+    private Dictionary<Guid, string?> _orderLastTransactionColor = new();
 
     private DataGridSettings? _gridSettings;
     private const string GridSettingsKey = "orders-grid-settings";
@@ -646,7 +648,34 @@ else
             _pageItems = _pageItems.Skip(skip).Take(take).ToList();
         }
 
+        var orderIds = _pageItems.Select(o => o.Id).ToList();
+        if (orderIds.Count > 0)
+        {
+            var histories = await _db!.OrderTransactionHistories
+                .Include(h => h.OrderTransaction)
+                .Where(h => h.Success && orderIds.Contains(h.OrderId))
+                .OrderByDescending(h => h.PerformedAtUtc)
+                .ToListAsync();
+            _orderLastTransactionColor = histories
+                .GroupBy(h => h.OrderId)
+                .ToDictionary(g => g.Key, g => g.First().OrderTransaction?.Color);
+        }
+        else
+        {
+            _orderLastTransactionColor = new Dictionary<Guid, string?>();
+        }
+
         _loading = false;
+    }
+
+    private void OnRowRender(RowRenderEventArgs<Order> args)
+    {
+        if (_orderLastTransactionColor.TryGetValue(args.Data.Id, out var color) && !string.IsNullOrEmpty(color))
+        {
+            var bg = GetSoftBackground(color);
+            var fg = GetTextColor(bg);
+            args.Attributes["style"] = $"background-color: {bg}; color: {fg};";
+        }
     }
 
     private async Task EnsureInitializedAsync()
@@ -732,20 +761,29 @@ else
 
     string GetSoftBackground(string color)
     {
-        if (string.IsNullOrEmpty(color))
+        if (string.IsNullOrWhiteSpace(color))
             return "#ececff";
 
-        color = color.TrimStart('#');
+        color = color.TrimStart('#').Trim();
+        if (color.Length < 6)
+            return "#ececff";
 
-        var r = Convert.ToInt32(color[..2], 16);
-        var g = Convert.ToInt32(color[2..4], 16);
-        var b = Convert.ToInt32(color[4..6], 16);
+        try
+        {
+            var r = Convert.ToInt32(color[..2], 16);
+            var g = Convert.ToInt32(color[2..4], 16);
+            var b = Convert.ToInt32(color[4..6], 16);
 
-        r = (int)(r + (255 - r) * 0.7);
-        g = (int)(g + (255 - g) * 0.7);
-        b = (int)(b + (255 - b) * 0.7);
+            r = (int)(r + (255 - r) * 0.7);
+            g = (int)(g + (255 - g) * 0.7);
+            b = (int)(b + (255 - b) * 0.7);
 
-        return $"#{r:X2}{g:X2}{b:X2}";
+            return $"#{r:X2}{g:X2}{b:X2}";
+        }
+        catch (FormatException)
+        {
+            return "#ececff";
+        }
     }
 
     string GetTextColor(string bg)
