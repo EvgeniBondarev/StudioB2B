@@ -10,17 +10,15 @@
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
 @using StudioB2B.Web.Components.Common
-@using StudioB2B.Web.Services
 
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory Factory
 @inject IOrderTransactionService TransactionService
 @inject DialogService DialogService
 @inject ContextMenuService ContextMenuService
-@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 @inject TabService TabService
-@inject NavigationManager NavigationManager
-@inject BulkOrderTransactionContext BulkOrderContext
+@inject IJSRuntime JSRuntime
 
 @implements IDisposable
 
@@ -36,17 +34,21 @@ else
 {
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
-        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Заказы</RadzenText>
-        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
-            <RadzenButton Icon="swap_horiz"
-                          Text="Транзакция для выбранных"
-                          ButtonStyle="ButtonStyle.Primary"
-                          Size="ButtonSize.Small"
-                          Disabled="@(_selectedOrderIds.Count == 0)"
-                          Click="@OpenBulkTransactionTabAsync" />
-            <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                          Click="@ToggleDensity" Title="@GetDensityTitle()"/>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+            <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Заказы</RadzenText>
+            @if (_selectedOrderIds.Count > 0)
+            {
+                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-base-600);">
+                    Выбрано: @_selectedOrderIds.Count
+                </RadzenText>
+                <RadzenButton Icon="swap_horiz" Text="Применить транзакцию" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
+                              Click="@OpenApplyTransactionTab" />
+                <RadzenButton Icon="close" Text="Снять выбор" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Variant="Variant.Text" Click="@ClearSelection" />
+            }
         </RadzenStack>
+        <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                      Click="@ToggleDensity" Title="@GetDensityTitle()"/>
     </RadzenStack>
 
     <RadzenDataGrid
@@ -93,16 +95,13 @@ else
         EmptyText="@RadzenRuStrings.EmptyText">
         
         <Columns>
-            <RadzenDataGridColumn TItem="Order" Width="40px" Filterable="false" Sortable="false" TextAlign="TextAlign.Center">
+            <RadzenDataGridColumn TItem="Order" Title="" Width="44px" Frozen="true" Sortable="false" Filterable="false">
                 <HeaderTemplate>
-                    <RadzenCheckBox TValue="bool"
-                                    Value="@IsAllCurrentPageSelected"
-                                    Change="@ToggleSelectAllCurrentPage" />
+                    <RadzenCheckBox TValue="bool" Value="@IsAllSelected" ValueChanged="@OnSelectAllChanged" />
                 </HeaderTemplate>
                 <Template Context="o">
-                    <RadzenCheckBox TValue="bool"
-                                    Value="@_selectedOrderIds.Contains(o.Id)"
-                                    Change="@(checkedValue => OnRowSelectedChanged(o, checkedValue))" />
+                    <RadzenCheckBox TValue="bool" Value="@_selectedOrderIds.Contains(o.Id)"
+                                   ValueChanged="@(v => ToggleOrderSelection(o.Id, v))" />
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="Order" Property="Shipment.PostingNumber"
@@ -443,7 +442,6 @@ else
 
     private TenantDbContext? _db;
     private IEnumerable<Order> _pageItems = Array.Empty<Order>();
-    private readonly HashSet<Guid> _selectedOrderIds = new();
     private int _totalCount;
     private Density _density = Density.Default;
     private bool _loading;
@@ -468,9 +466,6 @@ else
     private const string FiltersKey = "orders-filters";
 
     private record OrderFilters(Guid? ClientId, Guid? StatusId, Guid? SystemStatusId, Guid? WarehouseId);
-
-    private bool IsAllCurrentPageSelected =>
-        _pageItems.Any() && _pageItems.All(o => _selectedOrderIds.Contains(o.Id));
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -550,28 +545,6 @@ else
         }
         catch
         {
-        }
-    }
-
-    private void OnRowSelectedChanged(Order order, bool isSelected)
-    {
-        if (isSelected)
-            _selectedOrderIds.Add(order.Id);
-        else
-            _selectedOrderIds.Remove(order.Id);
-    }
-
-    private void ToggleSelectAllCurrentPage(bool isSelected)
-    {
-        if (isSelected)
-        {
-            foreach (var o in _pageItems)
-                _selectedOrderIds.Add(o.Id);
-        }
-        else
-        {
-            foreach (var o in _pageItems)
-                _selectedOrderIds.Remove(o.Id);
         }
     }
 
@@ -781,45 +754,58 @@ else
     {
         ContextMenuService.Open(args,
             [
-                new ContextMenuItem { Text = "Открыть",               Icon = "open_in_new", Value = "open"    },
-                new ContextMenuItem { Text = "Применить транзакцию",  Icon = "swap_horiz",  Value = "apply"  },
-                new ContextMenuItem { Text = "История изменений",     Icon = "history",     Value = "history" }
+                new ContextMenuItem { Text = "Открыть",           Icon = "open_in_new", Value = "open"    },
+                new ContextMenuItem { Text = "История изменений", Icon = "history",     Value = "history" }
             ],
             async e =>
             {
                 ContextMenuService.Close();
                 if (e.Value?.ToString() == "open")
                     await OpenOrderDetailAsync(args.Data);
-                else if (e.Value?.ToString() == "apply")
-                    await OpenApplyTransactionDialogAsync(args.Data);
                 else if (e.Value?.ToString() == "history")
                     await OpenAuditHistoryAsync(args.Data);
             });
     }
 
-    private async Task OpenApplyTransactionDialogAsync(Order order)
-    {
-        var result = await DialogService.OpenAsync<ApplyTransactionDialog>(
-            "Применить транзакцию",
-            new Dictionary<string, object?>
-            {
-                ["OrderId"] = order.Id,
-                ["CurrentSystemStatusId"] = order.SystemStatusId
-            },
-            new DialogOptions { Width = "500px", CloseDialogOnEsc = true });
+    private HashSet<Guid> _selectedOrderIds = [];
 
-        if (result is bool b && b && _grid != null)
-            await _grid.Reload();
+    private bool IsAllSelected => _pageItems.Any() && _pageItems.All(o => _selectedOrderIds.Contains(o.Id));
+
+    private void OnSelectAllChanged(bool selected) => ToggleSelectAll(selected);
+
+    private void ToggleSelectAll(bool selected)
+    {
+        if (selected)
+            foreach (var o in _pageItems)
+                _selectedOrderIds.Add(o.Id);
+        else
+            foreach (var o in _pageItems)
+                _selectedOrderIds.Remove(o.Id);
+        StateHasChanged();
     }
 
-    private async Task OpenBulkTransactionTabAsync()
+    private void ToggleOrderSelection(Guid orderId, bool selected)
     {
-        if (_selectedOrderIds.Count == 0)
-            return;
+        if (selected)
+            _selectedOrderIds.Add(orderId);
+        else
+            _selectedOrderIds.Remove(orderId);
+        StateHasChanged();
+    }
 
-        BulkOrderContext.SetSelection(_selectedOrderIds);
-        TabService.EnsureOpen("/orders-bulk-transaction");
-        NavigationManager.NavigateTo("/orders-bulk-transaction");
+    private void ClearSelection()
+    {
+        _selectedOrderIds.Clear();
+        StateHasChanged();
+    }
+
+    private void OpenApplyTransactionTab()
+    {
+        if (_selectedOrderIds.Count == 0) return;
+        var ids = string.Join(",", _selectedOrderIds);
+        var path = $"/orders/apply-transaction?ids={ids}";
+        TabService.OpenTab(path, $"Транзакция ({_selectedOrderIds.Count})", "swap_horiz");
+        Navigation.NavigateTo(path);
     }
 
     private async Task OpenAuditHistoryAsync(Order order)

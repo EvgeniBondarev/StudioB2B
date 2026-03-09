@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Application.Common;
@@ -56,11 +57,13 @@ public class OrderTransactionService : IOrderTransactionService
                 continue;
 
             decimal? computed = null;
+            string? breakdown = null;
             if (rule.ValueSource == TransactionValueSource.Formula && !string.IsNullOrWhiteSpace(rule.Formula))
             {
                 try
                 {
                     computed = _calcEngine.EvaluateFormula(rule.Formula, context);
+                    breakdown = BuildFormulaBreakdown(rule.Formula, context, computed.Value);
                 }
                 catch { /* ignore */ }
             }
@@ -73,8 +76,96 @@ public class OrderTransactionService : IOrderTransactionService
                 ProductId = rule.ProductId,
                 ProductName = rule.Product?.Name,
                 ValueSource = rule.ValueSource,
-                ComputedValue = computed
+                Formula = rule.Formula,
+                ComputedValue = computed,
+                FormulaBreakdown = breakdown
             });
+        }
+
+        return new TransactionApplyPreview
+        {
+            TransactionName = transaction.Name,
+            ToStatusName = transaction.ToSystemStatus?.Name ?? "",
+            Rules = rules
+        };
+    }
+
+    public async Task<TransactionApplyPreview?> GetApplyPreviewWithUserValuesAsync(Guid orderId, Guid transactionId, IReadOnlyDictionary<Guid, decimal> userValues, CancellationToken ct = default)
+    {
+        var order = await _db.Orders
+            .IncludeForGrid()
+            .Include(o => o.Prices).ThenInclude(p => p.PriceType)
+            .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(o => o.Id == orderId, ct);
+
+        if (order == null) return null;
+
+        var transaction = await _db.OrderTransactions
+            .Include(t => t.ToSystemStatus)
+            .Include(t => t.Rules.OrderBy(r => r.SortOrder))
+                .ThenInclude(r => r.PriceType)
+            .Include(t => t.Rules).ThenInclude(r => r.Product)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == transactionId && !t.IsDeleted, ct);
+
+        if (transaction == null || !transaction.IsEnabled || order.SystemStatusId != transaction.FromSystemStatusId)
+            return null;
+
+        var context = await BuildContextAsync(order, ct);
+        var rules = new List<TransactionApplyRulePreview>();
+
+        foreach (var rule in transaction.Rules.OrderBy(r => r.SortOrder))
+        {
+            if (rule.PriceType == null) continue;
+            if (rule.ProductId.HasValue && order.ProductInfo?.ProductId != rule.ProductId.Value)
+                continue;
+
+            var priceKey = CalculationEngine.SanitizeKey(rule.PriceType.Name ?? string.Empty);
+
+            if (rule.ValueSource == TransactionValueSource.UserInput)
+            {
+                if (userValues.TryGetValue(rule.Id, out var uv) && !string.IsNullOrEmpty(priceKey))
+                    context[priceKey] = uv;
+                rules.Add(new TransactionApplyRulePreview
+                {
+                    RuleId = rule.Id,
+                    PriceTypeId = rule.PriceTypeId,
+                    PriceTypeName = rule.PriceType.Name ?? "",
+                    ProductId = rule.ProductId,
+                    ProductName = rule.Product?.Name,
+                    ValueSource = rule.ValueSource
+                });
+            }
+            else if (rule.ValueSource == TransactionValueSource.Formula && !string.IsNullOrWhiteSpace(rule.Formula))
+            {
+                decimal? computed = null;
+                string? breakdown = null;
+                try
+                {
+                    computed = _calcEngine.EvaluateFormula(rule.Formula, context);
+                    if (computed.HasValue)
+                    {
+                        breakdown = BuildFormulaBreakdown(rule.Formula, context, computed.Value);
+                        if (!string.IsNullOrEmpty(priceKey))
+                            context[priceKey] = computed.Value;
+                    }
+                }
+                catch { /* ignore */ }
+
+                rules.Add(new TransactionApplyRulePreview
+                {
+                    RuleId = rule.Id,
+                    PriceTypeId = rule.PriceTypeId,
+                    PriceTypeName = rule.PriceType.Name ?? "",
+                    ProductId = rule.ProductId,
+                    ProductName = rule.Product?.Name,
+                    ValueSource = rule.ValueSource,
+                    Formula = rule.Formula,
+                    ComputedValue = computed,
+                    FormulaBreakdown = breakdown
+                });
+            }
         }
 
         return new TransactionApplyPreview
@@ -238,5 +329,19 @@ public class OrderTransactionService : IOrderTransactionService
         }
 
         return true;
+    }
+
+    private static string BuildFormulaBreakdown(string formula, IReadOnlyDictionary<string, decimal> context, decimal result)
+    {
+        var expanded = formula;
+        foreach (var kv in context.OrderByDescending(x => x.Key.Length))
+        {
+            expanded = System.Text.RegularExpressions.Regex.Replace(
+                expanded,
+                $@"\b{System.Text.RegularExpressions.Regex.Escape(kv.Key)}\b",
+                kv.Value.ToString("G29", CultureInfo.InvariantCulture),
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        }
+        return $"{expanded} = {result.ToString("G29", CultureInfo.InvariantCulture)}";
     }
 }
