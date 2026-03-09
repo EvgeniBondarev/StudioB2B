@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -11,9 +12,11 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 {
     [DbContext(typeof(TenantDbContext))]
-    partial class TenantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260305165930_AddSyncJobHistoryInitiator")]
+    partial class AddSyncJobHistoryInitiator
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -740,6 +743,12 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<DateTime?>("DateFrom")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DateTo")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("ErrorMessage")
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
@@ -762,9 +771,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<int>("JobType")
                         .HasColumnType("int");
 
-                    b.Property<string>("ParametersJson")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("ResultJson")
                         .HasColumnType("longtext");
 
@@ -779,53 +785,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.HasIndex("HangfireJobId");
 
                     b.ToTable("SyncJobHistories", (string)null);
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.SyncJobSchedule", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("CreatedByEmail")
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
-                    b.Property<string>("CronDescription")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<string>("CronExpression")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<string>("HangfireRecurringJobId")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("JobType")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SyncParams")
-                        .HasColumnType("json");
-
-                    b.Property<DateTime>("UpdatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("HangfireRecurringJobId")
-                        .IsUnique()
-                        .HasFilter("HangfireRecurringJobId IS NOT NULL");
-
-                    b.ToTable("SyncJobSchedules");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.WarehouseInfo", b =>

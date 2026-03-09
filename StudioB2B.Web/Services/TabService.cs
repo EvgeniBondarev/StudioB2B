@@ -15,6 +15,7 @@ public class TabService
             ["/order-statuses"]      = ("Статусы",        "label"),
             ["/calculation-rules"]   = ("Расчёты",        "calculate"),
             ["/roles"]               = ("Роли",           "security"),
+            ["/chats"]               = ("Чаты",           "chat"),
         };
 
     private readonly List<TabEntry> _tabs = [];

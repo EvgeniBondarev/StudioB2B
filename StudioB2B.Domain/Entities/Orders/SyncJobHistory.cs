@@ -19,15 +19,17 @@ public class SyncJobHistory
 
     public DateTime? FinishedAtUtc { get; set; }
 
-    /// <summary>Начало периода (только для Sync).</summary>
-    public DateTime? DateFrom { get; set; }
+    /// <summary>Сериализованные параметры запуска задачи (JSON). Структура зависит от типа задачи.</summary>
+    public string? ParametersJson { get; set; }
 
-    /// <summary>Конец периода (только для Sync).</summary>
-    public DateTime? DateTo { get; set; }
-
-    /// <summary>Сериализованный OrderSyncSummary — заполняется после завершения.</summary>
+    /// <summary>Сериализованный результат — заполняется после завершения.</summary>
     public string? ResultJson { get; set; }
 
     public string? ErrorMessage { get; set; }
-}
 
+    /// <summary>Id пользователя, запустившего задачу (null — запуск по расписанию).</summary>
+    public Guid? InitiatedByUserId { get; set; }
+
+    /// <summary>Email пользователя, запустившего задачу (null — запуск по расписанию).</summary>
+    public string? InitiatedByEmail { get; set; }
+}

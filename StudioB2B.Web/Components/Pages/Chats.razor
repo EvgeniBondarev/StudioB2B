@@ -1,0 +1,1215 @@
+@page "/chats"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.EntityFrameworkCore
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Infrastructure.Features.Marketplace
+@using StudioB2B.Infrastructure.Integrations.Ozon.Models.Chat
+@using StudioB2B.Infrastructure.Services
+@using StudioB2B.Web.Helpers
+
+@inject ITenantProvider TenantProvider
+@inject ITenantDbContextFactory Factory
+@inject IOzonChatService ChatService
+@inject NotificationService NotificationService
+@inject IJSRuntime JSRuntime
+
+@implements IDisposable
+
+<link rel="stylesheet" href="css/chats.css" />
+
+<PageTitle>Чаты</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+{
+    <div class="chats-page-root">
+
+        <!-- Заголовок + фильтры -->
+        <div class="chats-top">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                         JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 0.6rem;">
+                <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Чаты</RadzenText>
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    @if (_totalUnread > 0)
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="@_totalUnread.ToString()" />
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color); margin:0;">непрочитанных</RadzenText>
+                    }
+                    <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                  Click="@RefreshAllAsync" IsBusy="@_loadingList" Text="Обновить" />
+                </RadzenStack>
+            </RadzenStack>
+
+            <!-- Фильтры -->
+            <RadzenCard Style="margin-bottom: 0.6rem; padding: 0.5rem 0.75rem;">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                             Gap="0.75rem" Wrap="FlexWrap.Wrap">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                        <RadzenLabel Text="Маркетплейс:" Style="white-space: nowrap;" />
+                        <RadzenDropDown TValue="Guid?" @bind-Value="_filterClientId"
+                                        Data="@_clientOptions"
+                                        TextProperty="Name" ValueProperty="Id"
+                                        Placeholder="Все"
+                                        AllowClear="true"
+                                        Style="width: 180px;"
+                                        Change="@OnFilterChanged" />
+                    </RadzenStack>
+
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                        <RadzenLabel Text="Статус:" Style="white-space: nowrap;" />
+                        <RadzenDropDown TValue="string?" @bind-Value="_filterStatus"
+                                        Data="@_statusOptions"
+                                        TextProperty="Label" ValueProperty="Value"
+                                        Placeholder="Все"
+                                        AllowClear="true"
+                                        Style="width: 130px;"
+                                        Change="@OnFilterChanged" />
+                    </RadzenStack>
+
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                        <RadzenLabel Text="Тип:" Style="white-space: nowrap;" />
+                        <RadzenDropDown TValue="string?" @bind-Value="_filterType"
+                                        Data="@_typeOptions"
+                                        TextProperty="Label" ValueProperty="Value"
+                                        Placeholder="Все"
+                                        AllowClear="true"
+                                        Style="width: 200px;"
+                                        Change="@OnFilterChanged" />
+                    </RadzenStack>
+
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                        <RadzenCheckBox TValue="bool" @bind-Value="_filterUnreadOnly"
+                                        Change="@OnUnreadFilterChanged" />
+                        <RadzenLabel Text="Только непрочитанные" Style="cursor: pointer;" />
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenCard>
+        </div>
+
+        <!-- Двухколоночный layout -->
+        <div class="chats-layout">
+
+        <!-- Left panel: chat list -->
+        <div class="chat-list-panel">
+            @if (_loadingList && !_chats.Any())
+            {
+                <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
+                             Style="flex: 1; padding: 2rem;">
+                    <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate"
+                                              Size="ProgressBarCircularSize.Medium" />
+                </RadzenStack>
+            }
+            else if (!_chats.Any())
+            {
+                <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
+                             Style="flex: 1; padding: 2rem; gap: 0.5rem;">
+                    <RadzenIcon Icon="chat_bubble_outline"
+                                Style="font-size: 2.5rem; color: var(--rz-text-secondary-color);" />
+                    <RadzenText TextStyle="TextStyle.Body2"
+                                Style="color: var(--rz-text-secondary-color); text-align: center;">
+                        Чатов не найдено
+                    </RadzenText>
+                </RadzenStack>
+            }
+            else
+            {
+                <div class="chat-list-scroll" id="chat-list-scroll">
+                    @foreach (var chat in _chats)
+                    {
+                        var isSelected = _selectedChat?.ChatId == chat.ChatId &&
+                                         _selectedChat?.MarketplaceClientId == chat.MarketplaceClientId;
+                        var cardClass = isSelected ? "chat-item-card selected" : "chat-item-card";
+                        <RadzenCard @key="@(chat.MarketplaceClientId + "_" + chat.ChatId)"
+                                    Class="@cardClass"
+                                    @onclick="@(() => SelectChatAsync(chat))">
+
+                            <div class="chat-item-header">
+                                <span class="chat-item-client" title="@chat.MarketplaceClientName">
+                                    @chat.MarketplaceClientName
+                                </span>
+                                <div class="chat-item-right">
+                                    @if (chat.UnreadCount > 0)
+                                    {
+                                        <RadzenBadge BadgeStyle="BadgeStyle.Danger"
+                                                     Text="@chat.UnreadCount.ToString()"
+                                                     Style="font-size: 0.65rem; padding: 2px 6px;" />
+                                    }
+                                    <span class="chat-item-date"
+                                          title="@chat.LastMessageAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">
+                                        @FormatTimeAgo(chat.LastMessageAt)
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="chat-item-badges">
+                                <RadzenBadge BadgeStyle="@GetStatusBadgeStyle(chat.ChatStatus)"
+                                             Text="@GetStatusLabel(chat.ChatStatus)"
+                                             Style="font-size: 0.65rem; padding: 2px 6px;" />
+                                <RadzenBadge BadgeStyle="@GetTypeBadgeStyle(chat.ChatType)"
+                                             Text="@GetTypeLabel(chat.ChatType)"
+                                             Style="font-size: 0.65rem; padding: 2px 6px;" />
+                            </div>
+                        </RadzenCard>
+                    }
+
+                    @if (_hasMoreChats)
+                    {
+                        <div class="chat-load-more">
+                            @if (_loadingMore)
+                            {
+                                <RadzenProgressBarCircular ShowValue="false" Size="ProgressBarCircularSize.Small" />
+                                <span>Загрузка...</span>
+                            }
+                            else
+                            {
+                                <RadzenButton Text="Загрузить ещё"
+                                              ButtonStyle="ButtonStyle.Secondary"
+                                              Variant="Variant.Filled"
+                                              Size="ButtonSize.Small"
+                                              Icon="expand_more"
+                                              Click="@LoadMoreChatsAsync" />
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Right panel: chat window -->
+        <div class="chat-window-panel">
+            @if (_selectedChat is null)
+            {
+                <div class="chat-empty-state">
+                    <RadzenIcon Icon="forum" Style="font-size: 3rem;" />
+                    <RadzenText TextStyle="TextStyle.H6"
+                                Style="color: var(--rz-text-secondary-color);">
+                        Выберите чат из списка
+                    </RadzenText>
+                </div>
+            }
+            else
+            {
+                <!-- Chat header -->
+                <div class="chat-window-header">
+                    <RadzenStack Orientation="Orientation.Vertical" Gap="0.2rem">
+                        <RadzenText TextStyle="TextStyle.Subtitle1" Style="margin: 0; font-weight: 600;">
+                            @_selectedChat.MarketplaceClientName
+                        </RadzenText>
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                            <RadzenBadge BadgeStyle="@GetStatusBadgeStyle(_selectedChat.ChatStatus)"
+                                         Text="@GetStatusLabel(_selectedChat.ChatStatus)"
+                                         Style="font-size: 0.65rem;" />
+                            <RadzenBadge BadgeStyle="@GetTypeBadgeStyle(_selectedChat.ChatType)"
+                                         Text="@GetTypeLabel(_selectedChat.ChatType)"
+                                         Style="font-size: 0.65rem;" />
+                        </RadzenStack>
+                    </RadzenStack>
+
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        @if (_selectedChat.UnreadCount > 0)
+                        {
+                            <RadzenButton Text="Все прочитаны" Icon="done_all"
+                                          ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small"
+                                          Variant="Variant.Outlined"
+                                          Click="@MarkAllReadAsync"
+                                          IsBusy="@_markingRead" />
+                        }
+                        <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                      Click="@RefreshHistoryAsync" IsBusy="@_loadingHistory" />
+                    </RadzenStack>
+                </div>
+
+                <!-- Messages -->
+                <div class="chat-messages-area" id="chat-messages-container">
+                    @if (_loadingHistory && !_messages.Any())
+                    {
+                        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
+                                     Style="flex: 1;">
+                            <RadzenProgressBarCircular ShowValue="false"
+                                                       Mode="ProgressBarMode.Indeterminate"
+                                                       Size="ProgressBarCircularSize.Medium" />
+                        </RadzenStack>
+                    }
+                    else if (!_messages.Any())
+                    {
+                        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
+                                     Style="flex: 1; gap: 0.5rem;">
+                            <RadzenIcon Icon="chat_bubble_outline"
+                                        Style="font-size: 2rem; color: var(--rz-text-secondary-color);" />
+                            <RadzenText TextStyle="TextStyle.Caption"
+                                        Style="color: var(--rz-text-secondary-color);">
+                                Нет сообщений
+                            </RadzenText>
+                        </RadzenStack>
+                    }
+                    else
+                    {
+                        @foreach (var msg in _messages)
+                        {
+                            var isSeller   = IsSellerMessage(msg);
+                            var senderLabel = GetSenderLabel(msg);
+                            var avatarClass = isSeller ? "chat-avatar seller" : "chat-avatar customer";
+                            var avatarLetter = isSeller ? "П" : "К";   // Продавец / Клиент
+                            var rowClass = "chat-message-row " + (isSeller ? "from-seller" : "");
+                            <div @key="msg.MessageId" class="@rowClass">
+
+                                <!-- Аватар -->
+                                <div class="@avatarClass" title="@senderLabel">@avatarLetter</div>
+
+                                <!-- Обёртка: имя + пузырь + мета -->
+                                <div class="chat-bubble-wrap">
+
+                                    <!-- Имя отправителя -->
+                                    <div class="chat-message-sender">@senderLabel</div>
+
+                                    <!-- Пузырь сообщения -->
+                                    <div class="chat-message-bubble @(isSeller ? "from-seller" : "from-customer")">
+                                        @if (msg.IsImage)
+                                        {
+                                            @foreach (var d in msg.Data)
+                                            {
+                                                @if (!string.IsNullOrWhiteSpace(d))
+                                                {
+                                                    var imgSrc = GetImageSrc(d);
+                                                    <img class="chat-message-image"
+                                                         src="@imgSrc"
+                                                         alt="изображение"
+                                                         loading="lazy"
+                                                         @onclick="@(() => OpenLightbox(imgSrc))"
+                                                         title="Нажмите для просмотра" />
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            @foreach (var d in msg.Data)
+                                            {
+                                                @if (IsFileData(d))
+                                                {
+                                                    var fname = GetFileName(d);
+                                                    var furl  = GetFileDownloadUrl(d);
+                                                    <div class="chat-file-link">
+                                                        <RadzenIcon Icon="@GetFileIcon(fname)"
+                                                                    Style="font-size: 1.1rem; flex-shrink: 0;" />
+                                                        <a href="@furl" target="_blank"
+                                                           style="font-size: 0.83rem; word-break: break-all;">
+                                                            @fname
+                                                        </a>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="chat-md">@MarkdownHelper.ToMarkup(d)</div>
+                                                }
+                                            }
+                                        }
+                                    </div>
+
+                                    <!-- Время + статус прочтения -->
+                                    <div class="chat-message-meta">
+                                        <span class="chat-message-time">
+                                            @msg.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                        </span>
+                                        @if (msg.IsRead)
+                                        {
+                                            <RadzenIcon Icon="done_all"
+                                                        Style="font-size: 0.7rem; color: var(--rz-success);"
+                                                        title="Прочитано" />
+                                        }
+                                        else
+                                        {
+                                            <span class="chat-unread-dot" title="Не прочитано"></span>
+                                            <RadzenButton Text="Прочитать"
+                                                          Icon="done"
+                                                          ButtonStyle="ButtonStyle.Secondary"
+                                                          Variant="Variant.Outlined"
+                                                          Size="ButtonSize.ExtraSmall"
+                                                          Class="chat-read-btn"
+                                                          Click="@(() => MarkMessageReadAsync(msg))" />
+                                        }
+                                    </div>
+
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <!-- Input footer -->
+                @if (_selectedChat.ChatStatus == "OPENED")
+                {
+                    <div class="chat-input-footer">
+
+                        <!-- Шаблонные ответы -->
+                        <div class="chat-quick-replies">
+                            @foreach (var tpl in _quickReplies)
+                            {
+                                <button class="chat-quick-reply-chip" @onclick="@(() => ApplyTemplate(tpl))">
+                                    @tpl
+                                </button>
+                            }
+                        </div>
+
+                        @if (_attachedFile is not null)
+                        {
+                            <div class="chat-attachment-preview">
+                                <RadzenIcon Icon="attach_file" Style="font-size: 0.9rem;" />
+                                <span>@_attachedFile.Name (@FormatFileSize(_attachedFile.Size))</span>
+                                <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger"
+                                              Variant="Variant.Text" Size="ButtonSize.ExtraSmall"
+                                              Style="padding: 0; margin-left: auto;"
+                                              Click="@ClearAttachment" />
+                            </div>
+                        }
+
+                        <div class="chat-input-row">
+                        <div id="chat-input-wrap" style="flex: 1;">
+                            <RadzenTextArea @bind-Value="_messageText"
+                                            Rows="2"
+                                            Placeholder="Введите сообщение…"
+                                            Class="chat-textarea"
+                                            MaxLength="1000"
+                                            Style="width: 100%; resize: none;" />
+                        </div>
+
+                            <RadzenStack Orientation="Orientation.Vertical" Gap="0.3rem">
+                                <RadzenButton Icon="send" ButtonStyle="ButtonStyle.Primary"
+                                              Size="ButtonSize.Small"
+                                              Click="@SendMessageAsync"
+                                              IsBusy="@_sending"
+                                              Disabled="@(!CanSend)"
+                                              Title="Отправить" />
+
+                                <label title="Прикрепить файл (JPG, PNG, PDF, DOC, DOCX, TXT — до 10 МБ)"
+                                       style="cursor: pointer;">
+                                    <RadzenButton Icon="attach_file" ButtonStyle="ButtonStyle.Light"
+                                                  Size="ButtonSize.Small"
+                                                  Click="@TriggerFilePicker" />
+                                </label>
+                            </RadzenStack>
+                        </div>
+
+                        <div class="char-counter @(_messageText.Length > 1000 ? "over-limit" : "")">
+                            @_messageText.Length / 1000
+                        </div>
+
+                        <!-- Hidden file input -->
+                        <InputFile id="chat-file-input"
+                                   accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.txt"
+                                   OnChange="@OnFileSelected"
+                                   style="display: none;" />
+                    </div>
+                }
+                else
+                {
+                    <div style="padding: 0.5rem 1rem; border-top: 1px solid var(--rz-border-color);">
+                        <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false"
+                                     Style="margin: 0;">
+                            Чат закрыт — отправка сообщений недоступна.
+                        </RadzenAlert>
+                    </div>
+                }
+            }
+        </div>
+    </div>  <!-- /.chats-layout -->
+
+    @if (_lightboxSrc is not null)
+    {
+        <div class="lightbox-overlay" @onclick="CloseLightbox">
+            <button class="lightbox-close" @onclick:stopPropagation="true" @onclick="CloseLightbox"
+                    title="Закрыть (Esc)">
+                <RadzenIcon Icon="close" />
+            </button>
+            <img class="lightbox-image"
+                 src="@_lightboxSrc"
+                 alt="изображение"
+                 @onclick:stopPropagation="true" />
+        </div>
+    }
+
+    </div>  <!-- /.chats-page-root -->
+}
+
+@code {
+    // ── State ─────────────────────────────────────────────────────────────────
+    private List<OzonChatViewModel> _chats = new();
+    private OzonChatViewModel? _selectedChat;
+    private List<OzonChatMessage> _messages = new();
+
+    private bool _loadingList;
+    private bool _loadingMore;
+    private bool _loadingHistory;
+    private bool _sending;
+    private bool _markingRead;
+
+    // Пагинация чатов
+    private string? _nextCursor;
+    private bool _hasMoreChats;
+
+    private string _messageText = string.Empty;
+    private string? _lightboxSrc;
+
+    private static readonly string[] _quickReplies =
+    [
+        "Здравствуйте!",
+        "Здравствуйте, для проверки необходим VIN номер Вашего авто",
+        "Заявка на рассмотрении, ожидайте",
+        "Оформите возврат"
+    ];
+
+    private void ApplyTemplate(string text) => _messageText = text;
+
+    private void OpenLightbox(string src) { _lightboxSrc = src; }
+    private void CloseLightbox() { _lightboxSrc = null; }
+    private IBrowserFile? _attachedFile;
+    private string? _attachedBase64;
+
+    // Polling guard flags
+    private bool _isRefreshingList;
+    private bool _isRefreshingHistory;
+
+    private Timer? _pollingTimer;
+    private int _totalUnread;
+
+    // Filters
+    private Guid? _filterClientId;
+    private string? _filterStatus;
+    private string? _filterType;
+    private bool _filterUnreadOnly;
+
+    private List<ClientOption> _clientOptions = new();
+
+    private static readonly List<LabelValue> _statusOptions =
+    [
+        new LabelValue("Открыт",  "OPENED"),
+        new LabelValue("Закрыт",  "CLOSED"),
+    ];
+
+    private static readonly List<LabelValue> _typeOptions =
+    [
+        new LabelValue("Покупатель — Продавец", "BUYER_SELLER"),
+        new LabelValue("Продавец — Поддержка",  "SELLER_SUPPORT"),
+        new LabelValue("Не определён",          "UNSPECIFIED"),
+    ];
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync()
+    {
+        if (!TenantProvider.IsResolved) return;
+
+        await LoadClientOptionsAsync();
+        await LoadChatsAsync();
+
+        _pollingTimer = new Timer(
+            callback: _ => InvokeAsync(PollAsync),
+            state: null,
+            dueTime: TimeSpan.FromSeconds(30),
+            period: TimeSpan.FromSeconds(30));
+    }
+
+    public void Dispose()
+    {
+        _pollingTimer?.Dispose();
+        _dotNetRef?.Dispose();
+    }
+
+    private DotNetObjectReference<Chats>? _dotNetRef;
+    private bool _keyHandlerRegistered;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_keyHandlerRegistered)
+        {
+            _keyHandlerRegistered = true;
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JSRuntime.InvokeVoidAsync("window.__registerChatEscape", _dotNetRef);
+        }
+    }
+
+    [JSInvokable]
+    public void HandleKeyEscape()
+    {
+        if (_lightboxSrc is not null)
+        {
+            CloseLightbox();
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    // ── Data loading ──────────────────────────────────────────────────────────
+    private async Task LoadClientOptionsAsync()
+    {
+        try
+        {
+            await using var db = Factory.CreateDbContext();
+            _clientOptions = await db.MarketplaceClients!
+                .AsNoTracking()
+                .Where(c => !c.IsDeleted)
+                .OrderBy(c => c.Name)
+                .Select(c => new ClientOption { Id = c.Id, Name = c.Name })
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 4000);
+        }
+    }
+
+    private async Task LoadChatsAsync()
+    {
+        _loadingList = true;
+        _nextCursor  = null;
+        _hasMoreChats = false;
+        StateHasChanged();
+        try
+        {
+            var page = await ChatService.GetChatsPageAsync(
+                pageSize: 20,
+                cursor: null,
+                chatStatus: _filterStatus,
+                chatType: _filterType,
+                unreadOnly: _filterUnreadOnly,
+                marketplaceClientId: _filterClientId);
+
+            _chats        = page.Chats;
+            _nextCursor   = page.NextCursor;
+            _hasMoreChats = page.HasMore;
+            _totalUnread  = _chats.Sum(c => c.UnreadCount);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка загрузки чатов", ex.Message, 5000);
+        }
+        finally
+        {
+            _loadingList = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadMoreChatsAsync()
+    {
+        if (_loadingMore || !_hasMoreChats || _nextCursor is null) return;
+
+        _loadingMore = true;
+        StateHasChanged();
+        try
+        {
+            var page = await ChatService.GetChatsPageAsync(
+                pageSize: 20,
+                cursor: _nextCursor,
+                chatStatus: _filterStatus,
+                chatType: _filterType,
+                unreadOnly: _filterUnreadOnly,
+                marketplaceClientId: _filterClientId);
+
+            _chats.AddRange(page.Chats);
+            _nextCursor   = page.NextCursor;
+            _hasMoreChats = page.HasMore;
+            _totalUnread  = _chats.Sum(c => c.UnreadCount);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка загрузки чатов", ex.Message, 5000);
+        }
+        finally
+        {
+            _loadingMore = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        if (_selectedChat is null) return;
+
+        _loadingHistory = true;
+        StateHasChanged();
+        try
+        {
+            var result = await ChatService.GetChatHistoryAsync(
+                _selectedChat.MarketplaceClientId,
+                _selectedChat.ChatId,
+                direction: "Backward",
+                limit: 50);
+
+            if (result is not null)
+            {
+                // Backward = newest first → reverse for display (oldest at top)
+                _messages = result.Messages
+                    .OrderBy(m => m.CreatedAt)
+                    .ToList();
+
+                // Обновляем время последнего сообщения в карточке чата
+                if (_messages.Count > 0 && _selectedChat is not null)
+                    _selectedChat.LastMessageAt = _messages[^1].CreatedAt;
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка загрузки истории", ex.Message, 5000);
+        }
+        finally
+        {
+            _loadingHistory = false;
+            StateHasChanged();
+            await ScrollToBottomAsync();
+        }
+    }
+
+    // ── Polling ───────────────────────────────────────────────────────────────
+    private async Task PollAsync()
+    {
+        await PollListAsync();
+        await PollHistoryAsync();
+    }
+
+    private async Task PollListAsync()
+    {
+        if (_isRefreshingList) return;
+        _isRefreshingList = true;
+        try
+        {
+            var page = await ChatService.GetChatsPageAsync(
+                pageSize: 20,
+                cursor: null,
+                chatStatus: _filterStatus,
+                chatType: _filterType,
+                unreadOnly: _filterUnreadOnly,
+                marketplaceClientId: _filterClientId);
+
+            foreach (var f in page.Chats)
+            {
+                var existing = _chats.FirstOrDefault(
+                    c => c.ChatId == f.ChatId && c.MarketplaceClientId == f.MarketplaceClientId);
+                if (existing is not null)
+                {
+                    existing.UnreadCount  = f.UnreadCount;
+                    existing.LastMessageAt = f.LastMessageAt;
+                }
+                else
+                    _chats.Insert(0, f);
+            }
+
+            _totalUnread = _chats.Sum(c => c.UnreadCount);
+            StateHasChanged();
+        }
+        catch { /* Silently ignore polling errors */ }
+        finally
+        {
+            _isRefreshingList = false;
+        }
+    }
+
+    private async Task PollHistoryAsync()
+    {
+        if (_selectedChat is null || _isRefreshingHistory) return;
+        _isRefreshingHistory = true;
+        try
+        {
+            // Fetch only newer messages using the last known message id, direction Forward
+            ulong? fromId = _messages.Count > 0 ? _messages[^1].MessageId : null;
+
+            var direction = fromId.HasValue ? "Forward" : "Backward";
+            var result = await ChatService.GetChatHistoryAsync(
+                _selectedChat.MarketplaceClientId,
+                _selectedChat.ChatId,
+                direction: direction,
+                fromMessageId: fromId,
+                limit: 50);
+
+            if (result?.Messages is { Count: > 0 } newMessages)
+            {
+                var existingIds = _messages.Select(m => m.MessageId).ToHashSet();
+                var toAdd = newMessages
+                    .Where(m => !existingIds.Contains(m.MessageId))
+                    .OrderBy(m => m.CreatedAt)
+                    .ToList();
+
+                if (toAdd.Count > 0)
+                {
+                    _messages.AddRange(toAdd);
+                    StateHasChanged();
+                    await ScrollToBottomAsync();
+                }
+            }
+        }
+        catch { /* Silently ignore polling errors */ }
+        finally
+        {
+            _isRefreshingHistory = false;
+        }
+    }
+
+    // ── User actions ──────────────────────────────────────────────────────────
+    private async Task SelectChatAsync(OzonChatViewModel chat)
+    {
+        _selectedChat = chat;
+        _messages.Clear();
+        _messageText = string.Empty;
+        _attachedFile = null;
+        _attachedBase64 = null;
+        await LoadHistoryAsync();
+        await AutoMarkReadAsync();
+    }
+
+    private async Task RefreshAllAsync()
+    {
+        await LoadChatsAsync();
+        if (_selectedChat is not null)
+            await LoadHistoryAsync();
+    }
+
+    private async Task RefreshHistoryAsync()
+    {
+        await LoadHistoryAsync();
+    }
+
+    private async Task OnFilterChanged(object? _)
+    {
+        _selectedChat = null;
+        _messages.Clear();
+        await LoadChatsAsync();
+    }
+
+    private async Task OnUnreadFilterChanged(bool _)
+    {
+        _selectedChat = null;
+        _messages.Clear();
+        await LoadChatsAsync();
+    }
+
+    private async Task SendMessageAsync()
+    {
+        if (_selectedChat is null) return;
+
+        if (_attachedFile is not null && _attachedBase64 is not null)
+        {
+            await SendFileInternalAsync();
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_messageText) || _messageText.Length > 1000) return;
+
+        _sending = true;
+        StateHasChanged();
+        try
+        {
+            var (ok, error) = await ChatService.SendMessageAsync(
+                _selectedChat.MarketplaceClientId,
+                _selectedChat.ChatId,
+                _messageText.Trim());
+
+            if (ok)
+            {
+                _messageText = string.Empty;
+                await Task.Delay(600);
+                await LoadHistoryAsync();
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Не удалось отправить сообщение.", 6000);
+            }
+        }
+        finally
+        {
+            _sending = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SendFileInternalAsync()
+    {
+        if (_selectedChat is null || _attachedFile is null || _attachedBase64 is null) return;
+
+        _sending = true;
+        StateHasChanged();
+        try
+        {
+            var (ok, error) = await ChatService.SendFileAsync(
+                _selectedChat.MarketplaceClientId,
+                _selectedChat.ChatId,
+                _attachedBase64,
+                _attachedFile.Name);
+
+            if (ok)
+            {
+                _attachedFile = null;
+                _attachedBase64 = null;
+                _messageText = string.Empty;
+                await Task.Delay(600);
+                await LoadHistoryAsync();
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Не удалось отправить файл.", 6000);
+            }
+        }
+        finally
+        {
+            _sending = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AutoMarkReadAsync()
+    {
+        if (_selectedChat is null || _selectedChat.UnreadCount == 0) return;
+        if (_messages.Count == 0) return;
+
+        var lastId = _messages[^1].MessageId;
+        try
+        {
+            var unread = await ChatService.MarkReadAsync(
+                _selectedChat.MarketplaceClientId,
+                _selectedChat.ChatId,
+                lastId);
+
+            _selectedChat.UnreadCount = unread;
+            foreach (var m in _messages) m.IsRead = true;
+            _totalUnread = _chats.Sum(c => c.UnreadCount);
+        }
+        catch { /* не мешаем открытию чата при ошибке */ }
+    }
+
+    private async Task MarkAllReadAsync()
+    {
+        if (_selectedChat is null) return;
+
+        // Use last message id if available
+        ulong? fromId = _messages.Count > 0 ? _messages[^1].MessageId : null;
+
+        _markingRead = true;
+        StateHasChanged();
+        try
+        {
+            var unread = await ChatService.MarkReadAsync(
+                _selectedChat.MarketplaceClientId,
+                _selectedChat.ChatId,
+                fromId);
+
+            _selectedChat.UnreadCount = unread;
+            // Mark all messages as read locally
+            foreach (var m in _messages) m.IsRead = true;
+            _totalUnread = _chats.Sum(c => c.UnreadCount);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 4000);
+        }
+        finally
+        {
+            _markingRead = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task MarkMessageReadAsync(OzonChatMessage msg)
+    {
+        if (_selectedChat is null) return;
+
+        try
+        {
+            var unread = await ChatService.MarkReadAsync(
+                _selectedChat.MarketplaceClientId,
+                _selectedChat.ChatId,
+                msg.MessageId);
+
+            // Mark this and all earlier messages as read
+            var msgTime = msg.CreatedAt;
+            foreach (var m in _messages.Where(m => m.CreatedAt <= msgTime))
+                m.IsRead = true;
+
+            _selectedChat.UnreadCount = unread;
+            _totalUnread = _chats.Sum(c => c.UnreadCount);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 4000);
+        }
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        const long maxSize = 10 * 1024 * 1024; // 10 MB
+
+        var file = e.File;
+        if (file.Size > maxSize)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Файл слишком большой",
+                "Максимальный размер файла — 10 МБ.", 5000);
+            return;
+        }
+
+        var allowed = new[] { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".txt" };
+        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+        if (!allowed.Contains(ext))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Неподдерживаемый формат",
+                "Допустимые форматы: JPG, PNG, PDF, DOC, DOCX, TXT.", 5000);
+            return;
+        }
+
+        try
+        {
+            using var ms = new MemoryStream();
+            await using var stream = file.OpenReadStream(maxSize);
+            await stream.CopyToAsync(ms);
+            _attachedBase64 = Convert.ToBase64String(ms.ToArray());
+            _attachedFile = file;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка чтения файла", ex.Message, 4000);
+        }
+    }
+
+    private async Task TriggerFilePicker()
+    {
+        await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('chat-file-input').click()");
+    }
+
+    private void ClearAttachment()
+    {
+        _attachedFile = null;
+        _attachedBase64 = null;
+    }
+
+
+    private async Task ScrollToBottomAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval",
+                "var el = document.getElementById('chat-messages-container'); if(el) el.scrollTop = el.scrollHeight;");
+        }
+        catch { /* ignore */ }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    private bool CanSend =>
+        _selectedChat is not null &&
+        !_sending &&
+        (_attachedFile is not null || (!string.IsNullOrWhiteSpace(_messageText) && _messageText.Length <= 1000));
+
+    private static string TruncateId(string id) =>
+        id.Length > 24 ? id[..12] + "…" + id[^8..] : id;
+
+    private static bool IsSellerMessage(OzonChatMessage msg) =>
+        msg.User?.Type is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT";
+
+    private static string GetSenderLabel(OzonChatMessage msg) =>
+        msg.User?.Type switch
+        {
+            "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT" => "Продавец",
+            // Ozon sometimes sends Cyrillic "С" (U+0421) instead of Latin "C"
+            "Customer" or "Сustomer" or "customer" or "BUYER"            => "Покупатель",
+            "Support"                                                     => "Поддержка Ozon",
+            _                                                             => msg.User?.Type ?? "Система"
+        };
+
+    private static string FormatTimeAgo(DateTime utcTime)
+    {
+        var diff = DateTime.UtcNow - utcTime;
+        if (diff.TotalSeconds < 60)   return "только что";
+        if (diff.TotalMinutes < 60)   return $"{(int)diff.TotalMinutes} мин. назад";
+        if (diff.TotalHours < 24)     return $"{(int)diff.TotalHours} ч. назад";
+        if (diff.TotalDays < 2)       return "вчера";
+        if (diff.TotalDays < 7)       return $"{(int)diff.TotalDays} дн. назад";
+        return utcTime.ToLocalTime().ToString("dd.MM.yyyy");
+    }
+
+    private static string GetStatusLabel(string? status) => status switch
+    {
+        "OPENED" => "Открыт",
+        "CLOSED" => "Закрыт",
+        _        => status ?? "—"
+    };
+
+    private static BadgeStyle GetStatusBadgeStyle(string? status) => status switch
+    {
+        "OPENED" => BadgeStyle.Success,
+        "CLOSED" => BadgeStyle.Light,
+        _        => BadgeStyle.Secondary
+    };
+
+    private static string GetTypeLabel(string? type) => type switch
+    {
+        "BUYER_SELLER"   => "Покупатель — Продавец",
+        "SELLER_SUPPORT" => "Продавец — Поддержка",
+        "UNSPECIFIED"    => "Не определён",
+        // legacy / fallback
+        "Seller_Support" => "Продавец — Поддержка",
+        "Customer"       => "Покупатель — Продавец",
+        _                => type ?? "—"
+    };
+
+    private static BadgeStyle GetTypeBadgeStyle(string? type) => type switch
+    {
+        "BUYER_SELLER"   => BadgeStyle.Warning,
+        "SELLER_SUPPORT" => BadgeStyle.Info,
+        "UNSPECIFIED"    => BadgeStyle.Light,
+        "Seller_Support" => BadgeStyle.Info,
+        "Customer"       => BadgeStyle.Warning,
+        _                => BadgeStyle.Secondary
+    };
+
+    /// Ozon возвращает data[] в формате:
+    ///   "data:image/jpeg;base64,![](<url>)"  — для картинок/файлов
+    ///   "обычный текст сообщения"             — для текста
+    /// Извлекаем URL из этого формата.
+    /// Извлекает URL вложения из форматов которые использует Ozon в data[]:
+    ///   "data:image/jpeg;base64,![](<url>)"     — картинка с data-префиксом
+    ///   "data:image/jpeg;base64,![текст](<url>)" — картинка с именем
+    ///   "[имя файла (размер)](<url>)"            — файл без data-префикса
+    /// Возвращает null если это обычный текст (даже с ссылками).
+    private static string? ExtractOzonFileUrl(string data)
+    {
+        if (string.IsNullOrWhiteSpace(data)) return null;
+
+        // Ищем паттерн [...](url) — Markdown-ссылка
+        var bracketOpen = data.IndexOf('[');
+        if (bracketOpen >= 0)
+        {
+            var bracketClose = data.IndexOf(']', bracketOpen);
+            if (bracketClose >= 0 && bracketClose + 1 < data.Length && data[bracketClose + 1] == '(')
+            {
+                var parenOpen  = bracketClose + 1;
+                var parenClose = data.IndexOf(')', parenOpen);
+                if (parenClose > parenOpen)
+                {
+                    var url = data[(parenOpen + 1)..parenClose].Trim();
+                    if (IsOzonChatFileUrl(url)) return url;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// Проверяет что URL является ссылкой на файл чата Ozon (требует авторизации)
+    private static bool IsOzonChatFileUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return false;
+        try
+        {
+            var uri = new Uri(url);
+            return uri.Host.Equals("api-seller.ozon.ru", StringComparison.OrdinalIgnoreCase)
+                   && uri.AbsolutePath.Contains("/chat/file/", StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
+
+    /// Извлекает имя файла из строки Ozon:
+    ///   "[video_2026-02-27.mp4 (15 MB)](url)" → "video_2026-02-27.mp4"
+    ///   "https://.../file.mp4"                → "file.mp4"
+    private static string ExtractOzonFileName(string data)
+    {
+        // Паттерн [текст](url) — берём текст из скобок, убираем "(размер)"
+        var bracketOpen  = data.IndexOf('[');
+        var bracketClose = bracketOpen >= 0 ? data.IndexOf(']', bracketOpen) : -1;
+        if (bracketOpen >= 0 && bracketClose > bracketOpen)
+        {
+            var label = data[(bracketOpen + 1)..bracketClose].Trim();
+            // Убираем " (размер)" в конце: "video.mp4 (15 MB)" → "video.mp4"
+            var parenIdx = label.LastIndexOf(" (");
+            if (parenIdx > 0) label = label[..parenIdx].Trim();
+            if (!string.IsNullOrWhiteSpace(label)) return label;
+        }
+
+        // Fallback — из URL
+        var url = ExtractOzonFileUrl(data) ?? data;
+        try
+        {
+            var path = new Uri(url).AbsolutePath;
+            var name = Path.GetFileName(path);
+            return string.IsNullOrWhiteSpace(name) ? "файл" : Uri.UnescapeDataString(name);
+        }
+        catch { return "файл"; }
+    }
+
+    private string GetProxyUrl(string fileUrl, string? fileName = null)
+    {
+        if (_selectedChat is null) return fileUrl;
+        var encoded = Uri.EscapeDataString(fileUrl);
+        var clientId = _selectedChat.MarketplaceClientId;
+        var url = $"/api/chat/file?url={encoded}&clientId={clientId}";
+        if (!string.IsNullOrWhiteSpace(fileName))
+            url += $"&name={Uri.EscapeDataString(fileName)}";
+        return url;
+    }
+
+    private string GetImageSrc(string data)
+    {
+        if (string.IsNullOrWhiteSpace(data)) return string.Empty;
+
+        var url = ExtractOzonFileUrl(data);
+        if (url is not null) return GetProxyUrl(url);
+
+        // Pure base64
+        var mime = data.Length > 10 && data[0] == '/' ? "image/jpeg"
+                 : data.Length > 10 && data.StartsWith("iVBOR") ? "image/png"
+                 : "image/jpeg";
+        return $"data:{mime};base64,{data}";
+    }
+
+    private static bool IsFileData(string data) =>
+        ExtractOzonFileUrl(data) is not null;
+
+    private static string GetFileName(string data) => ExtractOzonFileName(data);
+
+    private string GetFileDownloadUrl(string data)
+    {
+        var url = ExtractOzonFileUrl(data);
+        if (url is not null)
+            return GetProxyUrl(url, ExtractOzonFileName(data));
+        return data;
+    }
+
+    private static string GetFileIcon(string fileName)
+    {
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        return ext switch
+        {
+            ".pdf"                          => "picture_as_pdf",
+            ".doc" or ".docx"               => "description",
+            ".txt"                          => "article",
+            ".jpg" or ".jpeg" or ".png"
+                or ".gif" or ".webp"        => "image",
+            ".mp4" or ".avi" or ".mov"
+                or ".mkv" or ".webm"        => "videocam",
+            ".mp3" or ".ogg" or ".wav"      => "audio_file",
+            ".zip" or ".rar" or ".7z"       => "folder_zip",
+            _                               => "attach_file"
+        };
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} Б";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024} КБ";
+        return $"{bytes / (1024 * 1024.0):F1} МБ";
+    }
+
+    // ── Helper types ──────────────────────────────────────────────────────────
+    private sealed class LabelValue
+    {
+        public LabelValue(string label, string value) { Label = label; Value = value; }
+        public string Label { get; set; }
+        public string Value { get; set; }
+    }
+
+    private sealed class ClientOption
+    {
+        public Guid   Id   { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+}
+

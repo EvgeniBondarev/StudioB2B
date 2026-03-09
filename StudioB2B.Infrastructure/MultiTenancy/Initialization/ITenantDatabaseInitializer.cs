@@ -3,6 +3,8 @@
 public interface ITenantDatabaseInitializer
 {
     Task MigrateAndSeedAsync(string connectionString, CancellationToken ct);
+    /// <summary>Применяет только pending миграции без seed — для уже существующих тенантов.</summary>
+    Task MigrateOnlyAsync(string connectionString, CancellationToken ct);
     Task CreateAdminUserAsync(string connectionString, string email, string password, CancellationToken ct);
     Task DropDatabaseAsync(string connectionString, CancellationToken ct);
 }
