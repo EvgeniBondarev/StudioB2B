@@ -1,0 +1,327 @@
+@page "/orders/apply-transaction"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.EntityFrameworkCore
+@using Radzen
+@using StudioB2B.Application.Common
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Infrastructure.Features.Orders
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
+
+@inject ITenantProvider TenantProvider
+@inject ITenantDbContextFactory Factory
+@inject IOrderTransactionService TransactionService
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
+
+@implements IDisposable
+
+<PageTitle>Транзакция заказов</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else if (_loading)
+{
+    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 200px;">
+        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
+    </RadzenStack>
+}
+else if (_orderIds.Count == 0)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
+        Не указаны заказы. Выберите заказы на странице <a href="/orders">Заказы</a> и нажмите «Применить транзакцию».
+    </RadzenAlert>
+}
+else if (_orders.Count == 0)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
+        Заказы не найдены.
+    </RadzenAlert>
+}
+else if (_statusGroups > 1)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
+        Выбранные заказы имеют разные системные статусы. Выберите заказы с одинаковым статусом.
+    </RadzenAlert>
+}
+else if (_preview == null)
+{
+    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+            Выберите транзакцию для @_orders.Count заказов (статус: @_currentStatusName)
+        </RadzenText>
+        <RadzenDataGrid TItem="OrderTransaction"
+                        Data="@_transactions"
+                        Density="Density.Compact"
+                        AllowSorting="false"
+                        AllowFiltering="false"
+                        AllowPaging="false"
+                        RowClick="@OnTransactionSelect"
+                        Style="cursor: pointer;"
+                        EmptyText="Нет доступных транзакций">
+            <Columns>
+                <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Транзакция" Width="220px" />
+                <RadzenDataGridColumn TItem="OrderTransaction" Title="Целевой статус" Width="180px">
+                    <Template Context="t">
+                        @t.ToSystemStatus?.Name
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="OrderTransaction" Title="Правил" Width="80px" TextAlign="TextAlign.Center">
+                    <Template Context="t">
+                        @(t.Rules?.Count ?? 0)
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenStack>
+}
+else
+{
+    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+                @_preview.TransactionName → @_preview.ToStatusName
+            </RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                <RadzenButton Text="Назад" ButtonStyle="ButtonStyle.Light" Click="@BackToSelect" />
+                <RadzenButton Text="Применить ко всем" ButtonStyle="ButtonStyle.Primary" Click="@ApplyAllAsync" />
+            </RadzenStack>
+        </RadzenStack>
+
+        <RadzenDataGrid TItem="Order" Data="@_orders" Density="Density.Compact"
+                        AllowSorting="false" AllowFiltering="false" AllowPaging="false"
+                        EmptyText="@RadzenRuStrings.EmptyText">
+            <Columns>
+                <RadzenDataGridColumn TItem="Order" Title="Номер отправления" Width="160px">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2" Class="rz-monospace">
+                            @(o.Shipment?.PostingNumber ?? "—")
+                        </RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Клиент" Width="160px">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2" Class="rz-text-truncate" title="@o.Shipment?.MarketplaceClient?.Name">
+                            @(o.Shipment?.MarketplaceClient?.Name ?? "—")
+                        </RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Артикул" Width="120px">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2" Class="rz-monospace">
+                            @(o.ProductInfo?.Product?.Article ?? "—")
+                        </RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Товар" Width="220px">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2" Class="rz-text-truncate" title="@o.ProductInfo?.Product?.Name">
+                            @(o.ProductInfo?.Product?.Name ?? "—")
+                        </RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Кол-во" Width="80px" TextAlign="TextAlign.Center">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600">@o.Quantity</RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+                @foreach (var rule in _preview.Rules)
+                {
+                    <RadzenDataGridColumn TItem="Order" Title="@rule.PriceTypeName" Width="140px" @key="rule.RuleId">
+                        <Template Context="o">
+                            @{
+                                var orderPreview = _orderPreviews.GetValueOrDefault(o.Id);
+                                var rulePreview = orderPreview?.Rules.FirstOrDefault(r => r.RuleId == rule.RuleId);
+                            }
+                            @if (rulePreview != null)
+                            {
+                                @if (rulePreview.RequiresUserInput)
+                                {
+                                    <RadzenNumeric TValue="decimal" Value="@GetUserValue(o.Id, rule.RuleId)"
+                                                  ValueChanged="@(v => OnUserValueChanged(o.Id, rule.RuleId, v))"
+                                                  Style="width: 100%;" Min="0" Format="N2"
+                                                  Placeholder="Введите" />
+                                }
+                                else
+                                {
+                                    <RadzenTooltip MouseDelay="0" ShowDelay="0" Text="@(rulePreview.FormulaBreakdown ?? rulePreview.Formula ?? "")">
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="cursor: help; font-family: monospace;">
+                                            @(rulePreview.ComputedValue?.ToString("N2") ?? "—")
+                                        </RadzenText>
+                                    </RadzenTooltip>
+                                }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                }
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenStack>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "ids")]
+    public string? IdsQuery { get; set; }
+
+    private TenantDbContext? _db;
+    private bool _loading = true;
+    private List<Guid> _orderIds = [];
+    private List<Order> _orders = [];
+    private List<OrderTransaction> _transactions = [];
+    private string? _currentStatusName;
+    private Guid? _selectedTransactionId;
+    private TransactionApplyPreview? _preview;
+    private Dictionary<Guid, TransactionApplyPreview> _orderPreviews = [];
+    private Dictionary<Guid, Dictionary<Guid, decimal>> _userValues = [];
+    private int _statusGroups;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(IdsQuery))
+        {
+            _orderIds = [];
+        }
+        else
+        {
+            _orderIds = IdsQuery.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => Guid.TryParse(s, out var g) ? g : (Guid?)null)
+                .Where(g => g.HasValue)
+                .Select(g => g!.Value)
+                .Distinct()
+                .ToList();
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _db = Factory.CreateDbContext();
+
+        if (_orderIds.Count > 0)
+        {
+            _orders = await _db.Orders
+                .IncludeForGrid()
+                .Include(o => o.Prices).ThenInclude(p => p.PriceType)
+                .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
+                .Include(o => o.SystemStatus)
+                .Where(o => _orderIds.Contains(o.Id))
+                .AsNoTracking()
+                .ToListAsync();
+
+            var statusIds = _orders.Select(o => o.SystemStatusId).Where(s => s.HasValue).Distinct().ToList();
+            _statusGroups = statusIds.Count + (_orders.Any(o => !o.SystemStatusId.HasValue) ? 1 : 0);
+            _currentStatusName = _orders.FirstOrDefault()?.SystemStatus?.Name;
+
+            if (_statusGroups == 1 && statusIds.Count == 1)
+            {
+                var statusId = statusIds[0];
+                _transactions = await _db.OrderTransactions
+                    .Include(t => t.ToSystemStatus)
+                    .Include(t => t.Rules)
+                    .Where(t => !t.IsDeleted && t.IsEnabled && t.FromSystemStatusId == statusId)
+                    .OrderBy(t => t.Name)
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
+        }
+
+        _loading = false;
+    }
+
+    private async Task OnTransactionSelect(DataGridRowMouseEventArgs<OrderTransaction> args)
+    {
+        var t = args.Data;
+        if (t == null) return;
+
+        _loading = true;
+        StateHasChanged();
+
+        _selectedTransactionId = t.Id;
+        _orderPreviews = [];
+        _userValues = [];
+
+        foreach (var order in _orders)
+        {
+            var preview = await TransactionService.GetApplyPreviewAsync(order.Id, t.Id);
+            if (preview != null)
+            {
+                _orderPreviews[order.Id] = preview;
+                _preview = preview;
+                foreach (var rule in preview.Rules.Where(r => r.RequiresUserInput))
+                {
+                    if (!_userValues.ContainsKey(order.Id))
+                        _userValues[order.Id] = [];
+                    _userValues[order.Id][rule.RuleId] = 0m;
+                }
+            }
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private decimal GetUserValue(Guid orderId, Guid ruleId)
+    {
+        return _userValues.TryGetValue(orderId, out var dict) && dict.TryGetValue(ruleId, out var v) ? v : 0m;
+    }
+
+    private async Task OnUserValueChanged(Guid orderId, Guid ruleId, decimal value)
+    {
+        if (!_userValues.ContainsKey(orderId))
+            _userValues[orderId] = [];
+        _userValues[orderId][ruleId] = value;
+
+        if (_selectedTransactionId.HasValue)
+        {
+            var preview = await TransactionService.GetApplyPreviewWithUserValuesAsync(orderId, _selectedTransactionId.Value, _userValues[orderId]);
+            if (preview != null)
+                _orderPreviews[orderId] = preview;
+        }
+
+        StateHasChanged();
+    }
+
+    private void BackToSelect()
+    {
+        _preview = null;
+        _selectedTransactionId = null;
+        _orderPreviews = [];
+        _userValues = [];
+    }
+
+    private async Task ApplyAllAsync()
+    {
+        if (!_selectedTransactionId.HasValue) return;
+
+        var successCount = 0;
+        var errorCount = 0;
+
+        foreach (var order in _orders)
+        {
+            var ruleValues = _userValues.GetValueOrDefault(order.Id);
+            var result = await TransactionService.ApplyAsync(order.Id, _selectedTransactionId.Value, ruleValues);
+            if (result.Success)
+                successCount++;
+            else
+                errorCount++;
+        }
+
+        if (errorCount > 0)
+            NotificationService.Notify(NotificationSeverity.Warning, "Результат",
+                $"Применено: {successCount}, ошибок: {errorCount}");
+        else
+            NotificationService.Notify(NotificationSeverity.Success, "Транзакция применена",
+                $"Обновлено заказов: {successCount}");
+
+        Navigation.NavigateTo("/orders", forceLoad: true);
+    }
+
+    public void Dispose() => _db?.Dispose();
+}

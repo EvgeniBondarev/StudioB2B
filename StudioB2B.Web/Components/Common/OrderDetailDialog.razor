@@ -21,7 +21,7 @@
 }
 else
 {
-    <RadzenTabs>
+    <RadzenTabs Style="height: 630px;">
         <Tabs>
 
             <!-- ── Товар ──────────────────────────────────────────── -->
@@ -324,10 +324,10 @@ else
 
     <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween"
                  Style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--rz-border-color);">
-        <RadzenButton Icon="history" Text="История изменений" ButtonStyle="ButtonStyle.Light"
+        <RadzenButton Icon="history" Text="История изменений" Shade="Shade.Light" ButtonStyle="ButtonStyle.Primary"
                       Size="ButtonSize.Small"
                       Click="@OpenAuditHistory" />
-        <RadzenButton Text="Закрыть" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close())" />
+        <RadzenButton Text="Закрыть" ButtonStyle="ButtonStyle.Primary" Shade="Shade.Light" Click="@(() => DialogService.Close())" />
     </RadzenStack>
 }
 

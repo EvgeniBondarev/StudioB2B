@@ -23,5 +23,9 @@ public class PriceType : IBaseEntity, ISoftDelete
     [Display(Name = "Схема доставки")]
     public string? DeliveryScheme { get; set; }
 
+    /// <summary>Пользовательский тип (создан вручную). Не перезаписывается при синхронизации с Ozon.</summary>
+    [Display(Name = "Пользовательский")]
+    public bool IsUserDefined { get; set; }
+
     public bool IsDeleted { get; set; }
 }

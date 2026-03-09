@@ -149,6 +149,10 @@ public static class DependencyInjection
         // ── Background job services ────────────────────────────────────────────
         services.AddScoped<IOrderSyncJobService, OrderSyncJobService>();
 
+        // ── Transaction services ───────────────────────────────────────────────
+        services.AddScoped<CalculationEngine>();
+        services.AddScoped<IOrderTransactionService, OrderTransactionService>();
+
         return services;
     }
 }
