@@ -4,12 +4,16 @@
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using System.ComponentModel.DataAnnotations
+@using StudioB2B.Infrastructure.MultiTenancy
+@using StudioB2B.Web.Services
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
-@inject Microsoft.Extensions.Options.IOptions<Infrastructure.MultiTenancy.MultiTenancyOptions> MultiTenancyOptions
+@inject Microsoft.Extensions.Options.IOptions<MultiTenancyOptions> MultiTenancyOptions
 @inject ITenantDbContextFactory Factory
+@inject HttpClient Http
+@inject JwtAuthenticationStateProvider AuthStateProvider
 
 <PageTitle>StudioB2B</PageTitle>
 
@@ -165,50 +169,30 @@
                         </RadzenText>
                     </div>
 
-                    @if (Error == "invalid")
+                    @if (_loginError != null)
                     {
                         <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
-                            Неверный email или пароль
-                        </RadzenAlert>
-                    }
-                    else if (Error == "inactive")
-                    {
-                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
-                            Аккаунт деактивирован
-                        </RadzenAlert>
-                    }
-                    else if (Error == "error")
-                    {
-                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
-                            Произошла ошибка при входе
+                            @_loginError
                         </RadzenAlert>
                     }
 
-                    <form method="post" action="/account/login">
-                        <input type="hidden" name="returnUrl" value="@ReturnUrl" />
-
+                    <EditForm Model="@_login" OnValidSubmit="HandleLogin" Context="loginForm">
+                        <DataAnnotationsValidator />
                         <RadzenStack Gap="1rem">
                             <RadzenFormField Text="Email" Style="width: 100%;">
-                                <input name="email" type="email" required
-                                       class="rz-textbox" style="width: 100%;" />
+                                <RadzenTextBox @bind-Value="_login.Email" Style="width: 100%;" InputType="InputType.Email" />
                             </RadzenFormField>
 
                             <RadzenFormField Text="Пароль" Style="width: 100%;">
-                                <input name="password" type="password" required
-                                       class="rz-textbox" style="width: 100%;" />
+                                <RadzenPassword @bind-Value="_login.Password" Style="width: 100%;" />
                             </RadzenFormField>
 
-                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center">
-                                <input type="checkbox" name="rememberMe" id="rememberMe" value="true" checked />
-                                <label for="rememberMe" style="margin-left: 0.5rem; font-size: 0.875rem;">Запомнить меня</label>
-                            </RadzenStack>
-
-                            <button type="submit" class="rz-button rz-button-md rz-primary"
-                                    style="width: 100%; justify-content: center;">
-                                Войти
-                            </button>
+                            <RadzenButton ButtonType="ButtonType.Submit" Text="Войти"
+                                          ButtonStyle="ButtonStyle.Primary"
+                                          Style="width: 100%; justify-content: center;"
+                                          IsBusy="@_loginLoading" />
                         </RadzenStack>
-                    </form>
+                    </EditForm>
                 </NotAuthorized>
 
                 <Authorized>
@@ -273,7 +257,7 @@
 
                     <RadzenButton Text="Выйти" Icon="logout" ButtonStyle="ButtonStyle.Danger"
                                   Style="width: 100%; justify-content: center;"
-                                  Click="@(() => Navigation.NavigateTo("/account/logout", forceLoad: true))" />
+                                  Click="@HandleLogout" />
                 </Authorized>
             </AuthorizeView>
         }
@@ -288,9 +272,14 @@
     private int _regStep;
     private bool _showRegTimeline;
 
-    [SupplyParameterFromQuery] public string? Error { get; set; }
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
 
+    // Login
+    private LoginModel _login = new();
+    private bool _loginLoading;
+    private string? _loginError;
+
+    // Register
     private RegisterModel _reg = new();
     private bool _regLoading;
     private bool _registerSuccess;
@@ -312,6 +301,57 @@
         }
 
         _initializing = false;
+    }
+
+    private async Task HandleLogin()
+    {
+        _loginError = null;
+        _loginLoading = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/auth/login", new
+            {
+                _login.Email,
+                _login.Password
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                if (result?.Token is not null)
+                {
+                    await AuthStateProvider.LoginAsync(result.Token);
+                    var returnUrl = ReturnUrl ?? "/";
+                    Navigation.NavigateTo(returnUrl, forceLoad: false);
+                }
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                _loginError = "Неверный email или пароль";
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                _loginError = "Аккаунт деактивирован";
+            }
+            else
+            {
+                _loginError = "Произошла ошибка при входе";
+            }
+        }
+        catch
+        {
+            _loginError = "Произошла ошибка при входе";
+        }
+        finally
+        {
+            _loginLoading = false;
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthStateProvider.LogoutAsync();
+        Navigation.NavigateTo("/", forceLoad: false);
     }
 
     private async Task HandleRegister()
@@ -418,6 +458,18 @@
         var local = name.Split('@')[0];
         return local.Length >= 2 ? local[..2].ToUpper() : local.ToUpper();
     }
+
+    private class LoginModel
+    {
+        [Required(ErrorMessage = "Введите email")]
+        [EmailAddress(ErrorMessage = "Некорректный email")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Введите пароль")]
+        public string Password { get; set; } = "";
+    }
+
+    private sealed record LoginResponse(string Token, DateTime ExpiresAt);
 
     private class RegisterModel
     {
