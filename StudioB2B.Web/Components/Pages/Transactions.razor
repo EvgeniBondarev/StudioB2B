@@ -132,7 +132,26 @@ else
 
             <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Название" Width="220px" Frozen="true">
                 <Template Context="t">
-                    <RadzenText TextStyle="TextStyle.Body2">@t.Name</RadzenText>
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                        @if (!string.IsNullOrEmpty(t.Color))
+                        {
+                            <span style="@($"width:16px;height:16px;border-radius:4px;background:{GetSoftBackground(t.Color)};border:1px solid var(--rz-border-color);")" title="@t.Color"></span>
+                        }
+                        <RadzenText TextStyle="TextStyle.Body2">@t.Name</RadzenText>
+                    </RadzenStack>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OrderTransaction" Title="Цвет" Width="80px" Filterable="false" Sortable="false">
+                <Template Context="t">
+                    @if (!string.IsNullOrEmpty(t.Color))
+                    {
+                        <span style="@($"display:inline-block;width:24px;height:24px;border-radius:4px;background:{GetSoftBackground(t.Color)};border:1px solid var(--rz-border-color);")" title="@t.Color"></span>
+                    }
+                    else
+                    {
+                        <span style="color: var(--rz-text-disabled-color);">—</span>
+                    }
                 </Template>
             </RadzenDataGridColumn>
 
@@ -375,6 +394,25 @@ else
         Density.Compact => "Компактный режим строк",
         _ => "Обычный режим строк"
     };
+
+    private static string GetSoftBackground(string? color)
+    {
+        if (string.IsNullOrEmpty(color))
+            return "#ececff";
+        color = color.TrimStart('#');
+        if (color.Length < 6) return "#ececff";
+        try
+        {
+            var r = Convert.ToInt32(color[..2], 16);
+            var g = Convert.ToInt32(color[2..4], 16);
+            var b = Convert.ToInt32(color[4..6], 16);
+            r = (int)(r + (255 - r) * 0.7);
+            g = (int)(g + (255 - g) * 0.7);
+            b = (int)(b + (255 - b) * 0.7);
+            return $"#{r:X2}{g:X2}{b:X2}";
+        }
+        catch { return "#ececff"; }
+    }
 
     public void Dispose() => _db?.Dispose();
 }
