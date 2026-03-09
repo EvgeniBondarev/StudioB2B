@@ -30,7 +30,12 @@ public class OrderTransaction : IBaseEntity, ISoftDelete
     [Display(Name = "Активна")]
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>Цвет транзакции (HEX, например #FF5733). Используется для раскраски заказов.</summary>
+    [Display(Name = "Цвет")]
+    public string? Color { get; set; }
+
     public bool IsDeleted { get; set; }
 
     public List<OrderTransactionRule> Rules { get; set; } = [];
+    public List<OrderTransactionFieldRule> FieldRules { get; set; } = [];
 }

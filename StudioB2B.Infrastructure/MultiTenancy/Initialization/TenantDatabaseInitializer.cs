@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using StudioB2B.Domain.Entities.Marketplace;
 using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Entities.References;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -45,8 +46,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
             _logger.LogInformation("No pending tenant migrations, database is up to date");
         }
 
-        await SeedMarketplaceDataAsync(context, ct);
-        await EnsureRobotUserAsync(context, ct);
+        await RunSeedAsync(context, ct);
     }
 
     public async Task MigrateOnlyAsync(string connectionString, CancellationToken ct)
@@ -54,15 +54,27 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         await using var context = await CreateContextAsync(connectionString, ct);
 
         var pending = (await context.Database.GetPendingMigrationsAsync(ct)).ToList();
-        if (pending.Count == 0) return;
+        if (pending.Count > 0)
+        {
+            _logger.LogInformation(
+                "Startup: applying {Count} pending tenant migrations: {Migrations}",
+                pending.Count, string.Join(", ", pending));
 
-        _logger.LogInformation(
-            "Startup: applying {Count} pending tenant migrations: {Migrations}",
-            pending.Count, string.Join(", ", pending));
+            await context.Database.MigrateAsync(ct);
 
-        await context.Database.MigrateAsync(ct);
+            _logger.LogInformation("Startup: tenant database migrated successfully");
+        }
 
-        _logger.LogInformation("Startup: tenant database migrated successfully");
+        await RunSeedAsync(context, ct);
+    }
+
+    private async Task RunSeedAsync(TenantDbContext context, CancellationToken ct)
+    {
+        await SeedMarketplaceDataAsync(context, ct);
+        await SeedBasePriceTypesAsync(context, ct);
+        await SeedBaseCalculationRulesAsync(context, ct);
+        await SeedBaseOrderTransactionsAsync(context, ct);
+        await EnsureRobotUserAsync(context, ct);
     }
 
     public async Task CreateAdminUserAsync(
@@ -134,6 +146,13 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 
     private static async Task SeedMarketplaceDataAsync(TenantDbContext ctx, CancellationToken ct)
     {
+        // Валюта RUB
+        if (!await ctx.Set<Currency>().AnyAsync(c => c.Code == "RUB", ct))
+        {
+            ctx.Set<Currency>().Add(new Currency { Code = "RUB", Name = "Российский рубль" });
+            await ctx.SaveChangesAsync(ct);
+        }
+
         // Типы клиентов маркетплейсов
         if (!await ctx.Set<MarketplaceClientType>().AnyAsync(ct))
         {
@@ -305,6 +324,142 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
                 await ctx.SaveChangesAsync(ct);
             }
         }
+    }
+
+    private static async Task SeedBasePriceTypesAsync(TenantDbContext ctx, CancellationToken ct)
+    {
+        var basePriceTypeNames = new[] { "Цена", "Цена до скидки", "Себестоимость", "Скидка", "Маржа" };
+        foreach (var name in basePriceTypeNames)
+        {
+            if (!await ctx.Set<PriceType>().AnyAsync(pt => pt.Name == name, ct))
+            {
+                ctx.Set<PriceType>().Add(new PriceType
+                {
+                    Name = name,
+                    IsUserDefined = true
+                });
+            }
+        }
+        await ctx.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedBaseCalculationRulesAsync(TenantDbContext ctx, CancellationToken ct)
+    {
+        if (!await ctx.Set<CalculationRule>().AnyAsync(r => r.ResultKey == "Скидка", ct))
+        {
+            ctx.Set<CalculationRule>().Add(new CalculationRule
+            {
+                Name = "Скидка",
+                ResultKey = "Скидка",
+                Formula = "ЦенаДоСкидки - Цена",
+                SortOrder = 10,
+                IsActive = true
+            });
+        }
+        if (!await ctx.Set<CalculationRule>().AnyAsync(r => r.ResultKey == "Маржа", ct))
+        {
+            ctx.Set<CalculationRule>().Add(new CalculationRule
+            {
+                Name = "Маржа",
+                ResultKey = "Маржа",
+                Formula = "Цена - Себестоимость",
+                SortOrder = 20,
+                IsActive = true
+            });
+        }
+        await ctx.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedBaseOrderTransactionsAsync(TenantDbContext ctx, CancellationToken ct)
+    {
+        var statuses = await ctx.Set<OrderStatus>()
+            .Where(s => s.IsInternal && !s.IsDeleted)
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        var priceType = await ctx.Set<PriceType>()
+            .FirstOrDefaultAsync(pt => pt.Name == "Цена" && !pt.IsDeleted, ct);
+
+        Guid? GetStatusId(string name) =>
+            statuses.FirstOrDefault(s => s.Name == name)?.Id;
+
+        // В работу: Не указан → Не готов (без правил)
+        if (!await ctx.Set<OrderTransaction>().AnyAsync(t => t.Name == "В работу" && !t.IsDeleted, ct))
+        {
+            var fromId = GetStatusId("Не указан");
+            var toId = GetStatusId("Не готов");
+            if (fromId.HasValue && toId.HasValue)
+            {
+                ctx.Set<OrderTransaction>().Add(new OrderTransaction
+                {
+                    Name = "В работу",
+                    FromSystemStatusId = fromId.Value,
+                    ToSystemStatusId = toId.Value,
+                    SortOrder = 0,
+                    IsEnabled = true
+                });
+            }
+        }
+
+        // Готов к отгрузке: Не готов → Готов к отгрузке (правило: Цена = Цена)
+        if (!await ctx.Set<OrderTransaction>().AnyAsync(t => t.Name == "Готов к отгрузке" && !t.IsDeleted, ct))
+        {
+            var fromId = GetStatusId("Не готов");
+            var toId = GetStatusId("Готов к отгрузке");
+            if (fromId.HasValue && toId.HasValue && priceType != null)
+            {
+                var txn = new OrderTransaction
+                {
+                    Name = "Готов к отгрузке",
+                    FromSystemStatusId = fromId.Value,
+                    ToSystemStatusId = toId.Value,
+                    SortOrder = 10,
+                    IsEnabled = true
+                };
+                ctx.Set<OrderTransaction>().Add(txn);
+                await ctx.SaveChangesAsync(ct);
+
+                ctx.Set<OrderTransactionRule>().Add(new OrderTransactionRule
+                {
+                    OrderTransactionId = txn.Id,
+                    PriceTypeId = priceType.Id,
+                    ValueSource = TransactionValueSource.Formula,
+                    Formula = "Цена",
+                    SortOrder = 0
+                });
+            }
+        }
+
+        // Отгружен: Готов к отгрузке → Отгружен клиенту (правило: Цена = Цена)
+        if (!await ctx.Set<OrderTransaction>().AnyAsync(t => t.Name == "Отгружен" && !t.IsDeleted, ct))
+        {
+            var fromId = GetStatusId("Готов к отгрузке");
+            var toId = GetStatusId("Отгружен клиенту");
+            if (fromId.HasValue && toId.HasValue && priceType != null)
+            {
+                var txn = new OrderTransaction
+                {
+                    Name = "Отгружен",
+                    FromSystemStatusId = fromId.Value,
+                    ToSystemStatusId = toId.Value,
+                    SortOrder = 20,
+                    IsEnabled = true
+                };
+                ctx.Set<OrderTransaction>().Add(txn);
+                await ctx.SaveChangesAsync(ct);
+
+                ctx.Set<OrderTransactionRule>().Add(new OrderTransactionRule
+                {
+                    OrderTransactionId = txn.Id,
+                    PriceTypeId = priceType.Id,
+                    ValueSource = TransactionValueSource.Formula,
+                    Formula = "Цена",
+                    SortOrder = 0
+                });
+            }
+        }
+
+        await ctx.SaveChangesAsync(ct);
     }
 
     private async Task SyncRolesFromMasterAsync(TenantDbContext ctx, CancellationToken ct)

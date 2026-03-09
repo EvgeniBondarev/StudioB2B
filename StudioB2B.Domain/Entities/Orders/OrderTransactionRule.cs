@@ -42,4 +42,7 @@ public class OrderTransactionRule : IBaseEntity
 
     [Display(Name = "Порядок")]
     public int SortOrder { get; set; }
+
+    [Display(Name = "Обязательное")]
+    public bool IsRequired { get; set; }
 }

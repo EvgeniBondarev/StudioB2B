@@ -26,4 +26,6 @@ public class OrderTransactionHistory
     public string? ErrorMessage { get; set; }
 
     public int PricesUpdated { get; set; }
+
+    public int FieldsUpdated { get; set; }
 }

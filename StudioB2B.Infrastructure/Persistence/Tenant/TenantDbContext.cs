@@ -72,6 +72,7 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
     public DbSet<OrderProductInfo> OrderProductInfos { get; set; } = null!;
     public DbSet<OrderTransaction> OrderTransactions { get; set; } = null!;
     public DbSet<OrderTransactionRule> OrderTransactionRules { get; set; } = null!;
+    public DbSet<OrderTransactionFieldRule> OrderTransactionFieldRules { get; set; } = null!;
     public DbSet<OrderTransactionHistory> OrderTransactionHistories { get; set; } = null!;
 
     // ── Products ─────────────────────────────────────────────────────

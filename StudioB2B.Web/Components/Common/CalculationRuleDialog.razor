@@ -17,201 +17,225 @@
 @if (_loading)
 {
     <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 200px;">
-        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
+        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium"/>
     </RadzenStack>
 }
 else
 {
-    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+    <RadzenStack Gap="1rem">
 
-        <RadzenStack Gap="0.5rem">
-            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
-                Основные параметры
-            </RadzenText>
-            <RadzenStack Gap="0.5rem">
-                <RadzenTextBox @bind-Value="_name"
-                               Style="width: 100%;"
-                               Placeholder="Название правила (например, Скидка)" />
-                <RadzenTextBox @bind-Value="_resultKey"
-                               Style="width: 100%;"
-                               Placeholder="Ключ результата (например, Скидка)" />
-                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
-                    <RadzenNumeric @bind-Value="_sortOrder"
-                                   Style="width: 140px;"
-                                   Min="0"
-                                   Placeholder="Порядок" />
-                    <RadzenCheckBox @bind-Value="_isActive" TValue="bool" />
-                    <RadzenLabel Text="Активно" Style="margin-left: 0.25rem;" />
-                </RadzenStack>
-            </RadzenStack>
-        </RadzenStack>
-
-        <RadzenStack Gap="0.5rem">
-            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
-                Формула
-            </RadzenText>
-            <RadzenTextArea @bind-Value="_formula"
-                            Rows="3"
-                            Style="width: 100%; font-family: monospace;"
-                            Placeholder="Например: ЦенаДоСкидки - Цена" />
-        </RadzenStack>
-
-        @if (_availableVariables.Count > 0)
-        {
-            <RadzenStack Gap="0.4rem"
-                         Style="padding: 0.5rem 0.75rem; background: var(--rz-base-100); border-radius: 6px; border: 1px solid var(--rz-border-color);">
-                <RadzenText TextStyle="TextStyle.Caption" Style="font-weight: 600; margin: 0;">
-                    Конструктор формулы
+        <RadzenStack Orientation="Orientation.Horizontal"
+                     Gap="1.5rem"
+                     AlignItems="AlignItems.Start">
+            <!-- ЛЕВАЯ -->
+            <RadzenStack Gap="0.75rem" Style="flex:1; min-width:0; padding-top:8px;">
+                <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+                    Основные параметры
                 </RadzenText>
 
-                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.35rem" FlexWrap="FlexWrap.Wrap">
-                    @foreach (var op in _operatorTokens)
-                    {
-                        <RadzenButton Text="@op"
-                                      ButtonStyle="ButtonStyle.Light"
-                                      Size="ButtonSize.ExtraSmall"
-                                      Click="@(() => AppendToken(op))" />
-                    }
-                </RadzenStack>
-
-                <RadzenStack Gap="0.25rem">
-                    <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">
-                        Переменные (нажмите, чтобы вставить в формулу):
-                    </RadzenText>
-                    <RadzenStack Gap="0.15rem">
-                        @foreach (var v in _availableVariables)
-                        {
-                            <span style="display: block; padding: 2px 8px; border-radius: 6px;
-                                         background: var(--rz-primary-light); color: var(--rz-primary-dark);
-                                         font-family: monospace; font-size: 0.8rem; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis;"
-                                  @onclick="@(() => AppendToken(v))"
-                                  title="Добавить переменную в формулу">@v</span>
-                        }
+                <RadzenStack Gap="0.5rem">
+                    <RadzenTextBox @bind-Value="_name"
+                                   Style="width: 100%;"
+                                   Placeholder="Название правила (например, Скидка)"/>
+                    <RadzenTextBox @bind-Value="_resultKey"
+                                   Style="width: 100%;"
+                                   Placeholder="Ключ результата (например, Скидка)"/>
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                        <RadzenNumeric @bind-Value="_sortOrder"
+                                       Style="width: 140px;"
+                                       Min="0"
+                                       Placeholder="Порядок"/>
+                        <RadzenCheckBox @bind-Value="_isActive" TValue="bool"/>
+                        <RadzenLabel Text="Активно" Style="margin-left: 0.25rem;"/>
                     </RadzenStack>
                 </RadzenStack>
 
-                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color); margin: 0;">
-                    Используйте кнопки и переменные выше, чтобы избежать опечаток и лишних символов.
-                </RadzenText>
-            </RadzenStack>
-        }
-
-        <RadzenStack Gap="0.5rem">
-            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
-                Пример на заказе
-            </RadzenText>
-
-            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
-                <RadzenTextBox @bind-Value="_postingNumberFilter"
-                               Style="width: 220px;"
-                               Placeholder="Номер отправления (опционально)" />
-                <RadzenButton Text="Найти заказ"
-                              Icon="search"
-                              ButtonStyle="ButtonStyle.Light"
-                              Size="ButtonSize.Small"
-                              Click="@LoadExampleOrderAsync" />
-            </RadzenStack>
-
-            @if (_exampleOrder == null)
-            {
-                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
-                    Заказ для примера не найден. Укажите корректный номер отправления или загрузите заказы.
-                </RadzenText>
-            }
-            else
-            {
                 <RadzenStack Gap="0.25rem">
+                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+                        Формула
+                    </RadzenText>
+                    <RadzenTextArea @bind-Value="_formula"
+                                    Rows="4"
+                                    Style="width: 100%; font-family: monospace;"
+                                    Placeholder="Например: ЦенаДоСкидки - Цена"/>
+                </RadzenStack>
+                <RadzenButton Icon="play_arrow" Text="Проверить формулу"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Variant="Variant.Outlined"
+                              Size="ButtonSize.Small"
+                              Click="@TestFormulaAsync"/>
+
+                <RadzenStack Gap="0.5rem">
+                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+                        Пример на заказе
+                    </RadzenText>
+                    <RadzenTextBox @bind-Value="_postingNumberFilter"
+                                   Style="width: 100%;"
+                                   Placeholder="Номер отправления (опционально)"/>
+                    <RadzenButton Text="Найти заказ"
+                                  Icon="search"
+                                  ButtonStyle="ButtonStyle.Primary"
+                                  Variant="Variant.Outlined"
+                                  Size="ButtonSize.Small"
+                                  Click="@LoadExampleOrderAsync"/>
+                </RadzenStack>
+
+                <RadzenStack Gap="0.3rem">
                     <RadzenText TextStyle="TextStyle.Body2">
-                        Заказ: <code>@_exampleOrder.Shipment?.PostingNumber</code>,
-                        клиент: @_exampleOrder.Shipment?.MarketplaceClient?.Name,
-                        товар: @_exampleOrder.ProductInfo?.Product?.Article
+                        <strong>Заказ:</strong> <code
+                            style="font-size: 1em;">@_exampleOrder.Shipment?.PostingNumber</code>
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2">
+                        <strong>Клиент:</strong> @_exampleOrder.Shipment?.MarketplaceClient?.Name
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2">
+                        <strong>Товар:</strong> @_exampleOrder.ProductInfo?.Product?.Article
                         (@_exampleOrder.ProductInfo?.Product?.Name)
                     </RadzenText>
+                </RadzenStack>
 
-                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
-                        <RadzenButton Icon="play_arrow" Text="Проверить формулу"
-                                      ButtonStyle="ButtonStyle.Info"
-                                      Size="ButtonSize.Small"
-                                      Click="@TestFormulaAsync" />
-
-                        @if (_exampleError != null)
-                        {
-                            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-danger);">
-                                @_exampleError
-                            </RadzenText>
-                        }
-                        else if (_exampleResult.HasValue)
-                        {
-                            var breakdown = $"Формула: {_formula}\nПодстановка: {(_exampleFormulaRendered ?? _formula)} = {_exampleResult.Value:N2}";
-                            <RadzenStack Gap="0.2rem">
-                                <RadzenText TextStyle="TextStyle.Body2">
-                                    Результат: <b style="@($"cursor: help; {GetPriceColor(_exampleResult.Value)}")" title="@breakdown">@_exampleResult.Value.ToString("N2")</b>
-                                </RadzenText>
-                                @if (!string.IsNullOrWhiteSpace(_exampleFormulaRendered))
-                                {
-                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
-                                        Подстановка: <code>@_exampleFormulaRendered</code>
-                                    </RadzenText>
-                                }
-                                else
-                                {
-                                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
-                                        Формула: <code>@_formula</code>
-                                    </RadzenText>
-                                }
-                            </RadzenStack>
-                        }
-                    </RadzenStack>
-
-                    @if (_contextSnapshot != null && _contextSnapshot.Count > 0)
+                <RadzenStack Gap="0.3rem">
+                    @if (_exampleError != null)
                     {
-                        <RadzenStack Gap="0.25rem" Style="margin-top: 0.5rem;">
-                            <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">
-                                Контекст переменных для выбранного заказа:
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-danger);">
+                            @_exampleError
+                        </RadzenText>
+                    }
+                    else if (_exampleResult.HasValue)
+                    {
+                        var breakdown = $"Формула: {_formula}\nПодстановка: {(_exampleFormulaRendered ?? _formula)} = {_exampleResult.Value:N2}";
+                        <RadzenStack Gap="0.2rem">
+                            <RadzenText TextStyle="TextStyle.Body2">
+                                <strong>Результат:</strong> <span class="status-badge" style="@($"cursor: help; {GetPriceColor(_exampleResult.Value)}")" title="@breakdown">@_exampleResult.Value.ToString("N2")</span>
                             </RadzenText>
-                            <RadzenDataGrid TItem="KeyValuePair<string, decimal>"
-                                            Data="@_contextSnapshot"
-                                            Density="Density.Compact"
-                                            AllowSorting="false"
-                                            AllowFiltering="false"
-                                            AllowPaging="false"
-                                            Style="max-height: 200px; overflow-y: auto;"
-                                            EmptyText="@RadzenRuStrings.EmptyText">
-                                <Columns>
-                                    <RadzenDataGridColumn TItem="KeyValuePair<string, decimal>"
-                                                          Title="Переменная"
-                                                          Width="220px">
-                                        <Template Context="row">
-                                            <span style="font-family: monospace; font-size: 0.8rem;">@row.Key</span>
-                                        </Template>
-                                    </RadzenDataGridColumn>
-                                    <RadzenDataGridColumn TItem="KeyValuePair<string, decimal>"
-                                                          Title="Значение"
-                                                          Width="140px"
-                                                          TextAlign="TextAlign.Right">
-                                        <Template Context="row">
-                                            <span style="@GetPriceColor(row.Value)">@row.Value.ToString("N2")</span>
-                                        </Template>
-                                    </RadzenDataGridColumn>
-                                </Columns>
-                            </RadzenDataGrid>
+                            @if (!string.IsNullOrWhiteSpace(_exampleFormulaRendered))
+                            {
+                                <RadzenText TextStyle="TextStyle.Body2"
+                                            Style="color: var(--rz-text-secondary-color);">
+                                    <strong>Подстановка:</strong> <code>@_exampleFormulaRendered</code>
+                                </RadzenText>
+                            }
+                            else
+                            {
+                                <RadzenText TextStyle="TextStyle.Body2"
+                                            Style="color: var(--rz-text-secondary-color);">
+                                    <strong>Формула:</strong> <code>@_formula</code>
+                                </RadzenText>
+                            }
                         </RadzenStack>
                     }
                 </RadzenStack>
-            }
+            </RadzenStack>
+
+            <!-- ПРАВАЯ -->
+            <RadzenStack Gap="0.75rem" Style="flex:0 0 450px;">
+                @if (_availableVariables.Count > 0)
+                {
+                    <RadzenStack Gap="0.5rem"
+                                 Style="padding: 0.5rem 0.75rem; background: var(--rz-base-100); border-radius: 6px; border: 1px solid var(--rz-border-color);">
+                        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin: 0;">
+                            Конструктор формулы
+                        </RadzenText>
+
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.4rem" FlexWrap="FlexWrap.Wrap">
+                            @foreach (var op in _operatorTokens)
+                            {
+                                <RadzenButton Text="@op"
+                                              Size="ButtonSize.Small"
+                                              Variant="Variant.Text"
+                                              ButtonStyle="ButtonStyle.Base"
+                                              Class="operator-button"
+                                              Click="@(() => AppendToken(op))"/>
+                            }
+                        </RadzenStack>
+
+                        <RadzenStack Gap="0.25rem" Style="margin:0.5rem 0;">
+                            <RadzenText TextStyle="TextStyle.Caption" Style="margin-bottom:0.5rem;">
+                                Переменные (нажмите, чтобы вставить в формулу):
+                            </RadzenText>
+                            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                                @foreach (var v in _availableVariables)
+                                {
+                                    <span style="display: inline-flex; padding: 4px 10px; border-radius: 6px;
+                                         background: var(--rz-primary-lighter); color: var(--rz-primary);
+                                         font-family: monospace; font-size: 0.8rem; cursor: pointer; max-width: 100%; white-space:nowrap;"
+                                          @onclick="@(() => AppendToken(v))"
+                                          title="Добавить переменную в формулу">@v</span>
+                                }
+                            </div>
+                        </RadzenStack>
+
+                        <RadzenText TextStyle="TextStyle.Caption"
+                                    Style="color: var(--rz-text-secondary-color); margin: 0;">
+                            Используйте кнопки и переменные выше, чтобы избежать опечаток и лишних символов.
+                        </RadzenText>
+                    </RadzenStack>
+                }
+                
+                @if (_exampleOrder == null)
+                {
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                        Заказ для примера не найден. Укажите корректный номер отправления или загрузите заказы.
+                    </RadzenText>
+                }
+                else
+                {
+                    <RadzenStack Gap="0.25rem">
+                        @if (_contextSnapshot != null && _contextSnapshot.Count > 0)
+                        {
+                            <RadzenStack Gap="0.3rem" Style="margin-top: 0.5rem;">
+                                <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin: 0;">
+                                    Контекст переменных для выбранного заказа:
+                                </RadzenText>
+                                <RadzenDataGrid TItem="KeyValuePair<string, decimal>"
+                                                Data="@_contextSnapshot"
+                                                Density="Density.Compact"
+                                                AllowSorting="false"
+                                                AllowFiltering="false"
+                                                AllowPaging="false"
+                                                Class="compact-grid"
+                                                Style="max-height: 230px; overflow-y: auto;"
+                                                EmptyText="@RadzenRuStrings.EmptyText">
+                                    <Columns>
+                                        <RadzenDataGridColumn TItem="KeyValuePair<string, decimal>"
+                                                              Title="Переменная"
+                                                              Width="220px">
+                                            <Template Context="row">
+                                                <span style="font-family: monospace; font-size: 0.8rem;">@row.Key</span>
+                                            </Template>
+                                        </RadzenDataGridColumn>
+                                        <RadzenDataGridColumn TItem="KeyValuePair<string, decimal>"
+                                                              Title="Значение"
+                                                              Width="140px"
+                                                              TextAlign="TextAlign.Right">
+                                            <Template Context="row">
+                                                <span style="@GetPriceColor(row.Value)">@row.Value.ToString("N2")</span>
+                                            </Template>
+                                        </RadzenDataGridColumn>
+                                    </Columns>
+                                </RadzenDataGrid>
+                            </RadzenStack>
+                        }
+                    </RadzenStack>
+                }
+            </RadzenStack>
         </RadzenStack>
 
         <RadzenStack Orientation="Orientation.Horizontal"
                      JustifyContent="JustifyContent.End"
                      Gap="0.5rem"
-                     Style="margin-top: 0.75rem;">
+                     Style="margin-top:0.75rem;">
             <RadzenButton Text="Отмена"
-                          ButtonStyle="ButtonStyle.Light"
-                          Click="@(() => DialogService.Close(false))" />
+                          ButtonStyle="ButtonStyle.Primary"
+                          Variant="Variant.Outlined"
+                          Click="@(() => DialogService.Close(false))"/>
             <RadzenButton Text="Сохранить"
                           ButtonStyle="ButtonStyle.Primary"
-                          Click="@SaveAsync" />
+                          Shade="Shade.Light"
+                          Click="@SaveAsync"/>
+
         </RadzenStack>
+
     </RadzenStack>
 }
 
@@ -455,4 +479,3 @@ else
 
     public void Dispose() => _db?.Dispose();
 }
-

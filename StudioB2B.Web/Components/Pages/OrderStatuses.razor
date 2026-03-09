@@ -544,21 +544,30 @@ else
 
     string GetSoftBackground(string color)
     {
-        if (string.IsNullOrEmpty(color))
+        if (string.IsNullOrWhiteSpace(color))
             return "#ececff";
 
-        color = color.TrimStart('#');
+        color = color.TrimStart('#').Trim();
+        if (color.Length < 6)
+            return "#ececff";
 
-        var r = Convert.ToInt32(color[..2], 16);
-        var g = Convert.ToInt32(color[2..4], 16);
-        var b = Convert.ToInt32(color[4..6], 16);
+        try
+        {
+            var r = Convert.ToInt32(color[..2], 16);
+            var g = Convert.ToInt32(color[2..4], 16);
+            var b = Convert.ToInt32(color[4..6], 16);
 
-        // делаем пастельную версию
-        r = (int)(r + (255 - r) * 0.6);
-        g = (int)(g + (255 - g) * 0.6);
-        b = (int)(b + (255 - b) * 0.6);
+            // делаем пастельную версию
+            r = (int)(r + (255 - r) * 0.6);
+            g = (int)(g + (255 - g) * 0.6);
+            b = (int)(b + (255 - b) * 0.6);
 
-        return $"#{r:X2}{g:X2}{b:X2}";
+            return $"#{r:X2}{g:X2}{b:X2}";
+        }
+        catch (FormatException)
+        {
+            return "#ececff";
+        }
     }
 
     string GetTextColor(string bg)

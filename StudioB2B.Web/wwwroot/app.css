@@ -315,3 +315,32 @@ h1:focus {
 .rz-badge {
   text-transform: none !important;
 }
+
+
+/* ───  модальное окно "Новое правило расчёта" ──────────────────────────── */
+
+/* Шапка таблицы*/
+.compact-grid thead th > div {
+  height: 28px;
+  line-height: 28px;
+  font-size: 0.85rem;
+}
+
+/* Кнопки со знаками арифметических действий */
+.operator-button {
+  padding: 0.5rem 0.75rem !important;
+  background-color: white !important;
+  border: 1px solid transparent !important;
+  border-radius: 6px !important;
+  color: var(--rz-base-darker) !important;
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.16) !important;
+  transition: transform 0.1s ease, box-shadow 0.2s ease, background-color 0.2s ease !important;
+}
+
+.operator-button:hover {
+  border-color: var(--rz-primary) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+  transform: translateY(-1px) !important;
+}
