@@ -1141,6 +1141,49 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("OrderTransactionRules");
                 });
 
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("OrderTransactionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("PerformedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("PerformedByUserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("PerformedByUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<int>("PricesUpdated")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("tinyint(1)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId", "OrderTransactionId");
+
+                    b.HasIndex("PerformedAtUtc");
+
+                    b.HasIndex("PerformedByUserId");
+
+                    b.ToTable("OrderTransactionHistories");
+                });
+
             modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouses.Warehouse", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1555,6 +1598,30 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("PriceType");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Orders.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderTransaction", "OrderTransaction")
+                        .WithMany()
+                        .HasForeignKey("OrderTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Infrastructure.Persistence.Tenant.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("PerformedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Order");
+
+                    b.Navigation("OrderTransaction");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Recipient", b =>
