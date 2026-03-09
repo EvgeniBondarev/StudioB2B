@@ -1092,10 +1092,20 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("tinyint(1)");
 
                     b.HasKey("Id");
 
@@ -1105,7 +1115,40 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Roles", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.User", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionFieldRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("EntityPath")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<Guid>("OrderTransactionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("FixedValue")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ValueSource")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderTransactionId");
+
+                    b.ToTable("OrderTransactionFieldRules");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1126,6 +1169,11 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
 
+                    b.Property<int>("FieldsUpdated")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PricesUpdated")
+                        .HasColumnType("int");
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
@@ -1430,6 +1478,41 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("PriceType");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionFieldRule", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderTransaction", "OrderTransaction")
+                        .WithMany("FieldRules")
+                        .HasForeignKey("OrderTransactionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrderTransaction");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Orders.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderTransaction", "OrderTransaction")
+                        .WithMany()
+                        .HasForeignKey("OrderTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Infrastructure.Persistence.Tenant.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("PerformedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Order");
+
+                    b.Navigation("OrderTransaction");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Recipient", b =>

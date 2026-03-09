@@ -10,6 +10,23 @@ public class TransactionApplyPreview
     public string TransactionName { get; set; } = string.Empty;
     public string ToStatusName { get; set; } = string.Empty;
     public List<TransactionApplyRulePreview> Rules { get; set; } = [];
+    public List<TransactionApplyFieldRulePreview> FieldRules { get; set; } = [];
+}
+
+/// <summary>
+/// Предпросмотр правила изменения поля.
+/// </summary>
+public class TransactionApplyFieldRulePreview
+{
+    public Guid RuleId { get; set; }
+    public string EntityPath { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public TransactionFieldValueSource ValueSource { get; set; }
+    public string? FixedValue { get; set; }
+    public TransactionFieldValueType ValueType { get; set; }
+    public FieldReferenceType ReferenceType { get; set; }
+    public bool IsRequired { get; set; }
+    public bool RequiresUserInput => ValueSource == TransactionFieldValueSource.UserInput;
 }
 
 /// <summary>
@@ -31,4 +48,6 @@ public class TransactionApplyRulePreview
     public string? FormulaBreakdown { get; set; }
     /// <summary>Требуется ввод пользователя при проведении.</summary>
     public bool RequiresUserInput => ValueSource == TransactionValueSource.UserInput;
+    /// <summary>Обязательное поле при проведении.</summary>
+    public bool IsRequired { get; set; }
 }
