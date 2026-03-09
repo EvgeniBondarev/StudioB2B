@@ -13,7 +13,10 @@ public class TabService
             ["/orders"]              = ("Заказы",         "receipt_long"),
             ["/orders-sync"]         = ("Загрузка",       "cloud_sync"),
             ["/order-statuses"]      = ("Статусы",        "label"),
+            ["/price-types"]         = ("Типы цен",       "payments"),
+            ["/transactions"]        = ("Транзакции",     "swap_horiz"),
             ["/calculation-rules"]   = ("Расчёты",        "calculate"),
+            ["/audit"]               = ("Журнал",         "history"),
             ["/roles"]               = ("Роли",           "security"),
             ["/chats"]               = ("Чаты",           "chat"),
         };
