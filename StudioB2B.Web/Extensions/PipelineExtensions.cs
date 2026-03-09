@@ -19,12 +19,13 @@ public static class PipelineExtensions
         app.UseMiddleware<TenantMiddleware>();
         app.UseAuthentication();
         app.UseAuthorization();
+        // Обязателен для Blazor Interactive Server.
+        // IAntiforgery заменён на NoOpAntiforgery — реальная валидация отключена.
         app.UseAntiforgery();
 
         app.MapControllers();
         app.MapStaticAssets();
 
-        // SignalR Hub для уведомлений о завершении задач — до MapRazorComponents
         app.MapHub<SyncNotificationHub>("/hubs/sync");
 
         app.MapRazorComponents<App>()
