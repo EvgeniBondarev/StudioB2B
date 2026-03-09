@@ -707,6 +707,8 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     ToSystemStatusId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     SortOrder = table.Column<int>(type: "int", nullable: false),
                     IsEnabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    Color = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
@@ -792,6 +794,32 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "OrderTransactionFieldRules",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    OrderTransactionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    EntityPath = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ValueSource = table.Column<int>(type: "int", nullable: false),
+                    FixedValue = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    IsRequired = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OrderTransactionFieldRules", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OrderTransactionFieldRules_OrderTransactions_OrderTransactio~",
+                        column: x => x.OrderTransactionId,
+                        principalTable: "OrderTransactions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "OrderTransactionRules",
                 columns: table => new
                 {
@@ -804,7 +832,8 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     ProductId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     CurrencyId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
-                    SortOrder = table.Column<int>(type: "int", nullable: false)
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    IsRequired = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -993,7 +1022,8 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     Success = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     ErrorMessage = table.Column<string>(type: "varchar(2000)", maxLength: 2000, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    PricesUpdated = table.Column<int>(type: "int", nullable: false)
+                    PricesUpdated = table.Column<int>(type: "int", nullable: false),
+                    FieldsUpdated = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -1120,6 +1150,11 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 name: "IX_OrderStatuses_MarketplaceClientTypeId",
                 table: "OrderStatuses",
                 column: "MarketplaceClientTypeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderTransactionFieldRules_OrderTransactionId",
+                table: "OrderTransactionFieldRules",
+                column: "OrderTransactionId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_OrderTransactionHistories_OrderId_OrderTransactionId",
@@ -1304,6 +1339,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
             migrationBuilder.DropTable(
                 name: "OrderProductInfos");
+
+            migrationBuilder.DropTable(
+                name: "OrderTransactionFieldRules");
 
             migrationBuilder.DropTable(
                 name: "OrderTransactionHistories");

@@ -12,7 +12,7 @@ using StudioB2B.Infrastructure.Persistence.Master;
 namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
 {
     [DbContext(typeof(MasterDbContext))]
-    [Migration("20260309173009_Initial")]
+    [Migration("20260309181801_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
