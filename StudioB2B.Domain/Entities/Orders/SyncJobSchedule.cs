@@ -2,6 +2,8 @@ namespace StudioB2B.Domain.Entities.Orders;
 
 /// <summary>
 /// Сохранённое расписание фоновой задачи для тенанта.
+/// Расписание всегда хранится как cron-выражение.
+/// Параметры запуска задачи хранятся в <see cref="SyncParams"/> как JSON.
 /// </summary>
 public class SyncJobSchedule
 {
@@ -9,43 +11,27 @@ public class SyncJobSchedule
 
     public SyncJobType JobType { get; set; }
 
-    public ScheduleType ScheduleType { get; set; }
-
     public bool IsEnabled { get; set; } = true;
 
-    // ── Параметры расписания ──────────────────────────────────────────
+    // ── Расписание ────────────────────────────────────────────────────
 
-    /// <summary>Для EveryNMinutes: интервал в минутах.</summary>
-    public int? IntervalMinutes { get; set; }
-
-    /// <summary>Для EveryNHours: интервал в часах.</summary>
-    public int? IntervalHours { get; set; }
-
-    /// <summary>Для EveryNDays: интервал в днях.</summary>
-    public int? IntervalDays { get; set; }
-
-    /// <summary>Для DailyAt / WeeklyAt / MonthlyAt / EveryNDays: время суток.</summary>
-    public TimeSpan? TimeOfDay { get; set; }
+    /// <summary>Cron-выражение (5 полей, стандарт Hangfire/Quartz).</summary>
+    public string CronExpression { get; set; } = "0 9 * * *";
 
     /// <summary>
-    /// Для WeeklyAt: дни недели через запятую (0=вс,1=пн,...,6=сб).
-    /// Хранится как строка, например "1,3,5".
+    /// Человекочитаемое описание расписания (заполняется сервисом при сохранении).
     /// </summary>
-    public string? DaysOfWeek { get; set; }
+    public string? CronDescription { get; set; }
 
-    /// <summary>Для MonthlyAt: день месяца (1–28).</summary>
-    public int? DayOfMonth { get; set; }
-
-    /// <summary>Для CustomCron: произвольное cron-выражение.</summary>
-    public string? CronExpression { get; set; }
-
-    // ── Параметры задачи Sync ─────────────────────────────────────────
+    // ── Параметры задачи ──────────────────────────────────────────────
 
     /// <summary>
-    /// Для JobType = Sync: сколько дней назад брать начало периода
-    /// (период = [now - SyncDaysBack, now]).
+    /// JSON с параметрами запуска конкретной задачи.
+    /// Для SyncJobType.Sync: { "DaysBack": 7 }
+    /// Для SyncJobType.Update: null или {}
+    /// Расширяется при появлении новых типов задач без изменения схемы.
     /// </summary>
-    public int SyncDaysBack { get; set; } = 7;
+    public string? SyncParams { get; set; }
 
     // ── Hangfire ──────────────────────────────────────────────────────
 
@@ -59,4 +45,3 @@ public class SyncJobSchedule
 
     public string? CreatedByEmail { get; set; }
 }
-

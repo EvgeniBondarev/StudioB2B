@@ -794,29 +794,18 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
 
+                    b.Property<string>("CronDescription")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
                     b.Property<string>("CronExpression")
+                        .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
-
-                    b.Property<int?>("DayOfMonth")
-                        .HasColumnType("int");
-
-                    b.Property<string>("DaysOfWeek")
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
 
                     b.Property<string>("HangfireRecurringJobId")
                         .HasMaxLength(200)
                         .HasColumnType("varchar(200)");
-
-                    b.Property<int?>("IntervalDays")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IntervalHours")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("IntervalMinutes")
-                        .HasColumnType("int");
 
                     b.Property<bool>("IsEnabled")
                         .HasColumnType("tinyint(1)");
@@ -824,14 +813,8 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<int>("JobType")
                         .HasColumnType("int");
 
-                    b.Property<int>("ScheduleType")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SyncDaysBack")
-                        .HasColumnType("int");
-
-                    b.Property<TimeSpan?>("TimeOfDay")
-                        .HasColumnType("time(6)");
+                    b.Property<string>("SyncParams")
+                        .HasColumnType("json");
 
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime(6)");
