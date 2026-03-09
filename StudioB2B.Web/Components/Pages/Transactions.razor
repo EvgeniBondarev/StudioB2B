@@ -1,0 +1,290 @@
+@page "/transactions"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.EntityFrameworkCore
+@using Radzen
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
+@using StudioB2B.Web.Components.Common
+
+@inject ITenantProvider TenantProvider
+@inject ITenantDbContextFactory Factory
+@inject NotificationService NotificationService
+@inject ContextMenuService ContextMenuService
+@inject DialogService DialogService
+@inject IJSRuntime JSRuntime
+
+@implements IDisposable
+
+<PageTitle>Транзакции заказов</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+{
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                 JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
+        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Транзакции заказов</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+            <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                          Click="@ToggleDensity" Title="@GetDensityTitle()" />
+            <RadzenButton Icon="add" Text="Добавить" ButtonStyle="ButtonStyle.Primary"
+                          Click="@OpenCreateDialog" />
+        </RadzenStack>
+    </RadzenStack>
+
+    <RadzenText TextStyle="TextStyle.Body2"
+                Style="color: var(--rz-text-secondary-color); margin-bottom: 1rem; display: block;">
+        Транзакция — переход заказа из одного системного статуса в другой с изменением цен по правилам.
+    </RadzenText>
+
+    <RadzenDataGrid @ref="_grid"
+                    TItem="OrderTransaction"
+                    Data="@_pageItems"
+                    Count="@_totalCount"
+                    LoadData="@LoadData"
+                    Density="@_density"
+                    Settings="@_gridSettings"
+                    SettingsChanged="@OnGridSettingsChanged"
+                    AllowFiltering="true"
+                    AllowColumnResize="true"
+                    AllowAlternatingRows="false"
+                    FilterMode="FilterMode.Advanced"
+                    LogicalFilterOperator="LogicalFilterOperator.Or"
+                    AllowSorting="true"
+                    AllowPaging="true"
+                    PageSize="20"
+                    PageSizeOptions="@_pageSizeOptions"
+                    ShowPagingSummary="true"
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    CellContextMenu="@ShowContextMenu"
+                    IsLoading="@_loading"
+                    FilterText="@RadzenRuStrings.FilterText"
+                    ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
+                    ClearFilterText="@RadzenRuStrings.ClearFilterText"
+                    ContainsText="@RadzenRuStrings.ContainsText"
+                    DoesNotContainText="@RadzenRuStrings.DoesNotContainText"
+                    EqualsText="@RadzenRuStrings.EqualsText"
+                    NotEqualsText="@RadzenRuStrings.NotEqualsText"
+                    StartsWithText="@RadzenRuStrings.StartsWithText"
+                    EndsWithText="@RadzenRuStrings.EndsWithText"
+                    GreaterThanText="@RadzenRuStrings.GreaterThanText"
+                    GreaterThanOrEqualsText="@RadzenRuStrings.GreaterThanOrEqualsText"
+                    LessThanText="@RadzenRuStrings.LessThanText"
+                    LessThanOrEqualsText="@RadzenRuStrings.LessThanOrEqualsText"
+                    IsNullText="@RadzenRuStrings.IsNullText"
+                    IsNotNullText="@RadzenRuStrings.IsNotNullText"
+                    AndOperatorText="@RadzenRuStrings.AndOperatorText"
+                    OrOperatorText="@RadzenRuStrings.OrOperatorText"
+                    PageSizeText="@RadzenRuStrings.PageSizeText"
+                    PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
+                    EmptyText="@RadzenRuStrings.EmptyText">
+        <Columns>
+
+            <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Название" Width="220px" Frozen="true">
+                <Template Context="t">
+                    <RadzenText TextStyle="TextStyle.Body2">@t.Name</RadzenText>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OrderTransaction" Property="FromSystemStatus.Name" Title="Исходный статус" Width="180px">
+                <Template Context="t">
+                    @if (t.FromSystemStatus != null)
+                    {
+                        <RadzenBadge Text="@t.FromSystemStatus.Name" BadgeStyle="BadgeStyle.Secondary" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OrderTransaction" Property="ToSystemStatus.Name" Title="Целевой статус" Width="180px">
+                <Template Context="t">
+                    @if (t.ToSystemStatus != null)
+                    {
+                        <RadzenBadge Text="@t.ToSystemStatus.Name" BadgeStyle="BadgeStyle.Success" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OrderTransaction" Title="Правил" Width="80px" TextAlign="TextAlign.Center" Filterable="false" Sortable="false">
+                <Template Context="t">
+                    @(t.Rules?.Count ?? 0)
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OrderTransaction" Property="IsEnabled" Title="Активна" Width="100px" TextAlign="TextAlign.Center">
+                <Template Context="t">
+                    @if (t.IsEnabled)
+                    {
+                        <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Да" />
+                    }
+                    else
+                    {
+                        <span style="color: var(--rz-text-disabled-color);">Нет</span>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    private RadzenDataGrid<OrderTransaction>? _grid;
+    private TenantDbContext? _db;
+    private IEnumerable<OrderTransaction> _pageItems = Array.Empty<OrderTransaction>();
+    private int _totalCount;
+    private Density _density = Density.Default;
+    private bool _loading;
+    private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+    private DataGridSettings? _gridSettings;
+    private const string GridSettingsKey = "transactions-grid-settings";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadGridSettingsAsync();
+            if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
+                await _grid.Reload();
+        }
+    }
+
+    private async Task LoadGridSettingsAsync()
+    {
+        try
+        {
+            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private void OnGridSettingsChanged(DataGridSettings settings)
+    {
+        _gridSettings = settings;
+        _ = SaveGridSettingsAsync();
+    }
+
+    private async Task SaveGridSettingsAsync()
+    {
+        try
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+        }
+        catch { }
+    }
+
+    private async Task LoadData(LoadDataArgs args)
+    {
+        _loading = true;
+        await EnsureInitializedAsync();
+
+        var query = _db!.OrderTransactions
+            .Include(t => t.FromSystemStatus)
+            .Include(t => t.ToSystemStatus)
+            .Include(t => t.Rules)
+            .Where(t => !t.IsDeleted)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(args.Filter))
+            query = query.Where(args.Filter);
+
+        _totalCount = await query.CountAsync();
+
+        query = !string.IsNullOrEmpty(args.OrderBy)
+            ? query.OrderBy(args.OrderBy)
+            : query.OrderBy(t => t.Name);
+
+        var skip = args.Skip ?? 0;
+        var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 20);
+        _pageItems = await query.Skip(skip).Take(take).ToListAsync();
+
+        _loading = false;
+    }
+
+    private async Task EnsureInitializedAsync()
+    {
+        if (_db != null) return;
+        _db = Factory.CreateDbContext();
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var result = await DialogService.OpenAsync<OrderTransactionDialog>(
+            "Новая транзакция",
+            new Dictionary<string, object?>(),
+            new DialogOptions { Width = "min(700px, 95vw)", Resizable = true });
+
+        if (result is bool b && b && _grid != null)
+            await _grid.Reload();
+    }
+
+    private async Task OpenEditDialog(OrderTransaction t)
+    {
+        var result = await DialogService.OpenAsync<OrderTransactionDialog>(
+            "Редактировать транзакцию",
+            new Dictionary<string, object?> { ["TransactionId"] = t.Id },
+            new DialogOptions { Width = "min(700px, 95vw)", Resizable = true });
+
+        if (result is bool b && b && _grid != null)
+            await _grid.Reload();
+    }
+
+    private async Task DeleteAsync(OrderTransaction t)
+    {
+        var confirmed = await DialogService.Confirm(
+            $"Удалить транзакцию «{t.Name}»?",
+            "Подтверждение",
+            new ConfirmOptions { OkButtonText = "Удалить", CancelButtonText = "Отмена" });
+
+        if (confirmed != true) return;
+
+        var entity = await _db!.OrderTransactions.FindAsync(t.Id);
+        if (entity != null)
+        {
+            entity.IsDeleted = true;
+            await _db.SaveChangesAsync();
+            NotificationService.Notify(NotificationSeverity.Success, "Транзакция удалена");
+            await _grid!.Reload();
+        }
+    }
+
+    private void ShowContextMenu(DataGridCellMouseEventArgs<OrderTransaction> args)
+    {
+        ContextMenuService.Open(args,
+        [
+            new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" },
+            new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" }
+        ],
+        async e =>
+        {
+            ContextMenuService.Close();
+            if (e.Value?.ToString() == "edit")
+                await OpenEditDialog(args.Data);
+            else if (e.Value?.ToString() == "delete")
+                await DeleteAsync(args.Data);
+        });
+    }
+
+    private void ToggleDensity() =>
+        _density = _density == Density.Compact ? Density.Default : Density.Compact;
+
+    private string GetDensityTitle() => _density switch
+    {
+        Density.Compact => "Компактный режим строк",
+        _ => "Обычный режим строк"
+    };
+
+    public void Dispose() => _db?.Dispose();
+}
