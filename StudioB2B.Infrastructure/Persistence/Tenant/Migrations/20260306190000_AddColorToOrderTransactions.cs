@@ -17,7 +17,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     AND TABLE_NAME = 'OrderTransactions'
                     AND COLUMN_NAME = 'Color');
                 SET @ddl = IF(@col_exists = 0,
-                    'ALTER TABLE `OrderTransactions` ADD COLUMN `Color` varchar(50) NULL CHARACTER SET utf8mb4',
+                    'ALTER TABLE `OrderTransactions` ADD COLUMN `Color` varchar(50) NULL',
                     'SELECT 1');
                 PREPARE stmt FROM @ddl;
                 EXECUTE stmt;
