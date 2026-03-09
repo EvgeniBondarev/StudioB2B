@@ -364,11 +364,14 @@ else
                         var priceText = $"{price.Value:N2} {price.Currency?.Code}";
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate"
-                                    Style="font-weight:600; letter-spacing:0.2px;"
+                                    Style="@($"font-weight:600; letter-spacing:0.2px; {GetPriceColor(price.Value)}")"
                                     title="@priceText">
-
                             @priceText
                         </RadzenText>
+                    }
+                    else
+                    {
+                        <span style="color: var(--rz-danger);">—</span>
                     }
                 </Template>
             </RadzenDataGridColumn>
@@ -396,10 +399,10 @@ else
                                         @if (fields.TryGetValue(rule.ResultKey, out var val) && val != decimal.MinValue)
                                         {
                                             <span
-                                                style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                                                title="@rule.Formula">
+                                                style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help;"
+                                                title="@GetFormulaBreakdown(o, rule, val)">
                                                 <span style="color: var(--rz-text-secondary-color);">@rule.Name:</span>
-                                                <strong>@val.ToString("N2")</strong>
+                                                <strong style="@GetPriceColor(val)">@val.ToString("N2")</strong>
                                             </span>
                                         }
                                     }
@@ -426,7 +429,7 @@ else
                                      fields.TryGetValue(rule.ResultKey, out var val) &&
                                      val != decimal.MinValue)
                                 {
-                                    <span title="@rule.Formula">@val.ToString("N2")</span>
+                                    <span title="@GetFormulaBreakdown(o, rule, val)" style="cursor: help; @GetPriceColor(val)">@val.ToString("N2")</span>
                                 }
                             </Template>
                         </RadzenDataGridColumn>
@@ -846,4 +849,23 @@ else
         Density.Compact => "Компактный режим строк",
         _ => "Обычный режим строк"
     };
+
+    private static string GetPriceColor(decimal value) =>
+        value < 0 ? "color: var(--rz-danger);" : "";
+
+    private string GetFormulaBreakdown(Order o, CalculationRule rule, decimal val)
+    {
+        var context = new Dictionary<string, decimal>(CalculationEngine.GetContextSnapshot(o), StringComparer.OrdinalIgnoreCase);
+        foreach (var r in _calcRules.OrderBy(x => x.SortOrder))
+        {
+            if (r.Id == rule.Id) break;
+            if (_computed.TryGetValue(o.Id, out var fields) && fields.TryGetValue(r.ResultKey, out var v) && v != decimal.MinValue)
+            {
+                var key = CalculationEngine.SanitizeKey(r.ResultKey);
+                if (!string.IsNullOrEmpty(key))
+                    context[key] = v;
+            }
+        }
+        return CalculationEngine.BuildFormulaBreakdown(rule.Formula ?? "", context, val);
+    }
 }

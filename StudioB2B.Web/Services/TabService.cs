@@ -16,6 +16,7 @@ public class TabService
             ["/order-statuses"]      = ("Статусы",        "label"),
             ["/price-types"]         = ("Типы цен",       "payments"),
             ["/transactions"]        = ("Транзакции",     "swap_horiz"),
+            ["/transactions-history"] = ("История транзакций", "schedule"),
             ["/calculation-rules"]   = ("Расчёты",        "calculate"),
             ["/audit"]               = ("Журнал",         "history"),
             ["/roles"]               = ("Роли",           "security"),
