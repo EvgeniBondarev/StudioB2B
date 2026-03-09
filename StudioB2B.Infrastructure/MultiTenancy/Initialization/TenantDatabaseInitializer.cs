@@ -49,6 +49,22 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         await EnsureRobotUserAsync(context, ct);
     }
 
+    public async Task MigrateOnlyAsync(string connectionString, CancellationToken ct)
+    {
+        await using var context = await CreateContextAsync(connectionString, ct);
+
+        var pending = (await context.Database.GetPendingMigrationsAsync(ct)).ToList();
+        if (pending.Count == 0) return;
+
+        _logger.LogInformation(
+            "Startup: applying {Count} pending tenant migrations: {Migrations}",
+            pending.Count, string.Join(", ", pending));
+
+        await context.Database.MigrateAsync(ct);
+
+        _logger.LogInformation("Startup: tenant database migrated successfully");
+    }
+
     public async Task CreateAdminUserAsync(
         string connectionString, string email, string password, CancellationToken ct)
     {

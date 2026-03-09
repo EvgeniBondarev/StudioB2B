@@ -20,6 +20,19 @@
 <script src="@Assets["_framework/blazor.web.js"]"></script>
 <script src="_content/Radzen.Blazor/Radzen.Blazor.js"></script>
 <script src="copy.js"></script>
+<script>
+    window.__registerChatEscape = function (dotNetRef) {
+        if (window.__chatEscapeHandler) {
+            document.removeEventListener('keydown', window.__chatEscapeHandler);
+        }
+        window.__chatEscapeHandler = function (e) {
+            if (e.key === 'Escape') {
+                dotNetRef.invokeMethodAsync('HandleKeyEscape');
+            }
+        };
+        document.addEventListener('keydown', window.__chatEscapeHandler);
+    };
+</script>
 </body>
 
 </html>

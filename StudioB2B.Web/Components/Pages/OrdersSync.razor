@@ -76,10 +76,11 @@ else
                             <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600;">
                                 @ScheduleCronBuilder.Describe(s)
                             </RadzenText>
-                            @if (s.JobType == SyncJobType.Sync)
+                            @if (s.JobType == SyncJobType.Sync && !string.IsNullOrEmpty(s.SyncParams))
                             {
+                                var daysBack = ParseDaysBack(s.SyncParams);
                                 <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);">
-                                    Период: последние @s.SyncDaysBack дн.
+                                    Период: последние @daysBack дн.
                                 </RadzenText>
                             }
                             <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);">
@@ -197,7 +198,7 @@ else
                     { <span style="color:var(--rz-text-secondary-color)">—</span> }
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="SyncJobHistory" Title="Продолжительность" Width="140px"
+            <RadzenDataGridColumn TItem="SyncJobHistory" Title="Продолжительность" Width="240px"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="h">
                     <RadzenText TextStyle="TextStyle.Body2">@FormatDuration(h)</RadzenText>
@@ -365,7 +366,7 @@ else
             ds => @<EnqueueJobDialog JobService="@JobService"
                                      DialogService="@ds"
                                      NotificationService="@NotificationService" />,
-            new DialogOptions { Width = "520px", Resizable = false, Draggable = true });
+            new DialogOptions { Width = "700px", Resizable = true, Draggable = true });
 
         if (result is true)
         {
@@ -475,7 +476,7 @@ else
         var result = await DialogService.OpenAsync(
             "Новое расписание",
             ds => @<ScheduleJobDialog JobService="@JobService" DialogService="@ds" />,
-            new DialogOptions { Width = "520px", Resizable = false, Draggable = true });
+            new DialogOptions { Width = "930px", Resizable = true, Draggable = true });
 
         if (result is true)
             await LoadSchedulesAsync();
@@ -486,7 +487,7 @@ else
         var result = await DialogService.OpenAsync(
             "Редактировать расписание",
             ds => @<ScheduleJobDialog JobService="@JobService" DialogService="@ds" EditSchedule="@schedule" />,
-            new DialogOptions { Width = "520px", Resizable = false, Draggable = true });
+            new DialogOptions { Width = "930px", Resizable = true, Draggable = true });
 
         if (result is true)
             await LoadSchedulesAsync();
@@ -663,6 +664,19 @@ else
         SyncJobStatus.Cancelled  => "Отменена",
         _                        => s.ToString()
     };
+
+    private static int ParseDaysBack(string? syncParams)
+    {
+        if (string.IsNullOrEmpty(syncParams)) return 7;
+        try
+        {
+            using var doc = JsonDocument.Parse(syncParams);
+            if (doc.RootElement.TryGetProperty("DaysBack", out var el) && el.TryGetInt32(out var d))
+                return d;
+        }
+        catch { }
+        return 7;
+    }
 
     // ── IAsyncDisposable ──────────────────────────────────────────────────────
 

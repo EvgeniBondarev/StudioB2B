@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StudioB2B.Application.Common.Interfaces;
+using StudioB2B.Infrastructure.Features.Marketplace;
 using StudioB2B.Infrastructure.Features.Orders;
 using StudioB2B.Infrastructure.Features.Roles;
 using StudioB2B.Infrastructure.Features.Users;
@@ -60,9 +61,11 @@ public static class DependencyInjection
         .AddHttpMessageHandler<RetryHandler>()
         .AddHttpMessageHandler<RateLimitHandler>();
 
+
         services.AddScoped<IOzonApiClient, OzonApiClient>();
         services.AddScoped<IOrderAdapter, OzonFbsOrderAdapter>();
         services.AddScoped<IOrderSyncService, OrderSyncService>();
+        services.AddScoped<IOzonChatService, OzonChatService>();
 
         services.AddScoped<TenantProvider>();
         services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<TenantProvider>());

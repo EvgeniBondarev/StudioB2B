@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Http;
+using StudioB2B.Infrastructure.Integrations.Ozon.Models.Chat;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.FbsUnfulfilled;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductAttributes;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductPrices;
@@ -182,6 +183,120 @@ public class OzonApiClient : IOzonApiClient
             plainApiKey,
             body,
             ct);
+    }
+
+    // ── Chat ─────────────────────────────────────────────────────────────────
+
+    public Task<OzonApiResult<OzonChatListResponse>> GetChatListAsync(
+        string clientId,
+        string apiKey,
+        OzonChatListRequest request,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonChatListResponse>(OzonEndpoints.ChatList, clientId, plainApiKey, request, ct);
+    }
+
+    public Task<OzonApiResult<OzonChatHistoryResponse>> GetChatHistoryAsync(
+        string clientId,
+        string apiKey,
+        OzonChatHistoryRequest request,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonChatHistoryResponse>(OzonEndpoints.ChatHistory, clientId, plainApiKey, request, ct);
+    }
+
+    public Task<OzonApiResult<OzonSendMessageResponse>> SendChatMessageAsync(
+        string clientId,
+        string apiKey,
+        string chatId,
+        string text,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        var body = new OzonSendMessageRequest { ChatId = chatId, Text = text };
+        return SendPostAsync<OzonSendMessageResponse>(OzonEndpoints.ChatSendMessage, clientId, plainApiKey, body, ct);
+    }
+
+    public Task<OzonApiResult<OzonSendFileResponse>> SendChatFileAsync(
+        string clientId,
+        string apiKey,
+        string chatId,
+        string base64Content,
+        string fileName,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        var body = new OzonSendFileRequest { ChatId = chatId, Base64Content = base64Content, Name = fileName };
+        return SendPostAsync<OzonSendFileResponse>(OzonEndpoints.ChatSendFile, clientId, plainApiKey, body, ct);
+    }
+
+    public Task<OzonApiResult<OzonReadChatResponse>> ReadChatAsync(
+        string clientId,
+        string apiKey,
+        string chatId,
+        ulong? fromMessageId = null,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        var body = new OzonReadChatRequest { ChatId = chatId, FromMessageId = fromMessageId };
+        return SendPostAsync<OzonReadChatResponse>(OzonEndpoints.ChatRead, clientId, plainApiKey, body, ct);
+    }
+
+    public async Task<(Stream? Content, string ContentType, bool Success)> DownloadChatFileAsync(
+        string clientId,
+        string apiKey,
+        string fileUrl,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var plainApiKey = _encryption.Decrypt(apiKey);
+            var http = _httpClientFactory.CreateClient("Ozon");
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, fileUrl);
+            request.Headers.Add("Client-Id", clientId);
+            request.Headers.Add("Api-Key", plainApiKey);
+
+            var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (!response.IsSuccessStatusCode)
+                return (null, string.Empty, false);
+
+            var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream";
+            var stream = await response.Content.ReadAsStreamAsync(ct);
+            return (stream, contentType, true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error downloading chat file from {Url}", fileUrl);
+            return (null, string.Empty, false);
+        }
     }
 
     private async Task<OzonApiResult<TResponse>> SendPostAsync<TResponse>(
