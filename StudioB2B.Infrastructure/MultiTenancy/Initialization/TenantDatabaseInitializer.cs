@@ -1,11 +1,8 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using StudioB2B.Domain.Entities.Marketplace;
 using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Entities.Tenants;
 using StudioB2B.Domain.Entities.References;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
@@ -83,8 +80,8 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         await using var context = await CreateContextAsync(connectionString, ct);
 
         await SyncRolesFromMasterAsync(context, ct);
-        await EnsureAdminRoleAsync(context);
-        await CreateUserWithRoleAsync(context, email, password, "Admin");
+        await EnsureAdminRoleAsync(context, ct);
+        await CreateUserWithRoleAsync(context, email, password, "Admin", ct);
 
         _logger.LogInformation("Tenant admin user created: {Email}", email);
     }
@@ -102,7 +99,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         var builder = new DbContextOptionsBuilder<TenantDbContext>();
         builder.UseMySql(connectionString,
             await ServerVersion.AutoDetectAsync(connectionString, ct));
-        // ICurrentUserProvider = null → все изменения при инициализации записываются на робота
         return new TenantDbContext(builder.Options, currentUserProvider: null);
     }
 
@@ -111,37 +107,67 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         if (await ctx.Users.AnyAsync(u => u.Id == SystemUser.RobotId, ct))
             return;
 
-        var store = new UserStore<ApplicationUser, ApplicationRole, TenantDbContext, Guid>(ctx);
-
-        using var mgr = new UserManager<ApplicationUser>(
-            store,
-            Options.Create(new IdentityOptions()),
-            new PasswordHasher<ApplicationUser>(),
-            new[] { new UserValidator<ApplicationUser>() },
-            new[] { new PasswordValidator<ApplicationUser>() },
-            new UpperInvariantLookupNormalizer(),
-            new IdentityErrorDescriber(),
-            null!,
-            NullLogger<UserManager<ApplicationUser>>.Instance);
-
-        var robot = new ApplicationUser
+        ctx.Users.Add(new User
         {
-            Id             = SystemUser.RobotId,
-            UserName       = SystemUser.RobotUserName,
-            Email          = SystemUser.RobotEmail,
-            EmailConfirmed = true,
-            FirstName      = SystemUser.RobotFirstName,
-            LastName       = SystemUser.RobotLastName,
-            IsActive       = false
+            Id           = SystemUser.RobotId,
+            Email        = SystemUser.RobotEmail,
+            HashPassword = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()), // недоступный пароль
+            FirstName    = SystemUser.RobotFirstName,
+            LastName     = SystemUser.RobotLastName,
+            IsActive     = false
+        });
+
+        await ctx.SaveChangesAsync(ct);
+    }
+
+    private async Task SyncRolesFromMasterAsync(TenantDbContext ctx, CancellationToken ct)
+    {
+        var masterRoles = await _masterDb.Roles.AsNoTracking().ToListAsync(ct);
+
+        foreach (var mr in masterRoles)
+        {
+            if (!await ctx.Roles.AnyAsync(r => r.Id == mr.Id, ct))
+            {
+                ctx.Roles.Add(new Role { Id = mr.Id, Name = mr.Name });
+            }
+        }
+
+        await ctx.SaveChangesAsync(ct);
+    }
+
+    private static async Task EnsureAdminRoleAsync(TenantDbContext ctx, CancellationToken ct)
+    {
+        if (!await ctx.Roles.AnyAsync(r => r.Name == "Admin", ct))
+        {
+            ctx.Roles.Add(new Role { Id = Guid.NewGuid(), Name = "Admin" });
+            await ctx.SaveChangesAsync(ct);
+        }
+    }
+
+    private static async Task CreateUserWithRoleAsync(
+        TenantDbContext ctx, string email, string password, string roleName, CancellationToken ct)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        if (await ctx.Users.AnyAsync(u => u.Email == normalizedEmail, ct))
+            return;
+
+        var user = new User
+        {
+            Id           = Guid.NewGuid(),
+            Email        = normalizedEmail,
+            HashPassword = BCrypt.Net.BCrypt.HashPassword(password),
+            FirstName    = "Admin",
+            LastName     = "User",
+            IsActive     = true
         };
 
-        // Создаём без пароля — робот не должен иметь возможности войти
-        var result = await mgr.CreateAsync(robot);
-        if (!result.Succeeded)
-        {
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Failed to create robot user: {errors}");
-        }
+        ctx.Users.Add(user);
+
+        var role = await ctx.Roles.FirstOrDefaultAsync(r => r.Name == roleName, ct);
+        if (role is not null)
+            ctx.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id });
+
+        await ctx.SaveChangesAsync(ct);
     }
 
     private static async Task SeedMarketplaceDataAsync(TenantDbContext ctx, CancellationToken ct)
@@ -171,7 +197,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
                 new MarketplaceClientMode { Name = "Express" });
         }
 
-        // Системные статусы заказов (OrderStatus)
+        // Системные статусы заказов
         if (!await ctx.Set<OrderStatus>().AnyAsync(ct))
         {
             var systemStatuses = new List<OrderStatus>
@@ -199,13 +225,12 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
                 new() { Name = "Перемещение",          Color = "#3F51B5", IsTerminal = false, IsInternal = true },
                 new() { Name = "Возвращен на склад",   Color = "#009688", IsTerminal = false, IsInternal = true }
             };
-
             ctx.Set<OrderStatus>().AddRange(systemStatuses);
         }
 
         await ctx.SaveChangesAsync(ct);
 
-        // Статусы отправлений Ozon (отображаемое имя — на русском, синоним — код API; не системные, привязаны к типу Ozon)
+        // Статусы отправлений Ozon
         var ozonType = await ctx.Set<MarketplaceClientType>()
             .FirstOrDefaultAsync(t => t.Name == "Ozon", ct);
         if (ozonType != null)
@@ -231,79 +256,39 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
             {
                 var existing = await ctx.Set<OrderStatus>()
                     .FirstOrDefaultAsync(s => s.Synonym == synonym, ct);
-
                 var isTerminal = string.Equals(synonym, "delivered", StringComparison.OrdinalIgnoreCase);
-
                 if (existing == null)
                 {
                     ctx.Set<OrderStatus>().Add(new OrderStatus
                     {
-                        Name = name,
-                        Synonym = synonym,
-                        IsInternal = false,
-                        IsTerminal = isTerminal,
+                        Name = name, Synonym = synonym,
+                        IsInternal = false, IsTerminal = isTerminal,
                         MarketplaceClientTypeId = ozonType.Id
                     });
                 }
                 else
                 {
-                    // Обновляем существующий статус, если он был создан ранее с английским именем или неверными флагами
                     var needsUpdate = false;
-
-                    if (existing.Name != name)
-                    {
-                        existing.Name = name;
-                        needsUpdate = true;
-                    }
-
-                    if (existing.IsInternal)
-                    {
-                        existing.IsInternal = false;
-                        needsUpdate = true;
-                    }
-
-                    if (existing.MarketplaceClientTypeId != ozonType.Id)
-                    {
-                        existing.MarketplaceClientTypeId = ozonType.Id;
-                        needsUpdate = true;
-                    }
-
-                    if (existing.IsTerminal != isTerminal)
-                    {
-                        existing.IsTerminal = isTerminal;
-                        needsUpdate = true;
-                    }
-
-                    if (existing.IsDeleted)
-                    {
-                        existing.IsDeleted = false;
-                        needsUpdate = true;
-                    }
-
-                    if (needsUpdate)
-                    {
-                        ctx.Set<OrderStatus>().Update(existing);
-                    }
+                    if (existing.Name != name) { existing.Name = name; needsUpdate = true; }
+                    if (existing.IsInternal) { existing.IsInternal = false; needsUpdate = true; }
+                    if (existing.MarketplaceClientTypeId != ozonType.Id) { existing.MarketplaceClientTypeId = ozonType.Id; needsUpdate = true; }
+                    if (existing.IsTerminal != isTerminal) { existing.IsTerminal = isTerminal; needsUpdate = true; }
+                    if (existing.IsDeleted) { existing.IsDeleted = false; needsUpdate = true; }
+                    if (needsUpdate) ctx.Set<OrderStatus>().Update(existing);
                 }
             }
             await ctx.SaveChangesAsync(ct);
         }
 
-        // Цвета статусов (StatusColor)
+        // Цвета статусов
         if (!await ctx.Set<StatusColor>().AnyAsync(ct))
         {
-            var statuses = await ctx.Set<OrderStatus>()
-                .AsNoTracking()
-                .ToListAsync(ct);
-
-            StatusColor CreateIfExists(string statusName, string colorHex)
+            var statuses = await ctx.Set<OrderStatus>().AsNoTracking().ToListAsync(ct);
+            StatusColor? CreateIfExists(string statusName, string colorHex)
             {
                 var status = statuses.FirstOrDefault(s => s.Name == statusName);
-                return status is null
-                    ? null!
-                    : new StatusColor { OrderStatusId = status.Id, Hash = colorHex };
+                return status is null ? null : new StatusColor { OrderStatusId = status.Id, Hash = colorHex };
             }
-
             var colors = new List<StatusColor?>
             {
                 CreateIfExists("Не указан", "#9E9E9E"),
@@ -314,10 +299,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
                 CreateIfExists("Приостановлен", "#FFC107"),
                 CreateIfExists("Возврат покупателя", "#9C27B0"),
                 CreateIfExists("Возвращен на склад", "#009688")
-            }
-            .Where(c => c is not null)
-            .ToList()!;
-
+            }.Where(c => c is not null).ToList()!;
             if (colors.Count > 0)
             {
                 ctx.Set<StatusColor>().AddRange(colors);
@@ -460,86 +442,5 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         }
 
         await ctx.SaveChangesAsync(ct);
-    }
-
-    private async Task SyncRolesFromMasterAsync(TenantDbContext ctx, CancellationToken ct)
-    {
-        var masterRoles = await _masterDb.Roles.AsNoTracking().ToListAsync(ct);
-
-        foreach (var mr in masterRoles)
-        {
-            if (!await ctx.Roles.AnyAsync(r => r.Id == mr.Id, ct))
-            {
-                ctx.Roles.Add(new ApplicationRole
-                {
-                    Id = mr.Id,
-                    Name = mr.Name,
-                    NormalizedName = mr.NormalizedName,
-                    ConcurrencyStamp = Guid.NewGuid().ToString(),
-                    Description = mr.Description,
-                    IsSystemRole = mr.IsSystemRole,
-                    CreatedAtUtc = mr.CreatedAtUtc
-                });
-            }
-        }
-
-        await ctx.SaveChangesAsync(ct);
-    }
-
-    private static async Task EnsureAdminRoleAsync(TenantDbContext ctx)
-    {
-        var store = new RoleStore<ApplicationRole, TenantDbContext, Guid>(ctx);
-        using var mgr = new RoleManager<ApplicationRole>(
-            store,
-            Array.Empty<IRoleValidator<ApplicationRole>>(),
-            new UpperInvariantLookupNormalizer(),
-            new IdentityErrorDescriber(),
-            NullLogger<RoleManager<ApplicationRole>>.Instance);
-
-        if (!await mgr.RoleExistsAsync("Admin"))
-        {
-            await mgr.CreateAsync(new ApplicationRole
-            {
-                Name = "Admin",
-                Description = "Administrator with full access",
-                IsSystemRole = true
-            });
-        }
-    }
-
-    private static async Task CreateUserWithRoleAsync(
-        TenantDbContext ctx, string email, string password, string role)
-    {
-        var store = new UserStore<ApplicationUser, ApplicationRole, TenantDbContext, Guid>(ctx);
-
-        using var mgr = new UserManager<ApplicationUser>(
-            store,
-            Options.Create(new IdentityOptions()),
-            new PasswordHasher<ApplicationUser>(),
-            new[] { new UserValidator<ApplicationUser>() },
-            new[] { new PasswordValidator<ApplicationUser>() },
-            new UpperInvariantLookupNormalizer(),
-            new IdentityErrorDescriber(),
-            null!,
-            NullLogger<UserManager<ApplicationUser>>.Instance);
-
-        var user = new ApplicationUser
-        {
-            UserName = email,
-            Email = email,
-            EmailConfirmed = true,
-            FirstName = "Admin",
-            LastName = "User",
-            IsActive = true
-        };
-
-        var result = await mgr.CreateAsync(user, password);
-        if (!result.Succeeded)
-        {
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            throw new InvalidOperationException($"Failed to create admin user: {errors}");
-        }
-
-        await mgr.AddToRoleAsync(user, role);
     }
 }

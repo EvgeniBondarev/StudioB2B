@@ -1,8 +1,9 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components.Server.Circuits;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Features.Marketplace;
 using StudioB2B.Infrastructure.Features.Orders;
@@ -17,6 +18,7 @@ using StudioB2B.Infrastructure.MultiTenancy.Resolution;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
+using System.Text;
 using TenantService = StudioB2B.Infrastructure.MultiTenancy.Services.TenantService;
 using StudioB2B.Infrastructure.MultiTenancy.Services;
 
@@ -61,7 +63,6 @@ public static class DependencyInjection
         .AddHttpMessageHandler<RetryHandler>()
         .AddHttpMessageHandler<RateLimitHandler>();
 
-
         services.AddScoped<IOzonApiClient, OzonApiClient>();
         services.AddScoped<IOrderAdapter, OzonFbsOrderAdapter>();
         services.AddScoped<IOrderSyncService, OrderSyncService>();
@@ -83,9 +84,7 @@ public static class DependencyInjection
             var tenantProvider = sp.GetRequiredService<ITenantProvider>();
 
             if (!tenantProvider.IsResolved)
-            {
                 throw new InvalidOperationException("Tenant is not resolved. Ensure TenantMiddleware is configured.");
-            }
 
             var optionsBuilder = new DbContextOptionsBuilder<TenantDbContext>();
             optionsBuilder.UseMySql(
@@ -100,41 +99,40 @@ public static class DependencyInjection
         // (например OrderSyncJobService, вызываемый параллельно из polling + UI)
         services.AddScoped<Features.Orders.ITenantDbContextCreator, TenantDbContextCreator>();
 
-        services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
+        // ── JWT Authentication ─────────────────────────────────────────────────
+        var jwtSection = configuration.GetSection("Jwt");
+        var secret = jwtSection["Secret"] ?? throw new InvalidOperationException("Jwt:Secret is not configured");
+        var issuer = jwtSection["Issuer"] ?? "StudioB2B";
+        var audience = jwtSection["Audience"] ?? "StudioB2B";
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+
+        services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
             {
-                // Password settings
-                options.Password.RequireDigit = true;
-                options.Password.RequireLowercase = true;
-                options.Password.RequireUppercase = false;
-                options.Password.RequireNonAlphanumeric = false;
-                options.Password.RequiredLength = 6;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer           = true,
+                    ValidateAudience         = true,
+                    ValidateLifetime         = true,
+                    ValidateIssuerSigningKey  = true,
+                    ValidIssuer              = issuer,
+                    ValidAudience            = audience,
+                    IssuerSigningKey         = key,
+                    ClockSkew                = TimeSpan.Zero
+                };
+            });
 
-                // User settings
-                options.User.RequireUniqueEmail = true;
+        services.AddAuthorization();
 
-                // SignIn settings
-                options.SignIn.RequireConfirmedEmail = false;
-            })
-            .AddEntityFrameworkStores<TenantDbContext>()
-            .AddDefaultTokenProviders();
-
-        services.ConfigureApplicationCookie(options =>
-        {
-            options.LoginPath = "/login";
-            options.LogoutPath = "/logout";
-            options.AccessDeniedPath = "/access-denied";
-            options.ExpireTimeSpan = TimeSpan.FromDays(7);
-            options.SlidingExpiration = true;
-        });
-
-        // ── Role Feature Classes (Scoped — используют MasterDbContext) ────────
+        // ── Role Feature Classes ────────────────────────────────────────────────
         services.AddScoped<GetRoles>();
         services.AddScoped<GetRoleById>();
         services.AddScoped<CreateRole>();
         services.AddScoped<UpdateRole>();
         services.AddScoped<DeleteRole>();
 
-        // ── User Management Feature Classes (Scoped — используют TenantDbContext) ──
+        // ── User Feature Classes ───────────────────────────────────────────────
         services.AddScoped<GetUsers>();
         services.AddScoped<GetUserById>();
         services.AddScoped<GetAvailableRoles>();
