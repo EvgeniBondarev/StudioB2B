@@ -43,6 +43,50 @@ else
         Транзакция — переход заказа из одного системного статуса в другой с изменением цен по правилам.
     </RadzenText>
 
+    @if (_statusMatrix != null && _statusMatrix.Statuses.Count > 0)
+    {
+        <RadzenCard Style="margin-bottom: 1.5rem;">
+            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-bottom: 0.75rem; display: block;">
+                Матрица переходов статусов
+            </RadzenText>
+            <div style="overflow-x: auto;">
+                <table class="rz-table rz-table-sm" style="min-width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="padding: 0.5rem 0.75rem; text-align: left; border: 1px solid var(--rz-border-color); background: var(--rz-base-100); font-weight: 600; min-width: 140px;">Из → В</th>
+                            @foreach (var to in _statusMatrix.Statuses)
+                            {
+                                <th style="padding: 0.5rem 0.75rem; text-align: center; border: 1px solid var(--rz-border-color); background: var(--rz-base-100); font-size: 0.8rem; min-width: 120px;" title="@to.Name">@to.Name</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var from in _statusMatrix.Statuses)
+                        {
+                            <tr>
+                                <td style="padding: 0.5rem 0.75rem; border: 1px solid var(--rz-border-color); background: var(--rz-base-50); font-weight: 500; font-size: 0.8rem;" title="@from.Name">@from.Name</td>
+                                @foreach (var to in _statusMatrix.Statuses)
+                                {
+                                    var names = _statusMatrix.GetTransactionNames(from.Id, to.Id);
+                                    <td style="padding: 0.5rem 0.75rem; border: 1px solid var(--rz-border-color); text-align: center; font-size: 0.8rem;">
+                                        @if (names.Count > 0)
+                                        {
+                                            @string.Join(", ", names)
+                                        }
+                                        else
+                                        {
+                                            <span style="color: var(--rz-text-disabled-color);">—</span>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </RadzenCard>
+    }
+
     <RadzenDataGrid @ref="_grid"
                     TItem="OrderTransaction"
                     Data="@_pageItems"
@@ -143,6 +187,35 @@ else
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
     private DataGridSettings? _gridSettings;
     private const string GridSettingsKey = "transactions-grid-settings";
+    private StatusTransitionMatrix? _statusMatrix;
+
+    private sealed class StatusTransitionMatrix
+    {
+        public List<OrderStatus> Statuses { get; } = [];
+        private readonly Dictionary<(Guid From, Guid To), List<string>> _map = new();
+
+        public void Add(OrderTransaction t)
+        {
+            if (t.FromSystemStatus == null || t.ToSystemStatus == null) return;
+            var fromId = t.FromSystemStatusId;
+            var toId = t.ToSystemStatusId;
+            if (!Statuses.Any(s => s.Id == fromId))
+                Statuses.Add(t.FromSystemStatus);
+            if (!Statuses.Any(s => s.Id == toId))
+                Statuses.Add(t.ToSystemStatus);
+            var key = (fromId, toId);
+            if (!_map.TryGetValue(key, out var list))
+            {
+                list = [];
+                _map[key] = list;
+            }
+            if (!list.Contains(t.Name))
+                list.Add(t.Name);
+        }
+
+        public IReadOnlyList<string> GetTransactionNames(Guid fromId, Guid toId) =>
+            _map.TryGetValue((fromId, toId), out var list) ? list : [];
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -210,6 +283,7 @@ else
         var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 20);
         _pageItems = await query.Skip(skip).Take(take).ToListAsync();
 
+        await LoadStatusMatrixAsync();
         _loading = false;
     }
 
@@ -219,12 +293,28 @@ else
         _db = Factory.CreateDbContext();
     }
 
+    private async Task LoadStatusMatrixAsync()
+    {
+        if (_db == null) return;
+        var transactions = await _db.OrderTransactions
+            .Include(t => t.FromSystemStatus)
+            .Include(t => t.ToSystemStatus)
+            .Where(t => !t.IsDeleted && t.IsEnabled)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _statusMatrix = new StatusTransitionMatrix();
+        foreach (var t in transactions.OrderBy(t => t.FromSystemStatus?.Name).ThenBy(t => t.ToSystemStatus?.Name))
+            _statusMatrix.Add(t);
+        _statusMatrix.Statuses.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal));
+    }
+
     private async Task OpenCreateDialog()
     {
         var result = await DialogService.OpenAsync<OrderTransactionDialog>(
             "Новая транзакция",
             new Dictionary<string, object?>(),
-            new DialogOptions { Width = "min(700px, 95vw)", Resizable = true });
+            new DialogOptions { Width = "min(900px, 95vw)", Resizable = true });
 
         if (result is bool b && b && _grid != null)
             await _grid.Reload();
@@ -235,7 +325,7 @@ else
         var result = await DialogService.OpenAsync<OrderTransactionDialog>(
             "Редактировать транзакцию",
             new Dictionary<string, object?> { ["TransactionId"] = t.Id },
-            new DialogOptions { Width = "min(700px, 95vw)", Resizable = true });
+            new DialogOptions { Width = "min(900px, 95vw)", Resizable = true });
 
         if (result is bool b && b && _grid != null)
             await _grid.Reload();
