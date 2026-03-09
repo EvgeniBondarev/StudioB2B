@@ -40,30 +40,6 @@ else
         </RadzenStack>
     </RadzenStack>
 
-    <!-- ── Справочник переменных ─────────────────────────────────────── -->
-    @if (_availableVariables.Count > 0)
-    {
-        <RadzenStack Gap="0.5rem" Style="margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: var(--rz-base-100); border-radius: 6px; border: 1px solid var(--rz-border-color);">
-            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin: 0;">
-                Доступные переменные
-            </RadzenText>
-            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.4rem" FlexWrap="FlexWrap.Wrap">
-                @foreach (var v in _availableVariables)
-                {
-                    <RadzenBadge Text="@v"
-                                 Variant="Variant.Flat"
-                                 Shade="Shade.Lighter"
-                                 BadgeStyle="BadgeStyle.Primary"
-                                 Class="status-badge"
-                                 title="Скопируйте имя и используйте в формуле" />
-                }
-            </RadzenStack>
-            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color); margin: 0;">
-                Переменные соответствуют типам цен заказов (пробелы удалены, CamelCase). Базовое поле: <code>Quantity</code>.
-            </RadzenText>
-        </RadzenStack>
-    }
-
     <RadzenDataGrid @ref="_grid"
                     TItem="CalculationRule"
                     Data="@_items"
@@ -286,7 +262,7 @@ else
 
         var options = new DialogOptions
         {
-            Width = "650px",
+            Width = "850px",
             CloseDialogOnEsc = true,
             CloseDialogOnOverlayClick = true
         };
