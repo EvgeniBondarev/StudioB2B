@@ -1,165 +1,117 @@
-using Microsoft.AspNetCore.Identity;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using StudioB2B.Application.Common.Interfaces;
-using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
 
 namespace StudioB2B.Web.Controllers;
 
-[Route("account")]
-public class AccountController : Controller
+[Route("api/auth")]
+[ApiController]
+public class AccountController : ControllerBase
 {
     private readonly ITenantProvider _tenantProvider;
     private readonly ITenantDbContextFactory _dbContextFactory;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<AccountController> _logger;
 
     public AccountController(
         ITenantProvider tenantProvider,
         ITenantDbContextFactory dbContextFactory,
+        IConfiguration configuration,
         ILogger<AccountController> logger)
     {
         _tenantProvider = tenantProvider;
         _dbContextFactory = dbContextFactory;
+        _configuration = configuration;
         _logger = logger;
     }
 
+    /// <summary>
+    /// Авторизация: возвращает JWT-токен
+    /// </summary>
     [HttpPost("login")]
-    public async Task<IActionResult> Login(
-        [FromForm] string email,
-        [FromForm] string password,
-        [FromForm] bool rememberMe = false,
-        [FromForm] string? returnUrl = null)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct = default)
     {
         if (!_tenantProvider.IsResolved)
+            return BadRequest(new { error = "Tenant not resolved" });
+
+        await using var db = _dbContextFactory.CreateDbContext();
+
+        var email = request.Email.Trim().ToLowerInvariant();
+        var user = await db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Email == email, ct);
+
+        if (user is null)
         {
-            return Redirect("/login?error=tenant");
+            _logger.LogWarning("Login failed: user {Email} not found", email);
+            return Unauthorized(new { error = "Неверный email или пароль" });
         }
 
-        try
+        if (!user.IsActive)
         {
-            await using var dbContext = _dbContextFactory.CreateDbContext();
-
-            // Create UserManager manually
-            var userStore = new Microsoft.AspNetCore.Identity.EntityFrameworkCore
-                .UserStore<ApplicationUser, ApplicationRole, TenantDbContext, Guid>(dbContext);
-            var hasher = new PasswordHasher<ApplicationUser>();
-            var normalizer = new UpperInvariantLookupNormalizer();
-
-            var validators = new List<IUserValidator<ApplicationUser>> { new UserValidator<ApplicationUser>() };
-            var passwordValidators = new List<IPasswordValidator<ApplicationUser>> { new PasswordValidator<ApplicationUser>() };
-
-            using var userManager = new UserManager<ApplicationUser>(
-                userStore,
-                Microsoft.Extensions.Options.Options.Create(new IdentityOptions()),
-                hasher,
-                validators,
-                passwordValidators,
-                normalizer,
-                new IdentityErrorDescriber(),
-                null!,
-                new Microsoft.Extensions.Logging.Abstractions.NullLogger<UserManager<ApplicationUser>>());
-
-            var user = await userManager.FindByEmailAsync(email);
-            if (user == null)
-            {
-                _logger.LogWarning("Login failed: user {Email} not found", email);
-                return Redirect("/login?error=invalid");
-            }
-
-            if (!user.IsActive)
-            {
-                _logger.LogWarning("Login failed: user {Email} is inactive", email);
-                return Redirect("/login?error=inactive");
-            }
-
-            var isValidPassword = await userManager.CheckPasswordAsync(user, password);
-            if (!isValidPassword)
-            {
-                _logger.LogWarning("Login failed: invalid password for {Email}", email);
-                return Redirect("/login?error=invalid");
-            }
-
-            // Create SignInManager and sign in
-            var signInManager = CreateSignInManager(userManager, dbContext);
-            await signInManager.SignInAsync(user, rememberMe);
-
-            _logger.LogInformation("User {Email} logged in successfully", email);
-
-            return Redirect(returnUrl ?? "/");
+            _logger.LogWarning("Login failed: user {Email} is inactive", email);
+            return Unauthorized(new { error = "Пользователь деактивирован" });
         }
-        catch (Exception ex)
+
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.HashPassword))
         {
-            _logger.LogError(ex, "Login error for {Email}", email);
-            return Redirect("/login?error=error");
+            _logger.LogWarning("Login failed: invalid password for {Email}", email);
+            return Unauthorized(new { error = "Неверный email или пароль" });
         }
+
+        var roles = await db.UserRoles
+            .AsNoTracking()
+            .Where(ur => ur.UserId == user.Id)
+            .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name)
+            .ToListAsync(ct);
+
+        var token = GenerateJwtToken(user.Id, user.Email, roles);
+        var expiresMinutes = _configuration.GetSection("Jwt").GetValue<int?>("ExpiresMinutes") ?? 60;
+
+        _logger.LogInformation("User {Email} logged in successfully", email);
+
+        return Ok(new
+        {
+            token,
+            expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes)
+        });
     }
 
-    [HttpGet("logout")]
-    [HttpPost("logout")]
-    public async Task<IActionResult> Logout()
+    private string GenerateJwtToken(Guid userId, string email, IEnumerable<string> roles)
     {
-        if (!_tenantProvider.IsResolved)
+        var jwtSection = _configuration.GetSection("Jwt");
+        var secret  = jwtSection["Secret"]!;
+        var issuer   = jwtSection["Issuer"] ?? "StudioB2B";
+        var audience = jwtSection["Audience"] ?? "StudioB2B";
+        var expiresMinutes = jwtSection.GetValue<int?>("ExpiresMinutes") ?? 60;
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new List<Claim>
         {
-            return Redirect("/");
-        }
+            new(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new(JwtRegisteredClaimNames.Email, email),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+        };
 
-        try
-        {
-            await using var dbContext = _dbContextFactory.CreateDbContext();
+        foreach (var role in roles)
+            claims.Add(new Claim(ClaimTypes.Role, role));
 
-            var userStore = new Microsoft.AspNetCore.Identity.EntityFrameworkCore
-                .UserStore<ApplicationUser, ApplicationRole, TenantDbContext, Guid>(dbContext);
-            var hasher = new PasswordHasher<ApplicationUser>();
-            var normalizer = new UpperInvariantLookupNormalizer();
+        var token = new JwtSecurityToken(
+            issuer:             issuer,
+            audience:           audience,
+            claims:             claims,
+            expires:            DateTime.UtcNow.AddMinutes(expiresMinutes),
+            signingCredentials: creds);
 
-            using var userManager = new UserManager<ApplicationUser>(
-                userStore,
-                Microsoft.Extensions.Options.Options.Create(new IdentityOptions()),
-                hasher,
-                Array.Empty<IUserValidator<ApplicationUser>>(),
-                Array.Empty<IPasswordValidator<ApplicationUser>>(),
-                normalizer,
-                new IdentityErrorDescriber(),
-                null!,
-                new Microsoft.Extensions.Logging.Abstractions.NullLogger<UserManager<ApplicationUser>>());
-
-            var signInManager = CreateSignInManager(userManager, dbContext);
-            await signInManager.SignOutAsync();
-
-            _logger.LogInformation("User logged out");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Logout error");
-        }
-
-        return Redirect("/");
-    }
-
-    private SignInManager<ApplicationUser> CreateSignInManager(
-        UserManager<ApplicationUser> userManager,
-        TenantDbContext dbContext)
-    {
-        var contextAccessor = HttpContext.RequestServices.GetRequiredService<IHttpContextAccessor>();
-        var claimsFactory = new UserClaimsPrincipalFactory<ApplicationUser, ApplicationRole>(
-            userManager,
-            new RoleManager<ApplicationRole>(
-                new Microsoft.AspNetCore.Identity.EntityFrameworkCore
-                    .RoleStore<ApplicationRole, TenantDbContext, Guid>(dbContext),
-                Array.Empty<IRoleValidator<ApplicationRole>>(),
-                new UpperInvariantLookupNormalizer(),
-                new IdentityErrorDescriber(),
-                new Microsoft.Extensions.Logging.Abstractions.NullLogger<RoleManager<ApplicationRole>>()),
-            Microsoft.Extensions.Options.Options.Create(new IdentityOptions()));
-
-        return new SignInManager<ApplicationUser>(
-            userManager,
-            contextAccessor,
-            claimsFactory,
-            Microsoft.Extensions.Options.Options.Create(new IdentityOptions()),
-            new Microsoft.Extensions.Logging.Abstractions.NullLogger<SignInManager<ApplicationUser>>(),
-            new Microsoft.AspNetCore.Authentication.AuthenticationSchemeProvider(
-                Microsoft.Extensions.Options.Options.Create(new Microsoft.AspNetCore.Authentication.AuthenticationOptions())),
-            new DefaultUserConfirmation<ApplicationUser>());
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
+
+public record LoginRequest(string Email, string Password);

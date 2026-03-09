@@ -28,7 +28,7 @@
     </RadzenText>
 
     <RadzenDataGrid @ref="_grid"
-                    TItem="MasterRole"
+                    TItem="Role"
                     Data="@_pageItems"
                     Count="@_totalCount"
                     LoadData="@LoadData"
@@ -73,33 +73,14 @@
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
-            <RadzenDataGridColumn TItem="MasterRole" Property="Name" Title="Название" Width="220px">
+            <RadzenDataGridColumn TItem="Role" Property="Name" Title="Название" Width="220px">
                 <EditTemplate Context="r">
                     <RadzenTextBox @bind-Value="r.Name" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="MasterRole" Property="Description" Title="Описание" Width="300px">
-                <EditTemplate Context="r">
-                    <RadzenTextBox @bind-Value="r.Description" Style="width: 100%;" />
-                </EditTemplate>
-            </RadzenDataGridColumn>
-
-            <RadzenDataGridColumn TItem="MasterRole" Property="IsSystemRole" Title="Системная" Width="140px"
-                                  TextAlign="TextAlign.Center">
-                <Template Context="r">
-                    <RadzenCheckBox TValue="bool" Value="@r.IsSystemRole" Disabled="true" />
-                </Template>
-                <EditTemplate Context="r">
-                    <RadzenCheckBox @bind-Value="r.IsSystemRole" />
-                </EditTemplate>
-            </RadzenDataGridColumn>
-
-            <RadzenDataGridColumn TItem="MasterRole" Property="CreatedAtUtc" Title="Создана"
-                                  FormatString="{0:dd.MM.yyyy}" Width="160px" Filterable="false" />
-
             <!-- Кнопки сохранения/отмены — только в режиме редактирования строки -->
-            <RadzenDataGridColumn TItem="MasterRole" Filterable="false" Sortable="false"
+            <RadzenDataGridColumn TItem="Role" Filterable="false" Sortable="false"
                                   Width="110px" TextAlign="TextAlign.Center" Title="">
                 <Template Context="r">
                 </Template>
@@ -117,8 +98,8 @@
 </MasterOnlyGuard>
 
 @code {
-    private RadzenDataGrid<MasterRole>? _grid;
-    private IEnumerable<MasterRole> _pageItems = Array.Empty<MasterRole>();
+    private RadzenDataGrid<Role>? _grid;
+    private IEnumerable<Role> _pageItems = Array.Empty<Role>();
     private int _totalCount;
     private Density _density = Density.Default;
     private bool _loading;
@@ -190,26 +171,20 @@
 
     private async Task InsertRow()
     {
-        var role = new MasterRole
-        {
-            Id = Guid.NewGuid(),
-            ConcurrencyStamp = Guid.NewGuid().ToString(),
-            CreatedAtUtc = DateTime.UtcNow
-        };
+        var role = new Role { Id = Guid.NewGuid() };
         await _grid!.InsertRow(role);
     }
 
-    private async Task EditRow(MasterRole role) => await _grid!.EditRow(role);
+    private async Task EditRow(Role role) => await _grid!.EditRow(role);
 
-    private async Task SaveRow(MasterRole role) => await _grid!.UpdateRow(role);
+    private async Task SaveRow(Role role) => await _grid!.UpdateRow(role);
 
-    private void CancelRow(MasterRole role) => _grid!.CancelEditRow(role);
+    private void CancelRow(Role role) => _grid!.CancelEditRow(role);
 
-    private async Task OnCreate(MasterRole role)
+    private async Task OnCreate(Role role)
     {
         try
         {
-            role.NormalizedName = role.Name.ToUpperInvariant();
             Db.Roles.Add(role);
             await Db.SaveChangesAsync();
             NotificationService.Notify(NotificationSeverity.Success, "Роль создана");
@@ -221,11 +196,10 @@
         }
     }
 
-    private async Task OnUpdate(MasterRole role)
+    private async Task OnUpdate(Role role)
     {
         try
         {
-            role.NormalizedName = role.Name.ToUpperInvariant();
             await Db.SaveChangesAsync();
             NotificationService.Notify(NotificationSeverity.Success, "Роль обновлена");
         }
@@ -235,11 +209,11 @@
         }
     }
 
-    private async Task DeleteRow(MasterRole role)
+    private async Task DeleteRow(Role role)
     {
         try
         {
-            Db.Roles.Remove(role);
+            role.IsDeleted = true;
             await Db.SaveChangesAsync();
             await _grid!.Reload();
             NotificationService.Notify(NotificationSeverity.Success, "Роль удалена");
@@ -250,7 +224,7 @@
         }
     }
 
-    private void ShowContextMenu(DataGridCellMouseEventArgs<MasterRole> args)
+    private void ShowContextMenu(DataGridCellMouseEventArgs<Role> args)
     {
         ContextMenuService.Open(args,
             [
