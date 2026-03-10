@@ -16,6 +16,7 @@
     <ItemGroup>
       <PackageReference Include="Hangfire.AspNetCore" Version="1.8.23" />
       <PackageReference Include="Markdig" Version="0.41.0" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0-preview.1.25120.3" />
       <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.3" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.*">
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
