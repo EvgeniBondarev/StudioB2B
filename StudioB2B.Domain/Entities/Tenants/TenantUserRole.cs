@@ -1,12 +1,12 @@
 namespace StudioB2B.Domain.Entities.Tenants;
 
-public class UserRole
+public class TenantUserRole
 {
     public Guid UserId { get; set; }
     public Guid RoleId { get; set; }
 
     // Navigation
-    public User User { get; set; } = null!;
-    public Role Role { get; set; } = null!;
+    public TenantUser User { get; set; } = null!;
+    public TenantRole Role { get; set; } = null!;
 }
 

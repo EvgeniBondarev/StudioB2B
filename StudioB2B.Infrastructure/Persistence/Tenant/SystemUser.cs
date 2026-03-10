@@ -11,7 +11,6 @@ public static class SystemUser
     public static readonly Guid RobotId = new("00000000-0000-0000-0000-000000000001");
 
     public const string RobotEmail     = "robot@system";
-    public const string RobotUserName  = "robot@system";
     public const string RobotFirstName = "Робот";
     public const string RobotLastName  = "Система";
 }

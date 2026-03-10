@@ -1,4 +1,4 @@
-namespace StudioB2B.Application.Common;
+namespace StudioB2B.Shared.DTOs;
 
 /// <summary>
 /// Информация об обновлении одного отправления: старый и новый статус.
@@ -6,7 +6,10 @@ namespace StudioB2B.Application.Common;
 public class ShipmentUpdateItem
 {
     public string PostingNumber { get; set; } = string.Empty;
+
     public string ClientName { get; set; } = string.Empty;
+
     public string OldStatusName { get; set; } = string.Empty;
+
     public string NewStatusName { get; set; } = string.Empty;
 }

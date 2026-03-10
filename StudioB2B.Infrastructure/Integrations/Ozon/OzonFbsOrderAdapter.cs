@@ -1,8 +1,6 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Application.Common;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Domain.Entities.Marketplace;
 using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Domain.Entities.Products;
@@ -11,7 +9,9 @@ using StudioB2B.Domain.Entities.Warehouses;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.FbsUnfulfilled;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductAttributes;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductPrices;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Integrations.Ozon;
 

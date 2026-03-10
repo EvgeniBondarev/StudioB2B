@@ -1,5 +1,7 @@
-@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Infrastructure.Interfaces
 @inject ITenantProvider TenantProvider
+@inject JwtAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
 
 @if (TenantProvider.IsResolved)
 {
@@ -11,6 +13,26 @@
         </RadzenText>
     </div>
 }
+else if (_checking)
+{
+    <div style="display: flex; justify-content: center; padding-top: 4rem;">
+        <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false"
+                           Style="width: 200px;" />
+    </div>
+}
+else if (!_authenticated)
+{
+    <div style="max-width: 480px; margin: 4rem auto; text-align: center;">
+        <RadzenIcon Icon="lock" Style="font-size: 3rem; color: var(--rz-warning);" />
+        <RadzenText TextStyle="TextStyle.H5" Style="margin-top: 1rem;">Требуется авторизация</RadzenText>
+        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color); margin-top: 0.5rem;">
+            Войдите в систему для доступа к этому разделу.
+        </RadzenText>
+        <RadzenButton Text="Перейти ко входу" Icon="login" ButtonStyle="ButtonStyle.Primary"
+                      Style="margin-top: 1.5rem;"
+                      Click="@(() => Navigation.NavigateTo("/"))" />
+    </div>
+}
 else
 {
     @ChildContent
@@ -18,4 +40,13 @@ else
 
 @code {
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool _checking = true;
+    private bool _authenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _authenticated = await AuthStateProvider.IsMasterAuthenticatedAsync();
+        _checking = false;
+    }
 }

@@ -2,7 +2,7 @@ using StudioB2B.Domain.Entities.Common;
 
 namespace StudioB2B.Domain.Entities.Tenants;
 
-public class Tenant : IBaseEntity, ISoftDelete
+public class TenantEntity : IBaseEntity, ISoftDelete
 {
     public Guid Id { get; set; }
 
