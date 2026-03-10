@@ -2,8 +2,8 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.MultiTenancy.Initialization;
 using StudioB2B.Infrastructure.Persistence.Master;
 
@@ -32,11 +32,11 @@ public partial class TenantService : ITenantService
         _options = options.Value;
     }
 
-    public async Task<Tenant?> GetBySubdomainAsync(string subdomain, CancellationToken ct = default) =>
+    public async Task<TenantEntity?> GetBySubdomainAsync(string subdomain, CancellationToken ct = default) =>
         await _masterDb.Tenants.AsNoTracking()
             .FirstOrDefaultAsync(t => t.Subdomain == subdomain, ct);
 
-    public async Task<Tenant?> GetByIdAsync(Guid tenantId, CancellationToken ct = default) =>
+    public async Task<TenantEntity?> GetByIdAsync(Guid tenantId, CancellationToken ct = default) =>
         await _masterDb.Tenants.AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == tenantId, ct);
 
@@ -66,7 +66,7 @@ public partial class TenantService : ITenantService
 
             var connectionString = BuildConnectionString(normalized);
 
-            var tenant = new Tenant
+            var tenant = new TenantEntity
             {
                 Name = companyName,
                 Subdomain = normalized,
@@ -103,14 +103,14 @@ public partial class TenantService : ITenantService
         string.Format(_options.TenantDbConnectionTemplate, $"StudioB2B_Tenant_{subdomain}");
 
     private async Task RollbackAsync(
-        Tenant tenant, string connectionString, string subdomain, CancellationToken ct)
+        TenantEntity tenantEntity, string connectionString, string subdomain, CancellationToken ct)
     {
         _logger.LogWarning("Rolling back registration for {Subdomain}", subdomain);
 
         try { await _dbInitializer.DropDatabaseAsync(connectionString, ct); }
         catch (Exception ex) { _logger.LogError(ex, "Failed to drop DB during rollback for {Subdomain}", subdomain); }
 
-        try { _masterDb.Tenants.Remove(tenant); await _masterDb.SaveChangesAsync(ct); }
+        try { _masterDb.Tenants.Remove(tenantEntity); await _masterDb.SaveChangesAsync(ct); }
         catch (Exception ex) { _logger.LogError(ex, "Failed to remove tenant record during rollback for {Subdomain}", subdomain); }
     }
 

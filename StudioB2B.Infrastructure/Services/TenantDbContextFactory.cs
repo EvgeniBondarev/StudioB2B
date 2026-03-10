@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Application.Common.Interfaces;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
 namespace StudioB2B.Infrastructure.Services;

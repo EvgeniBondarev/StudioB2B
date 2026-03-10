@@ -3,8 +3,8 @@ using Hangfire.Common;
 using Hangfire.States;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.MultiTenancy;
 
 namespace StudioB2B.Infrastructure.Features.Orders;

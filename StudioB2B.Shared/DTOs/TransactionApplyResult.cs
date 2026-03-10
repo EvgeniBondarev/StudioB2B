@@ -1,4 +1,4 @@
-namespace StudioB2B.Application.Common;
+namespace StudioB2B.Shared.DTOs;
 
 /// <summary>
 /// Результат применения транзакции к заказу.
@@ -6,8 +6,12 @@ namespace StudioB2B.Application.Common;
 public class TransactionApplyResult
 {
     public bool Success { get; set; }
+
     public string? ErrorMessage { get; set; }
+
     public List<string> ValidationErrors { get; set; } = [];
+
     public int PricesUpdated { get; set; }
+
     public int FieldsUpdated { get; set; }
 }

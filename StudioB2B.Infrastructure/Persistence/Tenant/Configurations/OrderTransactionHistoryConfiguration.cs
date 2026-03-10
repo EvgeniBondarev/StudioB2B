@@ -25,7 +25,7 @@ public class OrderTransactionHistoryConfiguration : IEntityTypeConfiguration<Ord
             .HasForeignKey(x => x.OrderTransactionId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<User>()
+        builder.HasOne<TenantUser>()
             .WithMany()
             .HasForeignKey(x => x.PerformedByUserId)
             .OnDelete(DeleteBehavior.SetNull);

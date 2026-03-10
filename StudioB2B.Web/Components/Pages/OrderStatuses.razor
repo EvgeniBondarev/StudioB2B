@@ -1,20 +1,19 @@
 @page "/order-statuses"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
-@using Radzen
-@using StudioB2B.Application.Common.Interfaces
 @using StudioB2B.Domain.Entities.Orders
 @using StudioB2B.Domain.Entities.Marketplace
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
+@using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory Factory
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
 @inject DialogService DialogService
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JsRuntime
 
 @implements IDisposable
 
@@ -296,7 +295,7 @@ else
     {
         try
         {
-            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
             if (!string.IsNullOrEmpty(json))
             {
                 _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
@@ -317,7 +316,7 @@ else
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
-            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+            await JsRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
         }
         catch { }
     }
@@ -326,7 +325,7 @@ else
     {
         try
         {
-            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", FiltersKey);
+            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", FiltersKey);
             if (!string.IsNullOrEmpty(json))
             {
                 var f = System.Text.Json.JsonSerializer.Deserialize<StatusFilters>(json);
@@ -346,7 +345,7 @@ else
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(new StatusFilters(_filterType, _filterMarketplaceTypeId));
-            await JSRuntime.InvokeVoidAsync("localStorage.setItem", FiltersKey, json);
+            await JsRuntime.InvokeVoidAsync("localStorage.setItem", FiltersKey, json);
         }
         catch { }
     }

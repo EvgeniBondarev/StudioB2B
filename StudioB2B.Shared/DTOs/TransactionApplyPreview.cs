@@ -1,6 +1,6 @@
 using StudioB2B.Domain.Entities.Orders;
 
-namespace StudioB2B.Application.Common;
+namespace StudioB2B.Shared.DTOs;
 
 /// <summary>
 /// Предпросмотр применения транзакции: правила и значения для ввода.
@@ -8,8 +8,11 @@ namespace StudioB2B.Application.Common;
 public class TransactionApplyPreview
 {
     public string TransactionName { get; set; } = string.Empty;
+
     public string ToStatusName { get; set; } = string.Empty;
+
     public List<TransactionApplyRulePreview> Rules { get; set; } = [];
+
     public List<TransactionApplyFieldRulePreview> FieldRules { get; set; } = [];
 }
 
