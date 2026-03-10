@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;
-using StudioB2B.Application.Common.Interfaces;
+using IKeyEncryptionService = StudioB2B.Infrastructure.Interfaces.IKeyEncryptionService;
 
 namespace StudioB2B.Infrastructure.Services;
 

@@ -11,6 +11,7 @@ namespace StudioB2B.Web.Services;
 public class JwtAuthenticationStateProvider : AuthenticationStateProvider
 {
     private const string TokenKey = "auth_token";
+    private const string MasterTokenKey = "master_auth_token";
     private readonly IJSRuntime _js;
 
     public JwtAuthenticationStateProvider(IJSRuntime js)
@@ -55,6 +56,30 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
     {
         try { return await _js.InvokeAsync<string?>("localStorage.getItem", TokenKey); }
         catch { return null; }
+    }
+
+    // ── Master auth ────────────────────────────────────────────────────────────
+
+    public async Task MasterLoginAsync(string token)
+    {
+        await _js.InvokeVoidAsync("localStorage.setItem", MasterTokenKey, token);
+    }
+
+    public async Task MasterLogoutAsync()
+    {
+        await _js.InvokeVoidAsync("localStorage.removeItem", MasterTokenKey);
+    }
+
+    public async Task<bool> IsMasterAuthenticatedAsync()
+    {
+        try
+        {
+            var token = await _js.InvokeAsync<string?>("localStorage.getItem", MasterTokenKey);
+            if (string.IsNullOrWhiteSpace(token)) return false;
+            var principal = ParseToken(token);
+            return principal is not null;
+        }
+        catch { return false; }
     }
 
     private static AuthenticationState Anonymous()

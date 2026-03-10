@@ -1,12 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Domain.Entities.Master;
 
 namespace StudioB2B.Infrastructure.Persistence.Master;
 
-public class MasterRoleConfiguration : IEntityTypeConfiguration<Role>
+public class MasterRoleConfiguration : IEntityTypeConfiguration<MasterRole>
 {
-    public void Configure(EntityTypeBuilder<Role> builder)
+    public void Configure(EntityTypeBuilder<MasterRole> builder)
     {
         builder.ToTable("Roles");
 
