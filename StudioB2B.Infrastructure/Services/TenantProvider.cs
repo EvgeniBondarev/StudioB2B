@@ -1,5 +1,5 @@
-using StudioB2B.Application.Common.Interfaces;
-using TenantEntity = StudioB2B.Domain.Entities.Tenants.Tenant;
+using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Infrastructure.Interfaces;
 
 namespace StudioB2B.Infrastructure.Services;
 
@@ -14,10 +14,10 @@ public class TenantProvider : ITenantProvider
 
     public bool IsResolved => TenantId.HasValue && !string.IsNullOrEmpty(ConnectionString);
 
-    public void SetTenant(TenantEntity tenant)
+    public void SetTenant(TenantEntity tenantEntity)
     {
-        TenantId = tenant.Id;
-        Subdomain = tenant.Subdomain;
-        ConnectionString = tenant.ConnectionString;
+        TenantId = tenantEntity.Id;
+        Subdomain = tenantEntity.Subdomain;
+        ConnectionString = tenantEntity.ConnectionString;
     }
 }

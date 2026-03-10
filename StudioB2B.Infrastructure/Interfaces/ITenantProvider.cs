@@ -1,4 +1,4 @@
-namespace StudioB2B.Application.Common.Interfaces;
+namespace StudioB2B.Infrastructure.Interfaces;
 
 /// <summary>
 /// Интерфейс для получения информации о текущем тенанте

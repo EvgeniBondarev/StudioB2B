@@ -4,9 +4,9 @@ using StudioB2B.Domain.Entities.Tenants;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Configurations;
 
-public class RoleConfiguration : IEntityTypeConfiguration<Role>
+public class RoleConfiguration : IEntityTypeConfiguration<TenantRole>
 {
-    public void Configure(EntityTypeBuilder<Role> builder)
+    public void Configure(EntityTypeBuilder<TenantRole> builder)
     {
         builder.ToTable("Roles");
 

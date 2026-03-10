@@ -2,9 +2,9 @@ using System.Text.Json;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Infrastructure.Integrations.Ozon;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
 

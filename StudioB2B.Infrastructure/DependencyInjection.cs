@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Features.Marketplace;
 using StudioB2B.Infrastructure.Features.Orders;
 using StudioB2B.Infrastructure.Features.Roles;
@@ -19,7 +18,8 @@ using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
 using System.Text;
-using TenantService = StudioB2B.Infrastructure.MultiTenancy.Services.TenantService;
+using StudioB2B.Infrastructure.Features.Master;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.MultiTenancy.Services;
 
 namespace StudioB2B.Infrastructure;
@@ -77,6 +77,9 @@ public static class DependencyInjection
         services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<CircuitHandler, TenantCircuitHandler>();
+
+        // ── Master auth ────────────────────────────────────────────────────────
+        services.AddScoped<MasterAuthService>();
 
         // Tenant DbContext (Scoped, dynamic connection)
         services.AddScoped(sp =>

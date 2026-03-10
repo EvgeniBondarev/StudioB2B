@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
-using StudioB2B.Application.Common.Interfaces;
+using StudioB2B.Infrastructure.Interfaces;
 
 namespace StudioB2B.Infrastructure.Services;
 

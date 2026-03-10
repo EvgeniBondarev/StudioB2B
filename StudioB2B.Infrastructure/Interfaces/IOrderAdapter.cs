@@ -1,7 +1,7 @@
-using StudioB2B.Application.Common;
 using StudioB2B.Domain.Entities.Marketplace;
+using StudioB2B.Shared.DTOs;
 
-namespace StudioB2B.Application.Common.Interfaces;
+namespace StudioB2B.Infrastructure.Interfaces;
 
 /// <summary>
 /// Adapter that synchronises orders from a specific marketplace into the tenant database.
