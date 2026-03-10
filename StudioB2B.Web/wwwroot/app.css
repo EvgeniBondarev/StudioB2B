@@ -129,8 +129,8 @@ h1:focus {
 .app-tab-bar {
   display: flex;
   align-items: end;
-  height: 40px;
-  width: 100%;
+  height: 50px;
+  margin: 0 -15px;
   overflow-x: auto;
   border-bottom: 1px solid var(--rz-border-color);
   background: var(--rz-base-background-color);
@@ -251,6 +251,12 @@ h1:focus {
   background: var(--rz-base-200) !important;
 }
 
+/* Уменьшаем паддинги для всех ячеек таблицы */
+.rz-grid-table td,
+.rz-grid-table th {
+  padding: 0.25rem  !important;
+}
+
 .rz-data-grid th .rz-column-title-content,
 .rz-data-grid th .rz-header-filter-title {
   font-size: 15px;
@@ -265,7 +271,7 @@ h1:focus {
 
 /* Отступы заголовков */
 .rz-grid-table thead th > div:not(.rz-cell-filter) {
-  padding: 15px 0;
+  padding: 8px 0;
 }
 
 /* Pager */
@@ -275,8 +281,17 @@ h1:focus {
 
 /* Ячейки текста */
 .rz-data-grid .rz-cell-data p {
-  margin: 0 !important;
+  margin: 0 ;
   line-height: 1.4 !important;
+}
+
+/* Иконка фильтра в таблице */
+.rz-grid-filter-icon {
+  margin: 0 !important;
+}
+
+.rz-grid-table thead th .rz-column-title {
+  padding-left: 0.25rem !important;
 }
 
 /* Фильтр "Все" в шапке таблиц */
