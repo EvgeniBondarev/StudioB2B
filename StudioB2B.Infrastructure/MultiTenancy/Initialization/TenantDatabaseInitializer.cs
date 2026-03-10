@@ -107,7 +107,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         if (await ctx.Users.AnyAsync(u => u.Id == SystemUser.RobotId, ct))
             return;
 
-        ctx.Users.Add(new User
+        ctx.Users.Add(new TenantUser
         {
             Id           = SystemUser.RobotId,
             Email        = SystemUser.RobotEmail,
@@ -128,7 +128,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         {
             if (!await ctx.Roles.AnyAsync(r => r.Id == mr.Id, ct))
             {
-                ctx.Roles.Add(new Role { Id = mr.Id, Name = mr.Name });
+                ctx.Roles.Add(new TenantRole { Id = mr.Id, Name = mr.Name });
             }
         }
 
@@ -139,7 +139,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
     {
         if (!await ctx.Roles.AnyAsync(r => r.Name == "Admin", ct))
         {
-            ctx.Roles.Add(new Role { Id = Guid.NewGuid(), Name = "Admin" });
+            ctx.Roles.Add(new TenantRole { Id = Guid.NewGuid(), Name = "Admin" });
             await ctx.SaveChangesAsync(ct);
         }
     }
@@ -151,7 +151,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         if (await ctx.Users.AnyAsync(u => u.Email == normalizedEmail, ct))
             return;
 
-        var user = new User
+        var user = new TenantUser
         {
             Id           = Guid.NewGuid(),
             Email        = normalizedEmail,
@@ -165,7 +165,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 
         var role = await ctx.Roles.FirstOrDefaultAsync(r => r.Name == roleName, ct);
         if (role is not null)
-            ctx.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id });
+            ctx.UserRoles.Add(new TenantUserRole { UserId = user.Id, RoleId = role.Id });
 
         await ctx.SaveChangesAsync(ct);
     }

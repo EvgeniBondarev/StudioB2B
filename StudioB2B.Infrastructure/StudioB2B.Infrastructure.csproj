@@ -35,7 +35,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\StudioB2B.Domain\StudioB2B.Domain.csproj" />
-      <ProjectReference Include="..\StudioB2B.Application\StudioB2B.Application.csproj" />
       <ProjectReference Include="..\StudioB2B.Shared\StudioB2B.Shared.csproj" />
     </ItemGroup>
 

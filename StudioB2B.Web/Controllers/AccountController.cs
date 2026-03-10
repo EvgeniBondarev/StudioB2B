@@ -4,7 +4,7 @@ using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using StudioB2B.Application.Common.Interfaces;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
 
 namespace StudioB2B.Web.Controllers;

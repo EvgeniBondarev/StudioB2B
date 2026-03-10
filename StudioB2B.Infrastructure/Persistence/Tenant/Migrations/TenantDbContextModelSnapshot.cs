@@ -1125,7 +1125,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("PriceTypes");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.Role", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantRole", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1147,7 +1147,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Roles", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.User", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantUser", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1191,7 +1191,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.UserRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantUserRole", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
@@ -1442,7 +1442,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Tenants.User", null)
+                    b.HasOne("StudioB2B.Domain.Entities.Tenants.TenantUser", null)
                         .WithMany()
                         .HasForeignKey("PerformedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -1610,15 +1610,15 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.UserRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantUserRole", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Tenants.Role", "Role")
+                    b.HasOne("StudioB2B.Domain.Entities.Tenants.TenantRole", "Role")
                         .WithMany("UserRoles")
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Tenants.User", "User")
+                    b.HasOne("StudioB2B.Domain.Entities.Tenants.TenantUser", "User")
                         .WithMany("UserRoles")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1691,12 +1691,12 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Attributes");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.Role", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantRole", b =>
                 {
                     b.Navigation("UserRoles");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.User", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantUser", b =>
                 {
                     b.Navigation("UserRoles");
                 });
