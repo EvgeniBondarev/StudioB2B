@@ -1,8 +1,6 @@
 using AutoMapper;
-using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Domain.Entities.Tenants;
-using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
 using StudioB2B.Shared.DTOs;
 
@@ -10,7 +8,7 @@ namespace StudioB2B.Infrastructure.Features.Users;
 
 public static class UserQueryExtensions
 {
-    public static IQueryable<User> OrderByLastName(this IQueryable<User> q)
+    public static IQueryable<TenantUser> OrderByLastName(this IQueryable<TenantUser> q)
         => q.OrderBy(u => u.LastName).ThenBy(u => u.FirstName);
 }
 
@@ -76,7 +74,7 @@ public class CreateUser(ITenantDbContextFactory factory, IMapper mapper)
         if (await db.Users.AnyAsync(u => u.Email == email, ct))
             return (false, "Пользователь с таким email уже существует");
 
-        var user = mapper.Map<User>(request);
+        var user = mapper.Map<TenantUser>(request);
         user.Id = Guid.NewGuid();
         user.HashPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
@@ -86,7 +84,7 @@ public class CreateUser(ITenantDbContextFactory factory, IMapper mapper)
         {
             var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == roleName, ct);
             if (role is not null)
-                db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id });
+                db.UserRoles.Add(new TenantUserRole { UserId = user.Id, RoleId = role.Id });
         }
 
         await db.SaveChangesAsync(ct);
@@ -115,7 +113,7 @@ public class UpdateUser(ITenantDbContextFactory factory, IMapper mapper)
         {
             var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == roleName, ct);
             if (role is not null)
-                db.UserRoles.Add(new UserRole { UserId = id, RoleId = role.Id });
+                db.UserRoles.Add(new TenantUserRole { UserId = id, RoleId = role.Id });
         }
 
         await db.SaveChangesAsync(ct);

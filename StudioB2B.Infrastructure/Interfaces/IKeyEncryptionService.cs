@@ -1,4 +1,4 @@
-namespace StudioB2B.Application.Common.Interfaces;
+namespace StudioB2B.Infrastructure.Interfaces;
 
 /// <summary>
 /// Reversible AES-based encryption for sensitive values such as marketplace API keys.

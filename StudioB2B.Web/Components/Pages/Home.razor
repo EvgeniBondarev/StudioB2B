@@ -1,19 +1,15 @@
 @page "/"
-@using StudioB2B.Application.Common.Interfaces
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using System.ComponentModel.DataAnnotations
-@using StudioB2B.Infrastructure.MultiTenancy
-@using StudioB2B.Web.Services
+@using StudioB2B.Infrastructure.Interfaces
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
 @inject NavigationManager Navigation
-@inject NotificationService NotificationService
-@inject Microsoft.Extensions.Options.IOptions<MultiTenancyOptions> MultiTenancyOptions
 @inject ITenantDbContextFactory Factory
 @inject HttpClient Http
 @inject JwtAuthenticationStateProvider AuthStateProvider
+@inject Microsoft.Extensions.Options.IOptions<StudioB2B.Infrastructure.MultiTenancy.MultiTenancyOptions> MultiTenancyOptions
 
 <PageTitle>StudioB2B</PageTitle>
 
@@ -36,29 +32,71 @@
         }
         else if (!TenantProvider.IsResolved)
         {
-            <!-- Главная страница мастер-домена: регистрация нового тенанта -->
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
-                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
-                    Создайте рабочее пространство для вашей компании
-                </RadzenText>
-            </div>
-
-            @if (_registerSuccess)
+            @if (!_masterAuthenticated)
             {
-                <RadzenAlert AlertStyle="AlertStyle.Success" ShowIcon="true" AllowClose="false">
-                    Компания зарегистрирована! Перенаправление...
-                </RadzenAlert>
+                <!-- Master-домен: требуется авторизация -->
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                        Войдите, чтобы управлять рабочими пространствами
+                    </RadzenText>
+                </div>
+
+                @if (_masterLoginError != null)
+                {
+                    <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                        @_masterLoginError
+                    </RadzenAlert>
+                }
+
+                <EditForm Model="@_masterLogin" OnValidSubmit="HandleMasterLogin" Context="masterForm">
+                    <DataAnnotationsValidator />
+                    <RadzenStack Gap="1rem">
+                        <RadzenFormField Text="Email" Style="width: 100%;">
+                            <RadzenTextBox @bind-Value="_masterLogin.Email" Style="width: 100%;" InputType="InputType.Email" />
+                        </RadzenFormField>
+
+                        <RadzenFormField Text="Пароль" Style="width: 100%;">
+                            <RadzenPassword @bind-Value="_masterLogin.Password" Style="width: 100%;" />
+                        </RadzenFormField>
+
+                        <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
+
+                        <RadzenButton ButtonType="ButtonType.Submit" Text="Войти"
+                                      ButtonStyle="ButtonStyle.Primary"
+                                      Style="width: 100%; justify-content: center;"
+                                      IsBusy="@_masterLoginLoading" />
+                    </RadzenStack>
+                </EditForm>
             }
             else
             {
-                @if (!_showRegTimeline)
+                <!-- Master-домен: авторизован — создание tenant -->
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                        Создайте рабочее пространство для компании
+                    </RadzenText>
+                </div>
+
+                @if (_registerSuccess)
                 {
+                    <RadzenAlert AlertStyle="AlertStyle.Success" ShowIcon="true" AllowClose="false">
+                        Компания зарегистрирована! Перенаправление...
+                    </RadzenAlert>
+                }
+                else if (!_showRegTimeline)
+                {
+                    @if (_registerError != null)
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                            @_registerError
+                        </RadzenAlert>
+                    }
+
                     <EditForm Model="@_reg" OnValidSubmit="HandleRegister">
                         <DataAnnotationsValidator />
-
                         <RadzenStack Gap="1rem">
-
                             <RadzenFormField Text="Название компании" Style="width: 100%;">
                                 <RadzenTextBox @bind-Value="_reg.CompanyName" Style="width: 100%;" />
                             </RadzenFormField>
@@ -68,7 +106,7 @@
                                     <RadzenTextBox @bind-Value="_reg.Subdomain" Style="width: 100%;" />
                                 </ChildContent>
                                 <Helper>
-                                    <RadzenText TextStyle="TextStyle.Caption">Только a-z, 0-9, дефис (3–5 символов) — добавится .@DomainAdornment</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption">Только a-z, 0-9, дефис (3–30 символов) — добавится .@DomainAdornment</RadzenText>
                                 </Helper>
                             </RadzenFormField>
 
@@ -76,7 +114,7 @@
                                 <RadzenTextBox @bind-Value="_reg.AdminEmail" Style="width: 100%;" />
                             </RadzenFormField>
 
-                            <RadzenFormField Text="Пароль" Style="width: 100%;">
+                            <RadzenFormField Text="Пароль администратора" Style="width: 100%;">
                                 <ChildContent>
                                     <RadzenPassword @bind-Value="_reg.Password" Style="width: 100%;" />
                                 </ChildContent>
@@ -103,58 +141,31 @@
                         <RadzenText TextStyle="TextStyle.Body1" Style="color: var(--rz-text-secondary-color); text-align: center;">
                             Создаём рабочее пространство, это может занять немного времени...
                         </RadzenText>
-
                         <RadzenTimeline>
                             <Items>
                                 <RadzenTimelineItem PointStyle="@RegStepStyle(0)" PointSize="PointSize.Small">
-                                    <LabelContent>
-                                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
-                                                    Style="@RegStepLabelStyle(0)">
-                                            Ввод данных
-                                        </RadzenText>
-                                    </LabelContent>
-                                    <ChildContent>
-                                        <RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(0)">
-                                            Подготовка параметров компании и администратора.
-                                        </RadzenText>
-                                    </ChildContent>
+                                    <LabelContent><RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0" Style="@RegStepLabelStyle(0)">Ввод данных</RadzenText></LabelContent>
+                                    <ChildContent><RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(0)">Подготовка параметров.</RadzenText></ChildContent>
                                 </RadzenTimelineItem>
-
                                 <RadzenTimelineItem PointStyle="@RegStepStyle(1)" PointSize="PointSize.Small">
-                                    <LabelContent>
-                                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
-                                                    Style="@RegStepLabelStyle(1)">
-                                            Создание базы
-                                        </RadzenText>
-                                    </LabelContent>
-                                    <ChildContent>
-                                        <RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(1)">
-                                            Создание базы данных тенанта и применение миграций.
-                                        </RadzenText>
-                                    </ChildContent>
+                                    <LabelContent><RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0" Style="@RegStepLabelStyle(1)">Создание базы</RadzenText></LabelContent>
+                                    <ChildContent><RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(1)">Создание БД и миграции.</RadzenText></ChildContent>
                                 </RadzenTimelineItem>
-
                                 <RadzenTimelineItem PointStyle="@RegStepStyle(2)" PointSize="PointSize.Small">
-                                    <LabelContent>
-                                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
-                                                    Style="@RegStepLabelStyle(2)">
-                                            Готово
-                                        </RadzenText>
-                                    </LabelContent>
-                                    <ChildContent>
-                                        <RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(2)">
-                                            Настройка администратора и переход в систему.
-                                        </RadzenText>
-                                    </ChildContent>
+                                    <LabelContent><RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0" Style="@RegStepLabelStyle(2)">Готово</RadzenText></LabelContent>
+                                    <ChildContent><RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(2)">Настройка администратора.</RadzenText></ChildContent>
                                 </RadzenTimelineItem>
                             </Items>
                         </RadzenTimeline>
-
-                        <RadzenProgressBar Mode="ProgressBarMode.Indeterminate"
-                                           ShowValue="false"
-                                           Style="width: 100%;" />
+                        <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false" Style="width: 100%;" />
                     </RadzenStack>
                 }
+
+                <hr style="margin-top: 1.5rem;" />
+                <RadzenButton Text="Выйти из панели управления" Icon="logout"
+                              ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Style="width: 100%; justify-content: center; margin-top: 0.5rem;"
+                              Click="@HandleMasterLogout" />
             }
         }
         else
@@ -266,26 +277,33 @@
 </div>
 
 @code {
-    private Domain.Entities.Tenants.Tenant? _tenant;
+    private Domain.Entities.Tenants.TenantEntity? _tenant;
     private bool _initializing = true;
     private bool _hasMarketplaceClients;
-    private int _regStep;
-    private bool _showRegTimeline;
 
-    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+    // Master auth state
+    private bool _masterAuthenticated;
+    private bool _masterLoginLoading;
+    private string? _masterLoginError;
+    private MasterLoginModel _masterLogin = new();
 
-    // Login
-    private LoginModel _login = new();
-    private bool _loginLoading;
-    private string? _loginError;
-
-    // Register
+    // Tenant registration
     private RegisterModel _reg = new();
     private bool _regLoading;
     private bool _registerSuccess;
+    private string? _registerError;
+    private bool _showRegTimeline;
+    private int _regStep;
 
     private string DomainAdornment =>
         MultiTenancyOptions.Value.MasterDomain?.Trim().TrimEnd('/') ?? "localhost";
+
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+
+    // Tenant login
+    private LoginModel _login = new();
+    private bool _loginLoading;
+    private string? _loginError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -293,15 +311,152 @@
         {
             _tenant = await TenantService.GetByIdAsync(TenantProvider.TenantId.Value);
 
-            // Проверяем, есть ли хоть один клиент маркетплейса у текущего тенанта
             await using var db = Factory.CreateDbContext();
             _hasMarketplaceClients = await db.MarketplaceClients!
                 .AsNoTracking()
                 .AnyAsync();
         }
+        else
+        {
+            _masterAuthenticated = await AuthStateProvider.IsMasterAuthenticatedAsync();
+        }
 
         _initializing = false;
     }
+
+    private async Task HandleMasterLogin()
+    {
+        _masterLoginError = null;
+        _masterLoginLoading = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/master/auth/login", new
+            {
+                _masterLogin.Email,
+                _masterLogin.Password
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                if (result?.Token is not null)
+                {
+                    await AuthStateProvider.MasterLoginAsync(result.Token);
+                    _masterAuthenticated = true;
+                }
+            }
+            else
+            {
+                _masterLoginError = "Неверный email или пароль";
+            }
+        }
+        catch
+        {
+            _masterLoginError = "Произошла ошибка при входе";
+        }
+        finally
+        {
+            _masterLoginLoading = false;
+        }
+    }
+
+    private async Task HandleMasterLogout()
+    {
+        await AuthStateProvider.MasterLogoutAsync();
+        _masterAuthenticated = false;
+        _reg = new RegisterModel();
+        _showRegTimeline = false;
+        _registerSuccess = false;
+        _registerError = null;
+    }
+
+    private async Task HandleRegister()
+    {
+        if (_regLoading) return;
+
+        if (_reg.Password != _reg.ConfirmPassword)
+        {
+            _registerError = "Пароли не совпадают";
+            return;
+        }
+
+        _registerError = null;
+        _regLoading = true;
+        _showRegTimeline = true;
+        _regStep = 0;
+        _ = RunRegTimelineAsync();
+
+        try
+        {
+            var result = await TenantService.RegisterAsync(
+                _reg.CompanyName, _reg.Subdomain, _reg.AdminEmail, _reg.Password);
+
+            if (result.Success)
+            {
+                _registerSuccess = true;
+                await Task.Delay(1500);
+
+                var uri = new Uri(Navigation.Uri);
+                var port = uri.Port is 80 or 443 ? "" : $":{uri.Port}";
+                var masterDomain = MultiTenancyOptions.Value.MasterDomain?.ToLowerInvariant() ?? "localhost";
+
+                string redirectHost;
+                string scheme;
+
+                if (masterDomain.Contains("localhost"))
+                {
+                    redirectHost = $"{_reg.Subdomain}.localhost";
+                    scheme = uri.Scheme;
+                }
+                else
+                {
+                    redirectHost = $"{_reg.Subdomain}.{masterDomain}";
+                    scheme = "https";
+                }
+
+                Navigation.NavigateTo($"{scheme}://{redirectHost}{port}/", forceLoad: true);
+            }
+            else
+            {
+                _showRegTimeline = false;
+                _registerError = result.Error ?? "Неизвестная ошибка";
+            }
+        }
+        catch (Exception ex)
+        {
+            _showRegTimeline = false;
+            _registerError = ex.Message;
+        }
+        finally
+        {
+            _regLoading = false;
+        }
+    }
+
+    private async Task RunRegTimelineAsync()
+    {
+        _regStep = 0; StateHasChanged();
+        await Task.Delay(800);
+        if (!_showRegTimeline) return;
+        _regStep = 1; StateHasChanged();
+        await Task.Delay(1200);
+        if (!_showRegTimeline) return;
+        _regStep = 2; StateHasChanged();
+    }
+
+    private PointStyle RegStepStyle(int step) => step switch
+    {
+        _ when step < _regStep  => PointStyle.Success,
+        _ when step == _regStep => PointStyle.Primary,
+        _                       => PointStyle.Secondary
+    };
+
+    private string RegStepLabelStyle(int step) => step == _regStep
+        ? "color: var(--rz-primary); font-weight: 700;"
+        : step < _regStep ? "color: var(--rz-success);" : "color: var(--rz-text-disabled-color);";
+
+    private string RegStepDescStyle(int step) =>
+        step <= _regStep ? string.Empty : "color: var(--rz-text-disabled-color);";
 
     private async Task HandleLogin()
     {
@@ -354,109 +509,23 @@
         Navigation.NavigateTo("/", forceLoad: false);
     }
 
-    private async Task HandleRegister()
-    {
-        if (_regLoading)
-            return;
-
-        if (_reg.Password != _reg.ConfirmPassword)
-        {
-            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Пароли не совпадают");
-            return;
-        }
-
-        _regLoading = true;
-        _showRegTimeline = true;
-        _regStep = 0;
-
-        _ = RunRegTimelineAsync();
-
-        try
-        {
-            var result = await TenantService.RegisterAsync(_reg.CompanyName, _reg.Subdomain, _reg.AdminEmail, _reg.Password);
-
-            if (result.Success)
-            {
-                _registerSuccess = true;
-                await Task.Delay(1500);
-
-                var uri = new Uri(Navigation.Uri);
-                var port = uri.Port is 80 or 443 ? "" : $":{uri.Port}";
-                var masterDomain = MultiTenancyOptions.Value.MasterDomain?.ToLowerInvariant() ?? "localhost";
-
-                string redirectHost;
-                string scheme;
-
-                if (masterDomain.Contains("localhost"))
-                {
-                    redirectHost = $"{_reg.Subdomain}.localhost";
-                    scheme = uri.Scheme;
-                }
-                else
-                {
-                    redirectHost = $"{_reg.Subdomain}.{masterDomain}";
-                    scheme = "https";
-                }
-
-                Navigation.NavigateTo($"{scheme}://{redirectHost}{port}/", forceLoad: true);
-            }
-            else
-            {
-                _showRegTimeline = false;
-                NotificationService.Notify(NotificationSeverity.Error, "Ошибка регистрации", result.Error ?? "Неизвестная ошибка");
-            }
-        }
-        catch (Exception ex)
-        {
-            _showRegTimeline = false;
-            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
-        }
-        finally
-        {
-            _regLoading = false;
-        }
-    }
-
-    private async Task RunRegTimelineAsync()
-    {
-        _regStep = 0;
-        StateHasChanged();
-
-        await Task.Delay(800);
-        if (!_showRegTimeline) return;
-
-        _regStep = 1;
-        StateHasChanged();
-
-        await Task.Delay(1200);
-        if (!_showRegTimeline) return;
-
-        _regStep = 2;
-        StateHasChanged();
-    }
-
-    private PointStyle RegStepStyle(int step) => step switch
-    {
-        _ when step < _regStep  => PointStyle.Success,
-        _ when step == _regStep => PointStyle.Primary,
-        _                       => PointStyle.Secondary
-    };
-
-    private string RegStepLabelStyle(int step) => step == _regStep
-        ? "color: var(--rz-primary); font-weight: 700;"
-        : step < _regStep
-            ? "color: var(--rz-success);"
-            : "color: var(--rz-text-disabled-color);";
-
-    private string RegStepDescStyle(int step) => step <= _regStep
-        ? string.Empty
-        : "color: var(--rz-text-disabled-color);";
-
     private static string GetInitials(string? name)
     {
         if (string.IsNullOrWhiteSpace(name)) return "?";
         var local = name.Split('@')[0];
         return local.Length >= 2 ? local[..2].ToUpper() : local.ToUpper();
+    }
+
+    private sealed record LoginResponse(string Token, DateTime ExpiresAt);
+
+    private class MasterLoginModel
+    {
+        [Required(ErrorMessage = "Введите email")]
+        [EmailAddress(ErrorMessage = "Некорректный email")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Введите пароль")]
+        public string Password { get; set; } = "";
     }
 
     private class LoginModel
@@ -469,8 +538,6 @@
         public string Password { get; set; } = "";
     }
 
-    private sealed record LoginResponse(string Token, DateTime ExpiresAt);
-
     private class RegisterModel
     {
         [Required(ErrorMessage = "Введите название компании")]
@@ -478,10 +545,10 @@
         public string CompanyName { get; set; } = "";
 
         [Required(ErrorMessage = "Введите субдомен")]
-        [RegularExpression(@"^[a-z0-9-]{3,5}$", ErrorMessage = "Только a-z, 0-9, дефис (3–5 символов)")]
+        [RegularExpression(@"^[a-z0-9][a-z0-9\-]{1,28}[a-z0-9]$|^[a-z0-9]{3}$", ErrorMessage = "Только a-z, 0-9, дефис (3–30 символов)")]
         public string Subdomain { get; set; } = "";
 
-        [Required(ErrorMessage = "Введите email")]
+        [Required(ErrorMessage = "Введите email администратора")]
         [EmailAddress(ErrorMessage = "Некорректный email")]
         public string AdminEmail { get; set; } = "";
 

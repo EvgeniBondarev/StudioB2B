@@ -4,9 +4,9 @@ using StudioB2B.Domain.Entities.Tenants;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Configurations;
 
-public class UserConfiguration : IEntityTypeConfiguration<User>
+public class UserConfiguration : IEntityTypeConfiguration<TenantUser>
 {
-    public void Configure(EntityTypeBuilder<User> builder)
+    public void Configure(EntityTypeBuilder<TenantUser> builder)
     {
         builder.ToTable("Users");
 
