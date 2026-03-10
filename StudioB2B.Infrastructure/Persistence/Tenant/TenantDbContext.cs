@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -12,20 +11,17 @@ using StudioB2B.Domain.Entities.Marketplace;
 using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Domain.Entities.Products;
 using StudioB2B.Domain.Entities.References;
+using StudioB2B.Domain.Entities.Tenants;
 using StudioB2B.Domain.Entities.Warehouses;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant;
 
-public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>
+public class TenantDbContext : DbContext
 {
-    /// <summary>Поля Identity и системные поля, которые не нужно аудировать.</summary>
+    /// <summary>Поля, которые не нужно аудировать.</summary>
     private static readonly HashSet<string> ExcludedProperties = new(StringComparer.OrdinalIgnoreCase)
     {
-        "PasswordHash",
-        "SecurityStamp",
-        "ConcurrencyStamp",
-        "NormalizedUserName",
-        "NormalizedEmail",
+        nameof(User.HashPassword),
         nameof(ISoftDelete.IsDeleted)
     };
 
@@ -47,6 +43,11 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
     public bool DeferAudit { get; set; }
 
     private readonly List<FieldAuditLog> _deferredAuditBuffer = [];
+
+    // ── Users / Roles ────────────────────────────────────────────────
+    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<Role> Roles { get; set; } = null!;
+    public DbSet<UserRole> UserRoles { get; set; } = null!;
 
     // ── Marketplace ──────────────────────────────────────────────────
     public DbSet<MarketplaceClient>? MarketplaceClients { get; set; }
@@ -124,8 +125,6 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
 
     /// <summary>
     /// Сбрасывает накопленный буфер аудита в БД пакетами по <paramref name="batchSize"/> записей.
-    /// Каждый пакет сохраняется в отдельной мини-транзакции, поэтому не влияет на основные данные.
-    /// После успешного сброса буфер очищается.
     /// </summary>
     public async Task FlushDeferredAuditAsync(int batchSize = 200, CancellationToken ct = default)
     {
@@ -136,9 +135,6 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
         {
             var batch = _deferredAuditBuffer.GetRange(i, Math.Min(batchSize, _deferredAuditBuffer.Count - i));
             FieldAuditLogs.AddRange(batch);
-
-            // Сохраняем вне любой внешней транзакции: используем SuppressAudit чтобы
-            // не попасть в рекурсию (FieldAuditLog сам не является IBaseEntity).
             await base.SaveChangesAsync(ct);
         }
 
@@ -162,31 +158,20 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
             var entityName = entry.Metadata.ShortName();
             var entityId   = entry.Properties
                 .FirstOrDefault(p => p.Metadata.IsPrimaryKey())?.CurrentValue?.ToString() ?? string.Empty;
-            var changeType = entry.State.ToString(); // "Added" / "Modified" / "Deleted"
+            var changeType = entry.State.ToString();
             var changedAt  = DateTime.UtcNow;
 
             var clrType   = entry.Entity.GetType();
             var skipProps = _skipAuditCache.GetOrAdd(clrType, t =>
             {
                 var set = new HashSet<string>(StringComparer.Ordinal);
-
-                // Свойства самого класса с [SkipAudit]
                 foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-                {
                     if (p.GetCustomAttribute<SkipAuditAttribute>() != null)
                         set.Add(p.Name);
-                }
-
-                // Свойства интерфейсов с [SkipAudit] (например ISoftDelete.IsDeleted)
                 foreach (var iface in t.GetInterfaces())
-                {
                     foreach (var p in iface.GetProperties())
-                    {
                         if (p.GetCustomAttribute<SkipAuditAttribute>() != null)
                             set.Add(p.Name);
-                    }
-                }
-
                 return set;
             });
 
@@ -194,27 +179,20 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
             {
                 if (ExcludedProperties.Contains(prop.Metadata.Name))
                     continue;
-
                 if (skipProps.Contains(prop.Metadata.Name))
                     continue;
-
-                // Пропускаем неизменённые поля при Modified
                 if (entry.State == EntityState.Modified && !prop.IsModified)
                     continue;
 
                 var oldValue = entry.State == EntityState.Modified || entry.State == EntityState.Deleted
                     ? Serialize(prop.OriginalValue)
                     : null;
-
                 var newValue = entry.State == EntityState.Deleted
                     ? null
                     : Serialize(prop.CurrentValue);
 
-                // Не пишем запись если оба значения одинаковы (актуально для Added с дефолтами)
                 if (entry.State == EntityState.Added && oldValue == newValue)
                     continue;
-
-                // Пропускаем «заполнение» пустых полей системой (sync) — по сути как создание значения
                 if (entry.State == EntityState.Modified && oldValue == null && userId == SystemUser.RobotId)
                     continue;
 
@@ -250,6 +228,7 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
             typeof(TenantDbContext).Assembly,
             type => type.Namespace?.Contains("Tenant") == true ||
                     type.Namespace?.Contains("Configurations") == true);
+
 
         ApplySoftDeleteFilters(modelBuilder);
     }

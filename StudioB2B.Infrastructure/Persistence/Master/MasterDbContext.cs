@@ -14,11 +14,15 @@ public class MasterDbContext : DbContext
     }
 
     public DbSet<TenantEntity> Tenants => Set<TenantEntity>();
-    public DbSet<MasterRole> Roles => Set<MasterRole>();
+    public DbSet<Role> Roles => Set<Role>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // UserRole и User не нужны в мастер-базе — только Role
+        modelBuilder.Ignore<User>();
+        modelBuilder.Ignore<UserRole>();
 
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(MasterDbContext).Assembly,

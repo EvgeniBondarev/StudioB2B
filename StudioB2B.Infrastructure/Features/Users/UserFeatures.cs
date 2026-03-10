@@ -1,18 +1,20 @@
 using AutoMapper;
-using Microsoft.AspNetCore.Identity;
+using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
+using StudioB2B.Domain.Entities.Tenants;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
 using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Features.Users;
 
-
 public static class UserQueryExtensions
 {
-    public static IQueryable<ApplicationUser> OrderByLastName(this IQueryable<ApplicationUser> q)
+    public static IQueryable<User> OrderByLastName(this IQueryable<User> q)
         => q.OrderBy(u => u.LastName).ThenBy(u => u.FirstName);
 }
+
+// ─── GetUsers ─────────────────────────────────────────────────────────────────
 
 public class GetUsers(ITenantDbContextFactory factory, IMapper mapper)
 {
@@ -25,14 +27,15 @@ public class GetUsers(ITenantDbContextFactory factory, IMapper mapper)
         {
             var roles = await db.UserRoles.AsNoTracking()
                 .Where(ur => ur.UserId == u.Id)
-                .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name!)
+                .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name)
                 .ToListAsync(ct);
-            var dto = mapper.Map<UserListDto>(u) with { Roles = roles };
-            result.Add(dto);
+            result.Add(mapper.Map<UserListDto>(u) with { Roles = roles });
         }
         return result;
     }
 }
+
+// ─── GetUserById ──────────────────────────────────────────────────────────────
 
 public class GetUserById(ITenantDbContextFactory factory, IMapper mapper)
 {
@@ -43,20 +46,24 @@ public class GetUserById(ITenantDbContextFactory factory, IMapper mapper)
         if (u is null) return null;
         var roles = await db.UserRoles.AsNoTracking()
             .Where(ur => ur.UserId == u.Id)
-            .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name!)
+            .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name)
             .ToListAsync(ct);
         return mapper.Map<UserListDto>(u) with { Roles = roles };
     }
 }
+
+// ─── GetAvailableRoles ────────────────────────────────────────────────────────
 
 public class GetAvailableRoles(ITenantDbContextFactory factory)
 {
     public async Task<List<string>> HandleAsync(CancellationToken ct = default)
     {
         using var db = factory.CreateDbContext();
-        return await db.Roles.AsNoTracking().OrderBy(r => r.Name).Select(r => r.Name!).ToListAsync(ct);
+        return await db.Roles.AsNoTracking().OrderBy(r => r.Name).Select(r => r.Name).ToListAsync(ct);
     }
 }
+
+// ─── CreateUser ───────────────────────────────────────────────────────────────
 
 public class CreateUser(ITenantDbContextFactory factory, IMapper mapper)
 {
@@ -64,17 +71,30 @@ public class CreateUser(ITenantDbContextFactory factory, IMapper mapper)
         CreateUserRequest request, CancellationToken ct = default)
     {
         using var db = factory.CreateDbContext();
-        using var um = UserManagerFactory.Create(db);
-        var user = mapper.Map<ApplicationUser>(request);
-        var result = await um.CreateAsync(user, request.Password);
-        if (!result.Succeeded)
-            return (false, string.Join(", ", result.Errors.Select(e => e.Description)));
-        foreach (var role in request.Roles)
-            if (await db.Roles.AnyAsync(r => r.Name == role, ct))
-                await um.AddToRoleAsync(user, role);
+
+        var email = request.Email.Trim().ToLowerInvariant();
+        if (await db.Users.AnyAsync(u => u.Email == email, ct))
+            return (false, "Пользователь с таким email уже существует");
+
+        var user = mapper.Map<User>(request);
+        user.Id = Guid.NewGuid();
+        user.HashPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
+
+        db.Users.Add(user);
+
+        foreach (var roleName in request.Roles)
+        {
+            var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == roleName, ct);
+            if (role is not null)
+                db.UserRoles.Add(new UserRole { UserId = user.Id, RoleId = role.Id });
+        }
+
+        await db.SaveChangesAsync(ct);
         return (true, null);
     }
 }
+
+// ─── UpdateUser ───────────────────────────────────────────────────────────────
 
 public class UpdateUser(ITenantDbContextFactory factory, IMapper mapper)
 {
@@ -87,21 +107,23 @@ public class UpdateUser(ITenantDbContextFactory factory, IMapper mapper)
 
         mapper.Map(request, user);
 
-        using var um = UserManagerFactory.Create(db);
-        var current = await um.GetRolesAsync(user);
-        var toRemove = current.Except(request.Roles).ToList();
-        var toAdd = request.Roles.Except(current).ToList();
-        if (toRemove.Count > 0) await um.RemoveFromRolesAsync(user, toRemove);
-        foreach (var role in toAdd)
-            if (await db.Roles.AnyAsync(r => r.Name == role, ct))
-                await um.AddToRoleAsync(user, role);
-        var result = await um.UpdateAsync(user);
-        return result.Succeeded
-            ? (true, null)
-            : (false, string.Join(", ", result.Errors.Select(e => e.Description)));
+        // Sync roles
+        var currentRoles = await db.UserRoles.Where(ur => ur.UserId == id).ToListAsync(ct);
+        db.UserRoles.RemoveRange(currentRoles);
+
+        foreach (var roleName in request.Roles)
+        {
+            var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == roleName, ct);
+            if (role is not null)
+                db.UserRoles.Add(new UserRole { UserId = id, RoleId = role.Id });
+        }
+
+        await db.SaveChangesAsync(ct);
+        return (true, null);
     }
 }
 
+// ─── DeleteUser ───────────────────────────────────────────────────────────────
 
 public class DeleteUser(ITenantDbContextFactory factory)
 {
@@ -111,31 +133,9 @@ public class DeleteUser(ITenantDbContextFactory factory)
         using var db = factory.CreateDbContext();
         var user = await db.Users.FindAsync([id], ct);
         if (user is null) return (false, "Пользователь не найден");
-        using var um = UserManagerFactory.Create(db);
-        var result = await um.DeleteAsync(user);
-        return result.Succeeded
-            ? (true, null)
-            : (false, string.Join(", ", result.Errors.Select(e => e.Description)));
+
+        user.IsDeleted = true;
+        await db.SaveChangesAsync(ct);
+        return (true, null);
     }
 }
-
-internal static class UserManagerFactory
-{
-    internal static UserManager<ApplicationUser> Create(TenantDbContext db)
-    {
-        var store = new Microsoft.AspNetCore.Identity.EntityFrameworkCore
-            .UserStore<ApplicationUser, ApplicationRole, TenantDbContext, Guid>(db);
-        return new UserManager<ApplicationUser>(
-            store,
-            Microsoft.Extensions.Options.Options.Create(new IdentityOptions()),
-            new PasswordHasher<ApplicationUser>(),
-            [new UserValidator<ApplicationUser>()],
-            [new PasswordValidator<ApplicationUser>()],
-            new UpperInvariantLookupNormalizer(),
-            new IdentityErrorDescriber(),
-            null!,
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<UserManager<ApplicationUser>>.Instance);
-    }
-}
-
-

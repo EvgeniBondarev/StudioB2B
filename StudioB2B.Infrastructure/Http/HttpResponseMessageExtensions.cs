@@ -13,7 +13,7 @@ public static class HttpResponseMessageExtensions
     };
 
     /// <summary>
-    /// Deserializes response body from stream without loading into a string (memory efficient).
+    /// Deserializes response body from stream without loading into a string (memory efficient)
     /// </summary>
     public static async Task<T?> ReadFromJsonAsync<T>(
         this HttpResponseMessage response,

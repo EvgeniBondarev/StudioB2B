@@ -1,4 +1,8 @@
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
+using StudioB2B.Web.Infrastructure;
+using StudioB2B.Web.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using Radzen;
 using StudioB2B.Application.Common.Interfaces;
@@ -41,7 +45,6 @@ public static class ServiceExtensions
         services.AddScoped<ContextMenuService>();
         services.AddScoped<TabService>();
 
-        ConfigureAuthentication(services, environment);
         ConfigureCors(services, environment);
 
         services.Configure<ForwardedHeadersOptions>(options =>
@@ -57,39 +60,15 @@ public static class ServiceExtensions
         services.AddRazorComponents()
             .AddInteractiveServerComponents();
 
-        return services;
-    }
+        // JWT AuthenticationStateProvider для Blazor
+        services.AddScoped<JwtAuthenticationStateProvider>();
+        services.AddScoped<AuthenticationStateProvider>(sp =>
+            sp.GetRequiredService<JwtAuthenticationStateProvider>());
 
-    private static void ConfigureAuthentication(IServiceCollection services, IWebHostEnvironment environment)
-    {
-        if (environment.IsDevelopment())
-        {
-            services.ConfigureApplicationCookie(options =>
-            {
-                options.Cookie.Domain = null;
-                options.Cookie.Name = ".AspNetCore.Identity.Application";
-                options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-                options.Cookie.HttpOnly = true;
-                options.Cookie.IsEssential = true;
-                options.ExpireTimeSpan = TimeSpan.FromDays(14);
-                options.SlidingExpiration = true;
-            });
-        }
-        else
-        {
-            services.ConfigureApplicationCookie(options =>
-            {
-                options.Cookie.Domain = ".studiob2b.ru";
-                options.Cookie.Name = ".AspNetCore.Identity.Application";
-                options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-                options.Cookie.HttpOnly = true;
-                options.Cookie.IsEssential = true;
-                options.ExpireTimeSpan = TimeSpan.FromDays(14);
-                options.SlidingExpiration = true;
-            });
-        }
+        // JWT используется для аутентификации — CSRF-защита не нужна.
+        services.AddSingleton<IAntiforgery, NoOpAntiforgery>();
+
+        return services;
     }
 
     private static void ConfigureCors(IServiceCollection services, IWebHostEnvironment environment)

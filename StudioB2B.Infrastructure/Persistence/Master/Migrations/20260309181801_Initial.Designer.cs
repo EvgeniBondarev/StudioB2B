@@ -12,8 +12,8 @@ using StudioB2B.Infrastructure.Persistence.Master;
 namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
 {
     [DbContext(typeof(MasterDbContext))]
-    [Migration("20260223172953_Init")]
-    partial class Init
+    [Migration("20260309181801_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,28 +25,13 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.MasterRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.Role", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("ConcurrencyStamp")
-                        .IsRequired()
-                        .HasMaxLength(36)
-                        .HasColumnType("varchar(36)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsSystemRole")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Name")
@@ -54,14 +39,9 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
 
-                    b.Property<string>("NormalizedName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("NormalizedName")
+                    b.HasIndex("Name")
                         .IsUnique();
 
                     b.ToTable("Roles", (string)null);
