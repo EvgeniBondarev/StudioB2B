@@ -414,66 +414,70 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            @* @if (_calcRules.Count > 0) *@
-            @* { *@
-            @*     @if (!_computedSplitByColumns) *@
-            @*     { *@
-            @*         <RadzenDataGridColumn TItem="Order" Title="Расчёты" Width="200px" *@
-            @*                               Filterable="false" Sortable="false" HeaderCssClass="half-painted-header"> *@
-            @*             <HeaderTemplate> *@
-            @*                 <span style="cursor: pointer; text-decoration: underline; font-size: 0.85rem;" *@
-            @*                       title="Щёлкните, чтобы переключить режим отображения расчётов" *@
-            @*                       @onclick="ToggleComputedLayout"> *@
-            @*                     Расчёты *@
-            @*                     (@(_computedSplitByColumns ? "по столбцам" : "в одном столбце")) *@
-            @*                 </span> *@
-            @*             </HeaderTemplate> *@
-            @*             <Template Context="o"> *@
-            @*                 @if (_computed.TryGetValue(o.Id, out var fields) && fields.Count > 0) *@
-            @*                 { *@
-            @*                     <RadzenStack Gap="0.15rem"> *@
-            @*                         @foreach (var rule in _calcRules) *@
-            @*                         { *@
-            @*                             @if (fields.TryGetValue(rule.ResultKey, out var val) && val != decimal.MinValue) *@
-            @*                             { *@
-            @*                                 <span *@
-            @*                                     style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" *@
-            @*                                     title="@rule.Formula"> *@
-            @*                                     <span style="color: var(--rz-text-secondary-color);">@rule.Name:</span> *@
-            @*                                     <strong>@val.ToString("N2")</strong> *@
-            @*                                 </span> *@
-            @*                             } *@
-            @*                         } *@
-            @*                     </RadzenStack> *@
-            @*                 } *@
-            @*             </Template> *@
-            @*         </RadzenDataGridColumn> *@
-            @*     } *@
-            @*     else *@
-            @*     { *@
-            @*         @foreach (var rule in _calcRules) *@
-            @*         { *@
-            @*             var propName = $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(rule.ResultKey)}"; *@
-            @*             <RadzenDataGridColumn TItem="Order" *@
-            @*                                   Title="@rule.Name" *@
-            @*                                   Property="@propName" *@
-            @*                                   Width="120px" *@
-            @*                                   Filterable="false" *@
-            @*                                   Sortable="true" *@
-            @*                                   TextAlign="TextAlign.Right" *@
-            @*                                   HeaderCssClass="half-painted-header"> *@
-            @*                 <Template Context="o"> *@
-            @*                     @if (_computed.TryGetValue(o.Id, out var fields) && *@
-            @*                          fields.TryGetValue(rule.ResultKey, out var val) && *@
-            @*                          val != decimal.MinValue) *@
-            @*                     { *@
-            @*                         <span title="@rule.Formula">@val.ToString("N2")</span> *@
-            @*                     } *@
-            @*                 </Template> *@
-            @*             </RadzenDataGridColumn> *@
-            @*         } *@
-            @*     } *@
-            @* } *@
+            @if (_calcRules.Count > 0)
+            {
+                @if (!_computedSplitByColumns)
+                {
+                    <RadzenDataGridColumn TItem="Order" Title="Расчёты"
+
+                                          Width="@GetColumn(OrderGridColumns.ExtraCalculations).Width"
+                                          Visible="@GetColumn(OrderGridColumns.ExtraCalculations).Visible"
+                                          Filterable="false" Sortable="false" HeaderCssClass="half-painted-header">
+                        <HeaderTemplate>
+                            <span style="cursor: pointer; text-decoration: underline; font-size: 0.85rem;"
+                                  title="Щёлкните, чтобы переключить режим отображения расчётов"
+                                  @onclick="ToggleComputedLayout">
+                                Расчёты
+                                (@(_computedSplitByColumns ? "по столбцам" : "в одном столбце"))
+                            </span>
+                        </HeaderTemplate>
+                        <Template Context="o">
+                            @if (_computed.TryGetValue(o.Id, out var fields) && fields.Count > 0)
+                            {
+                                <RadzenStack Gap="0.15rem">
+                                    @foreach (var rule in _calcRules)
+                                    {
+                                        @if (fields.TryGetValue(rule.ResultKey, out var val) && val != decimal.MinValue)
+                                        {
+                                            <span
+                                                style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                                                title="@rule.Formula">
+                                                <span style="color: var(--rz-text-secondary-color);">@rule.Name:</span>
+                                                <strong>@val.ToString("N2")</strong>
+                                            </span>
+                                        }
+                                    }
+                                </RadzenStack>
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                }
+                else
+                {
+                    @foreach (var rule in _calcRules)
+                    {
+                        var propName = $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(rule.ResultKey)}";
+                        <RadzenDataGridColumn TItem="Order"
+                                              Title="@rule.Name"
+                                              Property="@propName"
+                                              Width="@GetColumn(OrderGridColumns.ExtraCalculations).Width"
+                                              Visible="@GetColumn(OrderGridColumns.ExtraCalculations).Visible"
+                                              Filterable="false"
+                                              Sortable="true"
+                                              TextAlign="TextAlign.Right"
+                                              HeaderCssClass="half-painted-header">
+                            <Template Context="o">
+                                @if (_computed.TryGetValue(o.Id, out var fields) &&
+                                     fields.TryGetValue(rule.ResultKey, out var val) &&
+                                     val != decimal.MinValue)
+                                {
+                                    <span title="@rule.Formula">@val.ToString("N2")</span>
+                                }
+                            </Template>
+                        </RadzenDataGridColumn>
+                    }
+                }
+            }
         </Columns>
     </RadzenDataGrid>
 }
@@ -595,9 +599,8 @@ window.gridResize = {
         new() { Key = OrderGridColumns.DeliveryMethod, Title="Способ доставки", Width="160px",  Priority=10},
         new() { Key = OrderGridColumns.Warehouse, Title="Склад", Width="120px",  Priority=11},
         new() { Key = OrderGridColumns.Price, Title="Цена", Width="120px",  Priority=3},
-        new() { Key = OrderGridColumns.ExtraCalculations, Title="Доп расчёты", Width="160px",  Priority=13}
+        new() { Key = OrderGridColumns.ExtraCalculations, Title="Доп. расчёты", Width="200px",  Priority=13}
     };
-
 
     void UpdateSelectedColumns()
     {
