@@ -1,7 +1,7 @@
 @page "/transactions"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
@@ -15,7 +15,7 @@
 
 @implements IDisposable
 
-<PageTitle>Транзакции заказов</PageTitle>
+<PageTitle>Документы заказов</PageTitle>
 
 @if (!TenantProvider.IsResolved)
 {
@@ -27,7 +27,7 @@ else
 {
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
-        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Транзакции заказов</RadzenText>
+        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Документы заказов</RadzenText>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
             <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ToggleDensity" Title="@GetDensityTitle()" />
@@ -38,7 +38,7 @@ else
 
     <RadzenText TextStyle="TextStyle.Body2"
                 Style="color: var(--rz-text-secondary-color); margin-bottom: 1rem; display: block;">
-        Транзакция — переход заказа из одного системного статуса в другой с изменением цен по правилам.
+        Документ — переход заказа из одного системного статуса в другой с изменением цен по правилам.
     </RadzenText>
 
     @if (_statusMatrix != null && _statusMatrix.Statuses.Count > 0)
@@ -329,7 +329,7 @@ else
     private async Task OpenCreateDialog()
     {
         var result = await DialogService.OpenAsync<OrderTransactionDialog>(
-            "Новая транзакция",
+            "Новый документ",
             new Dictionary<string, object?>(),
             new DialogOptions { Width = "min(900px, 95vw)", Resizable = true });
 
@@ -340,7 +340,7 @@ else
     private async Task OpenEditDialog(OrderTransaction t)
     {
         var result = await DialogService.OpenAsync<OrderTransactionDialog>(
-            "Редактировать транзакцию",
+            "Редактировать документ",
             new Dictionary<string, object?> { ["TransactionId"] = t.Id },
             new DialogOptions { Width = "min(900px, 95vw)", Resizable = true });
 
@@ -351,7 +351,7 @@ else
     private async Task DeleteAsync(OrderTransaction t)
     {
         var confirmed = await DialogService.Confirm(
-            $"Удалить транзакцию «{t.Name}»?",
+            $"Удалить документ «{t.Name}»?",
             "Подтверждение",
             new ConfirmOptions { OkButtonText = "Удалить", CancelButtonText = "Отмена" });
 
@@ -362,7 +362,7 @@ else
         {
             entity.IsDeleted = true;
             await _db.SaveChangesAsync();
-            NotificationService.Notify(NotificationSeverity.Success, "Транзакция удалена");
+            NotificationService.Notify(NotificationSeverity.Success, "Документ удалён");
             await _grid!.Reload();
         }
     }
@@ -378,9 +378,9 @@ else
         {
             ContextMenuService.Close();
             if (e.Value?.ToString() == "edit")
-                await OpenEditDialog(args.Data);
+                await OpenEditDialog(args.Data!);
             else if (e.Value?.ToString() == "delete")
-                await DeleteAsync(args.Data);
+                await DeleteAsync(args.Data!);
         });
     }
 

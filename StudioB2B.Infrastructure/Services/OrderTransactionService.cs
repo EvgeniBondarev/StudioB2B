@@ -1,7 +1,8 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Constants;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Features.Orders;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
@@ -62,7 +63,7 @@ public class OrderTransactionService : IOrderTransactionService
 
             decimal? computed = null;
             string? breakdown = null;
-            if (rule.ValueSource == TransactionValueSource.Formula && !string.IsNullOrWhiteSpace(rule.Formula))
+            if (rule.ValueSource == TransactionValueSourceEnum.Formula && !string.IsNullOrWhiteSpace(rule.Formula))
             {
                 try
                 {
@@ -115,7 +116,7 @@ public class OrderTransactionService : IOrderTransactionService
         };
     }
 
-    public async Task<TransactionApplyPreview?> GetApplyPreviewWithUserValuesAsync(Guid orderId, Guid transactionId, IReadOnlyDictionary<Guid, decimal> userValues, CancellationToken ct = default)
+    public async Task<TransactionApplyPreview?> GetApplyPreviewWithUserValuesAsync(Guid orderId, Guid transactionId, IReadOnlyDictionary<Guid, decimal>? userValues, CancellationToken ct = default)
     {
         var context = await GetMergedContextAsync(orderId, transactionId, userValues ?? new Dictionary<Guid, decimal>(), ct);
         if (context == null) return null;
@@ -152,7 +153,7 @@ public class OrderTransactionService : IOrderTransactionService
 
             var priceKey = CalculationEngine.SanitizeKey(rule.PriceType.Name ?? string.Empty);
 
-            if (rule.ValueSource == TransactionValueSource.UserInput)
+            if (rule.ValueSource == TransactionValueSourceEnum.UserInput)
             {
                 rules.Add(new TransactionApplyRulePreview
                 {
@@ -165,7 +166,7 @@ public class OrderTransactionService : IOrderTransactionService
                     IsRequired = rule.IsRequired
                 });
             }
-            else if (rule.ValueSource == TransactionValueSource.Formula && !string.IsNullOrWhiteSpace(rule.Formula))
+            else if (rule.ValueSource == TransactionValueSourceEnum.Formula && !string.IsNullOrWhiteSpace(rule.Formula))
             {
                 decimal? computed = null;
                 string? breakdown = null;
@@ -263,7 +264,7 @@ public class OrderTransactionService : IOrderTransactionService
             if (rule.PriceType == null) continue;
             if (rule.ProductId.HasValue && order.ProductInfo?.ProductId != rule.ProductId.Value)
                 continue;
-            if (rule.ValueSource != TransactionValueSource.UserInput) continue;
+            if (rule.ValueSource != TransactionValueSourceEnum.UserInput) continue;
             if (!userValues.TryGetValue(rule.Id, out var uv)) continue;
 
             var key = CalculationEngine.SanitizeKey(rule.PriceType.Name ?? string.Empty);
@@ -316,18 +317,18 @@ public class OrderTransactionService : IOrderTransactionService
             .FirstOrDefaultAsync(t => t.Id == transactionId && !t.IsDeleted, ct);
 
         if (transaction == null)
-            return new TransactionApplyResult { Success = false, ErrorMessage = "Транзакция не найдена" };
+            return new TransactionApplyResult { Success = false, ErrorMessage = "Документ не найден" };
 
         if (!transaction.IsEnabled)
         {
-            await AddHistoryAsync(orderId, transactionId, false, "Транзакция отключена", 0, 0, ct);
+            await AddHistoryAsync(orderId, transactionId, false, "Документ отключён", 0, 0, ct);
             await _db.SaveChangesAsync(ct);
-            return new TransactionApplyResult { Success = false, ErrorMessage = "Транзакция отключена" };
+            return new TransactionApplyResult { Success = false, ErrorMessage = "Документ отключён" };
         }
 
         if (order.SystemStatusId != transaction.FromSystemStatusId)
         {
-            var msg = $"Текущий статус заказа ({order.SystemStatus?.Name ?? "—"}) не совпадает с исходным статусом транзакции ({transaction.FromSystemStatus?.Name ?? "—"})";
+            var msg = $"Текущий статус заказа ({order.SystemStatus?.Name ?? "—"}) не совпадает с исходным статусом документа ({transaction.FromSystemStatus?.Name ?? "—"})";
             await AddHistoryAsync(orderId, transactionId, false, msg, 0, 0, ct);
             await _db.SaveChangesAsync(ct);
             return new TransactionApplyResult { Success = false, ErrorMessage = msg };
@@ -356,7 +357,7 @@ public class OrderTransactionService : IOrderTransactionService
                 continue;
 
             decimal value;
-            if (rule.ValueSource == TransactionValueSource.UserInput)
+            if (rule.ValueSource == TransactionValueSourceEnum.UserInput)
             {
                 if (ruleValues == null || !ruleValues.TryGetValue(rule.Id, out value))
                     continue;
@@ -438,7 +439,7 @@ public class OrderTransactionService : IOrderTransactionService
         var errors = new List<string>();
         foreach (var rule in rules)
         {
-            if (rule.ValueSource != TransactionValueSource.UserInput || !rule.IsRequired)
+            if (rule.ValueSource != TransactionValueSourceEnum.UserInput || !rule.IsRequired)
                 continue;
             if (rule.PriceType == null) continue;
             if (rule.ProductId.HasValue && order.ProductInfo?.ProductId != rule.ProductId.Value)
@@ -457,7 +458,7 @@ public class OrderTransactionService : IOrderTransactionService
         var errors = new List<string>();
         foreach (var rule in fieldRules)
         {
-            if (rule.ValueSource != TransactionFieldValueSource.UserInput || !rule.IsRequired)
+            if (rule.ValueSource != TransactionFieldValueSourceEnum.UserInput || !rule.IsRequired)
                 continue;
 
             var descriptor = OrderTransactionFieldRegistry.Get(rule.EntityPath);
@@ -472,20 +473,20 @@ public class OrderTransactionService : IOrderTransactionService
         return errors;
     }
 
-    private static bool IsFieldValueEmpty(string? valueStr, TransactionFieldValueType valueType)
+    private static bool IsFieldValueEmpty(string? valueStr, TransactionFieldValueTypeEnum valueType)
     {
         if (string.IsNullOrWhiteSpace(valueStr)) return true;
         return valueType switch
         {
-            TransactionFieldValueType.Guid => !Guid.TryParse(valueStr.Trim(), out var g) || g == Guid.Empty,
-            TransactionFieldValueType.DateTime => !DateTime.TryParse(valueStr, out _),
-            TransactionFieldValueType.Int => !int.TryParse(valueStr, out _),
-            TransactionFieldValueType.Decimal => !decimal.TryParse(valueStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _),
+            TransactionFieldValueTypeEnum.Guid => !Guid.TryParse(valueStr.Trim(), out var g) || g == Guid.Empty,
+            TransactionFieldValueTypeEnum.DateTime => !DateTime.TryParse(valueStr, out _),
+            TransactionFieldValueTypeEnum.Int => !int.TryParse(valueStr, out _),
+            TransactionFieldValueTypeEnum.Decimal => !decimal.TryParse(valueStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _),
             _ => false
         };
     }
 
-    private async Task<int> ApplyFieldRulesAsync(
+    private static async Task<int> ApplyFieldRulesAsync(
         Order order,
         IEnumerable<OrderTransactionFieldRule> fieldRules,
         IReadOnlyDictionary<Guid, string> fieldRuleValues,
@@ -495,7 +496,7 @@ public class OrderTransactionService : IOrderTransactionService
         foreach (var rule in fieldRules)
         {
             string? valueStr;
-            if (rule.ValueSource == TransactionFieldValueSource.Fixed)
+            if (rule.ValueSource == TransactionFieldValueSourceEnum.Fixed)
             {
                 valueStr = rule.FixedValue;
             }
@@ -514,7 +515,7 @@ public class OrderTransactionService : IOrderTransactionService
         return await Task.FromResult(count);
     }
 
-    private static bool ApplyFieldValue(Order order, string entityPath, string? valueStr, TransactionFieldValueType valueType)
+    private static bool ApplyFieldValue(Order order, string entityPath, string? valueStr, TransactionFieldValueTypeEnum valueType)
     {
         try
         {

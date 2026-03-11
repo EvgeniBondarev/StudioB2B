@@ -1,7 +1,6 @@
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Orders
-@using StudioB2B.Domain.Entities.Products
-@using StudioB2B.Domain.Entities.Warehouses
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
@@ -77,15 +76,15 @@ else if (_preview != null)
 else if (_transactions.Count == 0)
 {
     <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
-        Нет доступных транзакций для текущего статуса заказа (@(_currentStatusName ?? "—")). Создайте транзакцию на странице «Транзакции».
+        Нет доступных документов для текущего статуса заказа (@(_currentStatusName ?? "—")). Создайте документ на странице «Документы».
     </RadzenAlert>
 }
 else
 {
-    @* Шаг 1: выбор транзакции *@
+    @* Шаг 1: выбор документа *@
     <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
         <RadzenText TextStyle="TextStyle.Body2">
-            Выберите транзакцию для применения к заказу @OrderId:
+            Выберите документ для проведения по заказу @OrderId:
         </RadzenText>
         <RadzenDataGrid TItem="OrderTransaction"
                         Data="@_transactions"
@@ -97,7 +96,7 @@ else
                         Style="cursor: pointer;"
                         EmptyText="@RadzenRuStrings.EmptyText">
             <Columns>
-                <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Транзакция" Width="220px" />
+                <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Документ" Width="220px" />
                 <RadzenDataGridColumn TItem="OrderTransaction" Title="Целевой статус" Width="180px">
                     <Template Context="t">
                         @t.ToSystemStatus?.Name
@@ -195,21 +194,21 @@ else
     {
         if (_db == null) return;
         var refTypes = fieldRules.Select(f => f.ReferenceType).Distinct().ToList();
-        if (refTypes.Contains(FieldReferenceType.OrderStatus))
+        if (refTypes.Contains(FieldReferenceTypeEnum.OrderStatus))
             _orderStatuses = await _db.OrderStatuses.Where(s => !s.IsDeleted).OrderBy(s => s.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.Product))
+        if (refTypes.Contains(FieldReferenceTypeEnum.Product))
             _products = await _db.Products.Where(p => !p.IsDeleted).OrderBy(p => p.Article).Take(1000).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.Supplier))
+        if (refTypes.Contains(FieldReferenceTypeEnum.Supplier))
             _suppliers = await _db.Suppliers.Where(s => !s.IsDeleted).OrderBy(s => s.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.Warehouse))
+        if (refTypes.Contains(FieldReferenceTypeEnum.Warehouse))
             _warehouses = await _db.Warehouses.Where(w => !w.IsDeleted).OrderBy(w => w.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.DeliveryMethod))
+        if (refTypes.Contains(FieldReferenceTypeEnum.DeliveryMethod))
             _deliveryMethods = await _db.DeliveryMethods.Where(d => !d.IsDeleted).OrderBy(d => d.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.Recipient))
+        if (refTypes.Contains(FieldReferenceTypeEnum.Recipient))
             _recipients = await _db.Recipients.OrderBy(r => r.Name).Take(500).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.Address))
+        if (refTypes.Contains(FieldReferenceTypeEnum.Address))
             _addresses = await _db.Addresses.Take(500).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.WarehouseInfo))
+        if (refTypes.Contains(FieldReferenceTypeEnum.WarehouseInfo))
             _warehouseInfos = await _db.WarehouseInfos
                 .Include(wi => wi.RecipientWarehouse)
                 .Include(wi => wi.SenderWarehouse)
@@ -217,7 +216,7 @@ else
                 .Take(500)
                 .AsNoTracking()
                 .ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.OrderProductInfo))
+        if (refTypes.Contains(FieldReferenceTypeEnum.OrderProductInfo))
             _orderProductInfos = await _db.OrderProductInfos
                 .Include(opi => opi.Product)
                 .Where(opi => !opi.IsDeleted)
@@ -230,7 +229,7 @@ else
     private RenderFragment RenderFieldControl(TransactionApplyFieldRulePreview fr) => builder =>
     {
         var value = _fieldUserValues.GetValueOrDefault(fr.RuleId) ?? "";
-        if (fr.ReferenceType != FieldReferenceType.None && fr.ValueType == TransactionFieldValueType.Guid)
+        if (fr.ReferenceType != FieldReferenceTypeEnum.None && fr.ValueType == TransactionFieldValueTypeEnum.Guid)
         {
             var items = GetReferenceItems(fr.ReferenceType);
             var currentGuid = Guid.TryParse(value, out var g) ? g : (Guid?)null;
@@ -245,7 +244,7 @@ else
             builder.AddAttribute(8, "AllowClear", true);
             builder.CloseComponent();
         }
-        else if (fr.ValueType == TransactionFieldValueType.DateTime)
+        else if (fr.ValueType == TransactionFieldValueTypeEnum.DateTime)
         {
             var dt = DateTime.TryParse(value, out var d) ? d : (DateTime?)null;
             builder.OpenComponent<RadzenDatePicker<DateTime?>>(0);
@@ -255,7 +254,7 @@ else
             builder.AddAttribute(4, "Placeholder", "гггг-мм-дд");
             builder.CloseComponent();
         }
-        else if (fr.ValueType == TransactionFieldValueType.Int)
+        else if (fr.ValueType == TransactionFieldValueTypeEnum.Int)
         {
             var n = int.TryParse(value, out var v) ? v : (int?)null;
             builder.OpenComponent<RadzenNumeric<int?>>(0);
@@ -266,7 +265,7 @@ else
             builder.AddAttribute(5, "Placeholder", "Число");
             builder.CloseComponent();
         }
-        else if (fr.ValueType == TransactionFieldValueType.Decimal)
+        else if (fr.ValueType == TransactionFieldValueTypeEnum.Decimal)
         {
             var n = decimal.TryParse(value, out var v) ? v : (decimal?)null;
             builder.OpenComponent<RadzenNumeric<decimal?>>(0);
@@ -294,21 +293,21 @@ else
         StateHasChanged();
     }
 
-    private object GetReferenceItems(FieldReferenceType refType) => refType switch
+    private object GetReferenceItems(FieldReferenceTypeEnum refType) => refType switch
     {
-        FieldReferenceType.OrderStatus => _orderStatuses.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
-        FieldReferenceType.Product => _products.Select(p => new { p.Id, Name = $"{p.Article} — {p.Name}" }).ToList(),
-        FieldReferenceType.Supplier => _suppliers.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
-        FieldReferenceType.Warehouse => _warehouses.Select(w => new { w.Id, Name = w.Name ?? "" }).ToList(),
-        FieldReferenceType.WarehouseInfo => _warehouseInfos.Select(wi => new { wi.Id, Name = $"{wi.SenderWarehouse?.Name ?? "—"} → {wi.RecipientWarehouse?.Name ?? "—"}" }).ToList(),
-        FieldReferenceType.DeliveryMethod => _deliveryMethods.Select(d => new { d.Id, Name = d.Name ?? "" }).ToList(),
-        FieldReferenceType.OrderProductInfo => _orderProductInfos.Select(opi => new { opi.Id, Name = $"{opi.Product?.Article ?? "—"} — {opi.Product?.Name ?? ""}" }).ToList(),
-        FieldReferenceType.Recipient => _recipients.Select(r => new { r.Id, Name = r.Name ?? "" }).ToList(),
-        FieldReferenceType.Address => _addresses.Select(a => new { a.Id, Name = $"{a.City} {a.Street}".Trim() }).ToList(),
+        FieldReferenceTypeEnum.OrderStatus => _orderStatuses.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.Product => _products.Select(p => new { p.Id, Name = $"{p.Article} — {p.Name}" }).ToList(),
+        FieldReferenceTypeEnum.Supplier => _suppliers.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.Warehouse => _warehouses.Select(w => new { w.Id, Name = w.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.WarehouseInfo => _warehouseInfos.Select(wi => new { wi.Id, Name = $"{wi.SenderWarehouse?.Name ?? "—"} → {wi.RecipientWarehouse?.Name ?? "—"}" }).ToList(),
+        FieldReferenceTypeEnum.DeliveryMethod => _deliveryMethods.Select(d => new { d.Id, Name = d.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.OrderProductInfo => _orderProductInfos.Select(opi => new { opi.Id, Name = $"{opi.Product?.Article ?? "—"} — {opi.Product?.Name ?? ""}" }).ToList(),
+        FieldReferenceTypeEnum.Recipient => _recipients.Select(r => new { r.Id, Name = r.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.Address => _addresses.Select(a => new { a.Id, Name = $"{a.City} {a.Street}".Trim() }).ToList(),
         _ => Array.Empty<object>()
     };
 
-    private static string GetReferenceTextProperty(FieldReferenceType refType) => "Name";
+    private static string GetReferenceTextProperty(FieldReferenceTypeEnum refType) => "Name";
 
     private void BackToSelect()
     {
@@ -336,15 +335,15 @@ else
         return errors;
     }
 
-    private static bool IsFieldValueEmpty(string value, TransactionFieldValueType valueType)
+    private static bool IsFieldValueEmpty(string value, TransactionFieldValueTypeEnum valueType)
     {
         if (string.IsNullOrWhiteSpace(value)) return true;
         return valueType switch
         {
-            TransactionFieldValueType.Guid => !Guid.TryParse(value.Trim(), out var g) || g == Guid.Empty,
-            TransactionFieldValueType.DateTime => !DateTime.TryParse(value, out _),
-            TransactionFieldValueType.Int => !int.TryParse(value, out _),
-            TransactionFieldValueType.Decimal => !decimal.TryParse(value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _),
+            TransactionFieldValueTypeEnum.Guid => !Guid.TryParse(value.Trim(), out var g) || g == Guid.Empty,
+            TransactionFieldValueTypeEnum.DateTime => !DateTime.TryParse(value, out _),
+            TransactionFieldValueTypeEnum.Int => !int.TryParse(value, out _),
+            TransactionFieldValueTypeEnum.Decimal => !decimal.TryParse(value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _),
             _ => false
         };
     }
@@ -373,17 +372,17 @@ else
             var msg = result.PricesUpdated > 0 || result.FieldsUpdated > 0
                 ? $"Обновлено цен: {result.PricesUpdated}, полей: {result.FieldsUpdated}"
                 : "Статус изменён";
-            NotificationService.Notify(NotificationSeverity.Success, "Транзакция применена", msg);
+            NotificationService.Notify(NotificationSeverity.Success, "Документ проведён", msg);
             DialogService.Close(true);
         }
         else
         {
             await DialogService.OpenAsync<TransactionErrorDialog>(
-                "Ошибка проведения транзакции",
+                "Ошибка проведения документа",
                 new Dictionary<string, object?>
                 {
-                    [nameof(TransactionErrorDialog.Title)] = "Ошибка проведения транзакции",
-                    [nameof(TransactionErrorDialog.Message)] = result.ErrorMessage ?? "Не удалось применить транзакцию",
+                    [nameof(TransactionErrorDialog.Title)] = "Ошибка проведения документа",
+                    [nameof(TransactionErrorDialog.Message)] = result.ErrorMessage ?? "Не удалось провести документ",
                     [nameof(TransactionErrorDialog.ValidationErrors)] = result.ValidationErrors
                 });
         }

@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using DynamicExpresso;
-using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Entities;
 
 namespace StudioB2B.Infrastructure.Services;
 
@@ -135,7 +135,7 @@ public class CalculationEngine
 
     /// <summary>
     /// Вычислить формулу с заданным контекстом переменных.
-    /// Используется для правил транзакций.
+    /// Используется для правил документов.
     /// </summary>
     public decimal EvaluateFormula(string formula, IReadOnlyDictionary<string, decimal> context)
     {

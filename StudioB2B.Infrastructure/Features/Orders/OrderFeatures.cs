@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Entities;
 
 namespace StudioB2B.Infrastructure.Features.Orders;
 
