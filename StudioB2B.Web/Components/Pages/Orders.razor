@@ -41,8 +41,37 @@ else
                 <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-base-600);">
                     Выбрано: @_selectedOrderIds.Count
                 </RadzenText>
-                <RadzenButton Icon="swap_horiz" Text="Применить транзакцию" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
-                              Click="@OpenApplyTransactionTab" />
+                @if (_loadingTransactions)
+                {
+                    <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Small" />
+                }
+                else if (_selectionStatusGroups > 1)
+                {
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-danger);">
+                        Разные статусы — выберите заказы с одинаковым статусом
+                    </RadzenText>
+                }
+                else if (_availableTransactions.Count > 0)
+                {
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Style="flex-wrap: wrap;">
+                        @foreach (var t in _availableTransactions)
+                        {
+                            var bg = GetSoftBackground(t.Color);
+                            var fg = IsLightColor(bg) ? "#1f2937" : "#ffffff";
+                            <RadzenButton Text="@t.Name"
+                                          ButtonStyle="ButtonStyle.Light"
+                                          Size="ButtonSize.Small"
+                                          Style="@($"background-color: {bg}; color: {fg}; border: 1px solid {bg};")"
+                                          Click="@(() => OpenApplyTransactionTab(t.Id))" />
+                        }
+                    </RadzenStack>
+                }
+                else if (_selectionStatusGroups == 1 && !_loadingTransactions)
+                {
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-base-500);">
+                        Нет доступных документов для статуса «@_selectionStatusName»
+                    </RadzenText>
+                }
                 <RadzenButton Icon="close" Text="Снять выбор" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                               Variant="Variant.Text" Click="@ClearSelection" />
             }
@@ -809,6 +838,10 @@ else
     }
 
     private HashSet<Guid> _selectedOrderIds = [];
+    private List<OrderTransaction> _availableTransactions = [];
+    private bool _loadingTransactions;
+    private int _selectionStatusGroups;
+    private string? _selectionStatusName;
 
     private bool IsAllSelected => _pageItems.Any() && _pageItems.All(o => _selectedOrderIds.Contains(o.Id));
 
@@ -822,6 +855,7 @@ else
         else
             foreach (var o in _pageItems)
                 _selectedOrderIds.Remove(o.Id);
+        _ = LoadAvailableTransactionsAsync();
         StateHasChanged();
     }
 
@@ -831,21 +865,72 @@ else
             _selectedOrderIds.Add(orderId);
         else
             _selectedOrderIds.Remove(orderId);
+        _ = LoadAvailableTransactionsAsync();
         StateHasChanged();
     }
 
     private void ClearSelection()
     {
         _selectedOrderIds.Clear();
+        _availableTransactions = [];
+        _selectionStatusGroups = 0;
+        _selectionStatusName = null;
         StateHasChanged();
     }
 
-    private void OpenApplyTransactionTab()
+    private async Task LoadAvailableTransactionsAsync()
+    {
+        _availableTransactions = [];
+        _selectionStatusGroups = 0;
+        _selectionStatusName = null;
+        if (_selectedOrderIds.Count == 0)
+        {
+            _loadingTransactions = false;
+            return;
+        }
+
+        _loadingTransactions = true;
+        StateHasChanged();
+
+        await EnsureInitializedAsync();
+        var statusIdsWithValue = await _db!.Orders
+            .Where(o => _selectedOrderIds.Contains(o.Id) && o.SystemStatusId != null)
+            .Select(o => o.SystemStatusId!.Value)
+            .Distinct()
+            .ToListAsync();
+        var hasNull = await _db.Orders
+            .Where(o => _selectedOrderIds.Contains(o.Id) && o.SystemStatusId == null)
+            .AnyAsync();
+        _selectionStatusGroups = statusIdsWithValue.Count + (hasNull ? 1 : 0);
+
+        if (_selectionStatusGroups == 1)
+        {
+            if (statusIdsWithValue.Count == 1)
+            {
+                var statusId = statusIdsWithValue[0];
+                _selectionStatusName = _systemStatuses.FirstOrDefault(s => s.Id == statusId)?.Name ?? "—";
+                _availableTransactions = await _db.OrderTransactions
+                    .Where(t => !t.IsDeleted && t.IsEnabled && t.FromSystemStatusId == statusId)
+                    .OrderBy(t => t.Name)
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
+            else
+            {
+                _selectionStatusName = "Без статуса";
+            }
+        }
+
+        _loadingTransactions = false;
+        StateHasChanged();
+    }
+
+    private void OpenApplyTransactionTab(Guid transactionId)
     {
         if (_selectedOrderIds.Count == 0) return;
         var ids = string.Join(",", _selectedOrderIds);
-        var path = $"/orders/apply-transaction?ids={ids}";
-        TabService.OpenTab(path, $"Транзакция ({_selectedOrderIds.Count})", "swap_horiz");
+        var path = $"/orders/apply-transaction?ids={ids}&transactionId={transactionId}";
+        TabService.OpenTab(path, $"Провести документ ({_selectedOrderIds.Count})", "swap_horiz");
         Navigation.NavigateTo(path);
     }
 
