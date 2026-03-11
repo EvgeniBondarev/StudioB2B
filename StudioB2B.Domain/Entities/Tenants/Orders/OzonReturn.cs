@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using StudioB2B.Domain.Entities.Common;
 
 namespace StudioB2B.Domain.Entities.Orders;
 

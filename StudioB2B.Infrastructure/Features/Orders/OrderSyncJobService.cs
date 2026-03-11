@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
+using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.MultiTenancy;
 
@@ -105,8 +106,8 @@ public class OrderSyncJobService : IOrderSyncJobService
 
         var history = new SyncJobHistory
         {
-            JobType           = SyncJobType.Returns,
-            Status            = SyncJobStatus.Enqueued,
+            JobType           = SyncJobTypeEnum.Returns,
+            Status            = SyncJobStatusEnum.Enqueued,
             ParametersJson    = JsonSerializer.Serialize(new { From = from, To = to }),
             InitiatedByUserId = _currentUserProvider.UserId,
             InitiatedByEmail  = _currentUserProvider.Email
