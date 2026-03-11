@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Application.Common;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Shared.DTOs;
+using IOrderAdapter = StudioB2B.Infrastructure.Interfaces.IOrderAdapter;
+using IOrderSyncService = StudioB2B.Infrastructure.Interfaces.IOrderSyncService;
 
 namespace StudioB2B.Infrastructure.Services;
 

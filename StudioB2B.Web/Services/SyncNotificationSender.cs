@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
-using StudioB2B.Application.Common.Interfaces;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Web.Hubs;
 
 namespace StudioB2B.Web.Services;

@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Application.Common.Interfaces;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
-using StudioB2B.Infrastructure.Persistence.Tenant;
 
 namespace StudioB2B.Web.Controllers;
 
@@ -12,16 +11,12 @@ namespace StudioB2B.Web.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize] // Требуется авторизация
+[Authorize]
 public class UsersController : ControllerBase
 {
     private readonly ITenantDbContextFactory _dbContextFactory;
     private readonly ITenantProvider _tenantProvider;
     private readonly ILogger<UsersController> _logger;
-
-    // контекст создаётся один раз за экземпляр контроллера
-    private TenantDbContext? _db;
-    private TenantDbContext Db => _db ??= _dbContextFactory.CreateDbContext();
 
     public UsersController(
         ITenantDbContextFactory dbContextFactory,
@@ -40,14 +35,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> GetUsers()
     {
         if (!_tenantProvider.IsResolved)
-        {
-            return BadRequest(new { error = "Tenant not resolved. Use subdomain like demo.localhost:5184" });
-        }
-
-        _logger.LogInformation(
-            "Getting users for tenant {TenantId} ({Subdomain})",
-            _tenantProvider.TenantId,
-            _tenantProvider.Subdomain);
+            return BadRequest(new { error = "Tenant not resolved" });
 
         using var db = _dbContextFactory.CreateDbContext();
 
@@ -55,12 +43,11 @@ public class UsersController : ControllerBase
             .AsNoTracking()
             .Select(u => new UserDto
             {
-                Id = u.Id,
-                Email = u.Email!,
-                FullName = u.FullName,
-                IsActive = u.IsActive,
-                CreatedAtUtc = u.CreatedAtUtc,
-                LastLoginAtUtc = u.LastLoginAtUtc
+                Id        = u.Id,
+                Email     = u.Email,
+                FirstName = u.FirstName,
+                LastName  = u.LastName,
+                IsActive  = u.IsActive
             })
             .ToListAsync();
 
@@ -74,9 +61,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> GetUser(Guid id)
     {
         if (!_tenantProvider.IsResolved)
-        {
             return BadRequest(new { error = "Tenant not resolved" });
-        }
 
         using var db = _dbContextFactory.CreateDbContext();
 
@@ -85,12 +70,11 @@ public class UsersController : ControllerBase
             .Where(u => u.Id == id)
             .Select(u => new UserDto
             {
-                Id = u.Id,
-                Email = u.Email!,
-                FullName = u.FullName,
-                IsActive = u.IsActive,
-                CreatedAtUtc = u.CreatedAtUtc,
-                LastLoginAtUtc = u.LastLoginAtUtc
+                Id        = u.Id,
+                Email     = u.Email,
+                FirstName = u.FirstName,
+                LastName  = u.LastName,
+                IsActive  = u.IsActive
             })
             .FirstOrDefaultAsync();
 
@@ -107,21 +91,14 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> DeactivateUser(Guid id)
     {
         if (!_tenantProvider.IsResolved)
-        {
             return BadRequest(new { error = "Tenant not resolved" });
-        }
 
         using var db = _dbContextFactory.CreateDbContext();
         var user = await db.Users.FindAsync(id);
-
-        if (user == null)
-            return NotFound();
+        if (user == null) return NotFound();
 
         user.IsActive = false;
         await db.SaveChangesAsync();
-
-        _logger.LogInformation("User {UserId} deactivated in tenant {TenantId}", id, _tenantProvider.TenantId);
-
         return Ok();
     }
 
@@ -132,21 +109,14 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> ActivateUser(Guid id)
     {
         if (!_tenantProvider.IsResolved)
-        {
             return BadRequest(new { error = "Tenant not resolved" });
-        }
 
         using var db = _dbContextFactory.CreateDbContext();
         var user = await db.Users.FindAsync(id);
-
-        if (user == null)
-            return NotFound();
+        if (user == null) return NotFound();
 
         user.IsActive = true;
         await db.SaveChangesAsync();
-
-        _logger.LogInformation("User {UserId} activated in tenant {TenantId}", id, _tenantProvider.TenantId);
-
         return Ok();
     }
 }
@@ -158,8 +128,7 @@ public class UserDto
 {
     public Guid Id { get; set; }
     public string Email { get; set; } = string.Empty;
-    public string? FullName { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
     public bool IsActive { get; set; }
-    public DateTime CreatedAtUtc { get; set; }
-    public DateTime? LastLoginAtUtc { get; set; }
 }

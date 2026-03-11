@@ -10,8 +10,4 @@ public class RoleFormModel
     [Required(ErrorMessage = "Укажите название роли")]
     [StringLength(100, MinimumLength = 2, ErrorMessage = "От 2 до 100 символов")]
     public string Name { get; set; } = string.Empty;
-
-    public string? Description { get; set; }
-    public bool IsSystemRole { get; set; }
 }
-

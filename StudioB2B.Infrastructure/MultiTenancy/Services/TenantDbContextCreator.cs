@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Features.Orders;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using ICurrentUserProvider = StudioB2B.Infrastructure.Interfaces.ICurrentUserProvider;
+using ITenantProvider = StudioB2B.Infrastructure.Interfaces.ITenantProvider;
 
 namespace StudioB2B.Infrastructure.MultiTenancy.Services;
 

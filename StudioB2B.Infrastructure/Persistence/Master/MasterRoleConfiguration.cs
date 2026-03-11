@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Domain.Entities.Master;
 
 namespace StudioB2B.Infrastructure.Persistence.Master;
 
@@ -16,20 +16,7 @@ public class MasterRoleConfiguration : IEntityTypeConfiguration<MasterRole>
             .IsRequired()
             .HasMaxLength(256);
 
-        builder.Property(r => r.NormalizedName)
-            .IsRequired()
-            .HasMaxLength(256);
-
-        builder.HasIndex(r => r.NormalizedName)
+        builder.HasIndex(r => r.Name)
             .IsUnique();
-
-        builder.Property(r => r.ConcurrencyStamp)
-            .HasMaxLength(36);
-
-        builder.Property(r => r.Description)
-            .HasMaxLength(500);
-
-        builder.Property(r => r.CreatedAtUtc).IsRequired();
     }
 }
-

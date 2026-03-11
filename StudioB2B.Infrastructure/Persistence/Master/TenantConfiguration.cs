@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using TenantEntity = StudioB2B.Domain.Entities.Tenants.Tenant;
+using StudioB2B.Domain.Entities.Tenants;
 
 namespace StudioB2B.Infrastructure.Persistence.Master;
 

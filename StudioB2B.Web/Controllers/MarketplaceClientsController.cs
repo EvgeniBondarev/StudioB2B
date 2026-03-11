@@ -1,8 +1,8 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Features.Marketplace;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
 using StudioB2B.Shared.DTOs;
 

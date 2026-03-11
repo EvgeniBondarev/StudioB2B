@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using StudioB2B.Domain.Entities.Master;
 using StudioB2B.Infrastructure.MultiTenancy.Initialization;
 using StudioB2B.Infrastructure.Persistence.Master;
 
@@ -71,6 +72,8 @@ public class DatabaseMigrationService : IHostedService
                 _logger.LogInformation("No pending migrations found");
             }
 
+            await SeedMasterAsync(masterDbContext, cancellationToken);
+
             // Применяем миграции для всех тенантов
             var initializer = scope.ServiceProvider.GetRequiredService<ITenantDatabaseInitializer>();
             var tenants = await masterDbContext.Tenants
@@ -101,4 +104,38 @@ public class DatabaseMigrationService : IHostedService
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    private async Task SeedMasterAsync(MasterDbContext db, CancellationToken ct)
+    {
+        const string adminRoleName = "Admin";
+        const string adminEmail    = "admin@gmail.com";
+        const string adminPassword = "Admin1!";
+
+        // Роль Admin
+        var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == adminRoleName, ct);
+        if (role is null)
+        {
+            role = new MasterRole { Id = Guid.NewGuid(), Name = adminRoleName };
+            db.Roles.Add(role);
+            await db.SaveChangesAsync(ct);
+            _logger.LogInformation("Master: role '{Role}' created", adminRoleName);
+        }
+
+        // Пользователь Admin
+        var normalizedEmail = adminEmail.Trim().ToLowerInvariant();
+        if (!await db.Users.AnyAsync(u => u.Email == normalizedEmail, ct))
+        {
+            var user = new MasterUser
+            {
+                Id           = Guid.NewGuid(),
+                Email        = normalizedEmail,
+                HashPassword = BCrypt.Net.BCrypt.HashPassword(adminPassword),
+                IsActive     = true
+            };
+            db.Users.Add(user);
+            db.UserRoles.Add(new MasterUserRole { UserId = user.Id, RoleId = role.Id });
+            await db.SaveChangesAsync(ct);
+            _logger.LogInformation("Master: default admin user created ({Email})", normalizedEmail);
+        }
+    }
 }
