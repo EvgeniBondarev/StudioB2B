@@ -527,7 +527,7 @@ else
 
     private void OnTransactionRowRender(RowRenderEventArgs<OrderTransaction> args)
     {
-        var color = args.Data.Color;
+        var color = args.Data?.Color;
         if (!string.IsNullOrEmpty(color))
         {
             var bg = GetSoftBackground(color);

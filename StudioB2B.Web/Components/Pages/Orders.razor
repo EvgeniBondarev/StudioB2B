@@ -1,6 +1,7 @@
 @page "/orders"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
+@using Radzen.Blazor.Rendering
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
@@ -582,6 +583,9 @@ window.gridResize = {
 
     private List<string> _selectedColumns = new();
 
+    RadzenButton? columnsButton;
+    Popup? columnsPopup;
+
     void ToggleColumnsPopup()
     {
         if (!_columnsPopupVisible)
@@ -593,11 +597,9 @@ window.gridResize = {
         }
 
         // Открываем/закрываем popup через Radzen API
-        columnsPopup.ToggleAsync(columnsButton.Element);
+        if (columnsPopup is not null && columnsButton is not null)
+            columnsPopup.ToggleAsync(columnsButton.Element);
     }
-
-    RadzenButton columnsButton;
-    Popup columnsPopup;
 
     // Константы колонок
     public static class OrderGridColumns
@@ -620,18 +622,18 @@ window.gridResize = {
     // Модель конфигурации колонки
     public class ColumnConfig
     {
-        public string Key { get; set; }
-        public string Title { get; set; }
+        public required string Key { get; set; }
+        public required string Title { get; set; }
 
-        public bool AutoVisible { get; set; } = true; // управляется шириной экрана
-        public bool? UserVisible { get; set; } = null; // null = не переопределено пользователем
+        public bool AutoVisible { get; set; } = true;
+        public bool? UserVisible { get; set; } = null;
 
         public bool Visible => UserVisible ?? AutoVisible;
         public bool Frozen { get; set; } = false;
 
         public int Priority { get; set; } = 1;
 
-        public string Width { get; set; }
+        public required string Width { get; set; }
     }
 
     // Список конфигураций колонок
