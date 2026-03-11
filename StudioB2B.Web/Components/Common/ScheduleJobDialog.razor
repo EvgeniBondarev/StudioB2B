@@ -20,6 +20,12 @@
                     <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Обновление статусов</RadzenText>
                 </RadzenStack>
             </RadzenCard>
+            <RadzenCard Style="@CardStyle(SyncJobType.Returns)" @onclick="@(() => _jobType = SyncJobType.Returns)" class="rz-cursor-pointer">
+                <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center" Style="min-width:140px; padding:0.5rem 0.25rem;">
+                    <RadzenIcon Icon="assignment_return" Style="font-size:2rem; color:var(--rz-info);" />
+                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Загрузка возвратов</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
         </RadzenStack>
     </RadzenStack>
 
@@ -130,7 +136,7 @@
     </RadzenStack>
 
     <!-- Параметры задачи (SyncParams) -->
-    @if (_jobType == SyncJobType.Sync)
+    @if (_jobType == SyncJobType.Sync || _jobType == SyncJobType.Returns)
     {
         <RadzenStack Gap="0.35rem">
             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Параметры синхронизации</RadzenText>
