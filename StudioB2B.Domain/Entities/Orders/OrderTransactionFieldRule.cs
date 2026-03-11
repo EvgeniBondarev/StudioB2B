@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace StudioB2B.Domain.Entities.Orders;
 
 /// <summary>
-/// Правило транзакции заказа: изменение поля заказа или связанной сущности при переходе статуса.
+/// Правило документа заказа: изменение поля заказа или связанной сущности при переходе статуса.
 /// </summary>
 [Display(Name = "Правило изменения поля")]
 public class OrderTransactionFieldRule
@@ -11,7 +11,7 @@ public class OrderTransactionFieldRule
     [Display(Name = "Идентификатор")]
     public Guid Id { get; set; }
 
-    [Display(Name = "Транзакция")]
+    [Display(Name = "Документ")]
     public Guid OrderTransactionId { get; set; }
     public OrderTransaction? OrderTransaction { get; set; }
 

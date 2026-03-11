@@ -80,15 +80,15 @@ else if (_preview != null)
 else if (_transactions.Count == 0)
 {
     <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
-        Нет доступных транзакций для текущего статуса заказа (@(_currentStatusName ?? "—")). Создайте транзакцию на странице «Транзакции».
+        Нет доступных документов для текущего статуса заказа (@(_currentStatusName ?? "—")). Создайте документ на странице «Документы».
     </RadzenAlert>
 }
 else
 {
-    @* Шаг 1: выбор транзакции *@
+    @* Шаг 1: выбор документа *@
     <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
         <RadzenText TextStyle="TextStyle.Body2">
-            Выберите транзакцию для применения к заказу @OrderId:
+            Выберите документ для проведения по заказу @OrderId:
         </RadzenText>
         <RadzenDataGrid TItem="OrderTransaction"
                         Data="@_transactions"
@@ -100,7 +100,7 @@ else
                         Style="cursor: pointer;"
                         EmptyText="@RadzenRuStrings.EmptyText">
             <Columns>
-                <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Транзакция" Width="220px" />
+                <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Документ" Width="220px" />
                 <RadzenDataGridColumn TItem="OrderTransaction" Title="Целевой статус" Width="180px">
                     <Template Context="t">
                         @t.ToSystemStatus?.Name
@@ -376,17 +376,17 @@ else
             var msg = result.PricesUpdated > 0 || result.FieldsUpdated > 0
                 ? $"Обновлено цен: {result.PricesUpdated}, полей: {result.FieldsUpdated}"
                 : "Статус изменён";
-            NotificationService.Notify(NotificationSeverity.Success, "Транзакция применена", msg);
+            NotificationService.Notify(NotificationSeverity.Success, "Документ проведён", msg);
             DialogService.Close(true);
         }
         else
         {
             await DialogService.OpenAsync<TransactionErrorDialog>(
-                "Ошибка проведения транзакции",
+                "Ошибка проведения документа",
                 new Dictionary<string, object?>
                 {
-                    [nameof(TransactionErrorDialog.Title)] = "Ошибка проведения транзакции",
-                    [nameof(TransactionErrorDialog.Message)] = result.ErrorMessage ?? "Не удалось применить транзакцию",
+                    [nameof(TransactionErrorDialog.Title)] = "Ошибка проведения документа",
+                    [nameof(TransactionErrorDialog.Message)] = result.ErrorMessage ?? "Не удалось провести документ",
                     [nameof(TransactionErrorDialog.ValidationErrors)] = result.ValidationErrors
                 });
         }
