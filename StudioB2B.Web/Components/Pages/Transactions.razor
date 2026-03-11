@@ -1,7 +1,7 @@
 @page "/transactions"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
@@ -378,9 +378,9 @@ else
         {
             ContextMenuService.Close();
             if (e.Value?.ToString() == "edit")
-                await OpenEditDialog(args.Data);
+                await OpenEditDialog(args.Data!);
             else if (e.Value?.ToString() == "delete")
-                await DeleteAsync(args.Data);
+                await DeleteAsync(args.Data!);
         });
     }
 

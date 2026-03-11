@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
 namespace StudioB2B.Infrastructure.Features.Orders;

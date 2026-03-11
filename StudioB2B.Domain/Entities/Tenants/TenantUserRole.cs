@@ -1,4 +1,4 @@
-namespace StudioB2B.Domain.Entities.Tenants;
+namespace StudioB2B.Domain.Entities;
 
 public class TenantUserRole
 {
