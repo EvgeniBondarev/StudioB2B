@@ -1,9 +1,9 @@
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Shared.DTOs;
-using StudioB2B.Domain.Entities.Marketplace;
 
 namespace StudioB2B.Infrastructure.Features.Marketplace;
 

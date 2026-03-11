@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using StudioB2B.Domain.Entities.Warehouses;
+using StudioB2B.Domain.Entities;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Configurations;
 

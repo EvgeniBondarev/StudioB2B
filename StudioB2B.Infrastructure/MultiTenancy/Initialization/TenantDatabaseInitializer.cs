@@ -1,9 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Domain.Entities.Marketplace;
-using StudioB2B.Domain.Entities.Orders;
-using StudioB2B.Domain.Entities.Tenants;
-using StudioB2B.Domain.Entities.References;
+using StudioB2B.Domain.Constants;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -65,7 +63,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         await RunSeedAsync(context, ct);
     }
 
-    private async Task RunSeedAsync(TenantDbContext context, CancellationToken ct)
+    private static async Task RunSeedAsync(TenantDbContext context, CancellationToken ct)
     {
         await SeedMarketplaceDataAsync(context, ct);
         await SeedBasePriceTypesAsync(context, ct);
@@ -109,12 +107,12 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 
         ctx.Users.Add(new TenantUser
         {
-            Id           = SystemUser.RobotId,
-            Email        = SystemUser.RobotEmail,
+            Id = SystemUser.RobotId,
+            Email = SystemUser.RobotEmail,
             HashPassword = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()), // недоступный пароль
-            FirstName    = SystemUser.RobotFirstName,
-            LastName     = SystemUser.RobotLastName,
-            IsActive     = false
+            FirstName = SystemUser.RobotFirstName,
+            LastName = SystemUser.RobotLastName,
+            IsActive = false
         });
 
         await ctx.SaveChangesAsync(ct);
@@ -153,12 +151,12 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 
         var user = new TenantUser
         {
-            Id           = Guid.NewGuid(),
-            Email        = normalizedEmail,
+            Id = Guid.NewGuid(),
+            Email = normalizedEmail,
             HashPassword = BCrypt.Net.BCrypt.HashPassword(password),
-            FirstName    = "Admin",
-            LastName     = "User",
-            IsActive     = true
+            FirstName = "Admin",
+            LastName = "User",
+            IsActive = true
         };
 
         ctx.Users.Add(user);
@@ -202,28 +200,28 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         {
             var systemStatuses = new List<OrderStatus>
             {
-                new() { Name = "Не указан",            Color = "#9E9E9E", IsTerminal = false, IsInternal = true },
-                new() { Name = "Готов к отгрузке",     Color = "#4CAF50", IsTerminal = false, IsInternal = true },
-                new() { Name = "Не готов",             Color = "#FF9800", IsTerminal = false, IsInternal = true },
-                new() { Name = "Заказан поставщику",   Color = "#2196F3", IsTerminal = false, IsInternal = true },
-                new() { Name = "Изменен",              Color = "#03A9F4", IsTerminal = false, IsInternal = true },
-                new() { Name = "Отменен",              Color = "#F44336", IsTerminal = true,  IsInternal = true },
-                new() { Name = "Возврат покупателя",   Color = "#9C27B0", IsTerminal = true,  IsInternal = true },
-                new() { Name = "Доставлен",            Color = "#4CAF50", IsTerminal = true,  IsInternal = true },
-                new() { Name = "Отгружен клиенту",     Color = "#4CAF50", IsTerminal = true,  IsInternal = true },
+                new() { Name = "Не указан", Color = "#9E9E9E", IsTerminal = false, IsInternal = true },
+                new() { Name = "Готов к отгрузке", Color = "#4CAF50", IsTerminal = false, IsInternal = true },
+                new() { Name = "Не готов", Color = "#FF9800", IsTerminal = false, IsInternal = true },
+                new() { Name = "Заказан поставщику", Color = "#2196F3", IsTerminal = false, IsInternal = true },
+                new() { Name = "Изменен", Color = "#03A9F4", IsTerminal = false, IsInternal = true },
+                new() { Name = "Отменен", Color = "#F44336", IsTerminal = true, IsInternal = true },
+                new() { Name = "Возврат покупателя", Color = "#9C27B0", IsTerminal = true, IsInternal = true },
+                new() { Name = "Доставлен", Color = "#4CAF50", IsTerminal = true, IsInternal = true },
+                new() { Name = "Отгружен клиенту", Color = "#4CAF50", IsTerminal = true, IsInternal = true },
                 new() { Name = "Отгружен поставщиком", Color = "#4CAF50", IsTerminal = false, IsInternal = true },
-                new() { Name = "Возврат поставщику",   Color = "#9C27B0", IsTerminal = false, IsInternal = true },
-                new() { Name = "Возвращено поставщику",Color = "#9C27B0", IsTerminal = true,  IsInternal = true },
-                new() { Name = "Приостановлен",        Color = "#FFC107", IsTerminal = false, IsInternal = true },
-                new() { Name = "ПринятНаСкладе",       Color = "#4CAF50", IsTerminal = false, IsInternal = true },
-                new() { Name = "К отмене",             Color = "#FF5722", IsTerminal = false, IsInternal = true },
+                new() { Name = "Возврат поставщику", Color = "#9C27B0", IsTerminal = false, IsInternal = true },
+                new() { Name = "Возвращено поставщику",Color = "#9C27B0", IsTerminal = true, IsInternal = true },
+                new() { Name = "Приостановлен", Color = "#FFC107", IsTerminal = false, IsInternal = true },
+                new() { Name = "ПринятНаСкладе", Color = "#4CAF50", IsTerminal = false, IsInternal = true },
+                new() { Name = "К отмене", Color = "#FF5722", IsTerminal = false, IsInternal = true },
                 new() { Name = "Отгружен реализатором",Color = "#4CAF50", IsTerminal = false, IsInternal = true },
-                new() { Name = "Утерян реализатором",  Color = "#607D8B", IsTerminal = true,  IsInternal = true },
-                new() { Name = "Заказан реализатору",  Color = "#2196F3", IsTerminal = false, IsInternal = true },
-                new() { Name = "Утерян поставщиком",   Color = "#607D8B", IsTerminal = true,  IsInternal = true },
+                new() { Name = "Утерян реализатором", Color = "#607D8B", IsTerminal = true, IsInternal = true },
+                new() { Name = "Заказан реализатору", Color = "#2196F3", IsTerminal = false, IsInternal = true },
+                new() { Name = "Утерян поставщиком", Color = "#607D8B", IsTerminal = true, IsInternal = true },
                 new() { Name = "Отгружен реализатору", Color = "#4CAF50", IsTerminal = false, IsInternal = true },
-                new() { Name = "Перемещение",          Color = "#3F51B5", IsTerminal = false, IsInternal = true },
-                new() { Name = "Возвращен на склад",   Color = "#009688", IsTerminal = false, IsInternal = true }
+                new() { Name = "Перемещение", Color = "#3F51B5", IsTerminal = false, IsInternal = true },
+                new() { Name = "Возвращен на склад", Color = "#009688", IsTerminal = false, IsInternal = true }
             };
             ctx.Set<OrderStatus>().AddRange(systemStatuses);
         }
@@ -299,7 +297,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
                 CreateIfExists("Приостановлен", "#FFC107"),
                 CreateIfExists("Возврат покупателя", "#9C27B0"),
                 CreateIfExists("Возвращен на склад", "#009688")
-            }.Where(c => c is not null).ToList()!;
+            }.Where(c => c is not null).Select(e => e!).ToList();
             if (colors.Count > 0)
             {
                 ctx.Set<StatusColor>().AddRange(colors);
@@ -405,7 +403,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
                 {
                     OrderTransactionId = txn.Id,
                     PriceTypeId = priceType.Id,
-                    ValueSource = TransactionValueSource.Formula,
+                    ValueSource = TransactionValueSourceEnum.Formula,
                     Formula = "Цена",
                     SortOrder = 0
                 });
@@ -434,7 +432,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
                 {
                     OrderTransactionId = txn.Id,
                     PriceTypeId = priceType.Id,
-                    ValueSource = TransactionValueSource.Formula,
+                    ValueSource = TransactionValueSourceEnum.Formula,
                     Formula = "Цена",
                     SortOrder = 0
                 });

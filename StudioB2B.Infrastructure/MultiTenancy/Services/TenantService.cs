@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.MultiTenancy.Initialization;
 using StudioB2B.Infrastructure.Persistence.Master;

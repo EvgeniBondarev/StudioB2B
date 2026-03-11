@@ -1,7 +1,6 @@
 @using System.Text.Json
-@using StudioB2B.Domain.Entities.Common
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Persistence.Tenant
-@using StudioB2B.Infrastructure.Services
 
 @if (_allLogs.Count == 0)
 {
@@ -66,10 +65,10 @@ else
                     @{
                         var (icon, color, label) = log.ChangeType switch
                         {
-                            "Added"    => ("add_circle", "var(--rz-success)", "Создано"),
-                            "Modified" => ("edit",        "var(--rz-info)",    "Изменено"),
-                            "Deleted"  => ("delete",      "var(--rz-danger)",  "Удалено"),
-                            _          => ("help_outline", "var(--rz-text-secondary-color)", log.ChangeType)
+                            "Added" => ("add_circle", "var(--rz-success)", "Создано"),
+                            "Modified" => ("edit", "var(--rz-info)", "Изменено"),
+                            "Deleted" => ("delete", "var(--rz-danger)", "Удалено"),
+                            _ => ("help_outline", "var(--rz-text-secondary-color)", log.ChangeType)
                         };
                     }
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
@@ -127,15 +126,15 @@ else
     [Parameter] public List<FieldAuditLog> Logs { get; set; } = [];
     [Parameter] public IReadOnlyDictionary<string, string> ValueResolver { get; set; } = new Dictionary<string, string>();
 
-    private List<FieldAuditLog> _allLogs  = [];
+    private List<FieldAuditLog> _allLogs = [];
     private List<FieldAuditLog> _filtered = [];
-    private List<string>        _fields   = [];
-    private string?             _selectedField;
+    private List<string> _fields = [];
+    private string? _selectedField;
 
     protected override void OnParametersSet()
     {
-        _allLogs  = Logs;
-        _fields   = _allLogs.Select(x => x.FieldName).Distinct().OrderBy(x => x).ToList();
+        _allLogs = Logs;
+        _fields = _allLogs.Select(x => x.FieldName).Distinct().OrderBy(x => x).ToList();
         ApplyFilter();
     }
 
@@ -161,10 +160,10 @@ else
             return el.ValueKind switch
             {
                 JsonValueKind.Number => el.GetRawText(),
-                JsonValueKind.True   => "да",
-                JsonValueKind.False  => "нет",
-                JsonValueKind.Null   => "—",
-                _                    => raw
+                JsonValueKind.True => "да",
+                JsonValueKind.False => "нет",
+                JsonValueKind.Null => "—",
+                _ => raw
             };
         }
         catch { return raw; }
