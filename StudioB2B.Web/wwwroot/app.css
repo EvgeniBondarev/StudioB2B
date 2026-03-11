@@ -25,8 +25,6 @@ h1:focus {
   content: "Произошла ошибка приложения.";
 }
 
-/* ─── Sidebar layout ──────────────────────────────────────── */
-
 .sidebar-inner {
   display: flex;
   flex-direction: column;
@@ -45,8 +43,6 @@ h1:focus {
   overflow: hidden;
   flex-shrink: 0;
 }
-
-/* ─── Compact (icon-only) mode ────────────────────────────── */
 
 .sidebar-compact .sidebar-logo {
   justify-content: center;
@@ -76,8 +72,6 @@ h1:focus {
   display: none !important;
 }
 
-/* ─── Orders: compact header filters ──────────────────────── */
-
 .rz-header-filter-cell {
   display: flex;
   flex-direction: column;
@@ -98,8 +92,6 @@ h1:focus {
   padding: 0.2rem 0.4rem !important;
   font-size: 0.8rem !important;
 }
-
-/* ─── Компактная пагинация Radzen DataGrid ────────────────── */
 
 .rz-datatable .rz-paginator,
 .rz-datatable .rz-pager {
@@ -123,8 +115,6 @@ h1:focus {
   min-height: 28px !important;
   padding: 0.2rem 0.5rem !important;
 }
-
-/* ─── Браузерная панель вкладок ──────────────────────────── */
 
 .app-tab-bar {
   display: flex;
@@ -332,7 +322,6 @@ h1:focus {
 }
 
 
-/* ───  модальное окно "Новое правило расчёта" ──────────────────────────── */
 
 /* Шапка таблицы*/
 .compact-grid thead th > div {

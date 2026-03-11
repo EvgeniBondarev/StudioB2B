@@ -8,6 +8,11 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
     /// <inheritdoc />
     public partial class Initial : Migration
     {
+        private static readonly string[] columns = new[] { "ProductId", "AttributeId" };
+        private static readonly string[] columnsArray = new[] { "OrderId", "OrderTransactionId" };
+        private static readonly string[] columnsArray0 = new[] { "WarehouseId", "ProductId" };
+        private static readonly string[] columnsArray1 = new[] { "EntityName", "EntityId" };
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -1067,7 +1072,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_FieldAuditLogs_EntityName_EntityId",
                 table: "FieldAuditLogs",
-                columns: new[] { "EntityName", "EntityId" });
+                columns: columnsArray1);
 
             migrationBuilder.CreateIndex(
                 name: "IX_MarketplaceClient1CSettings_MarketplaceClientId",
@@ -1159,7 +1164,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_OrderTransactionHistories_OrderId_OrderTransactionId",
                 table: "OrderTransactionHistories",
-                columns: new[] { "OrderId", "OrderTransactionId" });
+                columns: columnsArray);
 
             migrationBuilder.CreateIndex(
                 name: "IX_OrderTransactionHistories_OrderTransactionId",
@@ -1214,7 +1219,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_ProductAttributeValues_ProductId_AttributeId",
                 table: "ProductAttributeValues",
-                columns: new[] { "ProductId", "AttributeId" },
+                columns: columns,
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -1315,7 +1320,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_WarehouseStocks_WarehouseId_ProductId",
                 table: "WarehouseStocks",
-                columns: new[] { "WarehouseId", "ProductId" },
+                columns: columnsArray0,
                 unique: true);
         }
 

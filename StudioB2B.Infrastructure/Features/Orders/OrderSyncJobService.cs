@@ -3,7 +3,8 @@ using Hangfire.Common;
 using Hangfire.States;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
-using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Constants;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.MultiTenancy;
 
@@ -22,9 +23,9 @@ public class OrderSyncJobService : IOrderSyncJobService
         TenantHangfireManager hangfireManager,
         ICurrentUserProvider currentUserProvider)
     {
-        _dbCreator           = dbCreator;
-        _tenantProvider      = tenantProvider;
-        _hangfireManager     = hangfireManager;
+        _dbCreator = dbCreator;
+        _tenantProvider = tenantProvider;
+        _hangfireManager = hangfireManager;
         _currentUserProvider = currentUserProvider;
     }
 
@@ -32,18 +33,18 @@ public class OrderSyncJobService : IOrderSyncJobService
     {
         EnsureTenantResolved();
 
-        var tenantId         = _tenantProvider.TenantId!.Value;
+        var tenantId = _tenantProvider.TenantId!.Value;
         var connectionString = _tenantProvider.ConnectionString!;
 
         await using var db = _dbCreator.Create();
 
         var history = new SyncJobHistory
         {
-            JobType           = SyncJobType.Sync,
-            Status            = SyncJobStatus.Enqueued,
-            ParametersJson    = JsonSerializer.Serialize(new { From = from, To = to }),
+            JobType = SyncJobTypeEnum.Sync,
+            Status = SyncJobStatusEnum.Enqueued,
+            ParametersJson = JsonSerializer.Serialize(new { From = from, To = to }),
             InitiatedByUserId = _currentUserProvider.UserId,
-            InitiatedByEmail  = _currentUserProvider.Email
+            InitiatedByEmail = _currentUserProvider.Email
         };
 
         db.SyncJobHistories.Add(history);
@@ -65,17 +66,17 @@ public class OrderSyncJobService : IOrderSyncJobService
     {
         EnsureTenantResolved();
 
-        var tenantId         = _tenantProvider.TenantId!.Value;
+        var tenantId = _tenantProvider.TenantId!.Value;
         var connectionString = _tenantProvider.ConnectionString!;
 
         await using var db = _dbCreator.Create();
 
         var history = new SyncJobHistory
         {
-            JobType           = SyncJobType.Update,
-            Status            = SyncJobStatus.Enqueued,
+            JobType = SyncJobTypeEnum.Update,
+            Status = SyncJobStatusEnum.Enqueued,
             InitiatedByUserId = _currentUserProvider.UserId,
-            InitiatedByEmail  = _currentUserProvider.Email
+            InitiatedByEmail = _currentUserProvider.Email
         };
 
         db.SyncJobHistories.Add(history);
@@ -131,7 +132,7 @@ public class OrderSyncJobService : IOrderSyncJobService
         EnsureTenantResolved();
 
         var tenantId = _tenantProvider.TenantId!.Value;
-        var client   = _hangfireManager.GetClient(tenantId);
+        var client = _hangfireManager.GetClient(tenantId);
         client.Delete(hangfireJobId);
 
         await using var db = _dbCreator.Create();
@@ -140,9 +141,9 @@ public class OrderSyncJobService : IOrderSyncJobService
             .FirstOrDefaultAsync(h => h.HangfireJobId == hangfireJobId);
 
         if (history is not null &&
-            history.Status is SyncJobStatus.Enqueued or SyncJobStatus.Processing)
+            history.Status is SyncJobStatusEnum.Enqueued or SyncJobStatusEnum.Processing)
         {
-            history.Status        = SyncJobStatus.Cancelled;
+            history.Status = SyncJobStatusEnum.Cancelled;
             history.FinishedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync();
         }
@@ -173,14 +174,12 @@ public class OrderSyncJobService : IOrderSyncJobService
         var history = await db.SyncJobHistories.FindAsync(historyId);
         if (history is null) return;
 
-        if (history.Status is SyncJobStatus.Enqueued or SyncJobStatus.Processing)
+        if (history.Status is SyncJobStatusEnum.Enqueued or SyncJobStatusEnum.Processing)
             throw new InvalidOperationException("Нельзя удалить активную задачу. Сначала остановите её.");
 
         db.SyncJobHistories.Remove(history);
         await db.SaveChangesAsync();
     }
-
-    // ── Расписания ────────────────────────────────────────────────────────────
 
     public async Task<List<SyncJobSchedule>> GetSchedulesAsync()
     {
@@ -195,13 +194,13 @@ public class OrderSyncJobService : IOrderSyncJobService
     {
         EnsureTenantResolved();
 
-        var tenantId         = _tenantProvider.TenantId!.Value;
+        var tenantId = _tenantProvider.TenantId!.Value;
         var connectionString = _tenantProvider.ConnectionString!;
 
-        schedule.Id                     = Guid.NewGuid();
-        schedule.CreatedAtUtc           = DateTime.UtcNow;
-        schedule.UpdatedAtUtc           = DateTime.UtcNow;
-        schedule.CreatedByEmail         = _currentUserProvider.Email;
+        schedule.Id = Guid.NewGuid();
+        schedule.CreatedAtUtc = DateTime.UtcNow;
+        schedule.UpdatedAtUtc = DateTime.UtcNow;
+        schedule.CreatedByEmail = _currentUserProvider.Email;
         schedule.HangfireRecurringJobId = $"schedule-{schedule.Id:N}";
 
         await using var db = _dbCreator.Create();
@@ -223,7 +222,7 @@ public class OrderSyncJobService : IOrderSyncJobService
     {
         EnsureTenantResolved();
 
-        var tenantId         = _tenantProvider.TenantId!.Value;
+        var tenantId = _tenantProvider.TenantId!.Value;
         var connectionString = _tenantProvider.ConnectionString!;
 
         await using var db = _dbCreator.Create();
@@ -231,11 +230,11 @@ public class OrderSyncJobService : IOrderSyncJobService
         var existing = await db.SyncJobSchedules.FindAsync(schedule.Id)
             ?? throw new InvalidOperationException($"Schedule {schedule.Id} not found.");
 
-        existing.JobType         = schedule.JobType;
-        existing.CronExpression  = schedule.CronExpression;
+        existing.JobType = schedule.JobType;
+        existing.CronExpression = schedule.CronExpression;
         existing.CronDescription = ScheduleCronBuilder.Describe(schedule);
-        existing.SyncParams      = schedule.SyncParams;
-        existing.UpdatedAtUtc    = DateTime.UtcNow;
+        existing.SyncParams = schedule.SyncParams;
+        existing.UpdatedAtUtc = DateTime.UtcNow;
 
         await db.SaveChangesAsync();
 
@@ -250,7 +249,7 @@ public class OrderSyncJobService : IOrderSyncJobService
     {
         EnsureTenantResolved();
 
-        var tenantId         = _tenantProvider.TenantId!.Value;
+        var tenantId = _tenantProvider.TenantId!.Value;
         var connectionString = _tenantProvider.ConnectionString!;
 
         await using var db = _dbCreator.Create();
@@ -258,7 +257,7 @@ public class OrderSyncJobService : IOrderSyncJobService
         var schedule = await db.SyncJobSchedules.FindAsync(scheduleId)
             ?? throw new InvalidOperationException($"Schedule {scheduleId} not found.");
 
-        schedule.IsEnabled    = enabled;
+        schedule.IsEnabled = enabled;
         schedule.UpdatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
@@ -278,7 +277,7 @@ public class OrderSyncJobService : IOrderSyncJobService
         EnsureTenantResolved();
 
         var tenantId = _tenantProvider.TenantId!.Value;
-        var manager  = _hangfireManager.GetRecurringManager(tenantId);
+        var manager = _hangfireManager.GetRecurringManager(tenantId);
 
         await using var db = _dbCreator.Create();
         var schedule = await db.SyncJobSchedules.FindAsync(scheduleId);
@@ -290,8 +289,6 @@ public class OrderSyncJobService : IOrderSyncJobService
         db.SyncJobSchedules.Remove(schedule);
         await db.SaveChangesAsync();
     }
-
-    // ── Helpers ──────────────────────────────────────────────────────────────
 
     private void EnsureTenantResolved()
     {

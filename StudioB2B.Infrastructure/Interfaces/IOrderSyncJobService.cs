@@ -1,4 +1,4 @@
-using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Entities;
 
 namespace StudioB2B.Infrastructure.Interfaces;
 
@@ -27,8 +27,6 @@ public interface IOrderSyncJobService
 
     /// <summary>Удаляет запись из истории. Нельзя удалить активную задачу.</summary>
     Task DeleteJobAsync(Guid historyId);
-
-    // ── Расписания ───────────────────────────────────────────────────────────
 
     /// <summary>Возвращает все расписания тенанта.</summary>
     Task<List<SyncJobSchedule>> GetSchedulesAsync();

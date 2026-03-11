@@ -1,6 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Services;
 using StudioB2B.Shared.DTOs;
 
@@ -11,8 +11,6 @@ public static class UserQueryExtensions
     public static IQueryable<TenantUser> OrderByLastName(this IQueryable<TenantUser> q)
         => q.OrderBy(u => u.LastName).ThenBy(u => u.FirstName);
 }
-
-// ─── GetUsers ─────────────────────────────────────────────────────────────────
 
 public class GetUsers(ITenantDbContextFactory factory, IMapper mapper)
 {
@@ -33,8 +31,6 @@ public class GetUsers(ITenantDbContextFactory factory, IMapper mapper)
     }
 }
 
-// ─── GetUserById ──────────────────────────────────────────────────────────────
-
 public class GetUserById(ITenantDbContextFactory factory, IMapper mapper)
 {
     public async Task<UserListDto?> HandleAsync(Guid id, CancellationToken ct = default)
@@ -50,8 +46,6 @@ public class GetUserById(ITenantDbContextFactory factory, IMapper mapper)
     }
 }
 
-// ─── GetAvailableRoles ────────────────────────────────────────────────────────
-
 public class GetAvailableRoles(ITenantDbContextFactory factory)
 {
     public async Task<List<string>> HandleAsync(CancellationToken ct = default)
@@ -60,8 +54,6 @@ public class GetAvailableRoles(ITenantDbContextFactory factory)
         return await db.Roles.AsNoTracking().OrderBy(r => r.Name).Select(r => r.Name).ToListAsync(ct);
     }
 }
-
-// ─── CreateUser ───────────────────────────────────────────────────────────────
 
 public class CreateUser(ITenantDbContextFactory factory, IMapper mapper)
 {
@@ -92,8 +84,6 @@ public class CreateUser(ITenantDbContextFactory factory, IMapper mapper)
     }
 }
 
-// ─── UpdateUser ───────────────────────────────────────────────────────────────
-
 public class UpdateUser(ITenantDbContextFactory factory, IMapper mapper)
 {
     public async Task<(bool Success, string? Error)> HandleAsync(
@@ -120,8 +110,6 @@ public class UpdateUser(ITenantDbContextFactory factory, IMapper mapper)
         return (true, null);
     }
 }
-
-// ─── DeleteUser ───────────────────────────────────────────────────────────────
 
 public class DeleteUser(ITenantDbContextFactory factory)
 {

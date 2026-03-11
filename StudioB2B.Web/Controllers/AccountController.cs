@@ -85,8 +85,8 @@ public class AccountController : ControllerBase
     private string GenerateJwtToken(Guid userId, string email, IEnumerable<string> roles)
     {
         var jwtSection = _configuration.GetSection("Jwt");
-        var secret  = jwtSection["Secret"]!;
-        var issuer   = jwtSection["Issuer"] ?? "StudioB2B";
+        var secret = jwtSection["Secret"]!;
+        var issuer = jwtSection["Issuer"] ?? "StudioB2B";
         var audience = jwtSection["Audience"] ?? "StudioB2B";
         var expiresMinutes = jwtSection.GetValue<int?>("ExpiresMinutes") ?? 60;
 
@@ -104,10 +104,10 @@ public class AccountController : ControllerBase
             claims.Add(new Claim(ClaimTypes.Role, role));
 
         var token = new JwtSecurityToken(
-            issuer:             issuer,
-            audience:           audience,
-            claims:             claims,
-            expires:            DateTime.UtcNow.AddMinutes(expiresMinutes),
+            issuer: issuer,
+            audience: audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(expiresMinutes),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

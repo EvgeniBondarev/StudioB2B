@@ -1,7 +1,7 @@
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Common
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using System.Text.Json
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Services
 
 @inject ITenantDbContextFactory Factory
@@ -36,7 +36,7 @@
             <Tabs>
                 @foreach (var subject in Subjects)
                 {
-                    var s    = subject;
+                    var s = subject;
                     var logs = GetLogs(s);
                     <RadzenTabsItem>
                         <Template>
@@ -72,8 +72,8 @@
     [Parameter] public IReadOnlyList<AuditSubject> Subjects { get; set; } = [];
 
     private TenantDbContext? _db;
-    private bool _loading    = true;
-    private int  _totalCount = 0;
+    private bool _loading = true;
+    private int _totalCount = 0;
 
     private readonly Dictionary<string, List<FieldAuditLog>> _logsByKey = new();
     private IReadOnlyDictionary<string, string> _resolver = new Dictionary<string, string>();
@@ -89,7 +89,7 @@
         }
 
         var entityNames = Subjects.Select(s => s.EntityName).Distinct().ToList();
-        var entityIds   = Subjects.Select(s => s.EntityId).Distinct().ToList();
+        var entityIds = Subjects.Select(s => s.EntityId).Distinct().ToList();
 
         var allLogs = await _db.FieldAuditLogs
             .Where(x => entityNames.Contains(x.EntityName) && entityIds.Contains(x.EntityId))
@@ -105,11 +105,9 @@
         }
 
         _totalCount = allLogs.Count;
-        _resolver   = await BuildResolverAsync(allLogs);
-        _loading    = false;
+        _resolver = await BuildResolverAsync(allLogs);
+        _loading = false;
     }
-
-    // ── Value resolver ───────────────────────────────────────────────
 
     private async Task<IReadOnlyDictionary<string, string>> BuildResolverAsync(List<FieldAuditLog> logs)
     {
@@ -224,8 +222,6 @@
         catch { }
         return false;
     }
-
-    // ── Helpers ──────────────────────────────────────────────────────
 
     private List<FieldAuditLog> GetLogs(AuditSubject subject) =>
         _logsByKey.GetValueOrDefault(SubjectKey(subject)) ?? [];

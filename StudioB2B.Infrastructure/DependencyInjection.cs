@@ -45,7 +45,6 @@ public static class DependencyInjection
 
         services.AddSingleton<IKeyEncryptionService, KeyEncryptionService>();
 
-        // ── HTTP pipeline for marketplace APIs (Ozon, etc.) ──
         services.AddTransient<LoggingHandler>();
         services.AddTransient<RetryHandler>();
         services.AddTransient<RateLimitHandler>();
@@ -78,7 +77,6 @@ public static class DependencyInjection
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<CircuitHandler, TenantCircuitHandler>();
 
-        // ── Master auth ────────────────────────────────────────────────────────
         services.AddScoped<MasterAuthService>();
 
         // Tenant DbContext (Scoped, dynamic connection)
@@ -102,7 +100,6 @@ public static class DependencyInjection
         // (например OrderSyncJobService, вызываемый параллельно из polling + UI)
         services.AddScoped<Features.Orders.ITenantDbContextCreator, TenantDbContextCreator>();
 
-        // ── JWT Authentication ─────────────────────────────────────────────────
         var jwtSection = configuration.GetSection("Jwt");
         var secret = jwtSection["Secret"] ?? throw new InvalidOperationException("Jwt:Secret is not configured");
         var issuer = jwtSection["Issuer"] ?? "StudioB2B";
@@ -115,27 +112,25 @@ public static class DependencyInjection
             {
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    ValidateIssuer           = true,
-                    ValidateAudience         = true,
-                    ValidateLifetime         = true,
-                    ValidateIssuerSigningKey  = true,
-                    ValidIssuer              = issuer,
-                    ValidAudience            = audience,
-                    IssuerSigningKey         = key,
-                    ClockSkew                = TimeSpan.Zero
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = issuer,
+                    ValidAudience = audience,
+                    IssuerSigningKey = key,
+                    ClockSkew = TimeSpan.Zero
                 };
             });
 
         services.AddAuthorization();
 
-        // ── Role Feature Classes ────────────────────────────────────────────────
         services.AddScoped<GetRoles>();
         services.AddScoped<GetRoleById>();
         services.AddScoped<CreateRole>();
         services.AddScoped<UpdateRole>();
         services.AddScoped<DeleteRole>();
 
-        // ── User Feature Classes ───────────────────────────────────────────────
         services.AddScoped<GetUsers>();
         services.AddScoped<GetUserById>();
         services.AddScoped<GetAvailableRoles>();
@@ -143,14 +138,11 @@ public static class DependencyInjection
         services.AddScoped<UpdateUser>();
         services.AddScoped<DeleteUser>();
 
-        // ── Hangfire per-tenant manager ────────────────────────────────────────
         services.AddSingleton<TenantHangfireManager>();
         services.AddHostedService(sp => sp.GetRequiredService<TenantHangfireManager>());
 
-        // ── Background job services ────────────────────────────────────────────
         services.AddScoped<IOrderSyncJobService, OrderSyncJobService>();
 
-        // ── Transaction services ───────────────────────────────────────────────
         services.AddScoped<CalculationEngine>();
         services.AddScoped<IOrderTransactionService, OrderTransactionService>();
 

@@ -1,4 +1,4 @@
-using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Constants;
 
 namespace StudioB2B.Shared.DTOs;
 
@@ -24,12 +24,12 @@ public class TransactionApplyFieldRulePreview
     public Guid RuleId { get; set; }
     public string EntityPath { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
-    public TransactionFieldValueSource ValueSource { get; set; }
+    public TransactionFieldValueSourceEnum ValueSource { get; set; }
     public string? FixedValue { get; set; }
-    public TransactionFieldValueType ValueType { get; set; }
-    public FieldReferenceType ReferenceType { get; set; }
+    public TransactionFieldValueTypeEnum ValueType { get; set; }
+    public FieldReferenceTypeEnum ReferenceType { get; set; }
     public bool IsRequired { get; set; }
-    public bool RequiresUserInput => ValueSource == TransactionFieldValueSource.UserInput;
+    public bool RequiresUserInput => ValueSource == TransactionFieldValueSourceEnum.UserInput;
 }
 
 /// <summary>
@@ -42,7 +42,7 @@ public class TransactionApplyRulePreview
     public string PriceTypeName { get; set; } = string.Empty;
     public Guid? ProductId { get; set; }
     public string? ProductName { get; set; }
-    public TransactionValueSource ValueSource { get; set; }
+    public TransactionValueSourceEnum ValueSource { get; set; }
     /// <summary>Формула (для Formula).</summary>
     public string? Formula { get; set; }
     /// <summary>Вычисленное значение (для Formula).</summary>
@@ -50,7 +50,7 @@ public class TransactionApplyRulePreview
     /// <summary>Расшифровка формулы: подстановка переменных и результат (напр. "100 * 0.85 = 85").</summary>
     public string? FormulaBreakdown { get; set; }
     /// <summary>Требуется ввод пользователя при проведении.</summary>
-    public bool RequiresUserInput => ValueSource == TransactionValueSource.UserInput;
+    public bool RequiresUserInput => ValueSource == TransactionValueSourceEnum.UserInput;
     /// <summary>Обязательное поле при проведении.</summary>
     public bool IsRequired { get; set; }
 }
