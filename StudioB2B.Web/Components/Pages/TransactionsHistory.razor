@@ -11,7 +11,7 @@
 
 @implements IDisposable
 
-<PageTitle>История транзакций</PageTitle>
+<PageTitle>История проведений</PageTitle>
 
 @if (!TenantProvider.IsResolved)
 {
@@ -23,14 +23,14 @@ else
 {
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
-        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">История транзакций заказов</RadzenText>
+        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">История проведений документов</RadzenText>
         <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                       Click="@ToggleDensity" Title="@GetDensityTitle()" />
     </RadzenStack>
 
     <RadzenText TextStyle="TextStyle.Body2"
                 Style="color: var(--rz-text-secondary-color); margin-bottom: 1rem; display: block;">
-        Журнал применения транзакций к заказам: вид транзакции, заказ, время, результат, пользователь.
+        Журнал проведений документов: вид документа, заказ, время, результат, пользователь.
     </RadzenText>
 
     <RadzenDataGrid @ref="_grid"
@@ -62,7 +62,7 @@ else
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
-            <RadzenDataGridColumn TItem="OrderTransactionHistory" Property="OrderTransaction.Name" Title="Транзакция" Width="200px">
+            <RadzenDataGridColumn TItem="OrderTransactionHistory" Property="OrderTransaction.Name" Title="Документ" Width="200px">
                 <Template Context="h">
                     @if (h.OrderTransaction != null)
                     {

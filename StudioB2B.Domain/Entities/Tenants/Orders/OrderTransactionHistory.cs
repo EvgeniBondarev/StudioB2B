@@ -1,7 +1,7 @@
 namespace StudioB2B.Domain.Entities;
 
 /// <summary>
-/// История применения транзакции к заказу.
+/// История проведения документа по заказу.
 /// </summary>
 public class OrderTransactionHistory
 {
@@ -15,7 +15,7 @@ public class OrderTransactionHistory
 
     public DateTime PerformedAtUtc { get; set; }
 
-    /// <summary>Id пользователя, выполнившего транзакцию (null — робот/система).</summary>
+    /// <summary>Id пользователя, выполнившего проведение (null — робот/система).</summary>
     public Guid? PerformedByUserId { get; set; }
 
     /// <summary>Имя пользователя для отображения (денормализовано).</summary>

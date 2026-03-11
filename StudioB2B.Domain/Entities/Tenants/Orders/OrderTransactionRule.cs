@@ -4,15 +4,15 @@ using StudioB2B.Domain.Constants;
 namespace StudioB2B.Domain.Entities;
 
 /// <summary>
-/// Правило транзакции заказа: установка цены при переходе статуса.
+/// Правило документа заказа: установка цены при переходе статуса.
 /// </summary>
-[Display(Name = "Правило транзакции")]
+[Display(Name = "Правило документа")]
 public class OrderTransactionRule : IBaseEntity
 {
     [Display(Name = "Идентификатор")]
     public Guid Id { get; set; }
 
-    [Display(Name = "Транзакция")]
+    [Display(Name = "Документ")]
     public Guid OrderTransactionId { get; set; }
     public OrderTransaction? OrderTransaction { get; set; }
 

@@ -4,7 +4,7 @@ namespace StudioB2B.Shared.DTOs;
 
 
 /// <summary>
-/// Описание поля, доступного для изменения в транзакции.
+/// Описание поля, доступного для изменения в документе.
 /// </summary>
 public record OrderTransactionFieldDescriptor(
     string EntityPath,
@@ -13,7 +13,7 @@ public record OrderTransactionFieldDescriptor(
     FieldReferenceTypeEnum ReferenceType = FieldReferenceTypeEnum.None);
 
 /// <summary>
-/// Реестр допустимых полей заказа и связанных сущностей для правил транзакций.
+/// Реестр допустимых полей заказа и связанных сущностей для правил документов.
 /// </summary>
 public static class OrderTransactionFieldRegistry
 {

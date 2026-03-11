@@ -51,7 +51,7 @@ else
                     <RadzenCheckBox @bind-Value="_isEnabled" />
                     <RadzenLabel Text="Активна" />
                 </RadzenStack>
-                <RadzenFormField Text="Цвет транзакции" Style="max-width: 200px;">
+                <RadzenFormField Text="Цвет документа" Style="max-width: 200px;">
                     <RadzenColorPicker @bind-Value="_color"
                                       ShowColors="true"
                                       ShowHex="true"
@@ -408,7 +408,7 @@ else
     {
         if (string.IsNullOrWhiteSpace(_name))
         {
-            NotificationService.Notify(NotificationSeverity.Warning, "Ошибка", "Укажите название транзакции.");
+            NotificationService.Notify(NotificationSeverity.Warning, "Ошибка", "Укажите название документа.");
             return;
         }
         if (!_fromStatusId.HasValue || !_toStatusId.HasValue)
@@ -470,7 +470,7 @@ else
                         });
                     }
                     await _db.SaveChangesAsync();
-                    NotificationService.Notify(NotificationSeverity.Success, "Транзакция обновлена");
+                    NotificationService.Notify(NotificationSeverity.Success, "Документ обновлён");
                 }
             }
             else
@@ -519,7 +519,7 @@ else
                     });
                 }
                 await _db.SaveChangesAsync();
-                NotificationService.Notify(NotificationSeverity.Success, "Транзакция создана");
+                NotificationService.Notify(NotificationSeverity.Success, "Документ создан");
             }
             DialogService.Close(true);
         }

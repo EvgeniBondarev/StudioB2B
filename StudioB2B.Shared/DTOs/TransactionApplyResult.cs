@@ -1,7 +1,7 @@
 namespace StudioB2B.Shared.DTOs;
 
 /// <summary>
-/// Результат применения транзакции к заказу.
+/// Результат проведения документа по заказу.
 /// </summary>
 public class TransactionApplyResult
 {
