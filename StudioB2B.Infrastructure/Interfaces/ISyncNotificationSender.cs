@@ -1,4 +1,4 @@
-namespace StudioB2B.Application.Common.Interfaces;
+namespace StudioB2B.Infrastructure.Interfaces;
 
 /// <summary>
 /// Абстракция для отправки уведомлений о задачах синхронизации.

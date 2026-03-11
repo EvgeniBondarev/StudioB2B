@@ -1,6 +1,6 @@
 using StudioB2B.Domain.Entities.Orders;
 
-namespace StudioB2B.Application.Common.Interfaces;
+namespace StudioB2B.Infrastructure.Interfaces;
 
 /// <summary>
 /// Управляет постановкой и отменой фоновых задач синхронизации заказов (Hangfire).

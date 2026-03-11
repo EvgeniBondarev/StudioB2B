@@ -1,5 +1,5 @@
 using AutoMapper;
-using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Domain.Entities.Master;
 using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Features.Roles;
@@ -11,19 +11,19 @@ public class RoleMappingProfile : Profile
 {
     public RoleMappingProfile()
     {
-        // Role → RoleDto
-        CreateMap<Role, RoleDto>()
+        // MasterRole → RoleDto
+        CreateMap<MasterRole, RoleDto>()
             .ConstructUsing(src => new RoleDto(src.Id, src.Name));
 
-        // CreateRoleRequest → Role
-        CreateMap<CreateRoleRequest, Role>()
+        // CreateRoleRequest → MasterRole
+        CreateMap<CreateRoleRequest, MasterRole>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name.Trim()))
             .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())
             .ForMember(dest => dest.UserRoles, opt => opt.Ignore());
 
-        // UpdateRoleRequest → Role
-        CreateMap<UpdateRoleRequest, Role>()
+        // UpdateRoleRequest → MasterRole
+        CreateMap<UpdateRoleRequest, MasterRole>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name.Trim()))
             .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())

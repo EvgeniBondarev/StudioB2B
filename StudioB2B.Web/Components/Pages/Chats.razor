@@ -1,9 +1,9 @@
 @page "/chats"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Application.Common.Interfaces
 @using StudioB2B.Infrastructure.Features.Marketplace
 @using StudioB2B.Infrastructure.Integrations.Ozon.Models.Chat
+@using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Web.Helpers
 
@@ -11,7 +11,7 @@
 @inject ITenantDbContextFactory Factory
 @inject IOzonChatService ChatService
 @inject NotificationService NotificationService
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JsRuntime
 
 @implements IDisposable
 
@@ -527,7 +527,7 @@ else
         {
             _keyHandlerRegistered = true;
             _dotNetRef = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("window.__registerChatEscape", _dotNetRef);
+            await JsRuntime.InvokeVoidAsync("window.__registerChatEscape", _dotNetRef);
         }
     }
 
@@ -973,7 +973,7 @@ else
 
     private async Task TriggerFilePicker()
     {
-        await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('chat-file-input').click()");
+        await JsRuntime.InvokeVoidAsync("eval", "document.getElementById('chat-file-input').click()");
     }
 
     private void ClearAttachment()
@@ -987,7 +987,7 @@ else
     {
         try
         {
-            await JSRuntime.InvokeVoidAsync("eval",
+            await JsRuntime.InvokeVoidAsync("eval",
                 "var el = document.getElementById('chat-messages-container'); if(el) el.scrollTop = el.scrollHeight;");
         }
         catch { /* ignore */ }

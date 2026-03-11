@@ -1,4 +1,4 @@
-namespace StudioB2B.Application.Common;
+namespace StudioB2B.Shared.DTOs;
 
 /// <summary>
 /// Тип значения поля для UI (выбор контрола).
@@ -80,7 +80,7 @@ public static class OrderTransactionFieldRegistry
     public static IReadOnlyList<OrderTransactionFieldDescriptor> All => _fields.Values.ToList();
 
     /// <summary>Получить описание по пути.</summary>
-    public static OrderTransactionFieldDescriptor? Get(string entityPath)
+    public static OrderTransactionFieldDescriptor? Get(string? entityPath)
     {
         return _fields.TryGetValue(entityPath ?? string.Empty, out var d) ? d : null;
     }

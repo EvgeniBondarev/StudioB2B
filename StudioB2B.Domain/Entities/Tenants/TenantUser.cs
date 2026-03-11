@@ -2,7 +2,7 @@ using StudioB2B.Domain.Entities.Common;
 
 namespace StudioB2B.Domain.Entities.Tenants;
 
-public class User : IBaseEntity, ISoftDelete
+public class TenantUser : IBaseEntity, ISoftDelete
 {
     public Guid Id { get; set; }
 
@@ -20,7 +20,6 @@ public class User : IBaseEntity, ISoftDelete
 
     public bool IsDeleted { get; set; }
 
-    // Navigation
-    public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+    public ICollection<TenantUserRole> UserRoles { get; set; } = new List<TenantUserRole>();
 }
 

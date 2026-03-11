@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 
-namespace StudioB2B.Infrastructure.MultiTenancy;
+namespace StudioB2B.Infrastructure.MultiTenancy.Extensions;
 
 public static class CookieExtensions
 {

@@ -1,4 +1,4 @@
-namespace StudioB2B.Application.Common;
+namespace StudioB2B.Shared.DTOs;
 
 /// <summary>
 /// Результат синхронизации по одному клиенту маркетплейса.
@@ -6,17 +6,24 @@ namespace StudioB2B.Application.Common;
 public class ClientSyncResultItem
 {
     public string ClientName { get; set; } = string.Empty;
+
     public string Mode { get; set; } = string.Empty;
+
     public int ShipmentsCreated { get; set; }
+
     public int ShipmentsUpdated { get; set; }
+
     public int ShipmentsUntouched { get; set; }
+
     public int OrdersCreated { get; set; }
+
     public int OrdersUpdated { get; set; }
+
     public int OrdersUntouched { get; set; }
-    /// <summary>Заказы, выбранные для обновления статуса (без конечного статуса).</summary>
+
     public int OrdersSelectedForUpdate { get; set; }
-    /// <summary>Заказы, пропущенные из-за конечного статуса.</summary>
+
     public int OrdersSkipped { get; set; }
-    /// <summary>Сводка обновлённых полей по отправлениям (для режима обновления).</summary>
+
     public string? UpdatedFieldsSummary { get; set; }
 }

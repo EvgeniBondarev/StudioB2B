@@ -1,15 +1,13 @@
-using System.Net;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Http;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.Chat;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.FbsUnfulfilled;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductAttributes;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductPrices;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo;
+using StudioB2B.Infrastructure.Interfaces;
 
 namespace StudioB2B.Infrastructure.Integrations.Ozon;
 
