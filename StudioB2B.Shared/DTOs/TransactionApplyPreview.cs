@@ -3,7 +3,7 @@ using StudioB2B.Domain.Entities.Orders;
 namespace StudioB2B.Shared.DTOs;
 
 /// <summary>
-/// Предпросмотр применения транзакции: правила и значения для ввода.
+/// Предпросмотр проведения документа: правила и значения для ввода.
 /// </summary>
 public class TransactionApplyPreview
 {
