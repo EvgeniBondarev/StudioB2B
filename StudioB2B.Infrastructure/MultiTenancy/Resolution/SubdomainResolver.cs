@@ -42,7 +42,7 @@ public class SubdomainResolver : ISubdomainResolver
         }
 
         // 4. Фоллбэк: хост содержит мастер-домен, но суффикс не совпал
-        //    (защита от неточной конфигурации MasterDomain)
+        // (защита от неточной конфигурации MasterDomain)
         if (hostValue.Contains(_masterDomain, StringComparison.OrdinalIgnoreCase) &&
             !hostValue.StartsWith("www.", StringComparison.OrdinalIgnoreCase))
         {

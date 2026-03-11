@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Domain.Entities.Master;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.MultiTenancy.Initialization;
 using StudioB2B.Infrastructure.Persistence.Master;
 
@@ -108,7 +108,7 @@ public class DatabaseMigrationService : IHostedService
     private async Task SeedMasterAsync(MasterDbContext db, CancellationToken ct)
     {
         const string adminRoleName = "Admin";
-        const string adminEmail    = "admin@gmail.com";
+        const string adminEmail = "admin@gmail.com";
         const string adminPassword = "Admin1!";
 
         // Роль Admin
@@ -127,10 +127,10 @@ public class DatabaseMigrationService : IHostedService
         {
             var user = new MasterUser
             {
-                Id           = Guid.NewGuid(),
-                Email        = normalizedEmail,
+                Id = Guid.NewGuid(),
+                Email = normalizedEmail,
                 HashPassword = BCrypt.Net.BCrypt.HashPassword(adminPassword),
-                IsActive     = true
+                IsActive = true
             };
             db.Users.Add(user);
             db.UserRoles.Add(new MasterUserRole { UserId = user.Id, RoleId = role.Id });

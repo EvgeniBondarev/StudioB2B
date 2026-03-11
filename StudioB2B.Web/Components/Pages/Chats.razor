@@ -63,7 +63,7 @@ else
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
                         <RadzenLabel Text="Статус:" Style="white-space: nowrap;" />
                         <RadzenDropDown TValue="string?" @bind-Value="_filterStatus"
-                                        Data="@_statusOptions"
+                                        Data="@StatusOptions"
                                         TextProperty="Label" ValueProperty="Value"
                                         Placeholder="Все"
                                         AllowClear="true"
@@ -74,7 +74,7 @@ else
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
                         <RadzenLabel Text="Тип:" Style="white-space: nowrap;" />
                         <RadzenDropDown TValue="string?" @bind-Value="_filterType"
-                                        Data="@_typeOptions"
+                                        Data="@TypeOptions"
                                         TextProperty="Label" ValueProperty="Value"
                                         Placeholder="Все"
                                         AllowClear="true"
@@ -251,10 +251,10 @@ else
                     {
                         @foreach (var msg in _messages)
                         {
-                            var isSeller   = IsSellerMessage(msg);
+                            var isSeller = IsSellerMessage(msg);
                             var senderLabel = GetSenderLabel(msg);
                             var avatarClass = isSeller ? "chat-avatar seller" : "chat-avatar customer";
-                            var avatarLetter = isSeller ? "П" : "К";   // Продавец / Клиент
+                            var avatarLetter = isSeller ? "П" : "К"; // Продавец / Клиент
                             var rowClass = "chat-message-row " + (isSeller ? "from-seller" : "");
                             <div @key="msg.MessageId" class="@rowClass">
 
@@ -292,7 +292,7 @@ else
                                                 @if (IsFileData(d))
                                                 {
                                                     var fname = GetFileName(d);
-                                                    var furl  = GetFileDownloadUrl(d);
+                                                    var furl = GetFileDownloadUrl(d);
                                                     <div class="chat-file-link">
                                                         <RadzenIcon Icon="@GetFileIcon(fname)"
                                                                     Style="font-size: 1.1rem; flex-shrink: 0;" />
@@ -347,7 +347,7 @@ else
 
                         <!-- Шаблонные ответы -->
                         <div class="chat-quick-replies">
-                            @foreach (var tpl in _quickReplies)
+                            @foreach (var tpl in QuickReplies)
                             {
                                 <button class="chat-quick-reply-chip" @onclick="@(() => ApplyTemplate(tpl))">
                                     @tpl
@@ -416,7 +416,7 @@ else
                 }
             }
         </div>
-    </div>  <!-- /.chats-layout -->
+    </div> <!-- /.chats-layout -->
 
     @if (_lightboxSrc is not null)
     {
@@ -432,11 +432,10 @@ else
         </div>
     }
 
-    </div>  <!-- /.chats-page-root -->
+    </div> <!-- /.chats-page-root -->
 }
 
 @code {
-    // ── State ─────────────────────────────────────────────────────────────────
     private List<OzonChatViewModel> _chats = new();
     private OzonChatViewModel? _selectedChat;
     private List<OzonChatMessage> _messages = new();
@@ -454,7 +453,7 @@ else
     private string _messageText = string.Empty;
     private string? _lightboxSrc;
 
-    private static readonly string[] _quickReplies =
+    private static readonly string[] QuickReplies =
     [
         "Здравствуйте!",
         "Здравствуйте, для проверки необходим VIN номер Вашего авто",
@@ -484,20 +483,19 @@ else
 
     private List<ClientOption> _clientOptions = new();
 
-    private static readonly List<LabelValue> _statusOptions =
+    private static readonly List<LabelValue> StatusOptions =
     [
-        new LabelValue("Открыт",  "OPENED"),
-        new LabelValue("Закрыт",  "CLOSED"),
+        new LabelValue("Открыт", "OPENED"),
+        new LabelValue("Закрыт", "CLOSED"),
     ];
 
-    private static readonly List<LabelValue> _typeOptions =
+    private static readonly List<LabelValue> TypeOptions =
     [
         new LabelValue("Покупатель — Продавец", "BUYER_SELLER"),
-        new LabelValue("Продавец — Поддержка",  "SELLER_SUPPORT"),
-        new LabelValue("Не определён",          "UNSPECIFIED"),
+        new LabelValue("Продавец — Поддержка", "SELLER_SUPPORT"),
+        new LabelValue("Не определён", "UNSPECIFIED"),
     ];
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
         if (!TenantProvider.IsResolved) return;
@@ -541,7 +539,6 @@ else
         }
     }
 
-    // ── Data loading ──────────────────────────────────────────────────────────
     private async Task LoadClientOptionsAsync()
     {
         try
@@ -563,7 +560,7 @@ else
     private async Task LoadChatsAsync()
     {
         _loadingList = true;
-        _nextCursor  = null;
+        _nextCursor = null;
         _hasMoreChats = false;
         StateHasChanged();
         try
@@ -576,10 +573,10 @@ else
                 unreadOnly: _filterUnreadOnly,
                 marketplaceClientId: _filterClientId);
 
-            _chats        = page.Chats;
-            _nextCursor   = page.NextCursor;
+            _chats = page.Chats;
+            _nextCursor = page.NextCursor;
             _hasMoreChats = page.HasMore;
-            _totalUnread  = _chats.Sum(c => c.UnreadCount);
+            _totalUnread = _chats.Sum(c => c.UnreadCount);
         }
         catch (Exception ex)
         {
@@ -609,9 +606,9 @@ else
                 marketplaceClientId: _filterClientId);
 
             _chats.AddRange(page.Chats);
-            _nextCursor   = page.NextCursor;
+            _nextCursor = page.NextCursor;
             _hasMoreChats = page.HasMore;
-            _totalUnread  = _chats.Sum(c => c.UnreadCount);
+            _totalUnread = _chats.Sum(c => c.UnreadCount);
         }
         catch (Exception ex)
         {
@@ -662,7 +659,6 @@ else
         }
     }
 
-    // ── Polling ───────────────────────────────────────────────────────────────
     private async Task PollAsync()
     {
         await PollListAsync();
@@ -689,7 +685,7 @@ else
                     c => c.ChatId == f.ChatId && c.MarketplaceClientId == f.MarketplaceClientId);
                 if (existing is not null)
                 {
-                    existing.UnreadCount  = f.UnreadCount;
+                    existing.UnreadCount = f.UnreadCount;
                     existing.LastMessageAt = f.LastMessageAt;
                 }
                 else
@@ -746,7 +742,6 @@ else
         }
     }
 
-    // ── User actions ──────────────────────────────────────────────────────────
     private async Task SelectChatAsync(OzonChatViewModel chat)
     {
         _selectedChat = chat;
@@ -982,7 +977,6 @@ else
         _attachedBase64 = null;
     }
 
-
     private async Task ScrollToBottomAsync()
     {
         try
@@ -993,14 +987,10 @@ else
         catch { /* ignore */ }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
     private bool CanSend =>
         _selectedChat is not null &&
         !_sending &&
         (_attachedFile is not null || (!string.IsNullOrWhiteSpace(_messageText) && _messageText.Length <= 1000));
-
-    private static string TruncateId(string id) =>
-        id.Length > 24 ? id[..12] + "…" + id[^8..] : id;
 
     private static bool IsSellerMessage(OzonChatMessage msg) =>
         msg.User?.Type is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT";
@@ -1010,19 +1000,19 @@ else
         {
             "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT" => "Продавец",
             // Ozon sometimes sends Cyrillic "С" (U+0421) instead of Latin "C"
-            "Customer" or "Сustomer" or "customer" or "BUYER"            => "Покупатель",
-            "Support"                                                     => "Поддержка Ozon",
-            _                                                             => msg.User?.Type ?? "Система"
+            "Customer" or "Сustomer" or "customer" or "BUYER" => "Покупатель",
+            "Support" => "Поддержка Ozon",
+            _ => msg.User?.Type ?? "Система"
         };
 
     private static string FormatTimeAgo(DateTime utcTime)
     {
         var diff = DateTime.UtcNow - utcTime;
-        if (diff.TotalSeconds < 60)   return "только что";
-        if (diff.TotalMinutes < 60)   return $"{(int)diff.TotalMinutes} мин. назад";
-        if (diff.TotalHours < 24)     return $"{(int)diff.TotalHours} ч. назад";
-        if (diff.TotalDays < 2)       return "вчера";
-        if (diff.TotalDays < 7)       return $"{(int)diff.TotalDays} дн. назад";
+        if (diff.TotalSeconds < 60) return "только что";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} мин. назад";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} ч. назад";
+        if (diff.TotalDays < 2) return "вчера";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} дн. назад";
         return utcTime.ToLocalTime().ToString("dd.MM.yyyy");
     }
 
@@ -1030,46 +1020,37 @@ else
     {
         "OPENED" => "Открыт",
         "CLOSED" => "Закрыт",
-        _        => status ?? "—"
+        _ => status ?? "—"
     };
 
     private static BadgeStyle GetStatusBadgeStyle(string? status) => status switch
     {
         "OPENED" => BadgeStyle.Success,
         "CLOSED" => BadgeStyle.Light,
-        _        => BadgeStyle.Secondary
+        _ => BadgeStyle.Secondary
     };
 
     private static string GetTypeLabel(string? type) => type switch
     {
-        "BUYER_SELLER"   => "Покупатель — Продавец",
+        "BUYER_SELLER" => "Покупатель — Продавец",
         "SELLER_SUPPORT" => "Продавец — Поддержка",
-        "UNSPECIFIED"    => "Не определён",
+        "UNSPECIFIED" => "Не определён",
         // legacy / fallback
         "Seller_Support" => "Продавец — Поддержка",
-        "Customer"       => "Покупатель — Продавец",
-        _                => type ?? "—"
+        "Customer" => "Покупатель — Продавец",
+        _ => type ?? "—"
     };
 
     private static BadgeStyle GetTypeBadgeStyle(string? type) => type switch
     {
-        "BUYER_SELLER"   => BadgeStyle.Warning,
+        "BUYER_SELLER" => BadgeStyle.Warning,
         "SELLER_SUPPORT" => BadgeStyle.Info,
-        "UNSPECIFIED"    => BadgeStyle.Light,
+        "UNSPECIFIED" => BadgeStyle.Light,
         "Seller_Support" => BadgeStyle.Info,
-        "Customer"       => BadgeStyle.Warning,
-        _                => BadgeStyle.Secondary
+        "Customer" => BadgeStyle.Warning,
+        _ => BadgeStyle.Secondary
     };
 
-    /// Ozon возвращает data[] в формате:
-    ///   "data:image/jpeg;base64,![](<url>)"  — для картинок/файлов
-    ///   "обычный текст сообщения"             — для текста
-    /// Извлекаем URL из этого формата.
-    /// Извлекает URL вложения из форматов которые использует Ozon в data[]:
-    ///   "data:image/jpeg;base64,![](<url>)"     — картинка с data-префиксом
-    ///   "data:image/jpeg;base64,![текст](<url>)" — картинка с именем
-    ///   "[имя файла (размер)](<url>)"            — файл без data-префикса
-    /// Возвращает null если это обычный текст (даже с ссылками).
     private static string? ExtractOzonFileUrl(string data)
     {
         if (string.IsNullOrWhiteSpace(data)) return null;
@@ -1081,7 +1062,7 @@ else
             var bracketClose = data.IndexOf(']', bracketOpen);
             if (bracketClose >= 0 && bracketClose + 1 < data.Length && data[bracketClose + 1] == '(')
             {
-                var parenOpen  = bracketClose + 1;
+                var parenOpen = bracketClose + 1;
                 var parenClose = data.IndexOf(')', parenOpen);
                 if (parenClose > parenOpen)
                 {
@@ -1108,18 +1089,18 @@ else
     }
 
     /// Извлекает имя файла из строки Ozon:
-    ///   "[video_2026-02-27.mp4 (15 MB)](url)" → "video_2026-02-27.mp4"
-    ///   "https://.../file.mp4"                → "file.mp4"
+    /// "[video_2026-02-27.mp4 (15 MB)](url)" → "video_2026-02-27.mp4"
+    /// "https://.../file.mp4" → "file.mp4"
     private static string ExtractOzonFileName(string data)
     {
         // Паттерн [текст](url) — берём текст из скобок, убираем "(размер)"
-        var bracketOpen  = data.IndexOf('[');
+        var bracketOpen = data.IndexOf('[');
         var bracketClose = bracketOpen >= 0 ? data.IndexOf(']', bracketOpen) : -1;
         if (bracketOpen >= 0 && bracketClose > bracketOpen)
         {
             var label = data[(bracketOpen + 1)..bracketClose].Trim();
             // Убираем " (размер)" в конце: "video.mp4 (15 MB)" → "video.mp4"
-            var parenIdx = label.LastIndexOf(" (");
+            var parenIdx = label.LastIndexOf(" (", StringComparison.Ordinal);
             if (parenIdx > 0) label = label[..parenIdx].Trim();
             if (!string.IsNullOrWhiteSpace(label)) return label;
         }
@@ -1178,16 +1159,16 @@ else
         var ext = Path.GetExtension(fileName).ToLowerInvariant();
         return ext switch
         {
-            ".pdf"                          => "picture_as_pdf",
-            ".doc" or ".docx"               => "description",
-            ".txt"                          => "article",
+            ".pdf" => "picture_as_pdf",
+            ".doc" or ".docx" => "description",
+            ".txt" => "article",
             ".jpg" or ".jpeg" or ".png"
-                or ".gif" or ".webp"        => "image",
+                or ".gif" or ".webp" => "image",
             ".mp4" or ".avi" or ".mov"
-                or ".mkv" or ".webm"        => "videocam",
-            ".mp3" or ".ogg" or ".wav"      => "audio_file",
-            ".zip" or ".rar" or ".7z"       => "folder_zip",
-            _                               => "attach_file"
+                or ".mkv" or ".webm" => "videocam",
+            ".mp3" or ".ogg" or ".wav" => "audio_file",
+            ".zip" or ".rar" or ".7z" => "folder_zip",
+            _ => "attach_file"
         };
     }
 
@@ -1198,7 +1179,6 @@ else
         return $"{bytes / (1024 * 1024.0):F1} МБ";
     }
 
-    // ── Helper types ──────────────────────────────────────────────────────────
     private sealed class LabelValue
     {
         public LabelValue(string label, string value) { Label = label; Value = value; }
@@ -1208,7 +1188,7 @@ else
 
     private sealed class ClientOption
     {
-        public Guid   Id   { get; set; }
+        public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
     }
 }

@@ -1,10 +1,10 @@
 @page "/audit"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Common
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using System.Text.Json
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider
@@ -127,10 +127,10 @@ else
                     @{
                         var (icon, color, label) = log.ChangeType switch
                         {
-                            "Added"    => ("add_circle",   "var(--rz-success)", "Создано"),
-                            "Modified" => ("edit",         "var(--rz-info)",    "Изменено"),
-                            "Deleted"  => ("delete",       "var(--rz-danger)",  "Удалено"),
-                            _          => ("help_outline", "var(--rz-text-secondary-color)", log.ChangeType)
+                            "Added" => ("add_circle", "var(--rz-success)", "Создано"),
+                            "Modified" => ("edit", "var(--rz-info)", "Изменено"),
+                            "Deleted" => ("delete", "var(--rz-danger)", "Удалено"),
+                            _ => ("help_outline", "var(--rz-text-secondary-color)", log.ChangeType)
                         };
                     }
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
@@ -212,24 +212,24 @@ else
     private TenantDbContext? _db;
     private RadzenDataGrid<FieldAuditLog>? _grid;
 
-    private List<FieldAuditLog> _pageItems  = [];
-    private int                 _totalCount = 0;
-    private bool                _loading    = false;
+    private List<FieldAuditLog> _pageItems = [];
+    private int _totalCount = 0;
+    private bool _loading = false;
 
     private Density _density = Density.Default;
     private readonly int[] _pageSizeOptions = [15, 30, 50, 100];
 
     // Данные для фильтров
-    private List<string> _entityNames   = [];
-    private List<string> _changeTypes   = ["Added", "Modified", "Deleted"];
-    private List<string> _userNames     = [];
+    private List<string> _entityNames = [];
+    private List<string> _changeTypes = ["Added", "Modified", "Deleted"];
+    private List<string> _userNames = [];
 
     // Значения фильтров
-    private string?   _filterEntity     = null;
-    private string?   _filterChangeType = null;
-    private string?   _filterUser       = null;
-    private DateTime? _filterFrom       = null;
-    private DateTime? _filterTo         = null;
+    private string? _filterEntity = null;
+    private string? _filterChangeType = null;
+    private string? _filterUser = null;
+    private DateTime? _filterFrom = null;
+    private DateTime? _filterTo = null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -329,11 +329,11 @@ else
 
     private async Task ResetFilters()
     {
-        _filterEntity     = null;
+        _filterEntity = null;
         _filterChangeType = null;
-        _filterUser       = null;
-        _filterFrom       = null;
-        _filterTo         = null;
+        _filterUser = null;
+        _filterFrom = null;
+        _filterTo = null;
         await RefreshGrid();
     }
 
@@ -350,11 +350,11 @@ else
             new Dictionary<string, object?>
             {
                 [nameof(FieldAuditDialog.EntityName)] = log.EntityName,
-                [nameof(FieldAuditDialog.EntityId)]   = log.EntityId
+                [nameof(FieldAuditDialog.EntityId)] = log.EntityId
             },
             new DialogOptions
             {
-                Width    = "min(800px, 95vw)",
+                Width = "min(800px, 95vw)",
                 Resizable = true,
                 Draggable = true
             });
@@ -381,10 +381,10 @@ else
             {
                 JsonValueKind.String => el.GetString() ?? "—",
                 JsonValueKind.Number => el.GetRawText(),
-                JsonValueKind.True   => "да",
-                JsonValueKind.False  => "нет",
-                JsonValueKind.Null   => "—",
-                _                    => raw
+                JsonValueKind.True => "да",
+                JsonValueKind.False => "нет",
+                JsonValueKind.Null => "—",
+                _ => raw
             };
         }
         catch { return raw; }

@@ -1,9 +1,7 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
-using StudioB2B.Domain.Entities.Common;
-using StudioB2B.Domain.Entities.Master;
-using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Domain.Entities;
 
 namespace StudioB2B.Infrastructure.Persistence.Master;
 
