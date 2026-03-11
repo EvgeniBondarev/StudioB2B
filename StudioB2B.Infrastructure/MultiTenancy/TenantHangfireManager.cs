@@ -107,8 +107,6 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
             $"Hangfire recurring manager for tenant {tenantId} is not registered.");
     }
 
-    // ── Private ──────────────────────────────────────────────────────────────
-
     private void CreateAndRegisterServer(Guid tenantId, string connectionString, string subdomain)
     {
         try
@@ -169,14 +167,13 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
             optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
             await using var db = new TenantDbContext(optionsBuilder.Options);
 
-            // ── 1. Удаляем stale enqueued/scheduled/failed jobs со старой сигнатурой ──
             // Hangfire сериализует тип параметров в InvocationData как JSON-строку.
             // Ищем любые записи где упоминается IJobCancellationToken.
             var deleted = await db.Database.ExecuteSqlRawAsync(
                 """
                 DELETE FROM Hangfire_Job
                 WHERE InvocationData LIKE '%IJobCancellationToken%'
-                   OR Arguments       LIKE '%IJobCancellationToken%'
+                   OR Arguments LIKE '%IJobCancellationToken%'
                 """, ct);
 
             if (deleted > 0)
@@ -184,7 +181,6 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
                     "TenantHangfireManager: deleted {Count} stale job(s) with old signatures for tenant {TenantId}.",
                     deleted, tenantId);
 
-            // ── 2. Удаляем stale recurring jobs ──────────────────────────────────
             var jobIds = await db.SyncJobSchedules
                 .Where(s => s.HangfireRecurringJobId != null)
                 .Select(s => s.HangfireRecurringJobId!)
@@ -194,7 +190,7 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
             {
                 var storageOptions = new MySqlStorageOptions
                 {
-                    TablesPrefix             = "Hangfire_",
+                    TablesPrefix = "Hangfire_",
                     PrepareSchemaIfNecessary = false
                 };
                 using var storage = new MySqlStorage(connectionString, storageOptions);

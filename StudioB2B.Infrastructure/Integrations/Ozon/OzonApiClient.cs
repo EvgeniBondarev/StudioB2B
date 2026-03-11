@@ -183,8 +183,6 @@ public class OzonApiClient : IOzonApiClient
             ct);
     }
 
-    // ── Chat ─────────────────────────────────────────────────────────────────
-
     public Task<OzonApiResult<OzonChatListResponse>> GetChatListAsync(
         string clientId,
         string apiKey,

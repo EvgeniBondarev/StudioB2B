@@ -1,11 +1,7 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Domain.Entities.Marketplace;
-using StudioB2B.Domain.Entities.Orders;
-using StudioB2B.Domain.Entities.Products;
-using StudioB2B.Domain.Entities.References;
-using StudioB2B.Domain.Entities.Warehouses;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.FbsUnfulfilled;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductAttributes;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductPrices;
@@ -489,9 +485,9 @@ public class OzonFbsOrderAdapter : IOrderAdapter
 
     private async Task<OrderStatus> EnsureOrderStatusAsync(string synonym, CancellationToken ct)
     {
-        var normalized = synonym?.Trim() ?? "";
+        var normalized = synonym.Trim();
         var status = await _db.OrderStatuses
-            .FirstOrDefaultAsync(s => s.Synonym != null && s.Synonym.ToLower() == normalized.ToLower(), ct);
+            .FirstOrDefaultAsync(s => s.Synonym != null && s.Synonym.Equals(normalized, StringComparison.OrdinalIgnoreCase), ct);
 
         if (status != null)
             return status;

@@ -1,9 +1,9 @@
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Orders
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
 @using System.Text.RegularExpressions
+@using StudioB2B.Domain.Entities
 
 @inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
@@ -21,7 +21,6 @@ else
     <RadzenTabs Style="height: 630px;">
         <Tabs>
 
-            <!-- ── Товар ──────────────────────────────────────────── -->
             <RadzenTabsItem Text="Товар">
                 @{
                     var product = _order.ProductInfo?.Product;
@@ -48,11 +47,11 @@ else
                                     @product.Name
                                 </RadzenText>
                                 <RadzenStack Gap="0.25rem">
-                                    <DetailRow Label="Артикул" Value="@product.Article" Mono="true" />
-                                    <DetailRow Label="SKU (Ozon)" Value="@product.Sku?.ToString()" Mono="true" />
-                                    <DetailRow Label="Штрихкод" Value="@product.Barcode" Mono="true" />
-                                    <DetailRow Label="Производитель" Value="@product.Manufacturer?.Name" />
-                                    <DetailRow Label="Категория" Value="@product.Category?.Name" />
+                                    @DetailRow("Артикул", product.Article, mono: true)
+                                    @DetailRow("SKU (Ozon)", product.Sku?.ToString(), mono: true)
+                                    @DetailRow("Штрихкод", product.Barcode, mono: true)
+                                    @DetailRow("Производитель", product.Manufacturer?.Name)
+                                    @DetailRow("Категория", product.Category?.Name)
                                 </RadzenStack>
                             </RadzenStack>
                         </RadzenStack>
@@ -63,7 +62,7 @@ else
                                 <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-bottom: 0.5rem;">
                                     Характеристики
                                 </RadzenText>
-                                <RadzenDataGrid TItem="StudioB2B.Domain.Entities.Products.ProductAttributeValue"
+                                <RadzenDataGrid TItem="ProductAttributeValue"
                                                 Data="@product.Attributes"
                                                 Density="Density.Compact"
                                                 AllowSorting="true"
@@ -75,7 +74,7 @@ else
                                                 PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
                                                 EmptyText="@RadzenRuStrings.EmptyText">
                                     <Columns>
-                                        <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Products.ProductAttributeValue"
+                                        <RadzenDataGridColumn TItem="ProductAttributeValue"
                                                               Title="Характеристика"
                                                               Width="220px"
                                                               Filterable="false" Sortable="false">
@@ -83,7 +82,7 @@ else
                                                 @(attr.Attribute?.Name ?? attr.Attribute?.Code ?? "—")
                                             </Template>
                                         </RadzenDataGridColumn>
-                                        <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Products.ProductAttributeValue"
+                                        <RadzenDataGridColumn TItem="ProductAttributeValue"
                                                               Property="Value"
                                                               Title="Значение" />
                                     </Columns>
@@ -106,12 +105,11 @@ else
                 </RadzenStack>
             </RadzenTabsItem>
 
-            <!-- ── Цены ───────────────────────────────────────────── -->
             <RadzenTabsItem Text="Цены">
                 <RadzenStack Gap="1rem" Style="padding: 1rem 0;">
                     @if (_order.Prices.Count > 0)
                     {
-                        <RadzenDataGrid TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
+                        <RadzenDataGrid TItem="OrderPrice"
                                         Data="@_order.Prices.OrderBy(p => p.PriceType?.Name).ToList()"
                                         Density="Density.Compact"
                                         AllowSorting="true"
@@ -119,11 +117,11 @@ else
                                         AllowPaging="false"
                                         EmptyText="@RadzenRuStrings.EmptyText">
                             <Columns>
-                                <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
+                                <RadzenDataGridColumn TItem="OrderPrice"
                                                       Property="PriceType.Name"
                                                       Title="Тип цены"
                                                       Width="280px" />
-                                <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
+                                <RadzenDataGridColumn TItem="OrderPrice"
                                                       Title="Значение"
                                                       Width="140px"
                                                       TextAlign="TextAlign.Right">
@@ -131,7 +129,7 @@ else
                                         <span style="@GetPriceColor(p.Value)">@p.Value.ToString("N2")</span>
                                     </Template>
                                 </RadzenDataGridColumn>
-                                <RadzenDataGridColumn TItem="StudioB2B.Domain.Entities.Orders.OrderPrice"
+                                <RadzenDataGridColumn TItem="OrderPrice"
                                                       Property="Currency.Code"
                                                       Title="Валюта"
                                                       Width="80px" />
@@ -147,7 +145,6 @@ else
                 </RadzenStack>
             </RadzenTabsItem>
 
-            <!-- ── Расчёты ────────────────────────────────────────── -->
             @if (_calcRules.Count > 0)
             {
                 <RadzenTabsItem Text="Расчёты">
@@ -208,27 +205,26 @@ else
                 </RadzenTabsItem>
             }
 
-            <!-- ── Получатель ─────────────────────────────────────── -->
             <RadzenTabsItem Text="Получатель">
                 <RadzenStack Gap="0.75rem" Style="padding: 1rem 0;">
                     @if (_order.Recipient != null)
                     {
-                        <DetailRow Label="Имя" Value="@_order.Recipient.Name" />
-                        <DetailRow Label="Телефон" Value="@_order.Recipient.Phone" Mono="true" />
-                        <DetailRow Label="Email" Value="@_order.Recipient.Email" Mono="true" />
+                        @DetailRow("Имя", _order.Recipient.Name)
+                        @DetailRow("Телефон", _order.Recipient.Phone, mono: true)
+                        @DetailRow("Email", _order.Recipient.Email, mono: true)
                         @if (_order.Recipient.Address != null)
                         {
                             var a = _order.Recipient.Address;
                             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-top: 0.5rem;">
                                 Адрес доставки
                             </RadzenText>
-                            <DetailRow Label="Индекс" Value="@a.PostalCode" />
-                            <DetailRow Label="Регион" Value="@a.Region" />
-                            <DetailRow Label="Город" Value="@a.City" />
-                            <DetailRow Label="Улица" Value="@a.Street" />
+                            @DetailRow("Индекс", a.PostalCode)
+                            @DetailRow("Регион", a.Region)
+                            @DetailRow("Город", a.City)
+                            @DetailRow("Улица", a.Street)
                             @if (!string.IsNullOrEmpty(a.Comment))
                             {
-                                <DetailRow Label="Комментарий" Value="@a.Comment" />
+                                @DetailRow("Комментарий", a.Comment)
                             }
                         }
                     }
@@ -241,7 +237,6 @@ else
                 </RadzenStack>
             </RadzenTabsItem>
 
-            <!-- ── Отправление ────────────────────────────────────── -->
             <RadzenTabsItem Text="Отправление">
                 <RadzenStack Gap="1rem" Style="padding: 1rem 0;">
                     @{
@@ -252,11 +247,11 @@ else
                         <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-bottom: 0.25rem;">
                             Номер отправления и доставка
                         </RadzenText>
-                        <DetailRow Label="Номер отправления" Value="@s.PostingNumber" Mono="true" />
-                        <DetailRow Label="Номер заказа" Value="@s.OrderNumber" Mono="true" />
-                        <DetailRow Label="Трек-номер" Value="@s.TrackingNumber" Mono="true" />
-                        <DetailRow Label="Статус отправления" Value="@s.Status?.Name" />
-                        <DetailRow Label="Способ доставки" Value="@s.DeliveryMethod?.Name" />
+                        @DetailRow("Номер отправления", s.PostingNumber, mono: true)
+                        @DetailRow("Номер заказа", s.OrderNumber, mono: true)
+                        @DetailRow("Трек-номер", s.TrackingNumber, mono: true)
+                        @DetailRow("Статус отправления", s.Status?.Name)
+                        @DetailRow("Способ доставки", s.DeliveryMethod?.Name)
                         @if (s.InProcessAt.HasValue)
                         {
                             <div style="display: flex; gap: 0.75rem; align-items: baseline;">
@@ -275,11 +270,11 @@ else
                         <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.25rem;">
                             Клиент маркетплейса
                         </RadzenText>
-                        <DetailRow Label="Клиент" Value="@s.MarketplaceClient?.Name" />
-                        <DetailRow Label="Компания" Value="@s.MarketplaceClient?.Company" />
-                        <DetailRow Label="Склад отправки" Value="@_order.WarehouseInfo?.SenderWarehouse?.Name" />
+                        @DetailRow("Клиент", s.MarketplaceClient?.Name)
+                        @DetailRow("Компания", s.MarketplaceClient?.Company)
+                        @DetailRow("Склад отправки", _order.WarehouseInfo?.SenderWarehouse?.Name)
 
-                        @if (_shipmentOrders != null && _shipmentOrders.Count > 0)
+                        @if (_shipmentOrders.Count > 0)
                         {
                             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.5rem;">
                                 Позиции в отправлении (@_shipmentOrders.Count)
@@ -391,8 +386,8 @@ else
     {
         var subjects = new List<AuditSubject>
         {
-            new("Order",    OrderId.ToString(),                  "Заказ"),
-            new("Shipment", _order!.ShipmentId.ToString(),       "Отправление"),
+            new("Order", OrderId.ToString(), "Заказ"),
+            new("Shipment", _order!.ShipmentId.ToString(), "Отправление"),
         };
         if (_order.ProductInfo?.ProductId is { } pid)
             subjects.Add(new("Product", pid.ToString(), "Товар"));

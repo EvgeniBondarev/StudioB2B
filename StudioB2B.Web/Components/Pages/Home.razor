@@ -277,7 +277,7 @@
 </div>
 
 @code {
-    private Domain.Entities.Tenants.TenantEntity? _tenant;
+    private Domain.Entities.TenantEntity? _tenant;
     private bool _initializing = true;
     private bool _hasMarketplaceClients;
 
@@ -446,9 +446,9 @@
 
     private PointStyle RegStepStyle(int step) => step switch
     {
-        _ when step < _regStep  => PointStyle.Success,
+        _ when step < _regStep => PointStyle.Success,
         _ when step == _regStep => PointStyle.Primary,
-        _                       => PointStyle.Secondary
+        _ => PointStyle.Secondary
     };
 
     private string RegStepLabelStyle(int step) => step == _regStep

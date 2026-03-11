@@ -1,7 +1,6 @@
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Orders
-@using StudioB2B.Domain.Entities.Products
-@using StudioB2B.Domain.Entities.References
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 
@@ -100,7 +99,7 @@ else
                         </RadzenDataGridColumn>
                         <RadzenDataGridColumn TItem="RuleRow" Title="Формула" Width="220px">
                             <Template Context="r">
-                                @if (r.ValueSource == TransactionValueSource.Formula)
+                                @if (r.ValueSource == TransactionValueSourceEnum.Formula)
                                 {
                                     <RadzenTextBox @bind-Value="r.Formula" Style="width: 100%; font-family: monospace;"
                                                    Placeholder="Цена * 0.85 (переменные — типы цен)" />
@@ -124,7 +123,7 @@ else
                         </RadzenDataGridColumn>
                         <RadzenDataGridColumn TItem="RuleRow" Title="Обязательное" Width="120px">
                             <Template Context="r">
-                                @if (r.ValueSource == TransactionValueSource.UserInput)
+                                @if (r.ValueSource == TransactionValueSourceEnum.UserInput)
                                 {
                                     <RadzenCheckBox @bind-Value="r.IsRequired" />
                                 }
@@ -179,7 +178,7 @@ else
                         </RadzenDataGridColumn>
                         <RadzenDataGridColumn TItem="FieldRuleRow" Title="Фиксированное значение" Width="200px">
                             <Template Context="r">
-                                @if (r.ValueSource == TransactionFieldValueSource.Fixed)
+                                @if (r.ValueSource == TransactionFieldValueSourceEnum.Fixed)
                                 {
                                     <RadzenTextBox @bind-Value="r.FixedValue" Style="width: 100%;"
                                                    Placeholder="Значение" />
@@ -192,7 +191,7 @@ else
                         </RadzenDataGridColumn>
                         <RadzenDataGridColumn TItem="FieldRuleRow" Title="Обязательное" Width="120px">
                             <Template Context="r">
-                                @if (r.ValueSource == TransactionFieldValueSource.UserInput)
+                                @if (r.ValueSource == TransactionFieldValueSourceEnum.UserInput)
                                 {
                                     <RadzenCheckBox @bind-Value="r.IsRequired" />
                                 }
@@ -239,23 +238,23 @@ else
     private List<OrderTransactionFieldDescriptor> _fieldDescriptors = [];
     private static readonly List<ValueSourceOption> _valueSourceOptions =
     [
-        new ValueSourceOption(TransactionValueSource.Formula, "Формула"),
-        new ValueSourceOption(TransactionValueSource.UserInput, "Ввод при проведении")
+        new ValueSourceOption(TransactionValueSourceEnum.Formula, "Формула"),
+        new ValueSourceOption(TransactionValueSourceEnum.UserInput, "Ввод при проведении")
     ];
     private static readonly List<FieldValueSourceOption> _fieldValueSourceOptions =
     [
-        new FieldValueSourceOption(TransactionFieldValueSource.Fixed, "Фиксированное"),
-        new FieldValueSourceOption(TransactionFieldValueSource.UserInput, "Ввод при проведении")
+        new FieldValueSourceOption(TransactionFieldValueSourceEnum.Fixed, "Фиксированное"),
+        new FieldValueSourceOption(TransactionFieldValueSourceEnum.UserInput, "Ввод при проведении")
     ];
 
-    private record ValueSourceOption(TransactionValueSource Value, string Text);
-    private record FieldValueSourceOption(TransactionFieldValueSource Value, string Text);
+    private record ValueSourceOption(TransactionValueSourceEnum Value, string Text);
+    private record FieldValueSourceOption(TransactionFieldValueSourceEnum Value, string Text);
 
     private class RuleRow
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public Guid PriceTypeId { get; set; }
-        public TransactionValueSource ValueSource { get; set; }
+        public TransactionValueSourceEnum ValueSource { get; set; }
         public string? Formula { get; set; }
         public Guid? ProductId { get; set; }
         public bool IsRequired { get; set; }
@@ -265,7 +264,7 @@ else
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public string EntityPath { get; set; } = string.Empty;
-        public TransactionFieldValueSource ValueSource { get; set; }
+        public TransactionFieldValueSourceEnum ValueSource { get; set; }
         public string? FixedValue { get; set; }
         public bool IsRequired { get; set; }
     }
@@ -350,7 +349,7 @@ else
         _rules = [.._rules, new RuleRow
         {
             PriceTypeId = _priceTypes[0].Id,
-            ValueSource = TransactionValueSource.UserInput,
+            ValueSource = TransactionValueSourceEnum.UserInput,
             IsRequired = false
         }];
         StateHasChanged();
@@ -368,7 +367,7 @@ else
         _fieldRules = [.._fieldRules, new FieldRuleRow
         {
             EntityPath = _fieldDescriptors[0].EntityPath,
-            ValueSource = TransactionFieldValueSource.UserInput,
+            ValueSource = TransactionFieldValueSourceEnum.UserInput,
             IsRequired = false
         }];
         StateHasChanged();
@@ -449,7 +448,7 @@ else
                             OrderTransactionId = t.Id,
                             PriceTypeId = r.PriceTypeId,
                             ValueSource = r.ValueSource,
-                            Formula = r.ValueSource == TransactionValueSource.Formula ? r.Formula : null,
+                            Formula = r.ValueSource == TransactionValueSourceEnum.Formula ? r.Formula : null,
                             ProductId = r.ProductId,
                             SortOrder = sortOrder++,
                             IsRequired = r.IsRequired
@@ -465,7 +464,7 @@ else
                             OrderTransactionId = t.Id,
                             EntityPath = fr.EntityPath,
                             ValueSource = fr.ValueSource,
-                            FixedValue = fr.ValueSource == TransactionFieldValueSource.Fixed ? fr.FixedValue : null,
+                            FixedValue = fr.ValueSource == TransactionFieldValueSourceEnum.Fixed ? fr.FixedValue : null,
                             SortOrder = sortOrder++,
                             IsRequired = fr.IsRequired
                         });
@@ -497,7 +496,7 @@ else
                         OrderTransactionId = t.Id,
                         PriceTypeId = r.PriceTypeId,
                         ValueSource = r.ValueSource,
-                        Formula = r.ValueSource == TransactionValueSource.Formula ? r.Formula : null,
+                        Formula = r.ValueSource == TransactionValueSourceEnum.Formula ? r.Formula : null,
                         ProductId = r.ProductId,
                         SortOrder = sortOrder++,
                         IsRequired = r.IsRequired
@@ -514,7 +513,7 @@ else
                         OrderTransactionId = t.Id,
                         EntityPath = fr.EntityPath,
                         ValueSource = fr.ValueSource,
-                        FixedValue = fr.ValueSource == TransactionFieldValueSource.Fixed ? fr.FixedValue : null,
+                        FixedValue = fr.ValueSource == TransactionFieldValueSourceEnum.Fixed ? fr.FixedValue : null,
                         SortOrder = sortOrder++,
                         IsRequired = fr.IsRequired
                     });

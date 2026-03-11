@@ -1,7 +1,7 @@
 @page "/price-types"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.References
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
@@ -269,6 +269,7 @@ else
 
     private void ShowContextMenu(DataGridCellMouseEventArgs<PriceType> args)
     {
+        if (args.Data == null) return;
         var canEdit = args.Data.IsUserDefined;
         var items = new List<ContextMenuItem>();
         if (canEdit)
