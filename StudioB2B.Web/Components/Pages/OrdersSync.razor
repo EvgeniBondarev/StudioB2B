@@ -76,7 +76,6 @@ else
                                 @ScheduleCronBuilder.Describe(s)
                             </RadzenText>
                             @if (s.JobType == SyncJobType.Sync && !string.IsNullOrEmpty(s.SyncParams))
-
                             {
                                 var daysBack = ParseDaysBack(s.SyncParams);
                                 <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);">

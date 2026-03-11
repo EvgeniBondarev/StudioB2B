@@ -1,0 +1,610 @@
+@page "/orders/apply-transaction"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.EntityFrameworkCore
+@using Radzen
+@using StudioB2B.Application.Common
+@using StudioB2B.Application.Common.Interfaces
+@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Domain.Entities.Marketplace
+@using StudioB2B.Domain.Entities.Warehouses
+@using StudioB2B.Infrastructure.Features.Orders
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Services
+@using StudioB2B.Web.Components.Common
+
+@inject ITenantProvider TenantProvider
+@inject ITenantDbContextFactory Factory
+@inject IOrderTransactionService TransactionService
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
+@inject StudioB2B.Web.Services.TabService TabService
+
+@implements IDisposable
+
+<PageTitle>Транзакция заказов</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else if (_loading)
+{
+    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 200px;">
+        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
+    </RadzenStack>
+}
+else if (_orderIds.Count == 0)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
+        Не указаны заказы. Выберите заказы на странице <a href="/orders">Заказы</a> и нажмите «Применить транзакцию».
+    </RadzenAlert>
+}
+else if (_orders.Count == 0)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
+        Заказы не найдены.
+    </RadzenAlert>
+}
+else if (_statusGroups > 1)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
+        Выбранные заказы имеют разные системные статусы. Выберите заказы с одинаковым статусом.
+    </RadzenAlert>
+}
+else if (_preview == null)
+{
+    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+            Выберите транзакцию для @_orders.Count заказов (статус: @_currentStatusName)
+        </RadzenText>
+        <RadzenDataGrid TItem="OrderTransaction"
+                        Data="@_transactions"
+                        Density="Density.Compact"
+                        AllowSorting="false"
+                        AllowFiltering="false"
+                        AllowPaging="false"
+                        RowClick="@OnTransactionSelect"
+                        Style="cursor: pointer;"
+                        EmptyText="Нет доступных транзакций">
+            <Columns>
+                <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Транзакция" Width="220px" />
+                <RadzenDataGridColumn TItem="OrderTransaction" Title="Целевой статус" Width="180px">
+                    <Template Context="t">
+                        @t.ToSystemStatus?.Name
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="OrderTransaction" Title="Правил" Width="80px" TextAlign="TextAlign.Center">
+                    <Template Context="t">
+                        @(t.Rules?.Count ?? 0)
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenStack>
+}
+else
+{
+    <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+                @_preview.TransactionName → @_preview.ToStatusName
+            </RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                <RadzenButton Text="Назад" ButtonStyle="ButtonStyle.Light" Click="@BackToSelect" />
+                <RadzenButton Text="Применить ко всем" ButtonStyle="ButtonStyle.Primary" Click="@ApplyAllAsync" />
+            </RadzenStack>
+        </RadzenStack>
+
+        <RadzenDataGrid TItem="Order" Data="@_orders" Density="Density.Compact"
+                        AllowSorting="false" AllowFiltering="false" AllowPaging="false"
+                        EmptyText="@RadzenRuStrings.EmptyText">
+            <Columns>
+                <RadzenDataGridColumn TItem="Order" Title="Номер отправления" Width="200px">
+                    <Template Context="o">
+                        <CopyableText Text="@(o.Shipment?.PostingNumber ?? string.Empty)"
+                                      Class="rz-monospace rz-text-sm"
+                                      Tooltip="Нажмите, чтобы скопировать номер отправления">
+                            <RadzenText TextStyle="TextStyle.Body2"
+                                          Class="rz-text-truncate rz-monospace"
+                                          title="@o.Shipment?.PostingNumber">
+                                @o.Shipment?.PostingNumber
+                            </RadzenText>
+                        </CopyableText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Клиент" Width="160px">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2"
+                                    Class="rz-text-truncate"
+                                    title="@o.Shipment?.MarketplaceClient?.Name">@o.Shipment?.MarketplaceClient?.Name
+                        </RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Принят" Width="130px">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2"
+                                    Class="rz-text-truncate"
+                                    title="@FormatDateTooltip(o.Shipment?.InProcessAt)">@FormatDateDisplay(o.Shipment?.InProcessAt)
+                        </RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Срок отгрузки" Width="130px">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2"
+                                    Class="rz-text-truncate"
+                                    title="@FormatDateTooltip(o.Shipment?.ShipmentDate)">@FormatDateDisplay(o.Shipment?.ShipmentDate)
+                        </RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Артикул" Width="160px">
+                    <Template Context="o">
+                        <CopyableText Text="@(o.ProductInfo?.Product?.Article ?? string.Empty)"
+                                      Class="rz-monospace rz-text-sm"
+                                      Tooltip="Нажмите, чтобы скопировать артикул">
+                            <RadzenText TextStyle="TextStyle.Body2"
+                                          Class="rz-text-truncate rz-monospace"
+                                          title="@o.ProductInfo?.Product?.Article">
+                                @o.ProductInfo?.Product?.Article
+                            </RadzenText>
+                        </CopyableText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Товар" Width="280px">
+                    <Template Context="o">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem"
+                                     Class="rz-w-100">
+                            @if (!string.IsNullOrEmpty(o.ProductInfo?.Product?.ImageUrl))
+                            {
+                                <img src="@o.ProductInfo?.Product?.ImageUrl"
+                                     class="rz-border-radius rz-flex-shrink-0"
+                                     style="width:36px; height:36px; object-fit:contain;"
+                                     alt=""/>
+                            }
+                            <span
+                                class="rz-text-sm  rz-flex-shrink-1 rz-text-truncate rz-ms-1"
+                                title="@o.ProductInfo?.Product?.Name">
+                                @o.ProductInfo?.Product?.Name
+                            </span>
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Кол-во" Width="120px" TextAlign="TextAlign.Center">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600">
+                            @o.Quantity
+                        </RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Статус маркетплейса" Width="190px">
+                    <Template Context="o">
+                        <RadzenStack JustifyContent="JustifyContent.Center" AlignItems="AlignItems.Center">
+                            @if (o.Status != null)
+                            {
+                                var bg = string.IsNullOrEmpty(o.Status.Color) ? "#ececff" : o.Status.Color + "20";
+                                var fg = IsLightColor(bg) ? "#1f2937" : "#ffffff";
+                                <RadzenBadge Text="@o.Status.Name"
+                                             Style="@($"background:{bg}; color:{fg};")"
+                                             Class="status-badge"/>
+                            }
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Статус приложения" Width="190px">
+                    <Template Context="o">
+                        <RadzenStack JustifyContent="JustifyContent.Center" AlignItems="AlignItems.Center">
+                            @if (o.SystemStatus != null)
+                            {
+                                var bg = GetSoftBackground(o.SystemStatus.Color);
+                                var fg = GetTextColor(bg);
+                                <RadzenBadge Text="@o.SystemStatus.Name"
+                                             Style="@($"background:{bg}; color:{fg};")"
+                                             Class="status-badge"/>
+                            }
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Способ доставки" Width="180px">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2"
+                                    Class="rz-text-truncate"
+                                    title="@o.Shipment?.DeliveryMethod?.Name">
+                            @o.Shipment?.DeliveryMethod?.Name
+                        </RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Склад" Width="160px">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2"
+                                    Class="rz-text-truncate"
+                                    title="@o.WarehouseInfo?.SenderWarehouse?.Name">
+                            @o.WarehouseInfo?.SenderWarehouse?.Name
+                        </RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Order" Title="Цена" Width="120px">
+                    <Template Context="o">
+                        @{
+                            var price = o.Prices.FirstOrDefault(p => p.PriceType?.Name == "Цена");
+                        }
+                        @if (price != null)
+                        {
+                            var priceText = $"{price.Value:N2} {price.Currency?.Code}";
+                            <RadzenText TextStyle="TextStyle.Body2"
+                                        Class="rz-text-truncate"
+                                        Style="@($"font-weight:600; letter-spacing:0.2px; {GetPriceColor(price.Value)}")"
+                                        title="@priceText">
+                                @priceText
+                            </RadzenText>
+                        }
+                        else
+                        {
+                            <span style="color: var(--rz-danger);">—</span>
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+                @if (_calcRules.Count > 0)
+                {
+                    @if (!_computedSplitByColumns)
+                    {
+                        <RadzenDataGridColumn TItem="Order" Title="Расчёты" Width="200px">
+                            <HeaderTemplate>
+                                <span style="cursor: pointer; text-decoration: underline; font-size: 0.85rem;"
+                                      title="Щёлкните, чтобы переключить режим отображения расчётов"
+                                      @onclick="ToggleComputedLayout">
+                                    Расчёты
+                                    (@(_computedSplitByColumns ? "по столбцам" : "в одном столбце"))
+                                </span>
+                            </HeaderTemplate>
+                            <Template Context="o">
+                                @if (_computed.TryGetValue(o.Id, out var fields) && fields.Count > 0)
+                                {
+                                    <RadzenStack Gap="0.15rem">
+                                        @foreach (var rule in _calcRules)
+                                        {
+                                            @if (fields.TryGetValue(rule.ResultKey, out var val) && val != decimal.MinValue)
+                                            {
+                                                var bd = _computedBreakdown.TryGetValue(o.Id, out var bdDict) && bdDict.TryGetValue(rule.ResultKey, out var bdText) ? bdText : rule.Formula;
+                                                <span
+                                                    style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help;"
+                                                    title="@bd">
+                                                    <span style="color: var(--rz-text-secondary-color);">@rule.Name:</span>
+                                                    <strong style="@GetPriceColor(val)">@val.ToString("N2")</strong>
+                                                </span>
+                                            }
+                                        }
+                                    </RadzenStack>
+                                }
+                            </Template>
+                        </RadzenDataGridColumn>
+                    }
+                    else
+                    {
+                        @foreach (var rule in _calcRules)
+                        {
+                            <RadzenDataGridColumn TItem="Order"
+                                                  Title="@rule.Name"
+                                                  Width="120px"
+                                                  Filterable="false"
+                                                  Sortable="false"
+                                                  TextAlign="TextAlign.Right">
+                                <Template Context="o">
+                                    @if (_computed.TryGetValue(o.Id, out var fields) &&
+                                         fields.TryGetValue(rule.ResultKey, out var val) &&
+                                         val != decimal.MinValue)
+                                    {
+                                        var bd = _computedBreakdown.TryGetValue(o.Id, out var bdDict) && bdDict.TryGetValue(rule.ResultKey, out var bdText) ? bdText : rule.Formula;
+                                        <span title="@bd" style="cursor: help; @GetPriceColor(val)">@val.ToString("N2")</span>
+                                    }
+                                </Template>
+                            </RadzenDataGridColumn>
+                        }
+                    }
+                }
+                @foreach (var rule in _preview.Rules)
+                {
+                    <RadzenDataGridColumn TItem="Order" Title="@rule.PriceTypeName" Width="140px" @key="rule.RuleId">
+                        <Template Context="o">
+                            @{
+                                var orderPreview = _orderPreviews.GetValueOrDefault(o.Id);
+                                var rulePreview = orderPreview?.Rules.FirstOrDefault(r => r.RuleId == rule.RuleId);
+                            }
+                            @if (rulePreview != null)
+                            {
+                                @if (rulePreview.RequiresUserInput)
+                                {
+                                    var uv = GetUserValue(o.Id, rule.RuleId);
+                                    <RadzenNumeric TValue="decimal" Value="@uv"
+                                                  ValueChanged="@(v => OnUserValueChanged(o.Id, rule.RuleId, v))"
+                                                  Style="@($"width: 100%; {GetPriceColor(uv)}")" Min="0" Format="N2"
+                                                  Placeholder="Введите" />
+                                }
+                                else
+                                {
+                                    var cv = rulePreview.ComputedValue;
+                                    var breakdown = rulePreview.FormulaBreakdown ?? rulePreview.Formula ?? "";
+                                    <RadzenText TextStyle="TextStyle.Body2" Style="@($"cursor: help; font-family: monospace; {GetPriceColor(cv)}")" title="@breakdown">
+                                        @(cv?.ToString("N2") ?? "—")
+                                    </RadzenText>
+                                }
+                            }
+                        </Template>
+                    </RadzenDataGridColumn>
+                }
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenStack>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "ids")]
+    public string? IdsQuery { get; set; }
+
+    private TenantDbContext? _db;
+    private bool _loading = true;
+    private List<Guid> _orderIds = [];
+    private List<Order> _orders = [];
+    private List<OrderTransaction> _transactions = [];
+    private string? _currentStatusName;
+    private Guid? _selectedTransactionId;
+    private TransactionApplyPreview? _preview;
+    private Dictionary<Guid, TransactionApplyPreview> _orderPreviews = [];
+    private Dictionary<Guid, Dictionary<Guid, decimal>> _userValues = [];
+    private int _statusGroups;
+    private List<CalculationRule> _calcRules = [];
+    private Dictionary<Guid, Dictionary<string, decimal>> _computed = [];
+    private Dictionary<Guid, Dictionary<string, string>> _computedBreakdown = [];
+    private bool _computedSplitByColumns;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(IdsQuery))
+        {
+            _orderIds = [];
+        }
+        else
+        {
+            _orderIds = IdsQuery.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => Guid.TryParse(s, out var g) ? g : (Guid?)null)
+                .Where(g => g.HasValue)
+                .Select(g => g!.Value)
+                .Distinct()
+                .ToList();
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _db = Factory.CreateDbContext();
+
+        if (_orderIds.Count > 0)
+        {
+            _orders = await _db.Orders
+                .IncludeForGrid()
+                .Include(o => o.Prices).ThenInclude(p => p.PriceType)
+                .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
+                .Include(o => o.SystemStatus)
+                .Where(o => _orderIds.Contains(o.Id))
+                .AsNoTracking()
+                .ToListAsync();
+
+            var statusIds = _orders.Select(o => o.SystemStatusId).Where(s => s.HasValue).Distinct().ToList();
+            _statusGroups = statusIds.Count + (_orders.Any(o => !o.SystemStatusId.HasValue) ? 1 : 0);
+            _currentStatusName = _orders.FirstOrDefault()?.SystemStatus?.Name;
+
+            if (_statusGroups == 1 && statusIds.Count == 1)
+            {
+                var statusId = statusIds[0];
+                _transactions = await _db.OrderTransactions
+                    .Include(t => t.ToSystemStatus)
+                    .Include(t => t.Rules)
+                    .Where(t => !t.IsDeleted && t.IsEnabled && t.FromSystemStatusId == statusId)
+                    .OrderBy(t => t.Name)
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
+
+            _calcRules = await _db.GetActiveRulesAsync();
+        }
+
+        _loading = false;
+    }
+
+    private async Task RecomputeAllAsync()
+    {
+        if (!_selectedTransactionId.HasValue || _calcRules.Count == 0)
+        {
+            _computed = [];
+            _computedBreakdown = [];
+            return;
+        }
+
+        _computed = [];
+        _computedBreakdown = [];
+        foreach (var order in _orders)
+        {
+            var ctx = await TransactionService.GetMergedContextAsync(order.Id, _selectedTransactionId.Value, _userValues.GetValueOrDefault(order.Id));
+            if (ctx == null) continue;
+
+            var dict = new Dictionary<string, decimal>();
+            var breakdownDict = new Dictionary<string, string>();
+            foreach (var rule in _calcRules)
+            {
+                var key = CalculationEngine.SanitizeKey(rule.ResultKey);
+                if (!string.IsNullOrEmpty(key) && ctx.TryGetValue(key, out var val))
+                {
+                    dict[rule.ResultKey] = val;
+                    var ctxForRule = new Dictionary<string, decimal>(ctx, StringComparer.OrdinalIgnoreCase);
+                    ctxForRule.Remove(key);
+                    breakdownDict[rule.ResultKey] = CalculationEngine.BuildFormulaBreakdown(rule.Formula ?? "", ctxForRule, val);
+                }
+            }
+            _computed[order.Id] = dict;
+            _computedBreakdown[order.Id] = breakdownDict;
+        }
+    }
+
+    private async Task OnTransactionSelect(DataGridRowMouseEventArgs<OrderTransaction> args)
+    {
+        var t = args.Data;
+        if (t == null) return;
+
+        _loading = true;
+        StateHasChanged();
+
+        _selectedTransactionId = t.Id;
+        _orderPreviews = [];
+        _userValues = [];
+
+        foreach (var order in _orders)
+        {
+            var preview = await TransactionService.GetApplyPreviewAsync(order.Id, t.Id);
+            if (preview != null)
+            {
+                _orderPreviews[order.Id] = preview;
+                _preview = preview;
+                foreach (var rule in preview.Rules.Where(r => r.RequiresUserInput))
+                {
+                    if (!_userValues.ContainsKey(order.Id))
+                        _userValues[order.Id] = [];
+                    var existingPrice = order.Prices?.FirstOrDefault(p => p.PriceTypeId == rule.PriceTypeId)?.Value ?? 0m;
+                    _userValues[order.Id][rule.RuleId] = existingPrice;
+                }
+            }
+        }
+
+        foreach (var order in _orders)
+        {
+            if (_orderPreviews.ContainsKey(order.Id) && _selectedTransactionId.HasValue)
+            {
+                var preview = await TransactionService.GetApplyPreviewWithUserValuesAsync(order.Id, _selectedTransactionId.Value, _userValues.GetValueOrDefault(order.Id));
+                if (preview != null)
+                    _orderPreviews[order.Id] = preview;
+            }
+        }
+
+        await RecomputeAllAsync();
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private decimal GetUserValue(Guid orderId, Guid ruleId)
+    {
+        return _userValues.TryGetValue(orderId, out var dict) && dict.TryGetValue(ruleId, out var v) ? v : 0m;
+    }
+
+    private async Task OnUserValueChanged(Guid orderId, Guid ruleId, decimal value)
+    {
+        if (!_userValues.ContainsKey(orderId))
+            _userValues[orderId] = [];
+        _userValues[orderId][ruleId] = value;
+
+        if (_selectedTransactionId.HasValue)
+        {
+            var preview = await TransactionService.GetApplyPreviewWithUserValuesAsync(orderId, _selectedTransactionId.Value, _userValues[orderId]);
+            if (preview != null)
+                _orderPreviews[orderId] = preview;
+            await RecomputeAllAsync();
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void BackToSelect()
+    {
+        _preview = null;
+        _selectedTransactionId = null;
+        _orderPreviews = [];
+        _userValues = [];
+    }
+
+    private async Task ApplyAllAsync()
+    {
+        if (!_selectedTransactionId.HasValue) return;
+
+        var successCount = 0;
+        var errorCount = 0;
+
+        foreach (var order in _orders)
+        {
+            var ruleValues = _userValues.GetValueOrDefault(order.Id);
+            var result = await TransactionService.ApplyAsync(order.Id, _selectedTransactionId.Value, ruleValues);
+            if (result.Success)
+                successCount++;
+            else
+                errorCount++;
+        }
+
+        if (errorCount > 0)
+            NotificationService.Notify(NotificationSeverity.Warning, "Результат",
+                $"Применено: {successCount}, ошибок: {errorCount}");
+        else
+            NotificationService.Notify(NotificationSeverity.Success, "Транзакция применена",
+                $"Обновлено заказов: {successCount}");
+
+        var path = new Uri(Navigation.Uri).PathAndQuery;
+        var navigateTo = TabService.Close(path);
+        Navigation.NavigateTo(navigateTo ?? "/orders", forceLoad: true);
+    }
+
+    private void ToggleComputedLayout() =>
+        _computedSplitByColumns = !_computedSplitByColumns;
+
+    private static bool IsLightColor(string hex)
+    {
+        try
+        {
+            hex = hex.TrimStart('#');
+            if (hex.Length < 6) return true;
+            var r = Convert.ToInt32(hex[..2], 16);
+            var g = Convert.ToInt32(hex[2..4], 16);
+            var b = Convert.ToInt32(hex[4..6], 16);
+            return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    private static string GetSoftBackground(string color)
+    {
+        if (string.IsNullOrEmpty(color))
+            return "#ececff";
+        color = color.TrimStart('#');
+        var r = Convert.ToInt32(color[..2], 16);
+        var g = Convert.ToInt32(color[2..4], 16);
+        var b = Convert.ToInt32(color[4..6], 16);
+        r = (int)(r + (255 - r) * 0.7);
+        g = (int)(g + (255 - g) * 0.7);
+        b = (int)(b + (255 - b) * 0.7);
+        return $"#{r:X2}{g:X2}{b:X2}";
+    }
+
+    private static string GetTextColor(string bg) =>
+        IsLightColor(bg) ? "#1f2937" : "#ffffff";
+
+    private static string FormatDateDisplay(DateTime? d)
+    {
+        if (!d.HasValue) return "";
+        return d.Value.Date == DateTime.Today ? d.Value.ToString("HH:mm") : d.Value.ToString("dd.MM.yyyy");
+    }
+
+    private static string GetPriceColor(decimal? value) =>
+        value is null || value < 0 ? "color: var(--rz-danger);" : "";
+
+    private static string GetPriceColor(decimal value) =>
+        value < 0 ? "color: var(--rz-danger);" : "";
+
+    private static string FormatDateTooltip(DateTime? d)
+    {
+        if (!d.HasValue) return "";
+        return d.Value.Date == DateTime.Today ? d.Value.ToString("HH:mm") : d.Value.ToString("dd.MM.yyyy HH:mm");
+    }
+
+    public void Dispose() => _db?.Dispose();
+}
