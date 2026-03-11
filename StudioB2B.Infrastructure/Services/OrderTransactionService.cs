@@ -317,18 +317,18 @@ public class OrderTransactionService : IOrderTransactionService
             .FirstOrDefaultAsync(t => t.Id == transactionId && !t.IsDeleted, ct);
 
         if (transaction == null)
-            return new TransactionApplyResult { Success = false, ErrorMessage = "Транзакция не найдена" };
+            return new TransactionApplyResult { Success = false, ErrorMessage = "Документ не найден" };
 
         if (!transaction.IsEnabled)
         {
-            await AddHistoryAsync(orderId, transactionId, false, "Транзакция отключена", 0, 0, ct);
+            await AddHistoryAsync(orderId, transactionId, false, "Документ отключён", 0, 0, ct);
             await _db.SaveChangesAsync(ct);
-            return new TransactionApplyResult { Success = false, ErrorMessage = "Транзакция отключена" };
+            return new TransactionApplyResult { Success = false, ErrorMessage = "Документ отключён" };
         }
 
         if (order.SystemStatusId != transaction.FromSystemStatusId)
         {
-            var msg = $"Текущий статус заказа ({order.SystemStatus?.Name ?? "—"}) не совпадает с исходным статусом транзакции ({transaction.FromSystemStatus?.Name ?? "—"})";
+            var msg = $"Текущий статус заказа ({order.SystemStatus?.Name ?? "—"}) не совпадает с исходным статусом документа ({transaction.FromSystemStatus?.Name ?? "—"})";
             await AddHistoryAsync(orderId, transactionId, false, msg, 0, 0, ct);
             await _db.SaveChangesAsync(ct);
             return new TransactionApplyResult { Success = false, ErrorMessage = msg };
