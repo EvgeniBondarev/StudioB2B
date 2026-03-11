@@ -17,6 +17,8 @@
 @inject IOrderTransactionService TransactionService
 @inject DialogService DialogService
 @inject ContextMenuService ContextMenuService
+@inject NavigationManager Navigation
+@inject TabService TabService
 @inject IJSRuntime JSRuntime
 
 @implements IDisposable
@@ -49,6 +51,7 @@ else
 
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
+<<<<<<< HEAD
         <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Заказы</RadzenText>
 
         <div>
@@ -63,6 +66,23 @@ else
             <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ToggleDensity" Title="@GetDensityTitle()"/>
         </div>
+=======
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+            <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Заказы</RadzenText>
+            @if (_selectedOrderIds.Count > 0)
+            {
+                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-base-600);">
+                    Выбрано: @_selectedOrderIds.Count
+                </RadzenText>
+                <RadzenButton Icon="swap_horiz" Text="Применить транзакцию" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
+                              Click="@OpenApplyTransactionTab" />
+                <RadzenButton Icon="close" Text="Снять выбор" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Variant="Variant.Text" Click="@ClearSelection" />
+            }
+        </RadzenStack>
+        <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                      Click="@ToggleDensity" Title="@GetDensityTitle()"/>
+>>>>>>> 914ab77ff383b30389ccd0900bdaabc4b4df4842
     </RadzenStack>
 
 
@@ -110,6 +130,15 @@ else
         EmptyText="@RadzenRuStrings.EmptyText">
 
         <Columns>
+            <RadzenDataGridColumn TItem="Order" Title="" Width="44px" Frozen="true" Sortable="false" Filterable="false">
+                <HeaderTemplate>
+                    <RadzenCheckBox TValue="bool" Value="@IsAllSelected" ValueChanged="@OnSelectAllChanged" />
+                </HeaderTemplate>
+                <Template Context="o">
+                    <RadzenCheckBox TValue="bool" Value="@_selectedOrderIds.Contains(o.Id)"
+                                   ValueChanged="@(v => ToggleOrderSelection(o.Id, v))" />
+                </Template>
+            </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="Order" Property="Shipment.PostingNumber"
                                   Title="@GetColumn(OrderGridColumns.ShipmentNumber).Title"
                                   Width="@GetColumn(OrderGridColumns.ShipmentNumber).Width"
@@ -140,7 +169,7 @@ else
                                   HeaderCssClass="half-painted-header">
                 <FilterTemplate>
                     <div class="filter-all-item @( _filterClientId == null ? "active" : "" )"
-                         @onclick="() => ClearFilter(() => _filterClientId = null)">
+                         @onclick="@(async () => await ClearFilter(() => _filterClientId = null))">
                         Все
                     </div>
                     <RadzenListBox @bind-Value="_filterClientId"
@@ -150,7 +179,7 @@ else
                                    Placeholder="Все"
                                    AllowClear="true"
                                    Style="width:100%;"
-                                   Change="@OnFilterChange"/>
+                                   Change="@(async () => await OnFilterChange())"/>
                 </FilterTemplate>
 
                 <Template Context="o">
@@ -258,7 +287,7 @@ else
 
                 <FilterTemplate>
                     <div class="filter-all-item @( _filterStatusId == null ? "active" : "" )"
-                         @onclick="() => ClearFilter(() => _filterStatusId = null)">
+                         @onclick="@(async () => await ClearFilter(() => _filterStatusId = null))">
                         Все
                     </div>
                     <RadzenListBox TItem="OrderStatus"
@@ -269,7 +298,7 @@ else
                                    AllowClear="true"
                                    Placeholder="Все"
                                    Style="width:100%; max-height:370px"
-                                   Change="@OnFilterChange">
+                                   Change="@(async () => await OnFilterChange())">
 
                         <Template Context="item">
                             <RadzenBadge Text="@item.Name"
@@ -307,7 +336,7 @@ else
 
                 <FilterTemplate>
                     <div class="filter-all-item @( _filterSystemStatusId == null ? "active" : "" )"
-                         @onclick="() => ClearFilter(() => _filterSystemStatusId = null)">
+                         @onclick="@(async () => await ClearFilter(() => _filterSystemStatusId = null))">
                         Все
                     </div>
                     <RadzenListBox TItem="OrderStatus"
@@ -318,7 +347,7 @@ else
                                    Placeholder="Все"
                                    AllowClear="true"
                                    Style="width:100%; max-height: 370px;"
-                                   Change="@OnFilterChange">
+                                   Change="@(async () => await OnFilterChange())">
 
                         <Template Context="item">
                             <RadzenBadge Text="@item.Name"
@@ -368,7 +397,7 @@ else
 
                 <FilterTemplate>
                     <div class="filter-all-item @( _filterWarehouseId == null ? "active" : "" )"
-                         @onclick="() => ClearFilter(() => _filterWarehouseId = null)">
+                         @onclick="@(async () => await ClearFilter(() => _filterWarehouseId = null))">
                         Все
                     </div>
                     <RadzenListBox @bind-Value="_filterWarehouseId"
@@ -378,7 +407,7 @@ else
                                    Placeholder="Все"
                                    AllowClear="true"
                                    Style="width: 100%; min-width: 0; max-height: 370px;"
-                                   Change="@OnFilterChange"/>
+                                   Change="@(async () => await OnFilterChange())"/>
 
                 </FilterTemplate>
                 <Template Context="o">
@@ -405,11 +434,14 @@ else
                         var priceText = $"{price.Value:N2} {price.Currency?.Code}";
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate"
-                                    Style="font-weight:600; letter-spacing:0.2px;"
+                                    Style="@($"font-weight:600; letter-spacing:0.2px; {GetPriceColor(price.Value)}")"
                                     title="@priceText">
-
                             @priceText
                         </RadzenText>
+                    }
+                    else
+                    {
+                        <span style="color: var(--rz-danger);">—</span>
                     }
                 </Template>
             </RadzenDataGridColumn>
@@ -440,10 +472,10 @@ else
                                         @if (fields.TryGetValue(rule.ResultKey, out var val) && val != decimal.MinValue)
                                         {
                                             <span
-                                                style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                                                title="@rule.Formula">
+                                                style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help;"
+                                                title="@GetFormulaBreakdown(o, rule, val)">
                                                 <span style="color: var(--rz-text-secondary-color);">@rule.Name:</span>
-                                                <strong>@val.ToString("N2")</strong>
+                                                <strong style="@GetPriceColor(val)">@val.ToString("N2")</strong>
                                             </span>
                                         }
                                     }
@@ -471,7 +503,7 @@ else
                                      fields.TryGetValue(rule.ResultKey, out var val) &&
                                      val != decimal.MinValue)
                                 {
-                                    <span title="@rule.Formula">@val.ToString("N2")</span>
+                                    <span title="@GetFormulaBreakdown(o, rule, val)" style="cursor: help; @GetPriceColor(val)">@val.ToString("N2")</span>
                                 }
                             </Template>
                         </RadzenDataGridColumn>
@@ -981,35 +1013,58 @@ window.gridResize = {
     {
         ContextMenuService.Open(args,
             [
-                new ContextMenuItem { Text = "Открыть",               Icon = "open_in_new", Value = "open"    },
-                new ContextMenuItem { Text = "Применить транзакцию",  Icon = "swap_horiz",  Value = "apply"  },
-                new ContextMenuItem { Text = "История изменений",     Icon = "history",     Value = "history" }
+                new ContextMenuItem { Text = "Открыть",           Icon = "open_in_new", Value = "open"    },
+                new ContextMenuItem { Text = "История изменений", Icon = "history",     Value = "history" }
             ],
             async e =>
             {
                 ContextMenuService.Close();
                 if (e.Value?.ToString() == "open")
                     await OpenOrderDetailAsync(args.Data);
-                else if (e.Value?.ToString() == "apply")
-                    await OpenApplyTransactionDialogAsync(args.Data);
                 else if (e.Value?.ToString() == "history")
                     await OpenAuditHistoryAsync(args.Data);
             });
     }
 
-    private async Task OpenApplyTransactionDialogAsync(Order order)
-    {
-        var result = await DialogService.OpenAsync<ApplyTransactionDialog>(
-            "Применить транзакцию",
-            new Dictionary<string, object?>
-            {
-                ["OrderId"] = order.Id,
-                ["CurrentSystemStatusId"] = order.SystemStatusId
-            },
-            new DialogOptions { Width = "500px", CloseDialogOnEsc = true });
+    private HashSet<Guid> _selectedOrderIds = [];
 
-        if (result is bool b && b && _grid != null)
-            await _grid.Reload();
+    private bool IsAllSelected => _pageItems.Any() && _pageItems.All(o => _selectedOrderIds.Contains(o.Id));
+
+    private void OnSelectAllChanged(bool selected) => ToggleSelectAll(selected);
+
+    private void ToggleSelectAll(bool selected)
+    {
+        if (selected)
+            foreach (var o in _pageItems)
+                _selectedOrderIds.Add(o.Id);
+        else
+            foreach (var o in _pageItems)
+                _selectedOrderIds.Remove(o.Id);
+        StateHasChanged();
+    }
+
+    private void ToggleOrderSelection(Guid orderId, bool selected)
+    {
+        if (selected)
+            _selectedOrderIds.Add(orderId);
+        else
+            _selectedOrderIds.Remove(orderId);
+        StateHasChanged();
+    }
+
+    private void ClearSelection()
+    {
+        _selectedOrderIds.Clear();
+        StateHasChanged();
+    }
+
+    private void OpenApplyTransactionTab()
+    {
+        if (_selectedOrderIds.Count == 0) return;
+        var ids = string.Join(",", _selectedOrderIds);
+        var path = $"/orders/apply-transaction?ids={ids}";
+        TabService.OpenTab(path, $"Транзакция ({_selectedOrderIds.Count})", "swap_horiz");
+        Navigation.NavigateTo(path);
     }
 
     private async Task OpenAuditHistoryAsync(Order order)
@@ -1054,4 +1109,25 @@ window.gridResize = {
         Density.Compact => "Компактный режим строк",
         _ => "Обычный режим строк"
     };
+
+
+    private static string GetPriceColor(decimal value) =>
+        value < 0 ? "color: var(--rz-danger);" : "";
+
+    private string GetFormulaBreakdown(Order o, CalculationRule rule, decimal val)
+    {
+        var context = new Dictionary<string, decimal>(CalculationEngine.GetContextSnapshot(o), StringComparer.OrdinalIgnoreCase);
+        foreach (var r in _calcRules.OrderBy(x => x.SortOrder))
+        {
+            if (r.Id == rule.Id) break;
+            if (_computed.TryGetValue(o.Id, out var fields) && fields.TryGetValue(r.ResultKey, out var v) && v != decimal.MinValue)
+            {
+                var key = CalculationEngine.SanitizeKey(r.ResultKey);
+                if (!string.IsNullOrEmpty(key))
+                    context[key] = v;
+            }
+        }
+        return CalculationEngine.BuildFormulaBreakdown(rule.Formula ?? "", context, val);
+    }
 }
+

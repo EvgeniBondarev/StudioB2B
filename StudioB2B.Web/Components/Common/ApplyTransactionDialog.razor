@@ -43,13 +43,15 @@ else if (_preview != null)
                     @if (rule.RequiresUserInput)
                     {
                         <RadzenNumeric @bind-Value="_userValues[rule.RuleId]"
-                                       Style="width: 140px;" Min="0" Format="N2"
+                                       Style="@($"width: 140px; {GetPriceColor(_userValues.GetValueOrDefault(rule.RuleId))}")" Min="0" Format="N2"
                                        Placeholder="Введите значение" />
                     }
                     else
                     {
-                        <RadzenText TextStyle="TextStyle.Body2">
-                            @(rule.ComputedValue?.ToString("N2") ?? "—")
+                        var cv = rule.ComputedValue;
+                        var breakdown = rule.FormulaBreakdown ?? rule.Formula ?? "";
+                        <RadzenText TextStyle="TextStyle.Body2" Style="@($"cursor: help; {GetPriceColor(cv)}")" title="@breakdown">
+                            @(cv?.ToString("N2") ?? "—")
                         </RadzenText>
                         <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-base-500);">(по формуле)</RadzenText>
                     }
@@ -184,4 +186,7 @@ else
     }
 
     public void Dispose() => _db?.Dispose();
+
+    private static string GetPriceColor(decimal? value) =>
+        value is null || value < 0 ? "color: var(--rz-danger);" : "";
 }

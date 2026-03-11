@@ -103,9 +103,10 @@ else
                     }
                     else if (_exampleResult.HasValue)
                     {
+                        var breakdown = $"Формула: {_formula}\nПодстановка: {(_exampleFormulaRendered ?? _formula)} = {_exampleResult.Value:N2}";
                         <RadzenStack Gap="0.2rem">
                             <RadzenText TextStyle="TextStyle.Body2">
-                                <strong>Результат:</strong> <span  class="status-badge" style="color: var(--rz-primary)">@_exampleResult.Value.ToString("N2")</span>
+                                <strong>Результат:</strong> <span class="status-badge" style="@($"cursor: help; {GetPriceColor(_exampleResult.Value)}")" title="@breakdown">@_exampleResult.Value.ToString("N2")</span>
                             </RadzenText>
                             @if (!string.IsNullOrWhiteSpace(_exampleFormulaRendered))
                             {
@@ -170,6 +171,7 @@ else
                         </RadzenText>
                     </RadzenStack>
                 }
+                
                 @if (_exampleOrder == null)
                 {
                     <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
@@ -207,7 +209,7 @@ else
                                                               Width="140px"
                                                               TextAlign="TextAlign.Right">
                                             <Template Context="row">
-                                                @row.Value.ToString("N2")
+                                                <span style="@GetPriceColor(row.Value)">@row.Value.ToString("N2")</span>
                                             </Template>
                                         </RadzenDataGridColumn>
                                     </Columns>
@@ -400,6 +402,9 @@ else
         }
     }
 
+    private static string GetPriceColor(decimal value) =>
+        value < 0 ? "color: var(--rz-danger);" : "";
+
     private async Task SaveAsync()
     {
         if (string.IsNullOrWhiteSpace(_name))
@@ -474,4 +479,3 @@ else
 
     public void Dispose() => _db?.Dispose();
 }
-
