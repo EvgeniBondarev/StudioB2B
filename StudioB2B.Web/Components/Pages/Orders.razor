@@ -1,12 +1,7 @@
 @page "/orders"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
-@using Radzen
-@using Radzen.Blazor.Rendering
-@using StudioB2B.Application.Common.Interfaces
-@using StudioB2B.Domain.Entities.Orders
-@using StudioB2B.Domain.Entities.Marketplace
-@using StudioB2B.Domain.Entities.Warehouses
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
@@ -106,7 +101,6 @@ else
                           Click="@ToggleDensity" Title="@GetDensityTitle()"/>
         </div>
     </RadzenStack>
-
 
     <RadzenDataGrid
         @ref="_grid"
@@ -279,7 +273,7 @@ else
                                  alt=""/>
                         }
                         <span
-                            class="rz-text-sm  rz-flex-shrink-1 rz-text-truncate rz-ms-1"
+                            class="rz-text-sm rz-flex-shrink-1 rz-text-truncate rz-ms-1"
                             title="@o.ProductInfo?.Product?.Name">
                             @o.ProductInfo?.Product?.Name
                         </span>
@@ -948,7 +942,7 @@ window.gridResize = {
 
     private void OnRowRender(RowRenderEventArgs<Order> args)
     {
-        if (_orderLastTransactionColor.TryGetValue(args.Data.Id, out var color) && !string.IsNullOrEmpty(color))
+        if (args.Data != null && _orderLastTransactionColor.TryGetValue(args.Data.Id, out var color) && !string.IsNullOrEmpty(color))
         {
             var bg = GetSoftBackground(color);
             var fg = GetTextColor(bg);
@@ -1003,11 +997,11 @@ window.gridResize = {
         await OnFilterChange();
     }
 
-    private async Task OpenOrderDetailAsync(Order order)
+    private async Task OpenOrderDetailAsync(Order? order)
     {
         await DialogService.OpenAsync<OrderDetailDialog>(
-            $"Заказ {order.Shipment?.PostingNumber}",
-            new Dictionary<string, object?> { ["OrderId"] = order.Id },
+            $"Заказ {order?.Shipment.PostingNumber}",
+            new Dictionary<string, object?> { ["OrderId"] = order?.Id },
             new DialogOptions
             {
                 Width = "900px",
@@ -1037,7 +1031,7 @@ window.gridResize = {
         }
     }
 
-    string GetSoftBackground(string color)
+    string GetSoftBackground(string? color)
     {
         if (string.IsNullOrWhiteSpace(color))
             return "#ececff";
@@ -1076,7 +1070,7 @@ window.gridResize = {
                 new ContextMenuItem { Text = "Открыть", Icon = "open_in_new", Value = "open" },
                 new ContextMenuItem { Text = "История изменений", Icon = "history", Value = "history" }
             ],
-            async e =>
+            async void (e) =>
             {
                 ContextMenuService.Close();
                 if (e.Value?.ToString() == "open")
@@ -1183,19 +1177,19 @@ window.gridResize = {
         Navigation.NavigateTo(path);
     }
 
-    private async Task OpenAuditHistoryAsync(Order order)
+    private async Task OpenAuditHistoryAsync(Order? order)
     {
         var subjects = new List<AuditSubject>
         {
-            new("Order", order.Id.ToString(), "Заказ"),
-            new("Shipment", order.ShipmentId.ToString(), "Отправление"),
+            new("Order", order?.Id.ToString() ?? string.Empty, "Заказ"),
+            new("Shipment", order?.ShipmentId.ToString() ?? string.Empty, "Отправление"),
         };
-        if (order.ProductInfo?.ProductId is { } pid)
+        if (order?.ProductInfo?.ProductId is { } pid)
             subjects.Add(new("Product", pid.ToString(), "Товар"));
 
         await DialogService.OpenAsync<AuditHistoryDialog>(
             "История изменений",
-            new Dictionary<string, object?> { [nameof(AuditHistoryDialog.Subjects)] = (IReadOnlyList<AuditSubject>)subjects },
+            new Dictionary<string, object?> { [nameof(AuditHistoryDialog.Subjects)] = subjects },
             new DialogOptions { Width = "min(960px, 95vw)", Resizable = true, Draggable = true });
     }
 

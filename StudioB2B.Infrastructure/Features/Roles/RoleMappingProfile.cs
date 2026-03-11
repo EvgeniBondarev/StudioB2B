@@ -1,5 +1,5 @@
 using AutoMapper;
-using StudioB2B.Domain.Entities.Master;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Features.Roles;

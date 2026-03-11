@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using StudioB2B.Domain.Constants;
 
 namespace StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo;
 
@@ -26,6 +27,6 @@ public class OzonCompanyDto
     public string? OwnershipForm { get; set; }
 
     [JsonPropertyName("tax_system")]
-    public OzonTaxSystem TaxSystem { get; set; }
+    public OzonTaxSystemEnum TaxSystem { get; set; }
 }
 
