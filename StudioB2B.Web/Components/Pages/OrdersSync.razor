@@ -2,7 +2,8 @@
 @attribute [Authorize(Roles = "Admin")]
 @using System.Text.Json
 @using Microsoft.AspNetCore.SignalR.Client
-@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features.Orders
 @using StudioB2B.Infrastructure.Interfaces
 @inject ITenantProvider TenantProvider
@@ -61,8 +62,8 @@ else
                         <RadzenStack Gap="0.4rem">
                             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                                          JustifyContent="JustifyContent.SpaceBetween">
-                                <RadzenBadge BadgeStyle="@(s.JobType == SyncJobType.Sync ? BadgeStyle.Primary : BadgeStyle.Secondary)"
-                                             Text="@(s.JobType == SyncJobType.Sync ? "Загрузка заказов" : "Обновление статусов")" />
+                                <RadzenBadge BadgeStyle="@(s.JobType == SyncJobTypeEnum.Sync ? BadgeStyle.Primary : BadgeStyle.Secondary)"
+                                             Text="@(s.JobType == SyncJobTypeEnum.Sync ? "Загрузка заказов" : "Обновление статусов")" />
                                 <RadzenToggleButton Value="@s.IsEnabled"
                                                     ButtonStyle="ButtonStyle.Light"
                                                     ToggleButtonStyle="ButtonStyle.Success"
@@ -74,7 +75,7 @@ else
                             <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600;">
                                 @ScheduleCronBuilder.Describe(s)
                             </RadzenText>
-                            @if (s.JobType == SyncJobType.Sync && !string.IsNullOrEmpty(s.SyncParams))
+                            @if (s.JobType == SyncJobTypeEnum.Sync && !string.IsNullOrEmpty(s.SyncParams))
                             {
                                 var daysBack = ParseDaysBack(s.SyncParams);
                                 <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);">
@@ -147,13 +148,13 @@ else
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="JobType" Title="Тип" Width="210px"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="h">
-                    <RadzenBadge BadgeStyle="@(h.JobType == SyncJobType.Sync ? BadgeStyle.Primary : BadgeStyle.Secondary)"
-                                 Text="@(h.JobType == SyncJobType.Sync ? "Загрузка заказов" : "Обновление статусов")" />
+                    <RadzenBadge BadgeStyle="@(h.JobType == SyncJobTypeEnum.Sync ? BadgeStyle.Primary : BadgeStyle.Secondary)"
+                                 Text="@(h.JobType == SyncJobTypeEnum.Sync ? "Загрузка заказов" : "Обновление статусов")" />
                 </Template>
                 <FilterTemplate Context="col">
                     <div class="filter-all-item @(_filterType == null ? "active" : "")"
                          @onclick="@(() => { _filterType = null; ApplyFilters(); })">Все</div>
-                    <RadzenListBox TValue="SyncJobType?" @bind-Value="_filterType"
+                    <RadzenListBox TValue="SyncJobTypeEnum?" @bind-Value="_filterType"
                                    Data="@_filterTypeOptions" TextProperty="Label" ValueProperty="Value"
                                    AllowClear="true" Style="width:100%;"
                                    Change="@(_ => ApplyFilters())" />
@@ -167,7 +168,7 @@ else
                 <FilterTemplate Context="col">
                     <div class="filter-all-item @(_filterStatus == null ? "active" : "")"
                          @onclick="@(() => { _filterStatus = null; ApplyFilters(); })">Все</div>
-                    <RadzenListBox TValue="SyncJobStatus?" @bind-Value="_filterStatus"
+                    <RadzenListBox TValue="SyncJobStatusEnum?" @bind-Value="_filterStatus"
                                    Data="@_filterStatusOptions" TextProperty="Label" ValueProperty="Value"
                                    AllowClear="true" Style="width:100%;"
                                    Change="@(_ => ApplyFilters())" />
@@ -216,7 +217,7 @@ else
                                   Frozen="true" FrozenPosition="FrozenColumnPosition.Right">
                 <Template Context="h">
                     <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem" JustifyContent="JustifyContent.End" Style="flex-wrap: nowrap;">
-                        @if (h.Status is SyncJobStatus.Enqueued or SyncJobStatus.Processing)
+                        @if (h.Status is SyncJobStatusEnum.Enqueued or SyncJobStatusEnum.Processing)
                         {
                             <RadzenButton Icon="stop_circle" Size="ButtonSize.ExtraSmall"
                                           ButtonStyle="ButtonStyle.Danger"
@@ -236,7 +237,7 @@ else
                                           ButtonStyle="ButtonStyle.Danger"
                                           Click="@(() => ShowErrorDialogAsync(h))" title="Ошибка" />
                         }
-                        @if (h.Status is not (SyncJobStatus.Enqueued or SyncJobStatus.Processing))
+                        @if (h.Status is not (SyncJobStatusEnum.Enqueued or SyncJobStatusEnum.Processing))
                         {
                             <RadzenButton Icon="delete" Size="ButtonSize.ExtraSmall"
                                           ButtonStyle="ButtonStyle.Light"
@@ -252,51 +253,43 @@ else
 }
 
 @code {
-    // ── History ───────────────────────────────────────────────────────────────
-    private List<SyncJobHistory> _historyItems  = new();
+    private List<SyncJobHistory> _historyItems = new();
     private List<SyncJobHistory> _filteredItems = new();
     private bool _hasActiveJobs;
     private bool _isLoading;
     private Density _density = Density.Default;
 
-    // ── Filters ───────────────────────────────────────────────────────────────
-    private SyncJobType?   _filterType;
-    private SyncJobStatus? _filterStatus;
+    private SyncJobTypeEnum? _filterType;
+    private SyncJobStatusEnum? _filterStatus;
 
     private record FilterOption<T>(string Label, T? Value);
 
-    private readonly List<FilterOption<SyncJobType>> _filterTypeOptions = new()
+    private readonly List<FilterOption<SyncJobTypeEnum>> _filterTypeOptions = new()
     {
-        new("Загрузка заказов",    SyncJobType.Sync),
-        new("Обновление статусов", SyncJobType.Update),
+        new("Загрузка заказов", SyncJobTypeEnum.Sync),
+        new("Обновление статусов", SyncJobTypeEnum.Update)
     };
 
-    private readonly List<FilterOption<SyncJobStatus>> _filterStatusOptions = new()
+    private readonly List<FilterOption<SyncJobStatusEnum>> _filterStatusOptions = new()
     {
-        new("В очереди",   SyncJobStatus.Enqueued),
-        new("Выполняется", SyncJobStatus.Processing),
-        new("Завершена",   SyncJobStatus.Succeeded),
-        new("Ошибка",      SyncJobStatus.Failed),
-        new("Отменена",    SyncJobStatus.Cancelled),
+        new("В очереди", SyncJobStatusEnum.Enqueued),
+        new("Выполняется", SyncJobStatusEnum.Processing),
+        new("Завершена", SyncJobStatusEnum.Succeeded),
+        new("Ошибка", SyncJobStatusEnum.Failed),
+        new("Отменена", SyncJobStatusEnum.Cancelled),
     };
 
-    // ── Tracking ──────────────────────────────────────────────────────────────
     private readonly HashSet<Guid> _cancellingIds = new();
-    private readonly HashSet<Guid> _deletingIds   = new();
+    private readonly HashSet<Guid> _deletingIds = new();
 
-    // ── Schedules ─────────────────────────────────────────────────────────────
-    private List<SyncJobSchedule>  _schedules            = new();
-    private readonly HashSet<Guid> _deletingScheduleIds  = new();
-    private readonly HashSet<Guid> _togglingScheduleIds  = new();
+    private List<SyncJobSchedule> _schedules = new();
+    private readonly HashSet<Guid> _deletingScheduleIds = new();
+    private readonly HashSet<Guid> _togglingScheduleIds = new();
 
-    // ── Polling ───────────────────────────────────────────────────────────────
-    private PeriodicTimer?          _pollTimer;
+    private PeriodicTimer? _pollTimer;
     private CancellationTokenSource _pollCts = new();
 
-    // ── SignalR ───────────────────────────────────────────────────────────────
     private HubConnection? _hubConnection;
-
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     protected override async Task OnInitializedAsync()
     {
@@ -339,7 +332,7 @@ else
                 await LoadHistoryAsync();
                 var h = _historyItems.FirstOrDefault(x => x.Id == payload.HistoryId);
                 if (h is not null)
-                    NotifyJobResult(h, h.JobType == SyncJobType.Sync ? "Загрузка заказов" : "Обновление статусов");
+                    NotifyJobResult(h, h.JobType == SyncJobTypeEnum.Sync ? "Загрузка заказов" : "Обновление статусов");
                 StateHasChanged();
             });
         });
@@ -354,8 +347,6 @@ else
             Console.WriteLine($"[SignalR] Connection failed, polling-only mode: {ex.Message}");
         }
     }
-
-    // ── Enqueue dialog ────────────────────────────────────────────────────────
 
     private async Task OpenEnqueueDialogAsync()
     {
@@ -375,8 +366,6 @@ else
         }
     }
 
-    // ── Cancel ────────────────────────────────────────────────────────────────
-
     private async Task CancelJobAsync(SyncJobHistory h)
     {
         if (string.IsNullOrEmpty(h.HangfireJobId)) return;
@@ -395,8 +384,6 @@ else
             _cancellingIds.Remove(h.Id);
         }
     }
-
-    // ── Delete ────────────────────────────────────────────────────────────────
 
     private async Task DeleteJobAsync(SyncJobHistory h)
     {
@@ -423,13 +410,11 @@ else
         }
     }
 
-    // ── Polling ───────────────────────────────────────────────────────────────
-
     private void StartPollingIfNeeded()
     {
         if (_pollTimer is not null) return; // уже запущен
 
-        _pollCts   = new CancellationTokenSource();
+        _pollCts = new CancellationTokenSource();
         _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
 
         _ = Task.Run(async () =>
@@ -461,8 +446,6 @@ else
         _pollTimer?.Dispose();
         _pollTimer = null;
     }
-
-    // ── Schedules ─────────────────────────────────────────────────────────────
 
     private async Task LoadSchedulesAsync()
     {
@@ -535,15 +518,13 @@ else
         }
     }
 
-    // ── History & filters ─────────────────────────────────────────────────────
-
     private async Task LoadHistoryAsync()
     {
         _isLoading = true;
         try
         {
-            _historyItems  = await JobService.GetHistoryAsync(200);
-            _hasActiveJobs = _historyItems.Any(h => h.Status is SyncJobStatus.Enqueued or SyncJobStatus.Processing);
+            _historyItems = await JobService.GetHistoryAsync(200);
+            _hasActiveJobs = _historyItems.Any(h => h.Status is SyncJobStatusEnum.Enqueued or SyncJobStatusEnum.Processing);
             ApplyFilters();
         }
         finally
@@ -571,10 +552,8 @@ else
     private string GetDensityTitle() => _density switch
     {
         Density.Compact => "Компактный режим строк",
-        _               => "Обычный режим строк"
+        _ => "Обычный режим строк"
     };
-
-    // ── Dialogs ───────────────────────────────────────────────────────────────
 
     private async Task ShowResultDialogAsync(SyncJobHistory history)
     {
@@ -584,7 +563,7 @@ else
         if (summary is null) return;
 
         await DialogService.OpenAsync(
-            history.JobType == SyncJobType.Sync ? "Результат синхронизации" : "Результат обновления",
+            history.JobType == SyncJobTypeEnum.Sync ? "Результат синхронизации" : "Результат обновления",
             ds => @<SyncResultDialogContent Summary="@summary" JobType="@history.JobType" />,
             new DialogOptions { Width = "900px", Resizable = true, Draggable = true });
     }
@@ -595,21 +574,19 @@ else
             new AlertOptions { OkButtonText = "Закрыть" });
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
     private void NotifyJobResult(SyncJobHistory? h, string jobName)
     {
         if (h is null) return;
         switch (h.Status)
         {
-            case SyncJobStatus.Succeeded:
+            case SyncJobStatusEnum.Succeeded:
                 NotificationService.Notify(NotificationSeverity.Success, $"{jobName} завершена", "Задача успешно выполнена.");
                 break;
-            case SyncJobStatus.Failed:
+            case SyncJobStatusEnum.Failed:
                 NotificationService.Notify(NotificationSeverity.Error, $"{jobName} завершилась с ошибкой",
                     h.ErrorMessage ?? "Неизвестная ошибка.");
                 break;
-            case SyncJobStatus.Cancelled:
+            case SyncJobStatusEnum.Cancelled:
                 NotificationService.Notify(NotificationSeverity.Warning, $"{jobName} отменена", "Задача была остановлена.");
                 break;
         }
@@ -625,7 +602,7 @@ else
             if (root.TryGetProperty("From", out var fromEl) && root.TryGetProperty("To", out var toEl))
             {
                 var from = fromEl.GetDateTime().ToLocalTime();
-                var to   = toEl.GetDateTime().ToLocalTime();
+                var to = toEl.GetDateTime().ToLocalTime();
                 return $"{from:dd.MM.yyyy} – {to:dd.MM.yyyy}";
             }
             return h.ParametersJson;
@@ -643,24 +620,24 @@ else
         return mins > 0 ? $"{mins} мин {secs} сек" : $"{secs} сек";
     }
 
-    private static BadgeStyle StatusBadgeStyle(SyncJobStatus s) => s switch
+    private static BadgeStyle StatusBadgeStyle(SyncJobStatusEnum s) => s switch
     {
-        SyncJobStatus.Enqueued   => BadgeStyle.Warning,
-        SyncJobStatus.Processing => BadgeStyle.Info,
-        SyncJobStatus.Succeeded  => BadgeStyle.Success,
-        SyncJobStatus.Failed     => BadgeStyle.Danger,
-        SyncJobStatus.Cancelled  => BadgeStyle.Secondary,
-        _                        => BadgeStyle.Light
+        SyncJobStatusEnum.Enqueued => BadgeStyle.Warning,
+        SyncJobStatusEnum.Processing => BadgeStyle.Info,
+        SyncJobStatusEnum.Succeeded => BadgeStyle.Success,
+        SyncJobStatusEnum.Failed => BadgeStyle.Danger,
+        SyncJobStatusEnum.Cancelled => BadgeStyle.Secondary,
+        _ => BadgeStyle.Light
     };
 
-    private static string StatusLabel(SyncJobStatus s) => s switch
+    private static string StatusLabel(SyncJobStatusEnum s) => s switch
     {
-        SyncJobStatus.Enqueued   => "В очереди",
-        SyncJobStatus.Processing => "Выполняется",
-        SyncJobStatus.Succeeded  => "Завершена",
-        SyncJobStatus.Failed     => "Ошибка",
-        SyncJobStatus.Cancelled  => "Отменена",
-        _                        => s.ToString()
+        SyncJobStatusEnum.Enqueued => "В очереди",
+        SyncJobStatusEnum.Processing => "Выполняется",
+        SyncJobStatusEnum.Succeeded => "Завершена",
+        SyncJobStatusEnum.Failed => "Ошибка",
+        SyncJobStatusEnum.Cancelled => "Отменена",
+        _ => s.ToString()
     };
 
     private static int ParseDaysBack(string? syncParams)
@@ -676,16 +653,12 @@ else
         return 7;
     }
 
-    // ── IAsyncDisposable ──────────────────────────────────────────────────────
-
     public async ValueTask DisposeAsync()
     {
         StopPolling();
         if (_hubConnection is not null)
             await _hubConnection.DisposeAsync();
     }
-
-    // ── SignalR payload ───────────────────────────────────────────────────────
 
     private record JobCompletedPayload(Guid HistoryId, string Status, string JobType);
 }

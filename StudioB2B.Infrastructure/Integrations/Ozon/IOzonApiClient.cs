@@ -4,7 +4,6 @@ using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductAttributes;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductPrices;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo;
 
-
 namespace StudioB2B.Infrastructure.Integrations.Ozon;
 
 public interface IOzonApiClient
@@ -59,8 +58,6 @@ public interface IOzonApiClient
         string apiKey,
         string postingNumber,
         CancellationToken ct = default);
-
-    // ── Chat ─────────────────────────────────────────────────────────────────
 
     /// <summary>Gets paginated list of chats via /v3/chat/list.</summary>
     Task<OzonApiResult<OzonChatListResponse>> GetChatListAsync(

@@ -1,7 +1,7 @@
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Domain.Entities.Master;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Shared.DTOs;
 
@@ -12,8 +12,6 @@ public static class RoleQueryExtensions
     public static IQueryable<MasterRole> OrderByName(this IQueryable<MasterRole> query)
         => query.OrderBy(r => r.Name);
 }
-
-// ─── GetRoles ─────────────────────────────────────────────────────────────────
 
 public class GetRoles(MasterDbContext db, IMapper mapper)
 {
@@ -27,8 +25,6 @@ public class GetRoles(MasterDbContext db, IMapper mapper)
     }
 }
 
-// ─── GetRoleById ──────────────────────────────────────────────────────────────
-
 public class GetRoleById(MasterDbContext db, IMapper mapper)
 {
     public async Task<RoleDto?> HandleAsync(Guid id, CancellationToken ct = default)
@@ -40,8 +36,6 @@ public class GetRoleById(MasterDbContext db, IMapper mapper)
             .FirstOrDefaultAsync(ct);
     }
 }
-
-// ─── CreateRole ───────────────────────────────────────────────────────────────
 
 public class CreateRole(MasterDbContext db, IMapper mapper)
 {
@@ -57,8 +51,6 @@ public class CreateRole(MasterDbContext db, IMapper mapper)
     }
 }
 
-// ─── UpdateRole ───────────────────────────────────────────────────────────────
-
 public class UpdateRole(MasterDbContext db, IMapper mapper)
 {
     public async Task<RoleDto?> HandleAsync(Guid id, UpdateRoleRequest request, CancellationToken ct = default)
@@ -73,8 +65,6 @@ public class UpdateRole(MasterDbContext db, IMapper mapper)
         return mapper.Map<RoleDto>(role);
     }
 }
-
-// ─── DeleteRole ───────────────────────────────────────────────────────────────
 
 public class DeleteRole(MasterDbContext db)
 {

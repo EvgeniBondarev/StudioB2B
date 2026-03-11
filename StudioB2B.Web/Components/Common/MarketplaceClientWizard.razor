@@ -1,5 +1,5 @@
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Marketplace
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features.Marketplace
 @using StudioB2B.Infrastructure.Integrations.Ozon
 @using StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo
@@ -217,15 +217,13 @@ else if (_step == 3)
             : _types.FirstOrDefault()?.Id;
     }
 
-    // ──────────────────────────────────────────────────────────────────
     // Timeline helpers
-    // ──────────────────────────────────────────────────────────────────
 
     private PointStyle StepStyle(int step) => step switch
     {
-        _ when step < _step  => PointStyle.Success,
+        _ when step < _step => PointStyle.Success,
         _ when step == _step => PointStyle.Primary,
-        _                    => PointStyle.Secondary
+        _ => PointStyle.Secondary
     };
 
     private string StepLabelStyle(int step) => step == _step
@@ -238,9 +236,7 @@ else if (_step == 3)
         ? string.Empty
         : "color: var(--rz-text-disabled-color);";
 
-    // ──────────────────────────────────────────────────────────────────
     // Actions
-    // ──────────────────────────────────────────────────────────────────
 
     private void Cancel() => DialogService.Close(false);
 
@@ -315,7 +311,7 @@ else if (_step == 3)
             var request = new CreateMarketplaceClientRequest(
                 Name: c.Name ?? c.LegalName ?? "Ozon клиент",
                 ApiId: _model.ApiId,
-                Key: Encryption.Encrypt(_model.Key),   // store encrypted
+                Key: Encryption.Encrypt(_model.Key), // store encrypted
                 ClientTypeId: _model.ClientTypeId,
                 ModeId: _model.ModeId,
                 Settings: null,

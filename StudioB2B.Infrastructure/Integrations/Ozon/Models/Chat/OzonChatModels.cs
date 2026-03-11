@@ -2,8 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace StudioB2B.Infrastructure.Integrations.Ozon.Models.Chat;
 
-// ── Chat List ────────────────────────────────────────────────────────────────
-
 public class OzonChatListRequest
 {
     [JsonPropertyName("filter")]
@@ -69,8 +67,6 @@ public class OzonChatDto
     [JsonPropertyName("chat_type")]
     public string ChatType { get; set; } = string.Empty;
 }
-
-// ── Chat History ─────────────────────────────────────────────────────────────
 
 public class OzonChatHistoryRequest
 {
@@ -141,8 +137,6 @@ public class OzonChatMessageContext
     public string? Sku { get; set; }
 }
 
-// ── Send Message ─────────────────────────────────────────────────────────────
-
 public class OzonSendMessageRequest
 {
     [JsonPropertyName("chat_id")]
@@ -157,8 +151,6 @@ public class OzonSendMessageResponse
     [JsonPropertyName("result")]
     public string Result { get; set; } = string.Empty;
 }
-
-// ── Send File ────────────────────────────────────────────────────────────────
 
 public class OzonSendFileRequest
 {
@@ -177,8 +169,6 @@ public class OzonSendFileResponse
     [JsonPropertyName("result")]
     public string Result { get; set; } = string.Empty;
 }
-
-// ── Read Chat ────────────────────────────────────────────────────────────────
 
 public class OzonReadChatRequest
 {

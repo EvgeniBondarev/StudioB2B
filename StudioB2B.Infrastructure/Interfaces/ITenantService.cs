@@ -1,4 +1,4 @@
-using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Domain.Entities;
 
 namespace StudioB2B.Infrastructure.Interfaces;
 

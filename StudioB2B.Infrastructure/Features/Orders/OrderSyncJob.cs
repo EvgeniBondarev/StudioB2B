@@ -2,7 +2,8 @@ using System.Text.Json;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Constants;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Integrations.Ozon;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
@@ -30,12 +31,10 @@ public class OrderSyncJob
         ILoggerFactory loggerFactory)
     {
         _notificationSender = notificationSender;
-        _encryption         = encryption;
-        _httpClientFactory  = httpClientFactory;
-        _loggerFactory      = loggerFactory;
+        _encryption = encryption;
+        _httpClientFactory = httpClientFactory;
+        _loggerFactory = loggerFactory;
     }
-
-    // ── Public entry-points ──────────────────────────────────────────────────
 
     [AutomaticRetry(Attempts = 0)]
     public async Task ExecuteSyncAsync(
@@ -118,13 +117,13 @@ public class OrderSyncJob
 
         var history = new SyncJobHistory
         {
-            JobType        = schedule.JobType,
-            Status         = SyncJobStatus.Enqueued,
-            ParametersJson = schedule.JobType == SyncJobType.Sync
+            JobType = schedule.JobType,
+            Status = SyncJobStatusEnum.Enqueued,
+            ParametersJson = schedule.JobType == SyncJobTypeEnum.Sync
                 ? JsonSerializer.Serialize(new
                 {
                     From = DateTime.UtcNow.Date.AddDays(-daysBack),
-                    To   = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1)
+                    To = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1)
                 })
                 : null
         };
@@ -136,13 +135,13 @@ public class OrderSyncJob
         await _notificationSender.SendJobStartedAsync(
             tenantId,
             history.Id,
-            schedule.JobType == SyncJobType.Sync ? "Sync" : "Update",
+            schedule.JobType == SyncJobTypeEnum.Sync ? "Sync" : "Update",
             CancellationToken.None);
 
-        if (schedule.JobType == SyncJobType.Sync)
+        if (schedule.JobType == SyncJobTypeEnum.Sync)
         {
             var from = DateTime.UtcNow.Date.AddDays(-daysBack);
-            var to   = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
+            var to = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
             await ExecuteSyncCoreAsync(db, history, tenantId, from, to, cancellationToken);
         }
         else
@@ -150,8 +149,6 @@ public class OrderSyncJob
             await ExecuteUpdateCoreAsync(db, history, tenantId, cancellationToken);
         }
     }
-
-    // ── Core logic ───────────────────────────────────────────────────────────
 
     private async Task ExecuteSyncCoreAsync(
         TenantDbContext db,
@@ -161,7 +158,7 @@ public class OrderSyncJob
         DateTime to,
         CancellationToken cancellationToken)
     {
-        history.Status = SyncJobStatus.Processing;
+        history.Status = SyncJobStatusEnum.Processing;
         await db.SaveChangesAsync(CancellationToken.None);
 
         var logger = _loggerFactory.CreateLogger<OrderSyncJob>();
@@ -172,26 +169,26 @@ public class OrderSyncJob
                 tenantId, from, to);
 
             var syncService = BuildSyncService(db);
-            var summary     = await syncService.SyncAllAsync(from, to, cancellationToken);
+            var summary = await syncService.SyncAllAsync(from, to, cancellationToken);
 
-            history.Status        = SyncJobStatus.Succeeded;
+            history.Status = SyncJobStatusEnum.Succeeded;
             history.FinishedAtUtc = DateTime.UtcNow;
-            history.ResultJson    = JsonSerializer.Serialize(summary);
+            history.ResultJson = JsonSerializer.Serialize(summary);
 
             logger.LogInformation("SyncJob: sync completed for tenant {TenantId}.", tenantId);
         }
         catch (OperationCanceledException)
         {
             logger.LogInformation("SyncJob: sync cancelled for tenant {TenantId}.", tenantId);
-            history.Status        = SyncJobStatus.Cancelled;
+            history.Status = SyncJobStatusEnum.Cancelled;
             history.FinishedAtUtc = DateTime.UtcNow;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "SyncJob: sync failed for tenant {TenantId}.", tenantId);
-            history.Status        = SyncJobStatus.Failed;
+            history.Status = SyncJobStatusEnum.Failed;
             history.FinishedAtUtc = DateTime.UtcNow;
-            history.ErrorMessage  = ex.Message;
+            history.ErrorMessage = ex.Message;
         }
         finally
         {
@@ -207,7 +204,7 @@ public class OrderSyncJob
         Guid tenantId,
         CancellationToken cancellationToken)
     {
-        history.Status = SyncJobStatus.Processing;
+        history.Status = SyncJobStatusEnum.Processing;
         await db.SaveChangesAsync(CancellationToken.None);
 
         var logger = _loggerFactory.CreateLogger<OrderSyncJob>();
@@ -216,26 +213,26 @@ public class OrderSyncJob
             logger.LogInformation("UpdateJob: starting status update for tenant {TenantId}.", tenantId);
 
             var syncService = BuildSyncService(db);
-            var summary     = await syncService.UpdateAllAsync(cancellationToken);
+            var summary = await syncService.UpdateAllAsync(cancellationToken);
 
-            history.Status        = SyncJobStatus.Succeeded;
+            history.Status = SyncJobStatusEnum.Succeeded;
             history.FinishedAtUtc = DateTime.UtcNow;
-            history.ResultJson    = JsonSerializer.Serialize(summary);
+            history.ResultJson = JsonSerializer.Serialize(summary);
 
             logger.LogInformation("UpdateJob: completed for tenant {TenantId}.", tenantId);
         }
         catch (OperationCanceledException)
         {
             logger.LogInformation("UpdateJob: cancelled for tenant {TenantId}.", tenantId);
-            history.Status        = SyncJobStatus.Cancelled;
+            history.Status = SyncJobStatusEnum.Cancelled;
             history.FinishedAtUtc = DateTime.UtcNow;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "UpdateJob: failed for tenant {TenantId}.", tenantId);
-            history.Status        = SyncJobStatus.Failed;
+            history.Status = SyncJobStatusEnum.Failed;
             history.FinishedAtUtc = DateTime.UtcNow;
-            history.ErrorMessage  = ex.Message;
+            history.ErrorMessage = ex.Message;
         }
         finally
         {
@@ -244,8 +241,6 @@ public class OrderSyncJob
                 tenantId, history.Id, history.Status.ToString(), "Update", CancellationToken.None);
         }
     }
-
-    // ── Pipeline factory ─────────────────────────────────────────────────────
 
     /// <summary>
     /// Строит OrderSyncService с явным TenantDbContext и OzonFbsOrderAdapter.
