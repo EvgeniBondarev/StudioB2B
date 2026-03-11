@@ -25,11 +25,20 @@
                     </RadzenText>
                 </RadzenStack>
             </RadzenCard>
+            <RadzenCard Style="@CardStyle(SyncJobType.Returns)" class="rz-cursor-pointer" @onclick="@(() => SelectType(SyncJobType.Returns))">
+                <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center" Style="min-width: 160px; padding: 0.5rem 0.25rem;">
+                    <RadzenIcon Icon="assignment_return" Style="font-size: 2rem; color: var(--rz-info);" />
+                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Загрузка возвратов</RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color); text-align: center;">
+                        Синхронизация возвратов Ozon за выбранный период
+                    </RadzenText>
+                </RadzenStack>
+            </RadzenCard>
         </RadzenStack>
     </RadzenStack>
 
-    <!-- Параметры (только для Sync) -->
-    @if (_selectedType == SyncJobType.Sync)
+    <!-- Параметры (только для Sync / Returns) -->
+    @if (_selectedType == SyncJobType.Sync || _selectedType == SyncJobType.Returns)
     {
         <RadzenStack Gap="0.75rem">
             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Параметры</RadzenText>
@@ -147,6 +156,44 @@
             try
             {
                 await JobService.EnqueueUpdateAsync();
+                DialogService.Close(true);
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = ex.Message;
+            }
+            finally
+            {
+                _isBusy = false;
+            }
+        }
+        else if (_selectedType == SyncJobType.Returns)
+        {
+            if (!_from.HasValue || !_to.HasValue)
+            {
+                _errorMessage = "Выберите даты начала и окончания периода.";
+                return;
+            }
+
+            var from = _from.Value.Date;
+            var to   = _to.Value.Date.AddDays(1).AddTicks(-1);
+
+            if (from > to)
+            {
+                _errorMessage = "Дата начала не может быть позже даты окончания.";
+                return;
+            }
+
+            if ((to - from).TotalDays > 30)
+            {
+                _errorMessage = "Максимальная длина периода — 30 дней.";
+                return;
+            }
+
+            _isBusy = true;
+            try
+            {
+                await JobService.EnqueueReturnsSyncAsync(from, to);
                 DialogService.Close(true);
             }
             catch (Exception ex)

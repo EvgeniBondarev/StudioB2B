@@ -6,6 +6,7 @@ using StudioB2B.Infrastructure.Integrations.Ozon.Models.Chat;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.FbsUnfulfilled;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductAttributes;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductPrices;
+using StudioB2B.Infrastructure.Integrations.Ozon.Models.Returns;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo;
 using StudioB2B.Infrastructure.Interfaces;
 
@@ -181,6 +182,23 @@ public class OzonApiClient : IOzonApiClient
             plainApiKey,
             body,
             ct);
+    }
+
+    // ── Returns ──────────────────────────────────────────────────────────────
+
+    public Task<OzonApiResult<OzonReturnsListResponse>> GetReturnsListAsync(
+        string clientId,
+        string apiKey,
+        OzonReturnsListRequest request,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonReturnsListResponse>(OzonEndpoints.ReturnsList, clientId, plainApiKey, request, ct);
     }
 
     // ── Chat ─────────────────────────────────────────────────────────────────

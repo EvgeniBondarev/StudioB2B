@@ -124,6 +124,8 @@ public class TenantDbContext : DbContext
 
     public DbSet<SyncJobSchedule> SyncJobSchedules { get; set; } = null!;
 
+    public DbSet<OrderReturn> OrderReturns { get; set; } = null!;
+
     #endregion
 
     public TenantDbContext(
