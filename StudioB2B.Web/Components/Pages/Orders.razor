@@ -3,9 +3,7 @@
 @using Microsoft.EntityFrameworkCore
 @using Radzen
 @using Radzen.Blazor.Rendering
-@using StudioB2B.Domain.Entities.Orders
-@using StudioB2B.Domain.Entities.Marketplace
-@using StudioB2B.Domain.Entities.Warehouses
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
@@ -72,7 +70,7 @@ else
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Style="flex-wrap: wrap;">
                         @foreach (var t in _availableTransactions)
                         {
-                            var bg = GetSoftBackground(t.Color);
+                            var bg = GetSoftBackground(t.Color ?? string.Empty);
                             var fg = IsLightColor(bg) ? "#1f2937" : "#ffffff";
                             <RadzenButton Text="@t.Name"
                                           ButtonStyle="ButtonStyle.Light"
@@ -384,7 +382,7 @@ else
                                  AlignItems="AlignItems.Center">
                         @if (o.SystemStatus != null)
                         {
-                            var bg = GetSoftBackground(o.SystemStatus.Color);
+                            var bg = GetSoftBackground(o.SystemStatus.Color ?? string.Empty);
                             var fg = GetTextColor(bg);
 
                             <RadzenBadge Text="@o.SystemStatus.Name"
@@ -602,8 +600,8 @@ window.gridResize = {
         columnsPopup.ToggleAsync(columnsButton.Element);
     }
 
-    RadzenButton columnsButton;
-    Popup columnsPopup;
+    RadzenButton columnsButton = null!;
+    Popup columnsPopup = null!;
 
     // Константы колонок
     public static class OrderGridColumns
@@ -626,8 +624,8 @@ window.gridResize = {
     // Модель конфигурации колонки
     public class ColumnConfig
     {
-        public string Key { get; set; }
-        public string Title { get; set; }
+        public required string Key { get; set; }
+        public required string Title { get; set; }
 
         public bool AutoVisible { get; set; } = true; // управляется шириной экрана
         public bool? UserVisible { get; set; } = null; // null = не переопределено пользователем
@@ -637,7 +635,7 @@ window.gridResize = {
 
         public int Priority { get; set; } = 1;
 
-        public string Width { get; set; }
+        public required string Width { get; set; }
     }
 
     // Список конфигураций колонок
@@ -959,7 +957,7 @@ window.gridResize = {
     {
         if (_orderLastTransactionColor.TryGetValue(args.Data.Id, out var color) && !string.IsNullOrEmpty(color))
         {
-            var bg = GetSoftBackground(color);
+            var bg = GetSoftBackground(color!);
             var fg = GetTextColor(bg);
             args.Attributes["style"] = $"background-color: {bg}; color: {fg};";
         }
@@ -1088,9 +1086,9 @@ window.gridResize = {
             async e =>
             {
                 ContextMenuService.Close();
-                if (e.Value?.ToString() == "open")
+                if (e.Value?.ToString() == "open" && args.Data is not null)
                     await OpenOrderDetailAsync(args.Data);
-                else if (e.Value?.ToString() == "history")
+                else if (e.Value?.ToString() == "history" && args.Data is not null)
                     await OpenAuditHistoryAsync(args.Data);
             });
     }
