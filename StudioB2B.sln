@@ -2,8 +2,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StudioB2B.Web", "StudioB2B.Web\StudioB2B.Web.csproj", "{F6BB0858-5BB1-4FA2-BF58-39094F7E8FC6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StudioB2B.Application", "StudioB2B.Application\StudioB2B.Application.csproj", "{29452E6C-BC85-486B-BD1B-06718FD28F8B}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StudioB2B.Domain", "StudioB2B.Domain\StudioB2B.Domain.csproj", "{6FD23763-0C28-42C0-A85D-B812B359B44A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StudioB2B.Infrastructure", "StudioB2B.Infrastructure\StudioB2B.Infrastructure.csproj", "{8B1DB92A-2D90-4604-BFAC-DC29EE859F35}"
@@ -20,10 +18,6 @@ Global
 		{F6BB0858-5BB1-4FA2-BF58-39094F7E8FC6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F6BB0858-5BB1-4FA2-BF58-39094F7E8FC6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F6BB0858-5BB1-4FA2-BF58-39094F7E8FC6}.Release|Any CPU.Build.0 = Release|Any CPU
-		{29452E6C-BC85-486B-BD1B-06718FD28F8B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{29452E6C-BC85-486B-BD1B-06718FD28F8B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{29452E6C-BC85-486B-BD1B-06718FD28F8B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{29452E6C-BC85-486B-BD1B-06718FD28F8B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{6FD23763-0C28-42C0-A85D-B812B359B44A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{6FD23763-0C28-42C0-A85D-B812B359B44A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6FD23763-0C28-42C0-A85D-B812B359B44A}.Release|Any CPU.ActiveCfg = Release|Any CPU

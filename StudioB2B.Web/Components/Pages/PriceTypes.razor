@@ -1,9 +1,8 @@
 @page "/price-types"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
-@using Radzen
-@using StudioB2B.Application.Common.Interfaces
 @using StudioB2B.Domain.Entities.References
+@using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 
@@ -11,8 +10,7 @@
 @inject ITenantDbContextFactory Factory
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
-@inject DialogService DialogService
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JsRuntime
 
 @implements IDisposable
 
@@ -39,7 +37,7 @@ else
 
     <RadzenText TextStyle="TextStyle.Body2"
                 Style="color: var(--rz-text-secondary-color); margin-bottom: 1rem; display: block;">
-        Пользовательские типы цен участвуют в формулах правил расчёта и в правилах транзакций. Системные типы создаются при синхронизации с Ozon.
+        Пользовательские типы цен участвуют в формулах правил расчёта и в правилах документов. Системные типы создаются при синхронизации с Ozon.
     </RadzenText>
 
     <RadzenDataGrid @ref="_grid"
@@ -164,7 +162,7 @@ else
     {
         try
         {
-            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
             if (!string.IsNullOrEmpty(json))
             {
                 _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
@@ -185,7 +183,7 @@ else
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
-            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+            await JsRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
         }
         catch { }
     }

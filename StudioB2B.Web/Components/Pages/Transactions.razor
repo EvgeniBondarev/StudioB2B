@@ -1,12 +1,10 @@
 @page "/transactions"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
-@using Radzen
-@using StudioB2B.Application.Common.Interfaces
 @using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
-@using StudioB2B.Web.Components.Common
 
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory Factory
@@ -17,7 +15,7 @@
 
 @implements IDisposable
 
-<PageTitle>Транзакции заказов</PageTitle>
+<PageTitle>Документы заказов</PageTitle>
 
 @if (!TenantProvider.IsResolved)
 {
@@ -29,7 +27,7 @@ else
 {
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
-        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Транзакции заказов</RadzenText>
+        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Документы заказов</RadzenText>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
             <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ToggleDensity" Title="@GetDensityTitle()" />
@@ -40,7 +38,7 @@ else
 
     <RadzenText TextStyle="TextStyle.Body2"
                 Style="color: var(--rz-text-secondary-color); margin-bottom: 1rem; display: block;">
-        Транзакция — переход заказа из одного системного статуса в другой с изменением цен по правилам.
+        Документ — переход заказа из одного системного статуса в другой с изменением цен по правилам.
     </RadzenText>
 
     @if (_statusMatrix != null && _statusMatrix.Statuses.Count > 0)
@@ -132,7 +130,26 @@ else
 
             <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Название" Width="220px" Frozen="true">
                 <Template Context="t">
-                    <RadzenText TextStyle="TextStyle.Body2">@t.Name</RadzenText>
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                        @if (!string.IsNullOrEmpty(t.Color))
+                        {
+                            <span style="@($"width:16px;height:16px;border-radius:4px;background:{GetSoftBackground(t.Color)};border:1px solid var(--rz-border-color);")" title="@t.Color"></span>
+                        }
+                        <RadzenText TextStyle="TextStyle.Body2">@t.Name</RadzenText>
+                    </RadzenStack>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OrderTransaction" Title="Цвет" Width="80px" Filterable="false" Sortable="false">
+                <Template Context="t">
+                    @if (!string.IsNullOrEmpty(t.Color))
+                    {
+                        <span style="@($"display:inline-block;width:24px;height:24px;border-radius:4px;background:{GetSoftBackground(t.Color)};border:1px solid var(--rz-border-color);")" title="@t.Color"></span>
+                    }
+                    else
+                    {
+                        <span style="color: var(--rz-text-disabled-color);">—</span>
+                    }
                 </Template>
             </RadzenDataGridColumn>
 
@@ -312,7 +329,7 @@ else
     private async Task OpenCreateDialog()
     {
         var result = await DialogService.OpenAsync<OrderTransactionDialog>(
-            "Новая транзакция",
+            "Новый документ",
             new Dictionary<string, object?>(),
             new DialogOptions { Width = "min(900px, 95vw)", Resizable = true });
 
@@ -323,7 +340,7 @@ else
     private async Task OpenEditDialog(OrderTransaction t)
     {
         var result = await DialogService.OpenAsync<OrderTransactionDialog>(
-            "Редактировать транзакцию",
+            "Редактировать документ",
             new Dictionary<string, object?> { ["TransactionId"] = t.Id },
             new DialogOptions { Width = "min(900px, 95vw)", Resizable = true });
 
@@ -334,7 +351,7 @@ else
     private async Task DeleteAsync(OrderTransaction t)
     {
         var confirmed = await DialogService.Confirm(
-            $"Удалить транзакцию «{t.Name}»?",
+            $"Удалить документ «{t.Name}»?",
             "Подтверждение",
             new ConfirmOptions { OkButtonText = "Удалить", CancelButtonText = "Отмена" });
 
@@ -345,7 +362,7 @@ else
         {
             entity.IsDeleted = true;
             await _db.SaveChangesAsync();
-            NotificationService.Notify(NotificationSeverity.Success, "Транзакция удалена");
+            NotificationService.Notify(NotificationSeverity.Success, "Документ удалён");
             await _grid!.Reload();
         }
     }
@@ -375,6 +392,25 @@ else
         Density.Compact => "Компактный режим строк",
         _ => "Обычный режим строк"
     };
+
+    private static string GetSoftBackground(string? color)
+    {
+        if (string.IsNullOrEmpty(color))
+            return "#ececff";
+        color = color.TrimStart('#');
+        if (color.Length < 6) return "#ececff";
+        try
+        {
+            var r = Convert.ToInt32(color[..2], 16);
+            var g = Convert.ToInt32(color[2..4], 16);
+            var b = Convert.ToInt32(color[4..6], 16);
+            r = (int)(r + (255 - r) * 0.7);
+            g = (int)(g + (255 - g) * 0.7);
+            b = (int)(b + (255 - b) * 0.7);
+            return $"#{r:X2}{g:X2}{b:X2}";
+        }
+        catch { return "#ececff"; }
+    }
 
     public void Dispose() => _db?.Dispose();
 }

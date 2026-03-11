@@ -4,10 +4,10 @@ using StudioB2B.Domain.Entities.Common;
 namespace StudioB2B.Domain.Entities.Orders;
 
 /// <summary>
-/// Транзакция заказа — переход из одного системного статуса в другой
+/// Документ заказа — переход из одного системного статуса в другой
 /// с применением правил изменения цен и полей.
 /// </summary>
-[Display(Name = "Транзакция заказа")]
+[Display(Name = "Документ заказа")]
 public class OrderTransaction : IBaseEntity, ISoftDelete
 {
     [Display(Name = "Идентификатор")]
@@ -30,7 +30,12 @@ public class OrderTransaction : IBaseEntity, ISoftDelete
     [Display(Name = "Активна")]
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>Цвет документа (HEX, например #FF5733). Используется для раскраски заказов.</summary>
+    [Display(Name = "Цвет")]
+    public string? Color { get; set; }
+
     public bool IsDeleted { get; set; }
 
     public List<OrderTransactionRule> Rules { get; set; } = [];
+    public List<OrderTransactionFieldRule> FieldRules { get; set; } = [];
 }
