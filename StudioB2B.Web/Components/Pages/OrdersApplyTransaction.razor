@@ -19,7 +19,7 @@
 
 @implements IDisposable
 
-<PageTitle>Транзакция заказов</PageTitle>
+<PageTitle>Провести документ</PageTitle>
 
 @if (!TenantProvider.IsResolved)
 {
@@ -36,7 +36,7 @@ else if (_loading)
 else if (_orderIds.Count == 0)
 {
     <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
-        Не указаны заказы. Выберите заказы на странице <a href="/orders">Заказы</a> и нажмите «Применить транзакцию».
+        Не указаны заказы. Выберите заказы на странице <a href="/orders">Заказы</a> и нажмите кнопку документа для проведения.
     </RadzenAlert>
 }
 else if (_orders.Count == 0)
@@ -55,7 +55,7 @@ else if (_preview == null)
 {
     <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
         <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
-            Выберите транзакцию для @_orders.Count заказов (статус: @_currentStatusName)
+            Выберите документ для проведения по @_orders.Count заказам (статус: @_currentStatusName)
         </RadzenText>
         <RadzenDataGrid TItem="OrderTransaction"
                         Data="@_transactions"
@@ -64,10 +64,21 @@ else if (_preview == null)
                         AllowFiltering="false"
                         AllowPaging="false"
                         RowClick="@OnTransactionSelect"
+                        RowRender="@OnTransactionRowRender"
                         Style="cursor: pointer;"
-                        EmptyText="Нет доступных транзакций">
+                        EmptyText="Нет доступных документов">
             <Columns>
-                <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Транзакция" Width="220px" />
+                <RadzenDataGridColumn TItem="OrderTransaction" Title="Документ" Width="240px">
+                    <Template Context="t">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                            @if (!string.IsNullOrEmpty(t.Color))
+                            {
+                                <span style="width:16px;height:16px;border-radius:4px;background:@GetSoftBackground(t.Color);border:1px solid var(--rz-border-color);flex-shrink:0;" title="@t.Color"></span>
+                            }
+                            <span>@t.Name</span>
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
                 <RadzenDataGridColumn TItem="OrderTransaction" Title="Целевой статус" Width="180px">
                     <Template Context="t">
                         @t.ToSystemStatus?.Name
@@ -96,7 +107,7 @@ else
             </RadzenText>
             <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
                 <RadzenButton Text="Назад" ButtonStyle="ButtonStyle.Light" Click="@BackToSelect" />
-                <RadzenButton Text="Применить ко всем" ButtonStyle="ButtonStyle.Primary" Click="@ApplyAllAsync"
+                <RadzenButton Text="Провести" ButtonStyle="ButtonStyle.Primary" Click="@ApplyAllAsync"
                               Disabled="@(_preview != null && GetValidationErrors().Count > 0)" />
             </RadzenStack>
         </RadzenStack>
@@ -380,6 +391,9 @@ else
     [SupplyParameterFromQuery(Name = "ids")]
     public string? IdsQuery { get; set; }
 
+    [SupplyParameterFromQuery(Name = "transactionId")]
+    public string? TransactionIdQuery { get; set; }
+
     private TenantDbContext? _db;
     private bool _loading = true;
     private List<Guid> _orderIds = [];
@@ -469,6 +483,13 @@ else
         }
 
         _loading = false;
+
+        if (!string.IsNullOrEmpty(TransactionIdQuery) && Guid.TryParse(TransactionIdQuery, out var tid) && _transactions.Count > 0)
+        {
+            var t = _transactions.FirstOrDefault(x => x.Id == tid);
+            if (t != null)
+                await SelectTransactionAsync(t);
+        }
     }
 
     private async Task RecomputeAllAsync()
@@ -505,11 +526,25 @@ else
         }
     }
 
+    private void OnTransactionRowRender(RowRenderEventArgs<OrderTransaction> args)
+    {
+        var color = args.Data.Color;
+        if (!string.IsNullOrEmpty(color))
+        {
+            var bg = GetSoftBackground(color);
+            var fg = IsLightColor(bg) ? "#1f2937" : "#ffffff";
+            args.Attributes["style"] = $"background-color: {bg}; color: {fg}; cursor: pointer;";
+        }
+    }
+
     private async Task OnTransactionSelect(DataGridRowMouseEventArgs<OrderTransaction> args)
     {
-        var t = args.Data;
-        if (t == null) return;
+        if (args.Data != null)
+            await SelectTransactionAsync(args.Data);
+    }
 
+    private async Task SelectTransactionAsync(OrderTransaction t)
+    {
         _loading = true;
         StateHasChanged();
 
@@ -838,7 +873,7 @@ else
         }
         else
         {
-            NotificationService.Notify(NotificationSeverity.Success, "Транзакция применена",
+            NotificationService.Notify(NotificationSeverity.Success, "Документ проведён",
                 $"Обновлено заказов: {successCount}");
         }
 
