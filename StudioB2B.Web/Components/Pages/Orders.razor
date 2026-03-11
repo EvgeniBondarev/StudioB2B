@@ -51,22 +51,7 @@ else
 
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
-<<<<<<< HEAD
-        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Заказы</RadzenText>
 
-        <div>
-            <RadzenButton @ref="columnsButton"
-                          Icon="settings"
-                          Shade="Shade.Light"
-                          ButtonStyle="ButtonStyle.Primary"
-                          Size="ButtonSize.Small"
-                          Text="Колонки"
-                          Click="@(_ => ToggleColumnsPopup())"
-                          Style="margin-right: 10px"/>
-            <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                          Click="@ToggleDensity" Title="@GetDensityTitle()"/>
-        </div>
-=======
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
             <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Заказы</RadzenText>
             @if (_selectedOrderIds.Count > 0)
@@ -80,9 +65,18 @@ else
                               Variant="Variant.Text" Click="@ClearSelection" />
             }
         </RadzenStack>
-        <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                      Click="@ToggleDensity" Title="@GetDensityTitle()"/>
->>>>>>> 914ab77ff383b30389ccd0900bdaabc4b4df4842
+        <div>
+            <RadzenButton @ref="columnsButton"
+                          Icon="settings"
+                          Shade="Shade.Light"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Size="ButtonSize.Small"
+                          Text="Колонки"
+                          Click="@(_ => ToggleColumnsPopup())"
+                          Style="margin-right: 10px"/>
+            <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                          Click="@ToggleDensity" Title="@GetDensityTitle()"/>
+        </div>
     </RadzenStack>
 
 
@@ -556,8 +550,7 @@ window.gridResize = {
 
     private record OrderFilters(Guid? ClientId, Guid? StatusId, Guid? SystemStatusId, Guid? WarehouseId);
 
-    [Inject]
-    private IJSRuntime Js { get; set; } = default!;
+    [Inject] private IJSRuntime Js { get; set; } = default!;
 
     private DotNetObjectReference<Orders>? _resizeRef;
 
@@ -574,6 +567,7 @@ window.gridResize = {
                 .Select(c => c.Key)
                 .ToList();
         }
+
         // Открываем/закрываем popup через Radzen API
         columnsPopup.ToggleAsync(columnsButton.Element);
     }
@@ -605,7 +599,7 @@ window.gridResize = {
         public string Key { get; set; }
         public string Title { get; set; }
 
-        public bool AutoVisible { get; set; } = true;  // управляется шириной экрана
+        public bool AutoVisible { get; set; } = true; // управляется шириной экрана
         public bool? UserVisible { get; set; } = null; // null = не переопределено пользователем
 
         public bool Visible => UserVisible ?? AutoVisible;
@@ -619,19 +613,19 @@ window.gridResize = {
     // Список конфигураций колонок
     List<ColumnConfig> Columns = new()
     {
-        new() { Key = OrderGridColumns.ShipmentNumber, Title="№ Отправления", Frozen=true, Width="180px",  Priority=1},
-        new() { Key = OrderGridColumns.Client, Title="Клиент", Width="160px",  Priority=4},
-        new() { Key = OrderGridColumns.AcceptedDate, Title="Принят", Width="110px",  Priority=9},
-        new() { Key = OrderGridColumns.ShippingDate, Title="Срок отгрузки", Width="120px",  Priority=8},
-        new() { Key = OrderGridColumns.Article, Title="Артикул", Width="160px",  Priority=12},
-        new() { Key = OrderGridColumns.Product, Title="Товар", Frozen=true, Width="290px", Priority=2},
-        new() { Key = OrderGridColumns.Quantity, Title="Кол-во", Width="100px", Priority=5},
-        new() { Key = OrderGridColumns.MarketplaceStatus, Title="Статус маркетплейса", Width="160px",  Priority=6},
-        new() { Key = OrderGridColumns.AppStatus, Title="Статус приложения", Width="160px",  Priority=7},
-        new() { Key = OrderGridColumns.DeliveryMethod, Title="Способ доставки", Width="160px",  Priority=10},
-        new() { Key = OrderGridColumns.Warehouse, Title="Склад", Width="120px",  Priority=11},
-        new() { Key = OrderGridColumns.Price, Title="Цена", Width="120px",  Priority=3},
-        new() { Key = OrderGridColumns.ExtraCalculations, Title="Доп. расчёты", Width="200px",  Priority=13}
+        new() { Key = OrderGridColumns.ShipmentNumber, Title = "№ Отправления", Frozen = true, Width = "180px", Priority = 1 },
+        new() { Key = OrderGridColumns.Client, Title = "Клиент", Width = "160px", Priority = 4 },
+        new() { Key = OrderGridColumns.AcceptedDate, Title = "Принят", Width = "110px", Priority = 9 },
+        new() { Key = OrderGridColumns.ShippingDate, Title = "Срок отгрузки", Width = "120px", Priority = 8 },
+        new() { Key = OrderGridColumns.Article, Title = "Артикул", Width = "160px", Priority = 12 },
+        new() { Key = OrderGridColumns.Product, Title = "Товар", Frozen = true, Width = "290px", Priority = 2 },
+        new() { Key = OrderGridColumns.Quantity, Title = "Кол-во", Width = "100px", Priority = 5 },
+        new() { Key = OrderGridColumns.MarketplaceStatus, Title = "Статус маркетплейса", Width = "160px", Priority = 6 },
+        new() { Key = OrderGridColumns.AppStatus, Title = "Статус приложения", Width = "160px", Priority = 7 },
+        new() { Key = OrderGridColumns.DeliveryMethod, Title = "Способ доставки", Width = "160px", Priority = 10 },
+        new() { Key = OrderGridColumns.Warehouse, Title = "Склад", Width = "120px", Priority = 11 },
+        new() { Key = OrderGridColumns.Price, Title = "Цена", Width = "120px", Priority = 3 },
+        new() { Key = OrderGridColumns.ExtraCalculations, Title = "Доп. расчёты", Width = "200px", Priority = 13 }
     };
 
     void UpdateSelectedColumns()
@@ -650,19 +644,19 @@ window.gridResize = {
         int maxPriority;
 
         if (width < 1000)
-            maxPriority = 3;   // минимальный набор — 3 колонки
+            maxPriority = 3; // минимальный набор — 3 колонки
         else if (width < 1200)
-            maxPriority = 4;  // + Client
+            maxPriority = 4; // + Client
         else if (width < 1350)
-            maxPriority = 5;  // + Quantity
+            maxPriority = 5; // + Quantity
         else if (width < 1550)
-            maxPriority = 6;  // + MarketplaceStatus
+            maxPriority = 6; // + MarketplaceStatus
         else if (width < 1700)
-            maxPriority = 7;  // + AppStatus
+            maxPriority = 7; // + AppStatus
         else if (width < 1800)
-            maxPriority = 8;  // + ShippingDate
+            maxPriority = 8; // + ShippingDate
         else if (width < 1900)
-            maxPriority = 9;  // + AcceptedDate
+            maxPriority = 9; // + AcceptedDate
         else if (width < 2000)
             maxPriority = 10; // + DeliveryMethod
         else if (width < 2200)
@@ -719,7 +713,7 @@ window.gridResize = {
 
             // Синхронизируем dropdown с реально видимыми колонками
             _selectedColumns = Columns
-                .Where(c => c.Visible)   // берём колонки, которые реально видимы
+                .Where(c => c.Visible) // берём колонки, которые реально видимы
                 .Select(c => c.Key)
                 .ToList();
 
@@ -1013,8 +1007,8 @@ window.gridResize = {
     {
         ContextMenuService.Open(args,
             [
-                new ContextMenuItem { Text = "Открыть",           Icon = "open_in_new", Value = "open"    },
-                new ContextMenuItem { Text = "История изменений", Icon = "history",     Value = "history" }
+                new ContextMenuItem { Text = "Открыть", Icon = "open_in_new", Value = "open" },
+                new ContextMenuItem { Text = "История изменений", Icon = "history", Value = "history" }
             ],
             async e =>
             {
@@ -1071,7 +1065,7 @@ window.gridResize = {
     {
         var subjects = new List<AuditSubject>
         {
-            new("Order",    order.Id.ToString(),         "Заказ"),
+            new("Order", order.Id.ToString(), "Заказ"),
             new("Shipment", order.ShipmentId.ToString(), "Отправление"),
         };
         if (order.ProductInfo?.ProductId is { } pid)
