@@ -1,6 +1,6 @@
 @page "/roles"
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Tenants
+@using StudioB2B.Domain.Entities.Master
 @using StudioB2B.Infrastructure.Persistence.Master
 
 @inject MasterDbContext Db
@@ -28,7 +28,7 @@
     </RadzenText>
 
     <RadzenDataGrid @ref="_grid"
-                    TItem="Role"
+                    TItem="MasterRole"
                     Data="@_pageItems"
                     Count="@_totalCount"
                     LoadData="@LoadData"
@@ -73,14 +73,14 @@
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
-            <RadzenDataGridColumn TItem="Role" Property="Name" Title="Название" Width="220px">
+            <RadzenDataGridColumn TItem="MasterRole" Property="Name" Title="Название" Width="220px">
                 <EditTemplate Context="r">
                     <RadzenTextBox @bind-Value="r.Name" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
             <!-- Кнопки сохранения/отмены — только в режиме редактирования строки -->
-            <RadzenDataGridColumn TItem="Role" Filterable="false" Sortable="false"
+            <RadzenDataGridColumn TItem="MasterRole" Filterable="false" Sortable="false"
                                   Width="110px" TextAlign="TextAlign.Center" Title="">
                 <Template Context="r">
                 </Template>
@@ -98,8 +98,8 @@
 </MasterOnlyGuard>
 
 @code {
-    private RadzenDataGrid<Role>? _grid;
-    private IEnumerable<Role> _pageItems = Array.Empty<Role>();
+    private RadzenDataGrid<MasterRole>? _grid;
+    private IEnumerable<MasterRole> _pageItems = Array.Empty<MasterRole>();
     private int _totalCount;
     private Density _density = Density.Default;
     private bool _loading;
@@ -171,17 +171,17 @@
 
     private async Task InsertRow()
     {
-        var role = new Role { Id = Guid.NewGuid() };
+        var role = new MasterRole { Id = Guid.NewGuid() };
         await _grid!.InsertRow(role);
     }
 
-    private async Task EditRow(Role role) => await _grid!.EditRow(role);
+    private async Task EditRow(MasterRole role) => await _grid!.EditRow(role);
 
-    private async Task SaveRow(Role role) => await _grid!.UpdateRow(role);
+    private async Task SaveRow(MasterRole role) => await _grid!.UpdateRow(role);
 
-    private void CancelRow(Role role) => _grid!.CancelEditRow(role);
+    private void CancelRow(MasterRole role) => _grid!.CancelEditRow(role);
 
-    private async Task OnCreate(Role role)
+    private async Task OnCreate(MasterRole role)
     {
         try
         {
@@ -196,7 +196,7 @@
         }
     }
 
-    private async Task OnUpdate(Role role)
+    private async Task OnUpdate(MasterRole role)
     {
         try
         {
@@ -209,7 +209,7 @@
         }
     }
 
-    private async Task DeleteRow(Role role)
+    private async Task DeleteRow(MasterRole role)
     {
         try
         {
@@ -224,7 +224,7 @@
         }
     }
 
-    private void ShowContextMenu(DataGridCellMouseEventArgs<Role> args)
+    private void ShowContextMenu(DataGridCellMouseEventArgs<MasterRole> args)
     {
         ContextMenuService.Open(args,
             [

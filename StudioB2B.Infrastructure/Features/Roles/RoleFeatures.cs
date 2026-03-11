@@ -1,7 +1,7 @@
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Domain.Entities.Master;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Shared.DTOs;
 
@@ -9,7 +9,7 @@ namespace StudioB2B.Infrastructure.Features.Roles;
 
 public static class RoleQueryExtensions
 {
-    public static IQueryable<Role> OrderByName(this IQueryable<Role> query)
+    public static IQueryable<MasterRole> OrderByName(this IQueryable<MasterRole> query)
         => query.OrderBy(r => r.Name);
 }
 
@@ -47,7 +47,7 @@ public class CreateRole(MasterDbContext db, IMapper mapper)
 {
     public async Task<RoleDto> HandleAsync(CreateRoleRequest request, CancellationToken ct = default)
     {
-        var role = mapper.Map<Role>(request);
+        var role = mapper.Map<MasterRole>(request);
         role.Id = Guid.NewGuid();
 
         db.Roles.Add(role);

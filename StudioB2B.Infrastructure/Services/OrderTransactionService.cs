@@ -1,11 +1,11 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Application.Common;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Infrastructure.Features.Orders;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Services;
 

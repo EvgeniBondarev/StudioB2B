@@ -1,6 +1,6 @@
-using StudioB2B.Application.Common;
+using StudioB2B.Shared.DTOs;
 
-namespace StudioB2B.Application.Common.Interfaces;
+namespace StudioB2B.Infrastructure.Interfaces;
 
 /// <summary>
 /// Сервис проведения документов заказов (переход статуса + изменение цен).

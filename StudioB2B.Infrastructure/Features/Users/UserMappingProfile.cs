@@ -11,8 +11,8 @@ public class UserMappingProfile : Profile
 {
     public UserMappingProfile()
     {
-        // User → UserListDto (Roles загружаются отдельно)
-        CreateMap<User, UserListDto>()
+        // TenantUser → UserListDto (Roles загружаются отдельно)
+        CreateMap<TenantUser, UserListDto>()
             .ConstructUsing(src => new UserListDto(
                 src.Id,
                 src.Email,
@@ -22,8 +22,8 @@ public class UserMappingProfile : Profile
                 src.IsActive,
                 new List<string>()));
 
-        // CreateUserRequest → User
-        CreateMap<CreateUserRequest, User>()
+        // CreateUserRequest → TenantUser
+        CreateMap<CreateUserRequest, TenantUser>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email.Trim().ToLowerInvariant()))
             .ForMember(dest => dest.FirstName, opt => opt.MapFrom(src => src.FirstName.Trim()))
@@ -34,8 +34,8 @@ public class UserMappingProfile : Profile
             .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())
             .ForMember(dest => dest.UserRoles, opt => opt.Ignore());
 
-        // UpdateUserRequest → User (patch)
-        CreateMap<UpdateUserRequest, User>()
+        // UpdateUserRequest → TenantUser (patch)
+        CreateMap<UpdateUserRequest, TenantUser>()
             .ForMember(dest => dest.FirstName, opt => opt.MapFrom(src => src.FirstName.Trim()))
             .ForMember(dest => dest.LastName, opt => opt.MapFrom(src => src.LastName.Trim()))
             .ForMember(dest => dest.MiddleName, opt => opt.MapFrom(src => src.MiddleName == null ? null : src.MiddleName.Trim()))

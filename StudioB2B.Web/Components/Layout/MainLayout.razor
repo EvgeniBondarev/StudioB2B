@@ -1,11 +1,11 @@
 @inherits LayoutComponentBase
-@using StudioB2B.Application.Common.Interfaces
-@using StudioB2B.Web.Services
 @using System.Text.Json
+@using StudioB2B.Infrastructure.Interfaces
 @inject ITenantProvider TenantProvider
 @inject NavigationManager Navigation
 @inject TabService TabService
-@inject IJSRuntime JSRuntime
+@inject JwtAuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JsRuntime
 @implements IDisposable
 
 <RadzenLayout Style="min-height: 100vh;">
@@ -53,7 +53,7 @@
 
                     <RadzenPanelMenuItem Text="@TenantProvider.Subdomain" Icon="apartment" Disabled="true" />
                 }
-                else
+                else if (_masterAuthenticated)
                 {
                     <RadzenPanelMenuItem Text="Роли" Path="/roles" Icon="security" />
                 }
@@ -113,6 +113,7 @@
 
 @code {
     private bool _sidebarExpanded = true;
+    private bool _masterAuthenticated;
     private const string TabsStorageKey = "app-tabs";
 
     // Страницы где контент занимает весь экран без padding
@@ -131,13 +132,14 @@
     {
         if (firstRender)
         {
+            _masterAuthenticated = await AuthStateProvider.IsMasterAuthenticatedAsync();
             await LoadTabsFromStorageAsync();
-            // Ensure the current page is open as a tab
             OpenCurrentTab();
+            StateHasChanged();
         }
     }
 
-    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         OpenCurrentTab();
     }
@@ -161,7 +163,7 @@
     {
         try
         {
-            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", TabsStorageKey);
+            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", TabsStorageKey);
             if (!string.IsNullOrEmpty(json))
             {
                 var entries = JsonSerializer.Deserialize<List<TabEntry>>(json);
@@ -180,7 +182,7 @@
         try
         {
             var json = JsonSerializer.Serialize(TabService.Tabs.ToList());
-            await JSRuntime.InvokeVoidAsync("localStorage.setItem", TabsStorageKey, json);
+            await JsRuntime.InvokeVoidAsync("localStorage.setItem", TabsStorageKey, json);
         }
         catch
         {

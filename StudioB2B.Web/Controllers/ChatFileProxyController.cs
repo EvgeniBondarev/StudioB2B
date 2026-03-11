@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Infrastructure.Integrations.Ozon;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
 
 namespace StudioB2B.Web.Controllers;
