@@ -63,7 +63,7 @@ public class OrderSyncJobService : IOrderSyncJobService
         return history.Id;
     }
 
-    public async Task<Guid> EnqueueUpdateAsync()
+    public async Task<Guid> EnqueueUpdateAsync(DateTime from, DateTime to)
     {
         EnsureTenantResolved();
 
@@ -76,6 +76,7 @@ public class OrderSyncJobService : IOrderSyncJobService
         {
             JobType = SyncJobTypeEnum.Update,
             Status = SyncJobStatusEnum.Enqueued,
+            ParametersJson = JsonSerializer.Serialize(new { From = from, To = to }),
             InitiatedByUserId = _currentUserProvider.UserId,
             InitiatedByEmail = _currentUserProvider.Email
         };
@@ -86,7 +87,7 @@ public class OrderSyncJobService : IOrderSyncJobService
         var client = _hangfireManager.GetClient(tenantId);
 
         var hangfireJobId = client.Create<OrderSyncJob>(
-            j => j.ExecuteUpdateAsync(tenantId, connectionString, history.Id, CancellationToken.None),
+            j => j.ExecuteUpdateAsync(tenantId, connectionString, history.Id, from, to, CancellationToken.None),
             new EnqueuedState($"tenant-{tenantId:N}"));
 
         history.HangfireJobId = hangfireJobId;

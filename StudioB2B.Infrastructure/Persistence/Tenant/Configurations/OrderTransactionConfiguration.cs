@@ -12,6 +12,7 @@ public class OrderTransactionConfiguration : IEntityTypeConfiguration<OrderTrans
         builder.HasKey(t => t.Id);
 
         builder.Property(t => t.Name).IsRequired().HasMaxLength(200);
+        builder.Property(t => t.Icon).HasMaxLength(100);
 
         builder.HasOne(t => t.FromSystemStatus)
             .WithMany()

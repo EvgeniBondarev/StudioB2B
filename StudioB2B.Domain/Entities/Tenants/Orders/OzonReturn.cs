@@ -19,6 +19,11 @@ public class OrderReturn : IBaseEntity
     public Guid? OrderId { get; set; }
     public Order? Order { get; set; }
 
+    /// <summary>Ссылка на отправление. Заполняется через совпадение PostingNumber.</summary>
+    [Display(Name = "Отправление")]
+    public Guid? ShipmentId { get; set; }
+    public Shipment? Shipment { get; set; }
+
     // ── Идентификаторы Ozon ───────────────────────────────────────────────────
 
     /// <summary>Идентификатор возврата в Ozon (id из ответа API).</summary>

@@ -44,8 +44,6 @@ public class Order : IBaseEntity, ISoftDelete
 
     public bool IsDeleted { get; set; }
 
-    public bool HasReturn { get; set; }
-
     public List<OrderPrice> Prices { get; set; } = [];
 
     public List<OrderReturn> Returns { get; set; } = [];

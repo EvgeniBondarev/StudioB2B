@@ -72,7 +72,18 @@ else if (_preview == null)
                         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
                             @if (!string.IsNullOrEmpty(t.Color))
                             {
-                                <span style="width:16px;height:16px;border-radius:4px;background:@GetSoftBackground(t.Color);border:1px solid var(--rz-border-color);flex-shrink:0;" title="@t.Color"></span>
+                                var sw = GetSoftBackground(t.Color);
+                                var swFg = GetTextColor(sw);
+                                <span style="width:22px;height:22px;border-radius:6px;background:@sw;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;" title="@t.Color">
+                                    @if (!string.IsNullOrEmpty(t.Icon))
+                                    {
+                                        <i class="rzi" style="font-size:14px;color:@swFg;">@t.Icon</i>
+                                    }
+                                </span>
+                            }
+                            else if (!string.IsNullOrEmpty(t.Icon))
+                            {
+                                <RadzenIcon Icon="@t.Icon" Style="font-size:1rem;flex-shrink:0;" />
                             }
                             <span>@t.Name</span>
                         </RadzenStack>

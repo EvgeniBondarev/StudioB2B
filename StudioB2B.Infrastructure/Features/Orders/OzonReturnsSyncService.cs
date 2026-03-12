@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Infrastructure.Integrations.Ozon;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.Returns;
@@ -9,7 +10,7 @@ namespace StudioB2B.Infrastructure.Features.Orders;
 
 /// <summary>
 /// Загружает возвраты из Ozon API (/v1/returns/list) и сохраняет через upsert по OzonReturnId.
-/// После upsert проставляет Order.HasReturn = true для всех связанных заказов.
+/// После upsert привязывает возвраты к отправлениям через PostingNumber и проставляет Shipment.HasReturn = true.
 /// </summary>
 public class OzonReturnsSyncService
 {
@@ -106,7 +107,7 @@ public class OzonReturnsSyncService
             }
 
             await _db.SaveChangesAsync(ct);
-            await LinkReturnsToOrdersAsync(allReturns, result, ct);
+            await LinkReturnsAsync(allReturns, result, ct);
         }
         finally
         {
@@ -163,47 +164,71 @@ public class OzonReturnsSyncService
     }
 
     /// <summary>
-    /// Проставляет Order.HasReturn = true и заполняет OzonReturn.OrderId
-    /// для всех заказов, у которых OzonOrderId совпадает с order_id из возвратов.
+    /// Привязывает возвраты к отправлениям (PostingNumber) и к позициям (OzonOrderId).
+    /// Проставляет Shipment.HasReturn = true для связанных отправлений.
     /// </summary>
-    private async Task LinkReturnsToOrdersAsync(
+    private async Task LinkReturnsAsync(
         List<OzonReturnDto> dtos,
         ReturnsSyncResult stats,
         CancellationToken ct)
     {
+        var returnIds = dtos.Select(d => d.Id).ToList();
+        var returns = await _db.OrderReturns
+            .Where(r => returnIds.Contains(r.OzonReturnId))
+            .ToListAsync(ct);
+
+        // 1. Привязка к отправлению через PostingNumber
+        var postingNumbers = returns
+            .Where(r => r.ShipmentId == null && !string.IsNullOrEmpty(r.PostingNumber))
+            .Select(r => r.PostingNumber!)
+            .Distinct()
+            .ToList();
+
+        if (postingNumbers.Count > 0)
+        {
+            var shipments = await _db.Shipments
+                .Where(s => postingNumbers.Contains(s.PostingNumber))
+                .ToListAsync(ct);
+
+            var shipmentMap = shipments.ToDictionary(s => s.PostingNumber);
+
+            foreach (var ret in returns.Where(r => r.ShipmentId == null && !string.IsNullOrEmpty(r.PostingNumber)))
+            {
+                if (shipmentMap.TryGetValue(ret.PostingNumber!, out var shipment))
+                {
+                    ret.ShipmentId = shipment.Id;
+                    if (!shipment.HasReturn)
+                    {
+                        shipment.HasReturn = true;
+                        stats.Linked++;
+                    }
+                }
+            }
+        }
+
+        // 2. Дополнительная привязка к позиции заказа через OzonOrderId
         var ozonOrderIds = dtos
             .Where(d => d.OrderId.HasValue)
             .Select(d => d.OrderId!.Value)
             .Distinct()
             .ToList();
 
-        if (ozonOrderIds.Count == 0) return;
-
-        var returnIds = dtos.Select(d => d.Id).ToList();
-        var returns = await _db.OrderReturns
-            .Where(r => returnIds.Contains(r.OzonReturnId))
-            .ToListAsync(ct);
-
-        var orders = await _db.Orders
-            .Where(o => o.OzonOrderId.HasValue && ozonOrderIds.Contains(o.OzonOrderId!.Value))
-            .ToListAsync(ct);
-
-        foreach (var order in orders)
+        if (ozonOrderIds.Count > 0)
         {
-            if (!order.HasReturn)
-            {
-                order.HasReturn = true;
-                stats.Linked++;
-            }
+            var orders = await _db.Orders
+                .Where(o => o.OzonOrderId.HasValue && ozonOrderIds.Contains(o.OzonOrderId!.Value))
+                .ToListAsync(ct);
 
-            foreach (var ret in returns.Where(r => r.OzonOrderId == order.OzonOrderId && r.OrderId == null))
+            foreach (var order in orders)
             {
-                ret.OrderId = order.Id;
+                foreach (var ret in returns.Where(r => r.OzonOrderId == order.OzonOrderId && r.OrderId == null))
+                {
+                    ret.OrderId = order.Id;
+                }
             }
         }
 
-        if (orders.Count > 0 || returns.Any(r => r.OrderId != null))
-            await _db.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
     }
 
     private static OrderReturn MapToEntity(OzonReturnDto dto) => new()
@@ -302,6 +327,6 @@ public class ReturnsSyncResult
 {
     public int Created { get; set; }
     public int Updated { get; set; }
-    /// <summary>Заказов, которым проставлен HasReturn = true.</summary>
+    /// <summary>Отправлений, которым проставлен HasReturn = true.</summary>
     public int Linked  { get; set; }
 }

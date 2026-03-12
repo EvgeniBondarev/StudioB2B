@@ -12,6 +12,8 @@
 @inject IOrderSyncJobService JobService
 @inject NotificationService NotificationService
 @inject IJSRuntime JsRuntime
+@inject NavigationManager Navigation
+@inject DialogService DialogService
 
 @implements IDisposable
 
@@ -44,6 +46,7 @@ else
                     Settings="@_gridSettings"
                     SettingsChanged="@OnGridSettingsChanged"
                     Density="@_density"
+                    RowClick="@OnReturnRowClick"
                     AllowFiltering="true"
                     FilterMode="FilterMode.Advanced"
                     LogicalFilterOperator="LogicalFilterOperator.Or"
@@ -423,4 +426,20 @@ else
     };
 
     public void Dispose() => _db?.Dispose();
+
+    private void OnReturnRowClick(DataGridRowMouseEventArgs<OrderReturn> args)
+    {
+        if (args.Data.ShipmentId.HasValue)
+        {
+            Navigation.NavigateTo($"/orders?openReturn={args.Data.ShipmentId.Value}");
+        }
+        else if (args.Data.OrderId.HasValue)
+        {
+            Navigation.NavigateTo($"/orders?openReturn={args.Data.OrderId.Value}");
+        }
+        else
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Возврат не привязан к отправлению");
+        }
+    }
 }
