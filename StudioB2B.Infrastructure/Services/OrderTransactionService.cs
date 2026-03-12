@@ -1,11 +1,11 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Application.Common;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Infrastructure.Features.Orders;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Services;
 
@@ -44,6 +44,7 @@ public class OrderTransactionService : IOrderTransactionService
             .Include(t => t.Rules.OrderBy(r => r.SortOrder))
                 .ThenInclude(r => r.PriceType)
             .Include(t => t.Rules).ThenInclude(r => r.Product)
+            .Include(t => t.FieldRules)
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == transactionId && !t.IsDeleted, ct);
 
@@ -81,7 +82,27 @@ public class OrderTransactionService : IOrderTransactionService
                 ValueSource = rule.ValueSource,
                 Formula = rule.Formula,
                 ComputedValue = computed,
-                FormulaBreakdown = breakdown
+                FormulaBreakdown = breakdown,
+                IsRequired = rule.IsRequired
+            });
+        }
+
+        var fieldRules = new List<TransactionApplyFieldRulePreview>();
+        foreach (var fr in transaction.FieldRules.OrderBy(r => r.SortOrder))
+        {
+            var descriptor = OrderTransactionFieldRegistry.Get(fr.EntityPath);
+            if (descriptor == null) continue;
+
+            fieldRules.Add(new TransactionApplyFieldRulePreview
+            {
+                RuleId = fr.Id,
+                EntityPath = fr.EntityPath,
+                DisplayName = descriptor.DisplayName,
+                ValueSource = fr.ValueSource,
+                FixedValue = fr.FixedValue,
+                ValueType = descriptor.ValueType,
+                ReferenceType = descriptor.ReferenceType,
+                IsRequired = fr.IsRequired
             });
         }
 
@@ -89,7 +110,8 @@ public class OrderTransactionService : IOrderTransactionService
         {
             TransactionName = transaction.Name,
             ToStatusName = transaction.ToSystemStatus?.Name ?? "",
-            Rules = rules
+            Rules = rules,
+            FieldRules = fieldRules
         };
     }
 
@@ -112,6 +134,7 @@ public class OrderTransactionService : IOrderTransactionService
             .Include(t => t.Rules.OrderBy(r => r.SortOrder))
                 .ThenInclude(r => r.PriceType)
             .Include(t => t.Rules).ThenInclude(r => r.Product)
+            .Include(t => t.FieldRules)
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == transactionId && !t.IsDeleted, ct);
 
@@ -138,7 +161,8 @@ public class OrderTransactionService : IOrderTransactionService
                     PriceTypeName = rule.PriceType.Name ?? "",
                     ProductId = rule.ProductId,
                     ProductName = rule.Product?.Name,
-                    ValueSource = rule.ValueSource
+                    ValueSource = rule.ValueSource,
+                    IsRequired = rule.IsRequired
                 });
             }
             else if (rule.ValueSource == TransactionValueSource.Formula && !string.IsNullOrWhiteSpace(rule.Formula))
@@ -167,16 +191,37 @@ public class OrderTransactionService : IOrderTransactionService
                     ValueSource = rule.ValueSource,
                     Formula = rule.Formula,
                     ComputedValue = computed,
-                    FormulaBreakdown = breakdown
+                    FormulaBreakdown = breakdown,
+                    IsRequired = rule.IsRequired
                 });
             }
+        }
+
+        var fieldRules = new List<TransactionApplyFieldRulePreview>();
+        foreach (var fr in transaction.FieldRules.OrderBy(r => r.SortOrder))
+        {
+            var descriptor = OrderTransactionFieldRegistry.Get(fr.EntityPath);
+            if (descriptor == null) continue;
+
+            fieldRules.Add(new TransactionApplyFieldRulePreview
+            {
+                RuleId = fr.Id,
+                EntityPath = fr.EntityPath,
+                DisplayName = descriptor.DisplayName,
+                ValueSource = fr.ValueSource,
+                FixedValue = fr.FixedValue,
+                ValueType = descriptor.ValueType,
+                ReferenceType = descriptor.ReferenceType,
+                IsRequired = fr.IsRequired
+            });
         }
 
         return new TransactionApplyPreview
         {
             TransactionName = transaction.Name,
             ToStatusName = transaction.ToSystemStatus?.Name ?? "",
-            Rules = rules
+            Rules = rules,
+            FieldRules = fieldRules
         };
     }
 
@@ -246,10 +291,11 @@ public class OrderTransactionService : IOrderTransactionService
         return context;
     }
 
-    public async Task<TransactionApplyResult> ApplyAsync(Guid orderId, Guid transactionId, IReadOnlyDictionary<Guid, decimal>? ruleValues = null, CancellationToken ct = default)
+    public async Task<TransactionApplyResult> ApplyAsync(Guid orderId, Guid transactionId, IReadOnlyDictionary<Guid, decimal>? ruleValues = null, IReadOnlyDictionary<Guid, string>? fieldRuleValues = null, CancellationToken ct = default)
     {
         var order = await _db.Orders
             .IncludeForGrid()
+            .Include(o => o.Recipient)
             .Include(o => o.Prices).ThenInclude(p => p.PriceType)
             .Include(o => o.Prices).ThenInclude(p => p.Currency)
             .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
@@ -265,25 +311,37 @@ public class OrderTransactionService : IOrderTransactionService
                 .ThenInclude(r => r.PriceType)
             .Include(t => t.Rules).ThenInclude(r => r.Currency)
             .Include(t => t.Rules).ThenInclude(r => r.Product)
+            .Include(t => t.FieldRules)
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Id == transactionId && !t.IsDeleted, ct);
 
         if (transaction == null)
-            return new TransactionApplyResult { Success = false, ErrorMessage = "Транзакция не найдена" };
+            return new TransactionApplyResult { Success = false, ErrorMessage = "Документ не найден" };
 
         if (!transaction.IsEnabled)
         {
-            await AddHistoryAsync(orderId, transactionId, false, "Транзакция отключена", 0, ct);
+            await AddHistoryAsync(orderId, transactionId, false, "Документ отключён", 0, 0, ct);
             await _db.SaveChangesAsync(ct);
-            return new TransactionApplyResult { Success = false, ErrorMessage = "Транзакция отключена" };
+            return new TransactionApplyResult { Success = false, ErrorMessage = "Документ отключён" };
         }
 
         if (order.SystemStatusId != transaction.FromSystemStatusId)
         {
-            var msg = $"Текущий статус заказа ({order.SystemStatus?.Name ?? "—"}) не совпадает с исходным статусом транзакции ({transaction.FromSystemStatus?.Name ?? "—"})";
-            await AddHistoryAsync(orderId, transactionId, false, msg, 0, ct);
+            var msg = $"Текущий статус заказа ({order.SystemStatus?.Name ?? "—"}) не совпадает с исходным статусом документа ({transaction.FromSystemStatus?.Name ?? "—"})";
+            await AddHistoryAsync(orderId, transactionId, false, msg, 0, 0, ct);
             await _db.SaveChangesAsync(ct);
             return new TransactionApplyResult { Success = false, ErrorMessage = msg };
+        }
+
+        var priceErrors = ValidateRequiredPriceRules(order, transaction.Rules, ruleValues ?? new Dictionary<Guid, decimal>());
+        var fieldErrors = ValidateRequiredFieldRules(transaction.FieldRules, fieldRuleValues ?? new Dictionary<Guid, string>());
+        var validationErrors = priceErrors.Concat(fieldErrors).ToList();
+        if (validationErrors.Count > 0)
+        {
+            var msg = "Не заполнены обязательные поля";
+            await AddHistoryAsync(orderId, transactionId, false, msg, 0, 0, ct);
+            await _db.SaveChangesAsync(ct);
+            return new TransactionApplyResult { Success = false, ErrorMessage = msg, ValidationErrors = validationErrors };
         }
 
         var context = await BuildContextAsync(order, ct);
@@ -325,18 +383,21 @@ public class OrderTransactionService : IOrderTransactionService
             context[CalculationEngine.SanitizeKey(rule.PriceType.Name)] = value;
         }
 
+        var fieldsUpdated = await ApplyFieldRulesAsync(order, transaction.FieldRules.OrderBy(r => r.SortOrder), fieldRuleValues ?? new Dictionary<Guid, string>(), ct);
+
         order.SystemStatusId = transaction.ToSystemStatusId;
-        await AddHistoryAsync(orderId, transactionId, true, null, pricesUpdated, ct);
+        await AddHistoryAsync(orderId, transactionId, true, null, pricesUpdated, fieldsUpdated, ct);
         await _db.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "Transaction {TransactionName} applied to order {OrderId}: {PricesUpdated} prices updated, status -> {ToStatus}",
-            transaction.Name, orderId, pricesUpdated, transaction.ToSystemStatus?.Name);
+            "Transaction {TransactionName} applied to order {OrderId}: {PricesUpdated} prices, {FieldsUpdated} fields, status -> {ToStatus}",
+            transaction.Name, orderId, pricesUpdated, fieldsUpdated, transaction.ToSystemStatus?.Name);
 
         return new TransactionApplyResult
         {
             Success = true,
-            PricesUpdated = pricesUpdated
+            PricesUpdated = pricesUpdated,
+            FieldsUpdated = fieldsUpdated
         };
     }
 
@@ -346,6 +407,7 @@ public class OrderTransactionService : IOrderTransactionService
         bool success,
         string? errorMessage,
         int pricesUpdated,
+        int fieldsUpdated,
         CancellationToken ct)
     {
         var userName = _currentUser.IsAuthenticated
@@ -362,10 +424,214 @@ public class OrderTransactionService : IOrderTransactionService
             PerformedByUserName = userName,
             Success = success,
             ErrorMessage = errorMessage,
-            PricesUpdated = pricesUpdated
+            PricesUpdated = pricesUpdated,
+            FieldsUpdated = fieldsUpdated
         });
         return Task.CompletedTask;
     }
+
+    private static List<string> ValidateRequiredPriceRules(
+        Order order,
+        IEnumerable<OrderTransactionRule> rules,
+        IReadOnlyDictionary<Guid, decimal> ruleValues)
+    {
+        var errors = new List<string>();
+        foreach (var rule in rules)
+        {
+            if (rule.ValueSource != TransactionValueSource.UserInput || !rule.IsRequired)
+                continue;
+            if (rule.PriceType == null) continue;
+            if (rule.ProductId.HasValue && order.ProductInfo?.ProductId != rule.ProductId.Value)
+                continue;
+
+            if (!ruleValues.TryGetValue(rule.Id, out _))
+                errors.Add(rule.PriceType.Name ?? "Цена");
+        }
+        return errors;
+    }
+
+    private static List<string> ValidateRequiredFieldRules(
+        IEnumerable<OrderTransactionFieldRule> fieldRules,
+        IReadOnlyDictionary<Guid, string> fieldRuleValues)
+    {
+        var errors = new List<string>();
+        foreach (var rule in fieldRules)
+        {
+            if (rule.ValueSource != TransactionFieldValueSource.UserInput || !rule.IsRequired)
+                continue;
+
+            var descriptor = OrderTransactionFieldRegistry.Get(rule.EntityPath);
+            if (descriptor == null) continue;
+
+            if (!fieldRuleValues.TryGetValue(rule.Id, out var valueStr))
+                valueStr = null;
+
+            if (IsFieldValueEmpty(valueStr, descriptor.ValueType))
+                errors.Add(descriptor.DisplayName);
+        }
+        return errors;
+    }
+
+    private static bool IsFieldValueEmpty(string? valueStr, TransactionFieldValueType valueType)
+    {
+        if (string.IsNullOrWhiteSpace(valueStr)) return true;
+        return valueType switch
+        {
+            TransactionFieldValueType.Guid => !Guid.TryParse(valueStr.Trim(), out var g) || g == Guid.Empty,
+            TransactionFieldValueType.DateTime => !DateTime.TryParse(valueStr, out _),
+            TransactionFieldValueType.Int => !int.TryParse(valueStr, out _),
+            TransactionFieldValueType.Decimal => !decimal.TryParse(valueStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _),
+            _ => false
+        };
+    }
+
+    private async Task<int> ApplyFieldRulesAsync(
+        Order order,
+        IEnumerable<OrderTransactionFieldRule> fieldRules,
+        IReadOnlyDictionary<Guid, string> fieldRuleValues,
+        CancellationToken ct)
+    {
+        var count = 0;
+        foreach (var rule in fieldRules)
+        {
+            string? valueStr;
+            if (rule.ValueSource == TransactionFieldValueSource.Fixed)
+            {
+                valueStr = rule.FixedValue;
+            }
+            else
+            {
+                if (!fieldRuleValues.TryGetValue(rule.Id, out valueStr))
+                    continue;
+            }
+
+            var descriptor = OrderTransactionFieldRegistry.Get(rule.EntityPath);
+            if (descriptor == null) continue;
+
+            if (ApplyFieldValue(order, rule.EntityPath, valueStr, descriptor.ValueType))
+                count++;
+        }
+        return await Task.FromResult(count);
+    }
+
+    private static bool ApplyFieldValue(Order order, string entityPath, string? valueStr, TransactionFieldValueType valueType)
+    {
+        try
+        {
+            switch (entityPath)
+            {
+                case "Order.Quantity":
+                    var qty = ParseInt(valueStr);
+                    if (!qty.HasValue || order.Quantity == qty.Value) return false;
+                    order.Quantity = qty.Value;
+                    return true;
+                case "Order.StatusId":
+                    var statusId = ParseGuid(valueStr);
+                    if (order.StatusId == statusId) return false;
+                    order.StatusId = statusId;
+                    return true;
+                case "Order.ProductInfoId":
+                    var productInfoId = ParseGuid(valueStr);
+                    if (order.ProductInfoId == productInfoId) return false;
+                    order.ProductInfoId = productInfoId;
+                    return true;
+                case "Order.RecipientId":
+                    var recipientId = ParseGuid(valueStr);
+                    if (order.RecipientId == recipientId) return false;
+                    order.RecipientId = recipientId;
+                    return true;
+                case "Order.WarehouseInfoId":
+                    var warehouseInfoId = ParseGuid(valueStr);
+                    if (order.WarehouseInfoId == warehouseInfoId) return false;
+                    order.WarehouseInfoId = warehouseInfoId;
+                    return true;
+
+                case "Shipment.PostingNumber" when order.Shipment != null:
+                    if (order.Shipment.PostingNumber == (valueStr ?? "")) return false;
+                    order.Shipment.PostingNumber = valueStr ?? "";
+                    return true;
+                case "Shipment.OrderNumber" when order.Shipment != null:
+                    if (order.Shipment.OrderNumber == valueStr) return false;
+                    order.Shipment.OrderNumber = valueStr;
+                    return true;
+                case "Shipment.StatusId" when order.Shipment != null:
+                    var shipStatusId = ParseGuid(valueStr);
+                    if (order.Shipment.StatusId == shipStatusId) return false;
+                    order.Shipment.StatusId = shipStatusId;
+                    return true;
+                case "Shipment.DeliveryMethodId" when order.Shipment != null:
+                    var dmId = ParseGuid(valueStr);
+                    if (order.Shipment.DeliveryMethodId == dmId) return false;
+                    order.Shipment.DeliveryMethodId = dmId;
+                    return true;
+                case "Shipment.TrackingNumber" when order.Shipment != null:
+                    if (order.Shipment.TrackingNumber == valueStr) return false;
+                    order.Shipment.TrackingNumber = valueStr;
+                    return true;
+                case "Shipment.ShipmentDate" when order.Shipment != null:
+                    var shipDate = ParseDateTime(valueStr);
+                    if (order.Shipment.ShipmentDate == shipDate) return false;
+                    order.Shipment.ShipmentDate = shipDate;
+                    return true;
+                case "Shipment.InProcessAt" when order.Shipment != null:
+                    var inProcessAt = ParseDateTime(valueStr);
+                    if (order.Shipment.InProcessAt == inProcessAt) return false;
+                    order.Shipment.InProcessAt = inProcessAt;
+                    return true;
+
+                case "OrderProductInfo.ProductId" when order.ProductInfo != null:
+                    var productId = ParseGuid(valueStr);
+                    if (order.ProductInfo.ProductId == productId) return false;
+                    order.ProductInfo.ProductId = productId;
+                    return true;
+                case "OrderProductInfo.SupplierId" when order.ProductInfo != null:
+                    var supplierId = ParseGuid(valueStr);
+                    if (order.ProductInfo.SupplierId == supplierId) return false;
+                    order.ProductInfo.SupplierId = supplierId;
+                    return true;
+
+                case "Recipient.Name" when order.Recipient != null:
+                    if (order.Recipient.Name == valueStr) return false;
+                    order.Recipient.Name = valueStr;
+                    return true;
+                case "Recipient.Phone" when order.Recipient != null:
+                    if (order.Recipient.Phone == valueStr) return false;
+                    order.Recipient.Phone = valueStr;
+                    return true;
+                case "Recipient.Email" when order.Recipient != null:
+                    if (order.Recipient.Email == valueStr) return false;
+                    order.Recipient.Email = valueStr;
+                    return true;
+                case "Recipient.AddressId" when order.Recipient != null:
+                    var addressId = ParseGuid(valueStr);
+                    if (order.Recipient.AddressId == addressId) return false;
+                    order.Recipient.AddressId = addressId;
+                    return true;
+
+                case "WarehouseInfo.RecipientWarehouseId" when order.WarehouseInfo != null:
+                    var rwId = ParseGuid(valueStr);
+                    if (order.WarehouseInfo.RecipientWarehouseId == rwId) return false;
+                    order.WarehouseInfo.RecipientWarehouseId = rwId;
+                    return true;
+                case "WarehouseInfo.SenderWarehouseId" when order.WarehouseInfo != null:
+                    var swId = ParseGuid(valueStr);
+                    if (order.WarehouseInfo.SenderWarehouseId == swId) return false;
+                    order.WarehouseInfo.SenderWarehouseId = swId;
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static int? ParseInt(string? s) => int.TryParse(s, out var v) ? v : null;
+    private static Guid? ParseGuid(string? s) => string.IsNullOrWhiteSpace(s) ? null : (Guid.TryParse(s, out var g) ? g : null);
+    private static DateTime? ParseDateTime(string? s) => string.IsNullOrWhiteSpace(s) ? null : (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null);
 
     private async Task<Dictionary<string, decimal>> BuildContextAsync(Order order, CancellationToken ct)
     {

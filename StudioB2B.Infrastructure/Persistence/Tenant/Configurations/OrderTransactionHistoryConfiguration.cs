@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using StudioB2B.Domain.Entities.Orders;
-using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Domain.Entities.Tenants;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Configurations;
 
@@ -25,7 +25,7 @@ public class OrderTransactionHistoryConfiguration : IEntityTypeConfiguration<Ord
             .HasForeignKey(x => x.OrderTransactionId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne<ApplicationUser>()
+        builder.HasOne<TenantUser>()
             .WithMany()
             .HasForeignKey(x => x.PerformedByUserId)
             .OnDelete(DeleteBehavior.SetNull);

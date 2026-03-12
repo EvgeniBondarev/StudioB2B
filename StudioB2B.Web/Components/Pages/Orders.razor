@@ -10,16 +10,15 @@
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
-@using StudioB2B.Web.Components.Common
+@using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory Factory
-@inject IOrderTransactionService TransactionService
 @inject DialogService DialogService
 @inject ContextMenuService ContextMenuService
 @inject NavigationManager Navigation
 @inject TabService TabService
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JsRuntime
 
 @implements IDisposable
 
@@ -59,8 +58,37 @@ else
                 <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-base-600);">
                     Выбрано: @_selectedOrderIds.Count
                 </RadzenText>
-                <RadzenButton Icon="swap_horiz" Text="Применить транзакцию" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
-                              Click="@OpenApplyTransactionTab" />
+                @if (_loadingTransactions)
+                {
+                    <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Small" />
+                }
+                else if (_selectionStatusGroups > 1)
+                {
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-danger);">
+                        Разные статусы — выберите заказы с одинаковым статусом
+                    </RadzenText>
+                }
+                else if (_availableTransactions.Count > 0)
+                {
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Style="flex-wrap: wrap;">
+                        @foreach (var t in _availableTransactions)
+                        {
+                            var bg = GetSoftBackground(t.Color);
+                            var fg = IsLightColor(bg) ? "#1f2937" : "#ffffff";
+                            <RadzenButton Text="@t.Name"
+                                          ButtonStyle="ButtonStyle.Light"
+                                          Size="ButtonSize.Small"
+                                          Style="@($"background-color: {bg}; color: {fg}; border: 1px solid {bg};")"
+                                          Click="@(() => OpenApplyTransactionTab(t.Id))" />
+                        }
+                    </RadzenStack>
+                }
+                else if (_selectionStatusGroups == 1 && !_loadingTransactions)
+                {
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-base-500);">
+                        Нет доступных документов для статуса «@_selectionStatusName»
+                    </RadzenText>
+                }
                 <RadzenButton Icon="close" Text="Снять выбор" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                               Variant="Variant.Text" Click="@ClearSelection" />
             }
@@ -101,6 +129,7 @@ else
         ShowPagingSummary="true"
         PagerHorizontalAlign="HorizontalAlign.Left"
         CellContextMenu="@ShowContextMenu"
+        RowRender="@OnRowRender"
         IsLoading="@_loading"
         FilterText="@RadzenRuStrings.FilterText"
         ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
@@ -543,6 +572,7 @@ window.gridResize = {
     private List<CalculationRule> _calcRules = new();
     private Dictionary<Guid, Dictionary<string, decimal>> _computed = new();
     private bool _computedSplitByColumns;
+    private Dictionary<Guid, string?> _orderLastTransactionColor = new();
 
     private DataGridSettings? _gridSettings;
     private const string GridSettingsKey = "orders-grid-settings";
@@ -735,7 +765,7 @@ window.gridResize = {
     {
         try
         {
-            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
             if (!string.IsNullOrEmpty(json))
             {
                 _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
@@ -758,7 +788,7 @@ window.gridResize = {
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
-            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+            await JsRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
         }
         catch
         {
@@ -769,7 +799,7 @@ window.gridResize = {
     {
         try
         {
-            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", FiltersKey);
+            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", FiltersKey);
             if (!string.IsNullOrEmpty(json))
             {
                 var f = System.Text.Json.JsonSerializer.Deserialize<OrderFilters>(json);
@@ -794,7 +824,7 @@ window.gridResize = {
         {
             var json = System.Text.Json.JsonSerializer.Serialize(
                 new OrderFilters(_filterClientId, _filterStatusId, _filterSystemStatusId, _filterWarehouseId));
-            await JSRuntime.InvokeVoidAsync("localStorage.setItem", FiltersKey, json);
+            await JsRuntime.InvokeVoidAsync("localStorage.setItem", FiltersKey, json);
         }
         catch
         {
@@ -896,7 +926,34 @@ window.gridResize = {
             _pageItems = _pageItems.Skip(skip).Take(take).ToList();
         }
 
+        var orderIds = _pageItems.Select(o => o.Id).ToList();
+        if (orderIds.Count > 0)
+        {
+            var histories = await _db!.OrderTransactionHistories
+                .Include(h => h.OrderTransaction)
+                .Where(h => h.Success && orderIds.Contains(h.OrderId))
+                .OrderByDescending(h => h.PerformedAtUtc)
+                .ToListAsync();
+            _orderLastTransactionColor = histories
+                .GroupBy(h => h.OrderId)
+                .ToDictionary(g => g.Key, g => g.First().OrderTransaction?.Color);
+        }
+        else
+        {
+            _orderLastTransactionColor = new Dictionary<Guid, string?>();
+        }
+
         _loading = false;
+    }
+
+    private void OnRowRender(RowRenderEventArgs<Order> args)
+    {
+        if (_orderLastTransactionColor.TryGetValue(args.Data.Id, out var color) && !string.IsNullOrEmpty(color))
+        {
+            var bg = GetSoftBackground(color);
+            var fg = GetTextColor(bg);
+            args.Attributes["style"] = $"background-color: {bg}; color: {fg};";
+        }
     }
 
     private async Task EnsureInitializedAsync()
@@ -982,20 +1039,29 @@ window.gridResize = {
 
     string GetSoftBackground(string color)
     {
-        if (string.IsNullOrEmpty(color))
+        if (string.IsNullOrWhiteSpace(color))
             return "#ececff";
 
-        color = color.TrimStart('#');
+        color = color.TrimStart('#').Trim();
+        if (color.Length < 6)
+            return "#ececff";
 
-        var r = Convert.ToInt32(color[..2], 16);
-        var g = Convert.ToInt32(color[2..4], 16);
-        var b = Convert.ToInt32(color[4..6], 16);
+        try
+        {
+            var r = Convert.ToInt32(color[..2], 16);
+            var g = Convert.ToInt32(color[2..4], 16);
+            var b = Convert.ToInt32(color[4..6], 16);
 
-        r = (int)(r + (255 - r) * 0.7);
-        g = (int)(g + (255 - g) * 0.7);
-        b = (int)(b + (255 - b) * 0.7);
+            r = (int)(r + (255 - r) * 0.7);
+            g = (int)(g + (255 - g) * 0.7);
+            b = (int)(b + (255 - b) * 0.7);
 
-        return $"#{r:X2}{g:X2}{b:X2}";
+            return $"#{r:X2}{g:X2}{b:X2}";
+        }
+        catch (FormatException)
+        {
+            return "#ececff";
+        }
     }
 
     string GetTextColor(string bg)
@@ -1021,6 +1087,10 @@ window.gridResize = {
     }
 
     private HashSet<Guid> _selectedOrderIds = [];
+    private List<OrderTransaction> _availableTransactions = [];
+    private bool _loadingTransactions;
+    private int _selectionStatusGroups;
+    private string? _selectionStatusName;
 
     private bool IsAllSelected => _pageItems.Any() && _pageItems.All(o => _selectedOrderIds.Contains(o.Id));
 
@@ -1034,6 +1104,7 @@ window.gridResize = {
         else
             foreach (var o in _pageItems)
                 _selectedOrderIds.Remove(o.Id);
+        _ = LoadAvailableTransactionsAsync();
         StateHasChanged();
     }
 
@@ -1043,21 +1114,72 @@ window.gridResize = {
             _selectedOrderIds.Add(orderId);
         else
             _selectedOrderIds.Remove(orderId);
+        _ = LoadAvailableTransactionsAsync();
         StateHasChanged();
     }
 
     private void ClearSelection()
     {
         _selectedOrderIds.Clear();
+        _availableTransactions = [];
+        _selectionStatusGroups = 0;
+        _selectionStatusName = null;
         StateHasChanged();
     }
 
-    private void OpenApplyTransactionTab()
+    private async Task LoadAvailableTransactionsAsync()
+    {
+        _availableTransactions = [];
+        _selectionStatusGroups = 0;
+        _selectionStatusName = null;
+        if (_selectedOrderIds.Count == 0)
+        {
+            _loadingTransactions = false;
+            return;
+        }
+
+        _loadingTransactions = true;
+        StateHasChanged();
+
+        await EnsureInitializedAsync();
+        var statusIdsWithValue = await _db!.Orders
+            .Where(o => _selectedOrderIds.Contains(o.Id) && o.SystemStatusId != null)
+            .Select(o => o.SystemStatusId!.Value)
+            .Distinct()
+            .ToListAsync();
+        var hasNull = await _db.Orders
+            .Where(o => _selectedOrderIds.Contains(o.Id) && o.SystemStatusId == null)
+            .AnyAsync();
+        _selectionStatusGroups = statusIdsWithValue.Count + (hasNull ? 1 : 0);
+
+        if (_selectionStatusGroups == 1)
+        {
+            if (statusIdsWithValue.Count == 1)
+            {
+                var statusId = statusIdsWithValue[0];
+                _selectionStatusName = _systemStatuses.FirstOrDefault(s => s.Id == statusId)?.Name ?? "—";
+                _availableTransactions = await _db.OrderTransactions
+                    .Where(t => !t.IsDeleted && t.IsEnabled && t.FromSystemStatusId == statusId)
+                    .OrderBy(t => t.Name)
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
+            else
+            {
+                _selectionStatusName = "Без статуса";
+            }
+        }
+
+        _loadingTransactions = false;
+        StateHasChanged();
+    }
+
+    private void OpenApplyTransactionTab(Guid transactionId)
     {
         if (_selectedOrderIds.Count == 0) return;
         var ids = string.Join(",", _selectedOrderIds);
-        var path = $"/orders/apply-transaction?ids={ids}";
-        TabService.OpenTab(path, $"Транзакция ({_selectedOrderIds.Count})", "swap_horiz");
+        var path = $"/orders/apply-transaction?ids={ids}&transactionId={transactionId}";
+        TabService.OpenTab(path, $"Провести документ ({_selectedOrderIds.Count})", "swap_horiz");
         Navigation.NavigateTo(path);
     }
 
@@ -1124,4 +1246,3 @@ window.gridResize = {
         return CalculationEngine.BuildFormulaBreakdown(rule.Formula ?? "", context, val);
     }
 }
-

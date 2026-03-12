@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Infrastructure.MultiTenancy.Extensions;
 using StudioB2B.Infrastructure.MultiTenancy.Resolution;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Services;
@@ -57,7 +58,7 @@ public class TenantMiddleware
         await _next(context);
     }
 
-    private static async Task<Tenant?> FindActiveTenantAsync(
+    private static async Task<TenantEntity?> FindActiveTenantAsync(
         MasterDbContext masterDb, string subdomain, CancellationToken ct)
     {
         return await masterDb.Tenants

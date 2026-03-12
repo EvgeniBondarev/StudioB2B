@@ -1,28 +1,17 @@
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Application.Common.Interfaces;
-using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Domain.Entities.Master;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Features.Roles;
 
-/// <summary>
-/// Расширения для построения запросов к ролям (IQueryable)
-/// </summary>
 public static class RoleQueryExtensions
 {
-    public static IQueryable<MasterRole> ByNormalizedName(this IQueryable<MasterRole> query, string name)
-    {
-        var normalized = name.ToUpperInvariant();
-        return query.Where(r => r.NormalizedName == normalized);
-    }
-
     public static IQueryable<MasterRole> OrderByName(this IQueryable<MasterRole> query)
         => query.OrderBy(r => r.Name);
 }
-
 
 // ─── GetRoles ─────────────────────────────────────────────────────────────────
 
@@ -59,6 +48,7 @@ public class CreateRole(MasterDbContext db, IMapper mapper)
     public async Task<RoleDto> HandleAsync(CreateRoleRequest request, CancellationToken ct = default)
     {
         var role = mapper.Map<MasterRole>(request);
+        role.Id = Guid.NewGuid();
 
         db.Roles.Add(role);
         await db.SaveChangesAsync(ct);
@@ -93,10 +83,9 @@ public class DeleteRole(MasterDbContext db)
         var role = await db.Roles.FindAsync([id], ct);
         if (role is null) return false;
 
-        db.Roles.Remove(role);
+        role.IsDeleted = true;
         await db.SaveChangesAsync(ct);
 
         return true;
     }
 }
-

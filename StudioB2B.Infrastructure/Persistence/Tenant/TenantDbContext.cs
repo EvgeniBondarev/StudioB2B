@@ -2,30 +2,26 @@ using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata;
-using StudioB2B.Application.Common.Interfaces;
 using StudioB2B.Domain.Entities.Common;
 using StudioB2B.Domain.Entities.Marketplace;
 using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Domain.Entities.Products;
 using StudioB2B.Domain.Entities.References;
+using StudioB2B.Domain.Entities.Tenants;
 using StudioB2B.Domain.Entities.Warehouses;
+using StudioB2B.Infrastructure.Interfaces;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant;
 
-public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>
+public class TenantDbContext : DbContext
 {
-    /// <summary>Поля Identity и системные поля, которые не нужно аудировать.</summary>
+    /// <summary>Поля, которые не нужно аудировать.</summary>
     private static readonly HashSet<string> ExcludedProperties = new(StringComparer.OrdinalIgnoreCase)
     {
-        "PasswordHash",
-        "SecurityStamp",
-        "ConcurrencyStamp",
-        "NormalizedUserName",
-        "NormalizedEmail",
+        nameof(TenantUser.HashPassword),
         nameof(ISoftDelete.IsDeleted)
     };
 
@@ -48,54 +44,87 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
 
     private readonly List<FieldAuditLog> _deferredAuditBuffer = [];
 
-    // ── Marketplace ──────────────────────────────────────────────────
+    #region DataSets
+
+    public DbSet<TenantUser> Users { get; set; } = null!;
+
+    public DbSet<TenantRole> Roles { get; set; } = null!;
+
+    public DbSet<TenantUserRole> UserRoles { get; set; } = null!;
+
     public DbSet<MarketplaceClient>? MarketplaceClients { get; set; }
+
     public DbSet<MarketplaceClientType>? MarketplaceClientTypes { get; set; }
+
     public DbSet<MarketplaceClientMode>? MarketplaceClientModes { get; set; }
+
     public DbSet<MarketplaceClientSettings>? MarketplaceClientSettings { get; set; }
+
     public DbSet<MarketplaceClient1CSettings>? MarketplaceClient1CSettings { get; set; }
 
-    // ── Orders ───────────────────────────────────────────────────────
     public DbSet<OrderStatus> OrderStatuses { get; set; } = null!;
+
     public DbSet<CalculationRule> CalculationRules { get; set; } = null!;
+
     public DbSet<StatusColor> StatusColors { get; set; } = null!;
+
     public DbSet<DateType> DateTypes { get; set; } = null!;
+
     public DbSet<DeliveryType> DeliveryTypes { get; set; } = null!;
+
     public DbSet<DeliveryMethod> DeliveryMethods { get; set; } = null!;
+
     public DbSet<Address> Addresses { get; set; } = null!;
+
     public DbSet<Recipient> Recipients { get; set; } = null!;
+
     public DbSet<WarehouseInfo> WarehouseInfos { get; set; } = null!;
+
     public DbSet<Shipment> Shipments { get; set; } = null!;
+
     public DbSet<ShipmentDate> ShipmentDates { get; set; } = null!;
+
     public DbSet<Order> Orders { get; set; } = null!;
+
     public DbSet<OrderPrice> OrderPrices { get; set; } = null!;
+
     public DbSet<OrderProductInfo> OrderProductInfos { get; set; } = null!;
+
     public DbSet<OrderTransaction> OrderTransactions { get; set; } = null!;
+
     public DbSet<OrderTransactionRule> OrderTransactionRules { get; set; } = null!;
+
+    public DbSet<OrderTransactionFieldRule> OrderTransactionFieldRules { get; set; } = null!;
+
     public DbSet<OrderTransactionHistory> OrderTransactionHistories { get; set; } = null!;
 
-    // ── Products ─────────────────────────────────────────────────────
     public DbSet<Category> Categories { get; set; } = null!;
+
     public DbSet<Manufacturer> Manufacturers { get; set; } = null!;
+
     public DbSet<Supplier> Suppliers { get; set; } = null!;
+
     public DbSet<Product> Products { get; set; } = null!;
+
     public DbSet<ProductAttribute> ProductAttributes { get; set; } = null!;
+
     public DbSet<ProductAttributeValue> ProductAttributeValues { get; set; } = null!;
 
-    // ── References ───────────────────────────────────────────────────
     public DbSet<Currency> Currencies { get; set; } = null!;
+
     public DbSet<PriceType> PriceTypes { get; set; } = null!;
 
-    // ── Warehouses ───────────────────────────────────────────────────
     public DbSet<Warehouse> Warehouses { get; set; } = null!;
+
     public DbSet<WarehouseStock> WarehouseStocks { get; set; } = null!;
 
-    // ── Audit ────────────────────────────────────────────────────────
     public DbSet<FieldAuditLog> FieldAuditLogs { get; set; } = null!;
 
-    // ── Background Jobs ──────────────────────────────────────────────
-    public DbSet<SyncJobHistory>   SyncJobHistories  { get; set; } = null!;
-    public DbSet<SyncJobSchedule>  SyncJobSchedules  { get; set; } = null!;
+    public DbSet<SyncJobHistory> SyncJobHistories { get; set; } = null!;
+
+    public DbSet<SyncJobSchedule> SyncJobSchedules { get; set; } = null!;
+
+    #endregion
 
     public TenantDbContext(
         DbContextOptions<TenantDbContext> options,
@@ -123,8 +152,6 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
 
     /// <summary>
     /// Сбрасывает накопленный буфер аудита в БД пакетами по <paramref name="batchSize"/> записей.
-    /// Каждый пакет сохраняется в отдельной мини-транзакции, поэтому не влияет на основные данные.
-    /// После успешного сброса буфер очищается.
     /// </summary>
     public async Task FlushDeferredAuditAsync(int batchSize = 200, CancellationToken ct = default)
     {
@@ -135,9 +162,6 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
         {
             var batch = _deferredAuditBuffer.GetRange(i, Math.Min(batchSize, _deferredAuditBuffer.Count - i));
             FieldAuditLogs.AddRange(batch);
-
-            // Сохраняем вне любой внешней транзакции: используем SuppressAudit чтобы
-            // не попасть в рекурсию (FieldAuditLog сам не является IBaseEntity).
             await base.SaveChangesAsync(ct);
         }
 
@@ -161,73 +185,55 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
             var entityName = entry.Metadata.ShortName();
             var entityId   = entry.Properties
                 .FirstOrDefault(p => p.Metadata.IsPrimaryKey())?.CurrentValue?.ToString() ?? string.Empty;
-            var changeType = entry.State.ToString(); // "Added" / "Modified" / "Deleted"
+            var changeType = entry.State.ToString();
             var changedAt  = DateTime.UtcNow;
 
             var clrType   = entry.Entity.GetType();
             var skipProps = _skipAuditCache.GetOrAdd(clrType, t =>
             {
                 var set = new HashSet<string>(StringComparer.Ordinal);
-
-                // Свойства самого класса с [SkipAudit]
                 foreach (var p in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
-                {
                     if (p.GetCustomAttribute<SkipAuditAttribute>() != null)
                         set.Add(p.Name);
-                }
-
-                // Свойства интерфейсов с [SkipAudit] (например ISoftDelete.IsDeleted)
                 foreach (var iface in t.GetInterfaces())
-                {
                     foreach (var p in iface.GetProperties())
-                    {
                         if (p.GetCustomAttribute<SkipAuditAttribute>() != null)
                             set.Add(p.Name);
-                    }
-                }
-
                 return set;
             });
 
-            foreach (PropertyEntry prop in entry.Properties)
+            foreach (var prop in entry.Properties)
             {
                 if (ExcludedProperties.Contains(prop.Metadata.Name))
                     continue;
-
                 if (skipProps.Contains(prop.Metadata.Name))
                     continue;
-
-                // Пропускаем неизменённые поля при Modified
                 if (entry.State == EntityState.Modified && !prop.IsModified)
                     continue;
 
                 var oldValue = entry.State == EntityState.Modified || entry.State == EntityState.Deleted
                     ? Serialize(prop.OriginalValue)
                     : null;
-
                 var newValue = entry.State == EntityState.Deleted
                     ? null
                     : Serialize(prop.CurrentValue);
 
-                // Не пишем запись если оба значения одинаковы (актуально для Added с дефолтами)
                 if (entry.State == EntityState.Added && oldValue == newValue)
                     continue;
-
-                // Пропускаем «заполнение» пустых полей системой (sync) — по сути как создание значения
                 if (entry.State == EntityState.Modified && oldValue == null && userId == SystemUser.RobotId)
                     continue;
 
                 logs.Add(new FieldAuditLog
                 {
-                    EntityName        = entityName,
-                    EntityId          = entityId,
-                    FieldName         = prop.Metadata.Name,
-                    OldValue          = oldValue,
-                    NewValue          = newValue,
-                    ChangedByUserId   = userId,
+                    EntityName = entityName,
+                    EntityId = entityId,
+                    FieldName = prop.Metadata.Name,
+                    OldValue = oldValue,
+                    NewValue = newValue,
+                    ChangedByUserId = userId,
                     ChangedByUserName = userName,
-                    ChangedAtUtc      = changedAt,
-                    ChangeType        = changeType
+                    ChangedAtUtc = changedAt,
+                    ChangeType = changeType
                 });
             }
         }
@@ -250,20 +256,21 @@ public class TenantDbContext : IdentityDbContext<ApplicationUser, ApplicationRol
             type => type.Namespace?.Contains("Tenant") == true ||
                     type.Namespace?.Contains("Configurations") == true);
 
+
         ApplySoftDeleteFilters(modelBuilder);
     }
 
     private static void ApplySoftDeleteFilters(ModelBuilder modelBuilder)
     {
-        foreach (IMutableEntityType entityType in modelBuilder.Model.GetEntityTypes())
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
             if (!typeof(ISoftDelete).IsAssignableFrom(entityType.ClrType))
                 continue;
 
-            ParameterExpression param = Expression.Parameter(entityType.ClrType, "e");
-            MemberExpression isDeletedProp = Expression.Property(param, nameof(ISoftDelete.IsDeleted));
-            UnaryExpression notDeleted = Expression.Not(isDeletedProp);
-            LambdaExpression lambda = Expression.Lambda(notDeleted, param);
+            var param = Expression.Parameter(entityType.ClrType, "e");
+            var isDeletedProp = Expression.Property(param, nameof(ISoftDelete.IsDeleted));
+            var notDeleted = Expression.Not(isDeletedProp);
+            var lambda = Expression.Lambda(notDeleted, param);
 
             entityType.SetQueryFilter(lambda);
         }
