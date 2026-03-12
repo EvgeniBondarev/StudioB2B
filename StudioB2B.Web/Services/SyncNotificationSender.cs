@@ -13,23 +13,14 @@ public class SyncNotificationSender : ISyncNotificationSender
         _hub = hub;
     }
 
-    public async Task SendJobStartedAsync(
-        Guid tenantId,
-        Guid historyId,
-        string jobType,
-        CancellationToken ct = default)
+    public async Task SendJobStartedAsync(Guid tenantId, Guid historyId, string jobType, CancellationToken ct = default)
     {
         await _hub.Clients
             .Group(tenantId.ToString())
             .SendAsync("JobStarted", new { historyId, jobType }, ct);
     }
 
-    public async Task SendJobCompletedAsync(
-        Guid tenantId,
-        Guid historyId,
-        string status,
-        string jobType,
-        CancellationToken ct = default)
+    public async Task SendJobCompletedAsync(Guid tenantId, Guid historyId, string status, string jobType, CancellationToken ct = default)
     {
         await _hub.Clients
             .Group(tenantId.ToString())

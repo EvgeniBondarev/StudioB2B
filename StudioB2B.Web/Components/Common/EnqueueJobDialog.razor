@@ -79,15 +79,15 @@
 </RadzenStack>
 
 @code {
-    [Parameter] public IOrderSyncJobService JobService      { get; set; } = null!;
-    [Parameter] public DialogService        DialogService   { get; set; } = null!;
-    [Parameter] public NotificationService  NotificationService { get; set; } = null!;
+    [Parameter] public IOrderSyncJobService JobService { get; set; } = null!;
+    [Parameter] public DialogService DialogService { get; set; } = null!;
+    [Parameter] public NotificationService NotificationService { get; set; } = null!;
 
     private SyncJobType? _selectedType = SyncJobType.Sync;
-    private DateTime?    _from = DateTime.Today.AddDays(-7);
-    private DateTime?    _to   = DateTime.Today;
-    private bool         _isBusy;
-    private string?      _errorMessage;
+    private DateTime? _from = DateTime.Today.AddDays(-7);
+    private DateTime? _to = DateTime.Today;
+    private bool _isBusy;
+    private string? _errorMessage;
 
     private void SelectType(SyncJobType t)
     {
@@ -114,7 +114,7 @@
         }
 
         var from = _from.Value.Date;
-        var to   = _to.Value.Date.AddDays(1).AddTicks(-1);
+        var to = _to.Value.Date.AddDays(1).AddTicks(-1);
 
         if (from > to)
         {

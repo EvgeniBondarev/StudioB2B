@@ -1,4 +1,3 @@
-@using StudioB2B.Web.Services
 @inject TabService TabService
 @inject NavigationManager Navigation
 @implements IDisposable
@@ -37,7 +36,7 @@
         InvokeAsync(StateHasChanged);
     }
 
-    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         InvokeAsync(StateHasChanged);
     }
@@ -45,7 +44,7 @@
     private bool IsActive(string path)
     {
         var uri = new Uri(Navigation.Uri);
-        var current = (uri.PathAndQuery ?? uri.AbsolutePath).TrimEnd('/');
+        var current = (uri.PathAndQuery).TrimEnd('/');
         var tab = path.TrimEnd('/');
         return string.Equals(current, tab, StringComparison.OrdinalIgnoreCase)
                || (current == string.Empty && tab == string.Empty);
