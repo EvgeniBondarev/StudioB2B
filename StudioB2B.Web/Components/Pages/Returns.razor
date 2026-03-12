@@ -541,11 +541,11 @@ else
 
     private void OnReturnRowClick(DataGridRowMouseEventArgs<OrderReturn> args)
     {
-        if (args.Data.ShipmentId.HasValue)
+        if (args.Data != null && args.Data.ShipmentId.HasValue)
         {
             Navigation.NavigateTo($"/orders?openReturn={args.Data.ShipmentId.Value}");
         }
-        else if (args.Data.OrderId.HasValue)
+        else if (args.Data != null && args.Data.OrderId.HasValue)
         {
             Navigation.NavigateTo($"/orders?openReturn={args.Data.OrderId.Value}");
         }

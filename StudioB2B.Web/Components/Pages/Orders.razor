@@ -1282,7 +1282,7 @@ window.gridResize = {
 
     private void OnRowRender(RowRenderEventArgs<Order> args)
     {
-        if (_orderLastTransactionColor.TryGetValue(args.Data.Id, out var color) && !string.IsNullOrEmpty(color))
+        if (args.Data != null && _orderLastTransactionColor.TryGetValue(args.Data.Id, out var color) && !string.IsNullOrEmpty(color))
         {
             var bg = GetSoftBackground(color!);
             var fg = GetTextColor(bg);
