@@ -4,7 +4,7 @@ namespace StudioB2B.Domain.Entities.Orders;
 
 /// <summary>
 /// Возврат/отмена заказа из Ozon API (/v1/returns/list).
-/// Связывается с <see cref="Order"/> через поля <see cref="OzonOrderId"/> ↔ <see cref="Order.OzonOrderId"/>.
+/// Связывается с <see cref="Order"/> через поля <see cref="OzonOrderId"/> ↔ <see cref="OrderEntity.OzonOrderId"/>.
 /// </summary>
 [Display(Name = "Возврат Ozon")]
 public class OrderReturn : IBaseEntity
@@ -12,19 +12,15 @@ public class OrderReturn : IBaseEntity
     [Display(Name = "Идентификатор")]
     public Guid Id { get; set; }
 
-    // ── Связь с внутренним заказом ────────────────────────────────────────────
-
     /// <summary>Ссылка на внутреннюю позицию заказа. Null, если заказ ещё не синхронизирован.</summary>
     [Display(Name = "Заказ")]
     public Guid? OrderId { get; set; }
-    public Order? Order { get; set; }
+    public OrderEntity? Order { get; set; }
 
     /// <summary>Ссылка на отправление. Заполняется через совпадение PostingNumber.</summary>
     [Display(Name = "Отправление")]
     public Guid? ShipmentId { get; set; }
     public Shipment? Shipment { get; set; }
-
-    // ── Идентификаторы Ozon ───────────────────────────────────────────────────
 
     /// <summary>Идентификатор возврата в Ozon (id из ответа API).</summary>
     [Display(Name = "ID возврата в Ozon")]
@@ -49,8 +45,6 @@ public class OrderReturn : IBaseEntity
     [Display(Name = "Возвратный штрихкод (return_clearing_id)")]
     public long? ReturnClearingId { get; set; }
 
-    // ── Тип и причина ─────────────────────────────────────────────────────────
-
     /// <summary>Причина возврата.</summary>
     [Display(Name = "Причина возврата")]
     public string? ReturnReasonName { get; set; }
@@ -62,8 +56,6 @@ public class OrderReturn : IBaseEntity
     /// <summary>Схема доставки: FBS или FBO.</summary>
     [Display(Name = "Схема")]
     public string? Schema { get; set; }
-
-    // ── Товар ─────────────────────────────────────────────────────────────────
 
     [Display(Name = "SKU товара")]
     public long? ProductSku { get; set; }
@@ -92,8 +84,6 @@ public class OrderReturn : IBaseEntity
     [Display(Name = "Количество")]
     public int ProductQuantity { get; set; }
 
-    // ── Статус возврата ───────────────────────────────────────────────────────
-
     [Display(Name = "ID статуса возврата")]
     public int? VisualStatusId { get; set; }
 
@@ -105,8 +95,6 @@ public class OrderReturn : IBaseEntity
 
     [Display(Name = "Дата изменения статуса")]
     public DateTime? VisualStatusChangeMoment { get; set; }
-
-    // ── Логистика ─────────────────────────────────────────────────────────────
 
     [Display(Name = "Дата возврата покупателем")]
     public DateTime? ReturnDate { get; set; }
@@ -122,8 +110,6 @@ public class OrderReturn : IBaseEntity
 
     [Display(Name = "Штрихкод возвратной этикетки")]
     public string? LogisticBarcode { get; set; }
-
-    // ── Хранение ─────────────────────────────────────────────────────────────
 
     [Display(Name = "Стоимость хранения")]
     public decimal? StorageSum { get; set; }
@@ -146,15 +132,11 @@ public class OrderReturn : IBaseEntity
     [Display(Name = "Планируемая дата утилизации")]
     public DateTime? UtilizationForecastDate { get; set; }
 
-    // ── Место ─────────────────────────────────────────────────────────────────
-
     [Display(Name = "Место (склад)")]
     public string? PlaceName { get; set; }
 
     [Display(Name = "Адрес места")]
     public string? PlaceAddress { get; set; }
-
-    // ── Компенсация ───────────────────────────────────────────────────────────
 
     [Display(Name = "ID статуса компенсации")]
     public int? CompensationStatusId { get; set; }
@@ -165,15 +147,11 @@ public class OrderReturn : IBaseEntity
     [Display(Name = "Дата изменения статуса компенсации")]
     public DateTime? CompensationStatusChangeMoment { get; set; }
 
-    // ── Дополнительно ─────────────────────────────────────────────────────────
-
     [Display(Name = "Вскрыт")]
     public bool IsOpened { get; set; }
 
     [Display(Name = "Суперэконом")]
     public bool IsSuperEconom { get; set; }
-
-    // ── Служебное ─────────────────────────────────────────────────────────────
 
     [Display(Name = "Дата синхронизации")]
     public DateTime SyncedAt { get; set; }

@@ -11,7 +11,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // ── Order.HasReturn column ─────────────────────────────────────────
             migrationBuilder.AddColumn<bool>(
                 name: "HasReturn",
                 table: "Orders",
@@ -19,7 +18,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 nullable: false,
                 defaultValue: false);
 
-            // ── OrderReturns table ───────────────────────────────────────────────────
             migrationBuilder.CreateTable(
                 name: "OrderReturns",
                 columns: table => new

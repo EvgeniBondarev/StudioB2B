@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
+using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Web.Controllers;
 
@@ -18,11 +19,8 @@ public class AccountController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly ILogger<AccountController> _logger;
 
-    public AccountController(
-        ITenantProvider tenantProvider,
-        ITenantDbContextFactory dbContextFactory,
-        IConfiguration configuration,
-        ILogger<AccountController> logger)
+    public AccountController(ITenantProvider tenantProvider, ITenantDbContextFactory dbContextFactory,
+                             IConfiguration configuration, ILogger<AccountController> logger)
     {
         _tenantProvider = tenantProvider;
         _dbContextFactory = dbContextFactory;
@@ -34,7 +32,7 @@ public class AccountController : ControllerBase
     /// Авторизация: возвращает JWT-токен
     /// </summary>
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> Login([FromBody] LoginDto request, CancellationToken ct = default)
     {
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
@@ -113,5 +111,3 @@ public class AccountController : ControllerBase
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
-
-public record LoginRequest(string Email, string Password);

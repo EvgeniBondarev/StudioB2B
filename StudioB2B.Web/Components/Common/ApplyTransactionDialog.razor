@@ -135,7 +135,7 @@ else
     private bool _loading = true;
     private List<OrderTransaction> _transactions = [];
     private string? _currentStatusName;
-    private TransactionApplyPreview? _preview;
+    private TransactionApplyPreviewDto? _preview;
     private Guid? _selectedTransactionId;
     private Dictionary<Guid, decimal> _userValues = [];
     private Dictionary<Guid, string> _fieldUserValues = [];
@@ -200,7 +200,7 @@ else
         StateHasChanged();
     }
 
-    private async Task LoadReferenceDataAsync(IEnumerable<TransactionApplyFieldRulePreview> fieldRules)
+    private async Task LoadReferenceDataAsync(IEnumerable<TransactionApplyFieldRulePreviewDto> fieldRules)
     {
         if (_db == null) return;
         var refTypes = fieldRules.Select(f => f.ReferenceType).Distinct().ToList();
@@ -236,7 +236,7 @@ else
                 .ToListAsync();
     }
 
-    private RenderFragment RenderFieldControl(TransactionApplyFieldRulePreview fr) => builder =>
+    private RenderFragment RenderFieldControl(TransactionApplyFieldRulePreviewDto fr) => builder =>
     {
         var value = _fieldUserValues.GetValueOrDefault(fr.RuleId) ?? "";
         if (fr.ReferenceType != FieldReferenceTypeEnum.None && fr.ValueType == TransactionFieldValueTypeEnum.Guid)

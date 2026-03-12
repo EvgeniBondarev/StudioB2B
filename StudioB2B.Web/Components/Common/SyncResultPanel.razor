@@ -27,15 +27,15 @@
         @if (_summary.PerClient.Count > 0)
         {
             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Итог по клиентам</RadzenText>
-            <RadzenDataGrid TItem="ClientSyncResultItem" Data="@_summary.PerClient"
+            <RadzenDataGrid TItem="ClientSyncResultItemDto" Data="@_summary.PerClient"
                             Density="Density.Compact" AllowSorting="true">
                 <Columns>
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ClientName" Title="Клиент" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="Mode" Title="Режим" Width="80px" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ShipmentsCreated" Title="Отправлений создано" Width="120px" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ShipmentsUpdated" Title="Обновлено" Width="100px" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersCreated" Title="Заказов создано" Width="120px" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersUpdated" Title="Обновлено" Width="100px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ClientName" Title="Клиент" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="Mode" Title="Режим" Width="80px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ShipmentsCreated" Title="Отправлений создано" Width="120px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ShipmentsUpdated" Title="Обновлено" Width="100px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="OrdersCreated" Title="Заказов создано" Width="120px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="OrdersUpdated" Title="Обновлено" Width="100px" />
                 </Columns>
             </RadzenDataGrid>
 
@@ -66,13 +66,13 @@ else if (History.Status is SyncJobStatusEnum.Cancelled)
 @code {
     [Parameter, EditorRequired] public SyncJobHistory History { get; set; } = null!;
 
-    private OrderSyncSummary? _summary;
+    private OrderSyncSummaryDto? _summary;
 
     protected override void OnParametersSet()
     {
         _summary = string.IsNullOrEmpty(History.ResultJson)
             ? null
-            : JsonSerializer.Deserialize<OrderSyncSummary>(History.ResultJson);
+            : JsonSerializer.Deserialize<OrderSyncSummaryDto>(History.ResultJson);
     }
 }
 
