@@ -417,7 +417,7 @@ else
     {
         if (_pollTimer is not null) return; // уже запущен
 
-        _pollCts   = new CancellationTokenSource();
+        _pollCts = new CancellationTokenSource();
         _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
 
         _ = Task.Run(async () =>
@@ -526,7 +526,7 @@ else
         _isLoading = true;
         try
         {
-            _historyItems  = await JobService.GetHistoryAsync(200);
+            _historyItems = await JobService.GetHistoryAsync(200);
             _hasActiveJobs = _historyItems.Any(h => h.Status is SyncJobStatus.Enqueued or SyncJobStatus.Processing);
             ApplyFilters();
         }
@@ -555,7 +555,7 @@ else
     private string GetDensityTitle() => _density switch
     {
         Density.Compact => "Компактный режим строк",
-        _               => "Обычный режим строк"
+        _ => "Обычный режим строк"
     };
 
     private async Task ShowResultDialogAsync(SyncJobHistory history)
@@ -634,7 +634,7 @@ else
             if (root.TryGetProperty("From", out var fromEl) && root.TryGetProperty("To", out var toEl))
             {
                 var from = fromEl.GetDateTime().ToLocalTime();
-                var to   = toEl.GetDateTime().ToLocalTime();
+                var to = toEl.GetDateTime().ToLocalTime();
                 return $"{from:dd.MM.yyyy} – {to:dd.MM.yyyy}";
             }
             return h.ParametersJson;
