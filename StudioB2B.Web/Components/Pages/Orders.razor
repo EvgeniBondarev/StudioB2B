@@ -4,9 +4,9 @@
 @using Radzen
 @using Radzen.Blazor.Rendering
 @using StudioB2B.Domain.Entities
+@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
-@using StudioB2B.Infrastructure.Features.Orders
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider
@@ -260,7 +260,7 @@ else
 
     <RadzenDataGrid
         @ref="_grid"
-        TItem="Order"
+        TItem="OrderEntity"
         Data="@_pageItems"
         Count="@_totalCount"
         LoadData="@LoadData"
@@ -303,7 +303,7 @@ else
         EmptyText="@RadzenRuStrings.EmptyText">
 
         <Columns>
-            <RadzenDataGridColumn TItem="Order" Title="" Width="44px" Frozen="true" Sortable="false" Filterable="false">
+            <RadzenDataGridColumn TItem="OrderEntity" Title="" Width="44px" Frozen="true" Sortable="false" Filterable="false">
                 <HeaderTemplate>
                     <RadzenCheckBox TValue="bool" Value="@IsAllSelected" ValueChanged="@OnSelectAllChanged" />
                 </HeaderTemplate>
@@ -312,7 +312,7 @@ else
                                    ValueChanged="@(v => ToggleOrderSelection(o.Id, v))" />
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="Order" Property="Shipment.PostingNumber"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="Shipment.PostingNumber"
                                   Title="@GetColumn(OrderGridColumns.ShipmentNumber).Title"
                                   Width="@GetColumn(OrderGridColumns.ShipmentNumber).Width"
                                   Frozen="@GetColumn(OrderGridColumns.ShipmentNumber).Frozen"
@@ -333,7 +333,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="Shipment.MarketplaceClient.Name"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="Shipment.MarketplaceClient.Name"
                                   Title="@GetColumn(OrderGridColumns.Client).Title"
                                   Width="@GetColumn(OrderGridColumns.Client).Width"
                                   Visible="@GetColumn(OrderGridColumns.Client).Visible"
@@ -369,7 +369,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="Shipment.InProcessAt"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="Shipment.InProcessAt"
                                   Title="@GetColumn(OrderGridColumns.AcceptedDate).Title"
                                   Width="@GetColumn(OrderGridColumns.AcceptedDate).Width"
                                   Visible="@GetColumn(OrderGridColumns.AcceptedDate).Visible"
@@ -383,7 +383,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="Shipment.ShipmentDate"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="Shipment.ShipmentDate"
                                   Title="@GetColumn(OrderGridColumns.ShippingDate).Title"
                                   Width="@GetColumn(OrderGridColumns.ShippingDate).Width"
                                   Visible="@GetColumn(OrderGridColumns.ShippingDate).Visible"
@@ -397,7 +397,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="ProductInfo.Product.Article"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="ProductInfo.Product.Article"
                                   Title="@GetColumn(OrderGridColumns.Article).Title"
                                   Width="@GetColumn(OrderGridColumns.Article).Width"
                                   Visible="@GetColumn(OrderGridColumns.Article).Visible"
@@ -417,7 +417,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="ProductInfo.Product.Name"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="ProductInfo.Product.Name"
                                   Title="@GetColumn(OrderGridColumns.Product).Title"
                                   Width="@GetColumn(OrderGridColumns.Product).Width"
                                   Visible="@GetColumn(OrderGridColumns.Product).Visible"
@@ -450,7 +450,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="Quantity"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="Quantity"
                                   Title="@GetColumn(OrderGridColumns.Quantity).Title"
                                   Width="@GetColumn(OrderGridColumns.Quantity).Width"
                                   Visible="@GetColumn(OrderGridColumns.Quantity).Visible"
@@ -463,7 +463,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order"
+            <RadzenDataGridColumn TItem="OrderEntity"
                                   Property="Status.Name"
                                   Title="@GetColumn(OrderGridColumns.MarketplaceStatus).Title"
                                   Width="@GetColumn(OrderGridColumns.MarketplaceStatus).Width"
@@ -520,7 +520,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order"
+            <RadzenDataGridColumn TItem="OrderEntity"
                                   Property="SystemStatus.Name"
                                   Title="@GetColumn(OrderGridColumns.AppStatus).Title"
                                   Width="@GetColumn(OrderGridColumns.AppStatus).Width"
@@ -572,7 +572,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="Shipment.DeliveryMethod.Name"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="Shipment.DeliveryMethod.Name"
                                   Title="@GetColumn(OrderGridColumns.DeliveryMethod).Title"
                                   Width="@GetColumn(OrderGridColumns.DeliveryMethod).Width"
                                   Visible="@GetColumn(OrderGridColumns.DeliveryMethod).Visible"
@@ -587,7 +587,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="WarehouseInfo.SenderWarehouse.Name"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="WarehouseInfo.SenderWarehouse.Name"
                                   Title="@GetColumn(OrderGridColumns.Warehouse).Title"
                                   Width="@GetColumn(OrderGridColumns.Warehouse).Width"
                                   Visible="@GetColumn(OrderGridColumns.Warehouse).Visible"
@@ -622,7 +622,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order"
+            <RadzenDataGridColumn TItem="OrderEntity"
                                   Title="@GetColumn(OrderGridColumns.Price).Title"
                                   Width="@GetColumn(OrderGridColumns.Price).Width"
                                   Visible="@GetColumn(OrderGridColumns.Price).Visible"
@@ -653,7 +653,7 @@ else
             {
                 @if (!_computedSplitByColumns)
                 {
-                    <RadzenDataGridColumn TItem="Order" Title="Расчёты"
+                    <RadzenDataGridColumn TItem="OrderEntity" Title="Расчёты"
 
                                           Width="@GetColumn(OrderGridColumns.ExtraCalculations).Width"
                                           Visible="@GetColumn(OrderGridColumns.ExtraCalculations).Visible"
@@ -692,7 +692,7 @@ else
                     @foreach (var rule in _calcRules)
                     {
                         var propName = $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(rule.ResultKey)}";
-                        <RadzenDataGridColumn TItem="Order"
+                        <RadzenDataGridColumn TItem="OrderEntity"
                                               Title="@rule.Name"
                                               Property="@propName"
                                               Width="@GetColumn(OrderGridColumns.ExtraCalculations).Width"
@@ -734,10 +734,10 @@ window.gridResize = {
     [SupplyParameterFromQuery(Name = "openReturn")]
     public string? OpenReturnId { get; set; }
 
-    private RadzenDataGrid<Order>? _grid;
+    private RadzenDataGrid<OrderEntity>? _grid;
 
     private TenantDbContext? _db;
-    private IEnumerable<Order> _pageItems = Array.Empty<Order>();
+    private IEnumerable<OrderEntity> _pageItems = Array.Empty<OrderEntity>();
     private int _totalCount;
     private Density _density = Density.Default;
     private bool _loading;
@@ -1233,7 +1233,7 @@ window.gridResize = {
 
             if (ruleByProp.TryGetValue(field, out var ruleKey))
             {
-                decimal GetSortValue(Order o) =>
+                decimal GetSortValue(OrderEntity o) =>
                     _computed.TryGetValue(o.Id, out var dict) &&
                     dict.TryGetValue(ruleKey, out var v) && v != decimal.MinValue
                         ? v
@@ -1280,7 +1280,7 @@ window.gridResize = {
         }
     }
 
-    private void OnRowRender(RowRenderEventArgs<Order> args)
+    private void OnRowRender(RowRenderEventArgs<OrderEntity> args)
     {
         if (args.Data != null && _orderLastTransactionColor.TryGetValue(args.Data.Id, out var color) && !string.IsNullOrEmpty(color))
         {
@@ -1337,13 +1337,13 @@ window.gridResize = {
         await OnFilterChange();
     }
 
-    private async Task OpenOrderDetailAsync(Order order, bool openReturnTab = false)
+    private async Task OpenOrderDetailAsync(OrderEntity orderEntity, bool openReturnTab = false)
     {
-        var parameters = new Dictionary<string, object?> { ["OrderId"] = order.Id };
+        var parameters = new Dictionary<string, object?> { ["OrderId"] = orderEntity.Id };
         if (openReturnTab)
             parameters["OpenReturnTab"] = (object)true;
         await DialogService.OpenAsync<OrderDetailDialog>(
-            $"Заказ {order.Shipment?.PostingNumber}",
+            $"Заказ {orderEntity.Shipment?.PostingNumber}",
             parameters,
             new DialogOptions
             {
@@ -1406,7 +1406,7 @@ window.gridResize = {
         return IsLightColor(bg) ? "#1f2937" : "#ffffff";
     }
 
-    private void ShowContextMenu(DataGridCellMouseEventArgs<Order> args)
+    private void ShowContextMenu(DataGridCellMouseEventArgs<OrderEntity> args)
     {
         ContextMenuService.Open(args,
             [
@@ -1525,14 +1525,14 @@ window.gridResize = {
         Navigation.NavigateTo(path);
     }
 
-    private async Task OpenAuditHistoryAsync(Order order)
+    private async Task OpenAuditHistoryAsync(OrderEntity orderEntity)
     {
         var subjects = new List<AuditSubject>
         {
-            new("Order", order.Id.ToString(), "Заказ"),
-            new("Shipment", order.ShipmentId.ToString(), "Отправление"),
+            new("Order", orderEntity.Id.ToString(), "Заказ"),
+            new("Shipment", orderEntity.ShipmentId.ToString(), "Отправление"),
         };
-        if (order.ProductInfo?.ProductId is { } pid)
+        if (orderEntity.ProductInfo?.ProductId is { } pid)
             subjects.Add(new("Product", pid.ToString(), "Товар"));
 
         await DialogService.OpenAsync<AuditHistoryDialog>(
@@ -1541,11 +1541,11 @@ window.gridResize = {
             new DialogOptions { Width = "min(960px, 95vw)", Resizable = true, Draggable = true });
     }
 
-    private async Task UpdateSingleOrderStatusAsync(Order order)
+    private async Task UpdateSingleOrderStatusAsync(OrderEntity orderEntity)
     {
         try
         {
-            var result = await OrderSyncService.UpdateSingleShipmentStatusAsync(order.ShipmentId);
+            var result = await OrderSyncService.UpdateSingleShipmentStatusAsync(orderEntity.ShipmentId);
 
             if (result is not null)
             {
@@ -1608,7 +1608,7 @@ window.gridResize = {
     private static string GetPriceColor(decimal value) =>
         value < 0 ? "color: var(--rz-danger);" : "";
 
-    private string GetFormulaBreakdown(Order o, CalculationRule rule, decimal val)
+    private string GetFormulaBreakdown(OrderEntity o, CalculationRule rule, decimal val)
     {
         var context = new Dictionary<string, decimal>(CalculationEngine.GetContextSnapshot(o), StringComparer.OrdinalIgnoreCase);
         foreach (var r in _calcRules.OrderBy(x => x.SortOrder))

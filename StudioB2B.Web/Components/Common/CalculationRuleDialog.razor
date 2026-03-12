@@ -1,9 +1,10 @@
 @using Microsoft.EntityFrameworkCore
 @using System.Text.RegularExpressions
 @using StudioB2B.Domain.Entities
+@using StudioB2B.Infrastructure.Features
+@using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
-@using StudioB2B.Infrastructure.Features.Orders
 
 @inject ITenantDbContextFactory Factory
 @inject NotificationService NotificationService
@@ -250,7 +251,7 @@ else
     private bool _isActive = true;
 
     private List<string> _availableVariables = new();
-    private Order? _exampleOrder;
+    private OrderEntity? _exampleOrder;
     private IReadOnlyDictionary<string, decimal>? _contextSnapshot;
     private decimal? _exampleResult;
     private string? _exampleError;
@@ -301,7 +302,7 @@ else
 
     private async Task LoadExampleOrderCoreAsync()
     {
-        IQueryable<Order> q = _db!.Orders
+        IQueryable<OrderEntity> q = _db!.Orders
             .IncludeForGrid()
             .AsNoTracking();
 

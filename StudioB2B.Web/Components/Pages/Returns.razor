@@ -308,10 +308,10 @@ else
 
     private RadzenDataGrid<OrderReturn>? _grid;
     private List<OrderReturn> _pageItems = [];
-    private int     _totalCount;
-    private bool    _loading;
-    private bool    _loadDataInProgress;
-    private bool    _enqueueing;
+    private int _totalCount;
+    private bool _loading;
+    private bool _loadDataInProgress;
+    private bool _enqueueing;
     private Density _density = Density.Default;
     private TenantDbContext? _db;
 
@@ -320,7 +320,7 @@ else
 
     private string? _filterType;
     private string? _filterSchema;
-    private bool    _filterLinkedToOrder; // true = only cancellations linked to an order
+    private bool _filterLinkedToOrder; // true = only cancellations linked to an order
     private string? _searchText;
 
     private Dictionary<string, int> _typeCounts = new();
@@ -328,11 +328,11 @@ else
 
     private static readonly List<FilterOption> _typeOptions =
     [
-        new("Отмена",              "Cancellation"),
-        new("Полный возврат",      "FullReturn"),
-        new("Частичный возврат",   "PartialReturn"),
-        new("Клиентский возврат",  "ClientReturn"),
-        new("Технический",         "Unknown"),
+        new("Отмена", "Cancellation"),
+        new("Полный возврат", "FullReturn"),
+        new("Частичный возврат", "PartialReturn"),
+        new("Клиентский возврат", "ClientReturn"),
+        new("Технический", "Unknown"),
     ];
 
     private static readonly List<FilterOption> _schemaOptions =
@@ -340,8 +340,6 @@ else
         new("FBS", "Fbs"),
         new("FBO", "Fbo"),
     ];
-
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -363,8 +361,6 @@ else
         if (_db != null) return;
         _db = Factory.CreateDbContext(); // must be before any await
     }
-
-    // ── LoadData ──────────────────────────────────────────────────────────────
 
     private async Task LoadCountsAsync()
     {
@@ -433,8 +429,6 @@ else
         }
     }
 
-    // ── Filters ───────────────────────────────────────────────────────────────
-
     private async Task OnFilterChange()
     {
         StateHasChanged();
@@ -453,8 +447,6 @@ else
         clear();
         if (_grid != null) await _grid.Reload();
     }
-
-    // ── Settings persistence ──────────────────────────────────────────────────
 
     private async Task LoadGridSettingsAsync()
     {
@@ -514,27 +506,27 @@ else
     private string GetDensityTitle() => _density switch
     {
         Density.Compact => "Компактный режим строк",
-        _               => "Обычный режим строк"
+        _ => "Обычный режим строк"
     };
 
     private static string GetTypeDisplayName(string? type) => type switch
     {
-        "Cancellation"  => "Отмена",
-        "FullReturn"    => "Полный возврат",
+        "Cancellation" => "Отмена",
+        "FullReturn" => "Полный возврат",
         "PartialReturn" => "Частичный возврат",
-        "ClientReturn"  => "Клиентский возврат",
-        "Unknown"       => "Технический",
-        _               => type ?? "—"
+        "ClientReturn" => "Клиентский возврат",
+        "Unknown" => "Технический",
+        _ => type ?? "—"
     };
 
     private static (string bg, string fg) GetTypeColors(string? type) => type switch
     {
-        "Cancellation"  => ("#fee2e2", "#991b1b"),
-        "FullReturn"    => ("#fef3c7", "#92400e"),
+        "Cancellation" => ("#fee2e2", "#991b1b"),
+        "FullReturn" => ("#fef3c7", "#92400e"),
         "PartialReturn" => ("#fef9c3", "#713f12"),
-        "ClientReturn"  => ("#dbeafe", "#1e40af"),
-        "Unknown"       => ("#f3f4f6", "#374151"),
-        _               => ("#f3f4f6", "#374151")
+        "ClientReturn" => ("#dbeafe", "#1e40af"),
+        "Unknown" => ("#f3f4f6", "#374151"),
+        _ => ("#f3f4f6", "#374151")
     };
 
     public void Dispose() => _db?.Dispose();

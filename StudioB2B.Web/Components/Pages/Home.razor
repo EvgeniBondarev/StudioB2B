@@ -2,14 +2,16 @@
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Infrastructure.Services
 @using System.ComponentModel.DataAnnotations
+@using StudioB2B.Domain.Options
 @using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Shared
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
 @inject NavigationManager Navigation
 @inject ITenantDbContextFactory Factory
 @inject HttpClient Http
 @inject JwtAuthenticationStateProvider AuthStateProvider
-@inject Microsoft.Extensions.Options.IOptions<StudioB2B.Infrastructure.MultiTenancy.MultiTenancyOptions> MultiTenancyOptions
+@inject Microsoft.Extensions.Options.IOptions<MultiTenancyOptions> MultiTenancyOptions
 
 <PageTitle>StudioB2B</PageTitle>
 
@@ -285,10 +287,10 @@
     private bool _masterAuthenticated;
     private bool _masterLoginLoading;
     private string? _masterLoginError;
-    private MasterLoginModel _masterLogin = new();
+    private MasterLoginModelDto _masterLogin = new();
 
     // Tenant registration
-    private RegisterModel _reg = new();
+    private RegisterModelDto _reg = new();
     private bool _regLoading;
     private bool _registerSuccess;
     private string? _registerError;
@@ -301,7 +303,7 @@
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
 
     // Tenant login
-    private LoginModel _login = new();
+    private LoginModelDto _login = new();
     private bool _loginLoading;
     private string? _loginError;
 
@@ -338,7 +340,7 @@
 
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
                 if (result?.Token is not null)
                 {
                     await AuthStateProvider.MasterLoginAsync(result.Token);
@@ -364,7 +366,7 @@
     {
         await AuthStateProvider.MasterLogoutAsync();
         _masterAuthenticated = false;
-        _reg = new RegisterModel();
+        _reg = new RegisterModelDto();
         _showRegTimeline = false;
         _registerSuccess = false;
         _registerError = null;
@@ -472,7 +474,7 @@
 
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
                 if (result?.Token is not null)
                 {
                     await AuthStateProvider.LoginAsync(result.Token);
@@ -514,49 +516,5 @@
         if (string.IsNullOrWhiteSpace(name)) return "?";
         var local = name.Split('@')[0];
         return local.Length >= 2 ? local[..2].ToUpper() : local.ToUpper();
-    }
-
-    private sealed record LoginResponse(string Token, DateTime ExpiresAt);
-
-    private class MasterLoginModel
-    {
-        [Required(ErrorMessage = "Введите email")]
-        [EmailAddress(ErrorMessage = "Некорректный email")]
-        public string Email { get; set; } = "";
-
-        [Required(ErrorMessage = "Введите пароль")]
-        public string Password { get; set; } = "";
-    }
-
-    private class LoginModel
-    {
-        [Required(ErrorMessage = "Введите email")]
-        [EmailAddress(ErrorMessage = "Некорректный email")]
-        public string Email { get; set; } = "";
-
-        [Required(ErrorMessage = "Введите пароль")]
-        public string Password { get; set; } = "";
-    }
-
-    private class RegisterModel
-    {
-        [Required(ErrorMessage = "Введите название компании")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "От 2 до 100 символов")]
-        public string CompanyName { get; set; } = "";
-
-        [Required(ErrorMessage = "Введите субдомен")]
-        [RegularExpression(@"^[a-z0-9][a-z0-9\-]{1,28}[a-z0-9]$|^[a-z0-9]{3}$", ErrorMessage = "Только a-z, 0-9, дефис (3–30 символов)")]
-        public string Subdomain { get; set; } = "";
-
-        [Required(ErrorMessage = "Введите email администратора")]
-        [EmailAddress(ErrorMessage = "Некорректный email")]
-        public string AdminEmail { get; set; } = "";
-
-        [Required(ErrorMessage = "Введите пароль")]
-        [MinLength(6, ErrorMessage = "Минимум 6 символов")]
-        public string Password { get; set; } = "";
-
-        [Required(ErrorMessage = "Подтвердите пароль")]
-        public string ConfirmPassword { get; set; } = "";
     }
 }

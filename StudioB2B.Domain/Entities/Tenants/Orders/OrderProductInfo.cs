@@ -12,7 +12,7 @@ public class OrderProductInfo : IBaseEntity, ISoftDelete
     public Guid Id { get; set; }
 
     public Guid OrderId { get; set; }
-    public Order Order { get; set; } = null!;
+    public OrderEntity OrderEntity { get; set; } = null!;
 
     [Display(Name = "Товар")]
     public Guid? ProductId { get; set; }

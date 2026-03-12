@@ -2,9 +2,9 @@
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
+@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
-@using StudioB2B.Infrastructure.Features.Orders
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider
