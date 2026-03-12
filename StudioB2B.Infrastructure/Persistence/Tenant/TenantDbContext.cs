@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using StudioB2B.Domain.Entities;
+using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Infrastructure.Interfaces;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant;
@@ -116,6 +117,8 @@ public class TenantDbContext : DbContext
     public DbSet<SyncJobHistory> SyncJobHistories { get; set; } = null!;
 
     public DbSet<SyncJobSchedule> SyncJobSchedules { get; set; } = null!;
+
+    public DbSet<OrderReturn> OrderReturns { get; set; } = null!;
 
     #endregion
 

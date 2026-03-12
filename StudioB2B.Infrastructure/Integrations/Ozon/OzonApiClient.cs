@@ -6,6 +6,7 @@ using StudioB2B.Infrastructure.Integrations.Ozon.Models.Chat;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.FbsUnfulfilled;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductAttributes;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductPrices;
+using StudioB2B.Infrastructure.Integrations.Ozon.Models.Returns;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo;
 using StudioB2B.Infrastructure.Interfaces;
 
@@ -183,6 +184,25 @@ public class OzonApiClient : IOzonApiClient
             ct);
     }
 
+    // ── Returns ──────────────────────────────────────────────────────────────
+
+    public Task<OzonApiResult<OzonReturnsListResponse>> GetReturnsListAsync(
+        string clientId,
+        string apiKey,
+        OzonReturnsListRequest request,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonReturnsListResponse>(OzonEndpoints.ReturnsList, clientId, plainApiKey, request, ct);
+    }
+
+    // ── Chat ─────────────────────────────────────────────────────────────────
+
     public Task<OzonApiResult<OzonChatListResponse>> GetChatListAsync(
         string clientId,
         string apiKey,
@@ -295,6 +315,11 @@ public class OzonApiClient : IOzonApiClient
         }
     }
 
+    private static readonly JsonSerializerOptions _ozonSerializeOptions = new()
+    {
+        Converters = { new UtcDateTimeJsonConverter() }
+    };
+
     private async Task<OzonApiResult<TResponse>> SendPostAsync<TResponse>(
         string path,
         string clientId,
@@ -308,7 +333,7 @@ public class OzonApiClient : IOzonApiClient
         request.Headers.Add("Client-Id", clientId);
         request.Headers.Add("Api-Key", apiKey);
 
-        var json = JsonSerializer.Serialize(body);
+        var json = JsonSerializer.Serialize(body, _ozonSerializeOptions);
         request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
         try
@@ -355,5 +380,17 @@ public class OzonApiClient : IOzonApiClient
                 statusCode: null,
                 message: ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Сериализует DateTime всегда как UTC (добавляет суффикс Z), чего требует Ozon API.
+    /// </summary>
+    private sealed class UtcDateTimeJsonConverter : System.Text.Json.Serialization.JsonConverter<DateTime>
+    {
+        public override DateTime Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => reader.GetDateTime();
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+            => writer.WriteStringValue(DateTime.SpecifyKind(value, DateTimeKind.Utc));
     }
 }

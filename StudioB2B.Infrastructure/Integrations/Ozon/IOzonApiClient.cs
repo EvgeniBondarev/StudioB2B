@@ -2,6 +2,7 @@ using StudioB2B.Infrastructure.Integrations.Ozon.Models.Chat;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.FbsUnfulfilled;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductAttributes;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.ProductPrices;
+using StudioB2B.Infrastructure.Integrations.Ozon.Models.Returns;
 using StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo;
 
 namespace StudioB2B.Infrastructure.Integrations.Ozon;
@@ -103,5 +104,14 @@ public interface IOzonApiClient
         string clientId,
         string apiKey,
         string fileUrl,
+        CancellationToken ct = default);
+
+    // ── Returns ──────────────────────────────────────────────────────────────
+
+    /// <summary>Gets a page of returns via /v1/returns/list.</summary>
+    Task<OzonApiResult<OzonReturnsListResponse>> GetReturnsListAsync(
+        string clientId,
+        string apiKey,
+        OzonReturnsListRequest request,
         CancellationToken ct = default);
 }

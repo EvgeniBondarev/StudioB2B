@@ -51,12 +51,45 @@ else
                     <RadzenCheckBox @bind-Value="_isEnabled" />
                     <RadzenLabel Text="Активна" />
                 </RadzenStack>
-                <RadzenFormField Text="Цвет документа" Style="max-width: 200px;">
-                    <RadzenColorPicker @bind-Value="_color"
-                                      ShowColors="true"
-                                      ShowHex="true"
-                                      Style="width: 100%;" />
-                </RadzenFormField>
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Start" Style="flex-wrap: wrap;">
+                    <RadzenFormField Text="Цвет документа" Style="max-width: 200px;">
+                        <RadzenColorPicker @bind-Value="_color"
+                                          ShowColors="true"
+                                          ShowHex="true"
+                                          Style="width: 100%;" />
+                    </RadzenFormField>
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                        <RadzenFormField Text="Иконка" Style="width: 240px;">
+                            <RadzenDropDown Data="@_iconOptions"
+                                            TextProperty="Label"
+                                            ValueProperty="Value"
+                                            @bind-Value="_icon"
+                                            AllowClear="true"
+                                            AllowFiltering="true"
+                                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                            FilterOperator="StringFilterOperator.Contains"
+                                            Placeholder="Выберите иконку"
+                                            Style="width: 100%;">
+                                <Template Context="item">
+                                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                        <i class="rzi" style="font-size:1.1rem;">@item.Value</i>
+                                        <span>@item.Label</span>
+                                    </RadzenStack>
+                                </Template>
+                                <ValueTemplate Context="item">
+                                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                        <i class="rzi" style="font-size:1.1rem;">@item.Value</i>
+                                        <span>@item.Label</span>
+                                    </RadzenStack>
+                                </ValueTemplate>
+                            </RadzenDropDown>
+                        </RadzenFormField>
+                        @if (!string.IsNullOrEmpty(_icon))
+                        {
+                            <RadzenIcon Icon="@_icon" Style="font-size: 1.5rem; margin-top: 1.4rem; color: var(--rz-text-color);" />
+                        }
+                    </RadzenStack>
+                </RadzenStack>
             </RadzenStack>
         </RadzenStack>
 
@@ -230,6 +263,7 @@ else
     private Guid? _toStatusId;
     private bool _isEnabled = true;
     private string? _color;
+    private string? _icon;
     private List<OrderStatus> _internalStatuses = [];
     private List<PriceType> _priceTypes = [];
     private List<Product> _products = [];
@@ -249,6 +283,65 @@ else
 
     private record ValueSourceOption(TransactionValueSourceEnum Value, string Text);
     private record FieldValueSourceOption(TransactionFieldValueSourceEnum Value, string Text);
+    private record IconOption(string Value, string Label);
+
+    private static readonly List<IconOption> _iconOptions =
+    [
+        new("task_alt", "Готово"),
+        new("check_circle", "Выполнено"),
+        new("done_all", "Всё выполнено"),
+        new("local_shipping", "Доставка"),
+        new("inventory_2", "Инвентарь"),
+        new("inventory", "Товары"),
+        new("warehouse", "Склад"),
+        new("receipt_long", "Документ"),
+        new("description", "Описание"),
+        new("assignment", "Задание"),
+        new("assignment_turned_in", "Задание выполнено"),
+        new("fact_check", "Проверка"),
+        new("verified", "Подтверждено"),
+        new("approval", "Одобрено"),
+        new("pending", "В ожидании"),
+        new("pending_actions", "Ожидает действий"),
+        new("hourglass_empty", "В процессе"),
+        new("swap_horiz", "Перемещение"),
+        new("swap_vert", "Перемещение"),
+        new("published_with_changes", "Изменения"),
+        new("sync", "Синхронизация"),
+        new("cached", "Обновление"),
+        new("loop", "Возврат/цикл"),
+        new("undo", "Отменить"),
+        new("redo", "Повторить"),
+        new("cancel", "Отмена"),
+        new("block", "Заблокировано"),
+        new("remove_circle", "Удалено"),
+        new("shopping_cart", "Корзина"),
+        new("shopping_bag", "Заказ"),
+        new("store", "Магазин"),
+        new("sell", "Продажа"),
+        new("price_check", "Цена проверена"),
+        new("payments", "Оплата"),
+        new("account_balance_wallet", "Кошелёк"),
+        new("production_quantity_limits", "Лимит кол-ва"),
+        new("package_2", "Упаковка"),
+        new("conveyor_belt", "Конвейер"),
+        new("forklift", "Погрузчик"),
+        new("flight_takeoff", "Отправлено"),
+        new("flight_land", "Получено"),
+        new("pin_drop", "Точка доставки"),
+        new("location_on", "Местоположение"),
+        new("support_agent", "Поддержка"),
+        new("person", "Клиент"),
+        new("business", "Компания"),
+        new("edit", "Редактировать"),
+        new("note_add", "Добавить заметку"),
+        new("flag", "Флаг"),
+        new("star", "Важно"),
+        new("priority_high", "Высокий приоритет"),
+        new("warning", "Предупреждение"),
+        new("error", "Ошибка"),
+        new("info", "Информация"),
+    ];
 
     private class RuleRow
     {
@@ -310,6 +403,7 @@ else
                 _toStatusId = t.ToSystemStatusId;
                 _isEnabled = t.IsEnabled;
                 _color = t.Color;
+                _icon = t.Icon;
                 _rules = t.Rules
                     .OrderBy(r => r.SortOrder)
                     .Select(r => new RuleRow
@@ -437,6 +531,7 @@ else
                     t.ToSystemStatusId = _toStatusId.Value;
                     t.IsEnabled = _isEnabled;
                     t.Color = ToHex(_color) ?? _color;
+                    t.Icon = string.IsNullOrWhiteSpace(_icon) ? null : _icon.Trim();
                     _db.OrderTransactionRules.RemoveRange(t.Rules);
                     _db.OrderTransactionFieldRules.RemoveRange(t.FieldRules);
                     var sortOrder = 0;
@@ -483,6 +578,7 @@ else
                     ToSystemStatusId = _toStatusId.Value,
                     IsEnabled = _isEnabled,
                     Color = ToHex(_color) ?? _color,
+                    Icon = string.IsNullOrWhiteSpace(_icon) ? null : _icon.Trim(),
                     SortOrder = 0
                 };
                 _db!.OrderTransactions.Add(t);

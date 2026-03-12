@@ -7,20 +7,21 @@ public class TabService
     public static readonly IReadOnlyDictionary<string, (string Title, string Icon)> KnownPages =
         new Dictionary<string, (string Title, string Icon)>
         {
-            ["/"] = ("Главная", "home"),
-            ["/users"] = ("Пользователи", "people"),
-            ["/marketplace-clients"] = ("Маркетплейс", "store"),
-            ["/orders"] = ("Заказы", "receipt_long"),
-            ["/orders/apply-transaction"] = ("Транзакция заказов", "swap_horiz"),
-            ["/orders-sync"] = ("Загрузка", "cloud_sync"),
-            ["/order-statuses"] = ("Статусы", "label"),
-            ["/price-types"] = ("Типы цен", "payments"),
-            ["/transactions"] = ("Транзакции", "swap_horiz"),
-            ["/transactions-history"] = ("История транзакций", "schedule"),
-            ["/calculation-rules"] = ("Расчёты", "calculate"),
-            ["/audit"] = ("Журнал", "history"),
-            ["/roles"] = ("Роли", "security"),
-            ["/chats"] = ("Чаты", "chat"),
+            ["/"]                    = ("Главная",       "home"),
+            ["/users"]               = ("Пользователи",  "people"),
+            ["/marketplace-clients"] = ("Маркетплейс",   "store"),
+            ["/orders"]              = ("Заказы",         "receipt_long"),
+            ["/returns"]             = ("Возвраты",        "assignment_return"),
+            ["/orders/apply-transaction"] = ("Провести документ", "swap_horiz"),
+            ["/orders-sync"]         = ("Загрузка",       "cloud_sync"),
+            ["/order-statuses"]      = ("Статусы",        "label"),
+            ["/price-types"]         = ("Типы цен",       "payments"),
+            ["/transactions"]        = ("Документы",     "swap_horiz"),
+            ["/transactions-history"] = ("История проведений", "schedule"),
+            ["/calculation-rules"]   = ("Расчёты",        "calculate"),
+            ["/audit"]               = ("Журнал",         "history"),
+            ["/roles"]               = ("Роли",           "security"),
+            ["/chats"]               = ("Чаты",           "chat"),
         };
 
     private readonly List<TabEntry> _tabs = [];

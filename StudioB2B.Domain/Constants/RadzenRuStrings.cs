@@ -1,4 +1,4 @@
-namespace StudioB2B.Web.Constants;
+namespace StudioB2B.Domain.Constants;
 
 /// <summary>
 /// Русские строки для локализации компонентов Radzen DataGrid.

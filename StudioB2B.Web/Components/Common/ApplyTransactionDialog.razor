@@ -96,7 +96,17 @@ else
                         Style="cursor: pointer;"
                         EmptyText="@RadzenRuStrings.EmptyText">
             <Columns>
-                <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Документ" Width="220px" />
+                <RadzenDataGridColumn TItem="OrderTransaction" Title="Документ" Width="220px">
+                    <Template Context="t">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                            @if (!string.IsNullOrEmpty(t.Icon))
+                            {
+                                <RadzenIcon Icon="@t.Icon" Style="font-size:1rem;flex-shrink:0;" />
+                            }
+                            <span>@t.Name</span>
+                        </RadzenStack>
+                    </Template>
+                </RadzenDataGridColumn>
                 <RadzenDataGridColumn TItem="OrderTransaction" Title="Целевой статус" Width="180px">
                     <Template Context="t">
                         @t.ToSystemStatus?.Name

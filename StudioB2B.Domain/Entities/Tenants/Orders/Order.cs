@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using StudioB2B.Domain.Entities.Orders;
 
 namespace StudioB2B.Domain.Entities;
 
@@ -44,4 +45,6 @@ public class Order : IBaseEntity, ISoftDelete
     public bool IsDeleted { get; set; }
 
     public List<OrderPrice> Prices { get; set; } = [];
+
+    public List<OrderReturn> Returns { get; set; } = [];
 }

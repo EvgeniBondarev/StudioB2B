@@ -85,12 +85,16 @@ public class OzonFbsOrderAdapter : IOrderAdapter
 
     public async Task<OrderSyncResult> UpdateStatusesAsync(
         MarketplaceClient client,
+        DateTime from,
+        DateTime to,
         CancellationToken ct = default)
     {
         var shipments = await _db.Shipments
             .Include(s => s.Status)
             .Where(s => s.MarketplaceClientId == client.Id
-                        && (s.StatusId == null || s.Status == null || !s.Status.IsTerminal))
+                        && (s.StatusId == null || s.Status == null || !s.Status.IsTerminal)
+                        && ((s.InProcessAt != null && s.InProcessAt >= from && s.InProcessAt <= to)
+                            || (s.InProcessAt == null && s.CreatedAt >= from && s.CreatedAt <= to)))
             .ToListAsync(ct);
 
         _logger.LogInformation(
@@ -138,7 +142,9 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         var terminalShipmentIds = await _db.Shipments
             .Include(s => s.Status)
             .Where(s => s.MarketplaceClientId == client.Id
-                        && s.StatusId != null && s.Status != null && s.Status.IsTerminal)
+                        && s.StatusId != null && s.Status != null && s.Status.IsTerminal
+                        && ((s.InProcessAt != null && s.InProcessAt >= from && s.InProcessAt <= to)
+                            || (s.InProcessAt == null && s.CreatedAt >= from && s.CreatedAt <= to)))
             .Select(s => s.Id)
             .ToListAsync(ct);
         var ordersInTerminalShipments = await _db.Orders
@@ -149,6 +155,36 @@ public class OzonFbsOrderAdapter : IOrderAdapter
             result.UpdatedFieldsSummary = "Статус, Номер заказа, Дата отгрузки, Дата принятия, Трек-номер, Способ доставки";
 
         return result;
+    }
+
+    public async Task<ShipmentUpdateItem?> UpdateSingleShipmentStatusAsync(
+        Shipment shipment,
+        MarketplaceClient client,
+        CancellationToken ct = default)
+    {
+        var apiResult = await _api.GetFbsPostingAsync(client.ApiId, client.Key, shipment.PostingNumber, ct);
+
+        if (!apiResult.IsSuccess || apiResult.Data?.Result == null)
+        {
+            _logger.LogWarning(
+                "Failed to fetch posting {PostingNumber} for client {ClientId}: {Error}",
+                shipment.PostingNumber, client.ApiId, apiResult.ErrorMessage);
+            return null;
+        }
+
+        var result = new OrderSyncResult();
+        _db.DeferAudit = true;
+        try
+        {
+            await UpdateShipmentStatusAsync(shipment, client.Name, apiResult.Data.Result, result, ct);
+            await _db.FlushDeferredAuditAsync(ct: ct);
+        }
+        finally
+        {
+            _db.DeferAudit = false;
+        }
+
+        return result.UpdatedShipments.FirstOrDefault();
     }
 
     private async Task UpdateShipmentStatusAsync(
@@ -485,9 +521,9 @@ public class OzonFbsOrderAdapter : IOrderAdapter
 
     private async Task<OrderStatus> EnsureOrderStatusAsync(string synonym, CancellationToken ct)
     {
-        var normalized = synonym.Trim();
+        var normalized = synonym.Trim().ToLower();
         var status = await _db.OrderStatuses
-            .FirstOrDefaultAsync(s => s.Synonym != null && s.Synonym.Equals(normalized, StringComparison.OrdinalIgnoreCase), ct);
+            .FirstOrDefaultAsync(s => s.Synonym != null && s.Synonym.Equals(normalized, StringComparison.CurrentCultureIgnoreCase), ct);
 
         if (status != null)
             return status;
