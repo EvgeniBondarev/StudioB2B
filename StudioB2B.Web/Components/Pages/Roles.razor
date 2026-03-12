@@ -1,6 +1,6 @@
 @page "/roles"
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Tenants
+@using StudioB2B.Domain.Entities.Master
 @using StudioB2B.Infrastructure.Persistence.Master
 
 @inject MasterDbContext Db
@@ -78,25 +78,6 @@
                     <RadzenTextBox @bind-Value="r.Name" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
-
-            <RadzenDataGridColumn TItem="MasterRole" Property="Description" Title="Описание" Width="300px">
-                <EditTemplate Context="r">
-                    <RadzenTextBox @bind-Value="r.Description" Style="width: 100%;" />
-                </EditTemplate>
-            </RadzenDataGridColumn>
-
-            <RadzenDataGridColumn TItem="MasterRole" Property="IsSystemRole" Title="Системная" Width="140px"
-                                  TextAlign="TextAlign.Center">
-                <Template Context="r">
-                    <RadzenCheckBox TValue="bool" Value="@r.IsSystemRole" Disabled="true" />
-                </Template>
-                <EditTemplate Context="r">
-                    <RadzenCheckBox @bind-Value="r.IsSystemRole" />
-                </EditTemplate>
-            </RadzenDataGridColumn>
-
-            <RadzenDataGridColumn TItem="MasterRole" Property="CreatedAtUtc" Title="Создана"
-                                  FormatString="{0:dd.MM.yyyy}" Width="160px" Filterable="false" />
 
             <!-- Кнопки сохранения/отмены — только в режиме редактирования строки -->
             <RadzenDataGridColumn TItem="MasterRole" Filterable="false" Sortable="false"
@@ -190,12 +171,7 @@
 
     private async Task InsertRow()
     {
-        var role = new MasterRole
-        {
-            Id = Guid.NewGuid(),
-            ConcurrencyStamp = Guid.NewGuid().ToString(),
-            CreatedAtUtc = DateTime.UtcNow
-        };
+        var role = new MasterRole { Id = Guid.NewGuid() };
         await _grid!.InsertRow(role);
     }
 
@@ -209,7 +185,6 @@
     {
         try
         {
-            role.NormalizedName = role.Name.ToUpperInvariant();
             Db.Roles.Add(role);
             await Db.SaveChangesAsync();
             NotificationService.Notify(NotificationSeverity.Success, "Роль создана");
@@ -225,7 +200,6 @@
     {
         try
         {
-            role.NormalizedName = role.Name.ToUpperInvariant();
             await Db.SaveChangesAsync();
             NotificationService.Notify(NotificationSeverity.Success, "Роль обновлена");
         }
@@ -239,7 +213,7 @@
     {
         try
         {
-            Db.Roles.Remove(role);
+            role.IsDeleted = true;
             await Db.SaveChangesAsync();
             await _grid!.Reload();
             NotificationService.Notify(NotificationSeverity.Success, "Роль удалена");

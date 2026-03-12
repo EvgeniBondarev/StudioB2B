@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Infrastructure.Features.Orders;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
@@ -22,18 +21,13 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<TenantHangfireManager> _logger;
-
     private readonly ConcurrentDictionary<Guid, TenantHangfireContext> _tenants = new();
 
-    public TenantHangfireManager(
-        IServiceScopeFactory scopeFactory,
-        ILogger<TenantHangfireManager> logger)
+    public TenantHangfireManager(IServiceScopeFactory scopeFactory, ILogger<TenantHangfireManager> logger)
     {
         _scopeFactory = scopeFactory;
-        _logger       = logger;
+        _logger = logger;
     }
-
-    // ── IHostedService ───────────────────────────────────────────────────────
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -49,9 +43,6 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
 
         foreach (var tenant in tenants)
         {
-            // Сначала удаляем все старые recurring jobs из хранилища Hangfire,
-            // чтобы не было записей со старыми сигнатурами методов.
-            // RestoreSchedulesAsync сразу пересоздаст их с актуальной сигнатурой.
             await CleanupStaleRecurringJobsAsync(tenant.Id, tenant.ConnectionString, cancellationToken);
 
             CreateAndRegisterServer(tenant.Id, tenant.ConnectionString, tenant.Subdomain);
@@ -68,8 +59,6 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
         Dispose();
         return Task.CompletedTask;
     }
-
-    // ── Public API ───────────────────────────────────────────────────────────
 
     /// <summary>
     /// Добавляет сервер нового тенанта в рантайме (вызывается из TenantService.RegisterAsync).
@@ -126,7 +115,7 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
         {
             var storageOptions = new MySqlStorageOptions
             {
-                TablesPrefix             = "Hangfire_",
+                TablesPrefix = "Hangfire_",
                 PrepareSchemaIfNecessary = true
             };
 
@@ -134,16 +123,14 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
 
             var serverOptions = new BackgroundJobServerOptions
             {
-                ServerName  = $"studiob2b-{subdomain}",
-                // tenant-{id} — для задач поставленных вручную через EnqueuedState
-                // default     — для recurring jobs (MySqlStorage не поддерживает queue в AddOrUpdate)
-                Queues      = new[] { $"tenant-{tenantId:N}", "default" },
-                Activator   = new AspNetCoreJobActivator(_scopeFactory)
+                ServerName = $"studiob2b-{subdomain}",
+                Queues = [$"tenant-{tenantId:N}", "default"],
+                Activator = new AspNetCoreJobActivator(_scopeFactory)
             };
 
-            var server             = new BackgroundJobServer(serverOptions, storage);
-            var client             = new BackgroundJobClient(storage);
-            var recurringManager   = new RecurringJobManager(storage);
+            var server = new BackgroundJobServer(serverOptions, storage);
+            var client = new BackgroundJobClient(storage);
+            var recurringManager = new RecurringJobManager(storage);
 
             var ctx = new TenantHangfireContext(client, server, storage, recurringManager);
 
@@ -249,7 +236,7 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
             foreach (var schedule in schedules)
             {
                 var job = Hangfire.Common.Job.FromExpression<OrderSyncJob>(
-                    j => j.ExecuteScheduledAsync(tenantId, connectionString, schedule.Id));
+                    j => j.ExecuteScheduledAsync(tenantId, connectionString, schedule.Id, ct));
                 ctx.RecurringJobManager.AddOrUpdate(
                     schedule.HangfireRecurringJobId!,
                     job,
@@ -267,8 +254,6 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
                 "TenantHangfireManager: failed to restore schedules for tenant {TenantId}.", tenantId);
         }
     }
-
-    // ── IDisposable ──────────────────────────────────────────────────────────
 
     public void Dispose()
     {

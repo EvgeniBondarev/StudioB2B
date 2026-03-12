@@ -135,7 +135,7 @@ public class CalculationEngine
 
     /// <summary>
     /// Вычислить формулу с заданным контекстом переменных.
-    /// Используется для правил транзакций.
+    /// Используется для правил документов.
     /// </summary>
     public decimal EvaluateFormula(string formula, IReadOnlyDictionary<string, decimal> context)
     {

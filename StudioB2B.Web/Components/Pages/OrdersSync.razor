@@ -2,10 +2,9 @@
 @attribute [Authorize(Roles = "Admin")]
 @using System.Text.Json
 @using Microsoft.AspNetCore.SignalR.Client
-@using StudioB2B.Application.Common
-@using StudioB2B.Application.Common.Interfaces
 @using StudioB2B.Domain.Entities.Orders
 @using StudioB2B.Infrastructure.Features.Orders
+@using StudioB2B.Infrastructure.Interfaces
 @inject ITenantProvider TenantProvider
 @inject IOrderSyncJobService JobService
 @inject NotificationService NotificationService

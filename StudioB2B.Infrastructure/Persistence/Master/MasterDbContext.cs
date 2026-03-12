@@ -2,8 +2,8 @@ using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using StudioB2B.Domain.Entities.Common;
+using StudioB2B.Domain.Entities.Master;
 using StudioB2B.Domain.Entities.Tenants;
-using TenantEntity = StudioB2B.Domain.Entities.Tenants.Tenant;
 
 namespace StudioB2B.Infrastructure.Persistence.Master;
 
@@ -15,10 +15,13 @@ public class MasterDbContext : DbContext
 
     public DbSet<TenantEntity> Tenants => Set<TenantEntity>();
     public DbSet<MasterRole> Roles => Set<MasterRole>();
+    public DbSet<MasterUser> Users => Set<MasterUser>();
+    public DbSet<MasterUserRole> UserRoles => Set<MasterUserRole>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
 
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(MasterDbContext).Assembly,

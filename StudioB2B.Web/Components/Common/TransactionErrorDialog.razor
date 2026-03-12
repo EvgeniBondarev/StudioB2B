@@ -1,0 +1,39 @@
+@using Radzen
+
+@inject DialogService DialogService
+
+<div style="min-width: min(480px, 90vw);">
+    <RadzenStack Gap="1rem">
+        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; color: var(--rz-danger);">
+            @Title
+        </RadzenText>
+        @if (!string.IsNullOrWhiteSpace(Message))
+        {
+            <RadzenText TextStyle="TextStyle.Body2">
+                @Message
+            </RadzenText>
+        }
+        @if (ValidationErrors is { Count: > 0 })
+        {
+            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                Подробности:
+            </RadzenText>
+            <ul style="margin: 0; padding-left: 1.25rem; color: var(--rz-text-secondary-color);">
+                @foreach (var err in ValidationErrors)
+                {
+                    <li>@err</li>
+                }
+            </ul>
+        }
+    </RadzenStack>
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End"
+                 Style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--rz-border-color);">
+        <RadzenButton Text="Закрыть" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close())" />
+    </RadzenStack>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Ошибка";
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public List<string>? ValidationErrors { get; set; }
+}
