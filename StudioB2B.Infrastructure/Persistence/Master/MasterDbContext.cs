@@ -30,15 +30,15 @@ public class MasterDbContext : DbContext
 
     private static void ApplySoftDeleteFilters(ModelBuilder modelBuilder)
     {
-        foreach (IMutableEntityType entityType in modelBuilder.Model.GetEntityTypes())
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
             if (!typeof(ISoftDelete).IsAssignableFrom(entityType.ClrType))
                 continue;
 
-            ParameterExpression param = Expression.Parameter(entityType.ClrType, "e");
-            MemberExpression isDeletedProp = Expression.Property(param, nameof(ISoftDelete.IsDeleted));
-            UnaryExpression notDeleted = Expression.Not(isDeletedProp);
-            LambdaExpression lambda = Expression.Lambda(notDeleted, param);
+            var param = Expression.Parameter(entityType.ClrType, "e");
+            var isDeletedProp = Expression.Property(param, nameof(ISoftDelete.IsDeleted));
+            var notDeleted = Expression.Not(isDeletedProp);
+            var lambda = Expression.Lambda(notDeleted, param);
 
             entityType.SetQueryFilter(lambda);
         }

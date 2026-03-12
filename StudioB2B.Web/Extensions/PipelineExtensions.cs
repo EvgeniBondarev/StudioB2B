@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using StudioB2B.Infrastructure.MultiTenancy.Initialization;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
-using StudioB2B.Infrastructure.MultiTenancy.Middleware;
+using StudioB2B.Infrastructure.Services.MultiTenancy;
 using StudioB2B.Web.Components;
 using StudioB2B.Web.Hubs;
 

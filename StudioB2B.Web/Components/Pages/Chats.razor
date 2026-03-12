@@ -1,8 +1,6 @@
 @page "/chats"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Infrastructure.Features.Marketplace
-@using StudioB2B.Infrastructure.Integrations.Ozon.Models.Chat
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Web.Helpers
@@ -437,9 +435,9 @@ else
 </script>
 
 @code {
-    private List<OzonChatViewModel> _chats = new();
-    private OzonChatViewModel? _selectedChat;
-    private List<OzonChatMessage> _messages = new();
+    private List<OzonChatViewModelDto> _chats = new();
+    private OzonChatViewModelDto? _selectedChat;
+    private List<OzonChatMessageDto> _messages = new();
 
     private ulong? _firstUnreadOnOpen; // ID первого непрочитанного сообщения при открытии чата
 
@@ -483,27 +481,25 @@ else
     private string? _filterType;
     private bool _filterUnreadOnly;
 
-    private List<ClientOption> _clientOptions = new();
+    private List<ClientOptionDto> _clientOptions = new();
 
-    private static readonly List<LabelValue> StatusOptions =
+    private static readonly List<LabelValueDto> StatusOptions =
     [
-        new LabelValue("Открыт", "OPENED"),
-        new LabelValue("Закрыт", "CLOSED"),
+        new("Открыт", "OPENED"),
+        new("Закрыт", "CLOSED"),
     ];
 
-    private static readonly List<LabelValue> TypeOptions =
+    private static readonly List<LabelValueDto> TypeOptions =
     [
-        new LabelValue("Покупатель — Продавец", "BUYER_SELLER"),
-        new LabelValue("Продавец — Поддержка", "SELLER_SUPPORT"),
-        new LabelValue("Не определён", "UNSPECIFIED"),
+        new ("Покупатель — Продавец", "BUYER_SELLER"),
+        new ("Продавец — Поддержка", "SELLER_SUPPORT"),
+        new ("Не определён", "UNSPECIFIED"),
     ];
 
-    // ── JS / сервисы ───────────────────────────────────────────────────────────
     [Inject]
     private IJSRuntime Js { get; set; } = null!;
 
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
         if (!TenantProvider.IsResolved) return;
@@ -556,7 +552,7 @@ else
                 .AsNoTracking()
                 .Where(c => !c.IsDeleted)
                 .OrderBy(c => c.Name)
-                .Select(c => new ClientOption { Id = c.Id, Name = c.Name })
+                .Select(c => new ClientOptionDto { Id = c.Id, Name = c.Name })
                 .ToListAsync();
         }
         catch (Exception ex)
@@ -669,7 +665,6 @@ else
             _loadingHistory = false;
             StateHasChanged();
 
-            // ── Скролл к первой непрочитанной строке или в конец ──
             if (_firstUnreadOnOpen != null)
             {
                 await Task.Delay(100);
@@ -765,7 +760,7 @@ else
         }
     }
 
-    private async Task SelectChatAsync(OzonChatViewModel chat)
+    private async Task SelectChatAsync(OzonChatViewModelDto chat)
     {
         _firstUnreadOnOpen = null;
 
@@ -959,10 +954,10 @@ else
         !_sending &&
         (_attachedFile is not null || (!string.IsNullOrWhiteSpace(_messageText) && _messageText.Length <= 1000));
 
-    private static bool IsSellerMessage(OzonChatMessage msg) =>
+    private static bool IsSellerMessage(OzonChatMessageDto msg) =>
         msg.User?.Type is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT";
 
-    private static string GetSenderLabel(OzonChatMessage msg) =>
+    private static string GetSenderLabel(OzonChatMessageDto msg) =>
         msg.User?.Type switch
         {
             "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT" => "Продавец",
@@ -1144,19 +1139,6 @@ else
         if (bytes < 1024) return $"{bytes} Б";
         if (bytes < 1024 * 1024) return $"{bytes / 1024} КБ";
         return $"{bytes / (1024 * 1024.0):F1} МБ";
-    }
-
-    private sealed class LabelValue
-    {
-        public LabelValue(string label, string value) { Label = label; Value = value; }
-        public string Label { get; set; }
-        public string Value { get; set; }
-    }
-
-    private sealed class ClientOption
-    {
-        public Guid Id { get; set; }
-        public string Name { get; set; } = string.Empty;
     }
 }
 
