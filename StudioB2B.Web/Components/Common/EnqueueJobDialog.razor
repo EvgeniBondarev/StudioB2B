@@ -38,32 +38,26 @@
         </RadzenStack>
     </RadzenStack>
 
-    <!-- Параметры (только для Sync / Returns) -->
-    @if (_selectedType == SyncJobType.Sync || _selectedType == SyncJobType.Returns)
-    {
-        <RadzenStack Gap="0.75rem">
-            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Параметры</RadzenText>
-            <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Start" Wrap="FlexWrap.Wrap">
-                <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center">
-                    <RadzenText TextStyle="TextStyle.Caption">Дата начала периода</RadzenText>
-                    <RadzenDatePicker @bind-Value="_from" DateFormat="dd.MM.yyyy" ShowTime="false" Style="width: 160px;" />
-                </RadzenStack>
-                <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center">
-                    <RadzenText TextStyle="TextStyle.Caption">Дата окончания периода</RadzenText>
-                    <RadzenDatePicker @bind-Value="_to" DateFormat="dd.MM.yyyy" ShowTime="false" Style="width: 160px;" />
-                </RadzenStack>
+    <!-- Параметры -->
+    <RadzenStack Gap="0.75rem">
+        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Параметры</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Start" Wrap="FlexWrap.Wrap">
+            <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center">
+                <RadzenText TextStyle="TextStyle.Caption">Дата начала периода</RadzenText>
+                <RadzenDatePicker @bind-Value="_from" DateFormat="dd.MM.yyyy" ShowTime="false" Style="width: 160px;" />
             </RadzenStack>
-            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
-                Максимальная длина периода — 30 дней.
-            </RadzenText>
+            <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center">
+                <RadzenText TextStyle="TextStyle.Caption">Дата окончания периода</RadzenText>
+                <RadzenDatePicker @bind-Value="_to" DateFormat="dd.MM.yyyy" ShowTime="false" Style="width: 160px;" />
+            </RadzenStack>
         </RadzenStack>
-    }
-    else if (_selectedType == SyncJobType.Update)
-    {
-        <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false" Style="margin: 0;">
-            Задача не требует дополнительных параметров. Будут обновлены все активные отправления.
-        </RadzenAlert>
-    }
+        @if (_selectedType == SyncJobType.Sync || _selectedType == SyncJobType.Update || _selectedType == SyncJobType.Returns)
+        {
+            <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                Периоды больше 30 дней будут разбиты на отдельные задачи по 30 дней.
+            </RadzenText>
+        }
+    </RadzenStack>
 
     @if (!string.IsNullOrEmpty(_errorMessage))
     {
@@ -113,98 +107,67 @@
     {
         _errorMessage = null;
 
-        if (_selectedType == SyncJobType.Sync)
+        if (!_from.HasValue || !_to.HasValue)
         {
-            if (!_from.HasValue || !_to.HasValue)
-            {
-                _errorMessage = "Выберите даты начала и окончания периода.";
-                return;
-            }
-
-            var from = _from.Value.Date;
-            var to   = _to.Value.Date.AddDays(1).AddTicks(-1);
-
-            if (from > to)
-            {
-                _errorMessage = "Дата начала не может быть позже даты окончания.";
-                return;
-            }
-
-            if ((to - from).TotalDays > 30)
-            {
-                _errorMessage = "Максимальная длина периода — 30 дней.";
-                return;
-            }
-
-            _isBusy = true;
-            try
-            {
-                await JobService.EnqueueSyncAsync(from, to);
-                DialogService.Close(true);
-            }
-            catch (Exception ex)
-            {
-                _errorMessage = ex.Message;
-            }
-            finally
-            {
-                _isBusy = false;
-            }
+            _errorMessage = "Выберите даты начала и окончания периода.";
+            return;
         }
-        else if (_selectedType == SyncJobType.Update)
+
+        var from = _from.Value.Date;
+        var to   = _to.Value.Date.AddDays(1).AddTicks(-1);
+
+        if (from > to)
         {
-            _isBusy = true;
-            try
-            {
-                await JobService.EnqueueUpdateAsync();
-                DialogService.Close(true);
-            }
-            catch (Exception ex)
-            {
-                _errorMessage = ex.Message;
-            }
-            finally
-            {
-                _isBusy = false;
-            }
+            _errorMessage = "Дата начала не может быть позже даты окончания.";
+            return;
         }
-        else if (_selectedType == SyncJobType.Returns)
+
+        // Для Sync/Returns — максимум 30 дней (разбиваем на батчи, проверка убрана)
+
+        _isBusy = true;
+        try
         {
-            if (!_from.HasValue || !_to.HasValue)
+            if (_selectedType == SyncJobType.Sync)
             {
-                _errorMessage = "Выберите даты начала и окончания периода.";
-                return;
+                var chunkStart = from;
+                while (chunkStart < to)
+                {
+                    var chunkEnd = chunkStart.AddDays(30) < to ? chunkStart.AddDays(30) : to;
+                    await JobService.EnqueueSyncAsync(chunkStart, chunkEnd);
+                    chunkStart = chunkEnd.Date.AddDays(1);
+                }
+            }
+            else if (_selectedType == SyncJobType.Update)
+            {
+                // Разбиваем период на части по 30 дней
+                var chunkStart = from;
+                while (chunkStart < to)
+                {
+                    var chunkEnd = chunkStart.AddDays(30) < to ? chunkStart.AddDays(30) : to;
+                    await JobService.EnqueueUpdateAsync(chunkStart, chunkEnd);
+                    chunkStart = chunkEnd.Date.AddDays(1);
+                }
+            }
+            else if (_selectedType == SyncJobType.Returns)
+            {
+                var chunkStart = from;
+                while (chunkStart < to)
+                {
+                    var chunkEnd = chunkStart.AddDays(30) < to ? chunkStart.AddDays(30) : to;
+                    await JobService.EnqueueReturnsSyncAsync(chunkStart, chunkEnd);
+                    chunkStart = chunkEnd.Date.AddDays(1);
+                }
             }
 
-            var from = _from.Value.Date;
-            var to   = _to.Value.Date.AddDays(1).AddTicks(-1);
-
-            if (from > to)
-            {
-                _errorMessage = "Дата начала не может быть позже даты окончания.";
-                return;
-            }
-
-            if ((to - from).TotalDays > 30)
-            {
-                _errorMessage = "Максимальная длина периода — 30 дней.";
-                return;
-            }
-
-            _isBusy = true;
-            try
-            {
-                await JobService.EnqueueReturnsSyncAsync(from, to);
-                DialogService.Close(true);
-            }
-            catch (Exception ex)
-            {
-                _errorMessage = ex.Message;
-            }
-            finally
-            {
-                _isBusy = false;
-            }
+            DialogService.Close(true);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
         }
     }
 }

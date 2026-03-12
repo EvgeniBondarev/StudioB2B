@@ -67,6 +67,8 @@ public class OrderSyncJob
         Guid tenantId,
         string connectionString,
         Guid historyId,
+        DateTime from,
+        DateTime to,
         CancellationToken cancellationToken = default)
     {
         await using var db = CreateDbContext(connectionString);
@@ -79,7 +81,7 @@ public class OrderSyncJob
             return;
         }
 
-        await ExecuteUpdateCoreAsync(db, history, tenantId, cancellationToken);
+        await ExecuteUpdateCoreAsync(db, history, tenantId, from, to, cancellationToken);
     }
 
     [AutomaticRetry(Attempts = 0)]
@@ -145,13 +147,11 @@ public class OrderSyncJob
         {
             JobType        = schedule.JobType,
             Status         = SyncJobStatus.Enqueued,
-            ParametersJson = schedule.JobType is SyncJobType.Sync or SyncJobType.Returns
-                ? JsonSerializer.Serialize(new
-                {
-                    From = DateTime.UtcNow.Date.AddDays(-daysBack),
-                    To   = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1)
-                })
-                : null
+            ParametersJson = JsonSerializer.Serialize(new
+            {
+                From = DateTime.UtcNow.Date.AddDays(-daysBack),
+                To   = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1)
+            })
         };
 
         db.SyncJobHistories.Add(history);
@@ -178,7 +178,9 @@ public class OrderSyncJob
         }
         else
         {
-            await ExecuteUpdateCoreAsync(db, history, tenantId, cancellationToken);
+            var from = DateTime.UtcNow.Date.AddDays(-daysBack);
+            var to   = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
+            await ExecuteUpdateCoreAsync(db, history, tenantId, from, to, cancellationToken);
         }
     }
 
@@ -284,6 +286,8 @@ public class OrderSyncJob
         TenantDbContext db,
         SyncJobHistory history,
         Guid tenantId,
+        DateTime from,
+        DateTime to,
         CancellationToken cancellationToken)
     {
         history.Status = SyncJobStatus.Processing;
@@ -292,10 +296,12 @@ public class OrderSyncJob
         var logger = _loggerFactory.CreateLogger<OrderSyncJob>();
         try
         {
-            logger.LogInformation("UpdateJob: starting status update for tenant {TenantId}.", tenantId);
+            logger.LogInformation(
+                "UpdateJob: starting status update for tenant {TenantId}, period {From}\u2013{To}.",
+                tenantId, from, to);
 
             var syncService = BuildSyncService(db);
-            var summary     = await syncService.UpdateAllAsync(cancellationToken);
+            var summary     = await syncService.UpdateAllAsync(from, to, cancellationToken);
 
             history.Status        = SyncJobStatus.Succeeded;
             history.FinishedAtUtc = DateTime.UtcNow;

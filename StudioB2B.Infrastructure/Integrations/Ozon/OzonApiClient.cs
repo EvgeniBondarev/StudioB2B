@@ -315,6 +315,11 @@ public class OzonApiClient : IOzonApiClient
         }
     }
 
+    private static readonly JsonSerializerOptions _ozonSerializeOptions = new()
+    {
+        Converters = { new UtcDateTimeJsonConverter() }
+    };
+
     private async Task<OzonApiResult<TResponse>> SendPostAsync<TResponse>(
         string path,
         string clientId,
@@ -328,7 +333,7 @@ public class OzonApiClient : IOzonApiClient
         request.Headers.Add("Client-Id", clientId);
         request.Headers.Add("Api-Key", apiKey);
 
-        var json = JsonSerializer.Serialize(body);
+        var json = JsonSerializer.Serialize(body, _ozonSerializeOptions);
         request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
         try
@@ -375,5 +380,17 @@ public class OzonApiClient : IOzonApiClient
                 statusCode: null,
                 message: ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Сериализует DateTime всегда как UTC (добавляет суффикс Z), чего требует Ozon API.
+    /// </summary>
+    private sealed class UtcDateTimeJsonConverter : System.Text.Json.Serialization.JsonConverter<DateTime>
+    {
+        public override DateTime Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => reader.GetDateTime();
+
+        public override void Write(System.Text.Json.Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+            => writer.WriteStringValue(DateTime.SpecifyKind(value, DateTimeKind.Utc));
     }
 }

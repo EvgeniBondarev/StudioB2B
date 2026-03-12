@@ -4,6 +4,7 @@
 @using StudioB2B.Infrastructure.Features.Orders
 @using System.Text.RegularExpressions
 @using StudioB2B.Domain.Entities
+@using StudioB2B.Domain.Entities.Orders
 
 @inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
@@ -18,7 +19,7 @@
 }
 else
 {
-    <RadzenTabs Style="height: 630px;">
+    <RadzenTabs Style="height: 630px;" @bind-SelectedIndex="_selectedTabIndex">
         <Tabs>
 
             <RadzenTabsItem Text="Товар">
@@ -314,6 +315,35 @@ else
                 </RadzenStack>
             </RadzenTabsItem>
 
+            @if (_order.Shipment.Returns.Count > 0)
+            {
+                <RadzenTabsItem Text="Возврат">
+                    <RadzenStack Gap="1rem" Style="padding: 1rem 0; overflow-y: auto; max-height: 500px;">
+                        @foreach (var r in _order.Shipment.Returns)
+                        {
+                            <RadzenCard Style="padding: 1rem;">
+                                @DetailRow("Posting Number", r.PostingNumber, mono: true)
+                                @DetailRow("Номер заказа", r.OrderNumber, mono: true)
+                                @DetailRow("Товар", r.ProductName)
+                                @DetailRow("Артикул", r.OfferId, mono: true)
+                                @DetailRow("Кол-во", r.ProductQuantity.ToString())
+                                @DetailRow("Цена", r.ProductPrice.HasValue ? $"{r.ProductPrice:N2} {r.ProductPriceCurrencyCode}" : null)
+                                @DetailRow("Статус возврата", r.VisualStatusDisplayName)
+                                @DetailRow("Статус компенсации", r.CompensationStatusDisplayName)
+                                @DetailRow("Тип", GetReturnTypeDisplayName(r.Type))
+                                @DetailRow("Схема", r.Schema)
+                                @DetailRow("Причина", r.ReturnReasonName)
+                                @DetailRow("Дата изменения", r.VisualStatusChangeMoment?.ToLocalTime().ToString("dd.MM.yyyy HH:mm"))
+                                @DetailRow("Склад", r.PlaceName)
+                                @DetailRow("Хранение (дней)", r.StorageDays?.ToString())
+                                @DetailRow("Сумма хранения", r.StorageSum.HasValue ? $"{r.StorageSum:N2} {r.StorageCurrencyCode}" : null)
+                                @DetailRow("Штрихкод", r.LogisticBarcode, mono: true)
+                            </RadzenCard>
+                        }
+                    </RadzenStack>
+                </RadzenTabsItem>
+            }
+
         </Tabs>
     </RadzenTabs>
 
@@ -328,10 +358,12 @@ else
 
 @code {
     [Parameter] public Guid OrderId { get; set; }
+    [Parameter] public bool OpenReturnTab { get; set; }
 
     private TenantDbContext? _db;
     private Order? _order;
     private List<Order> _shipmentOrders = new();
+    private int _selectedTabIndex;
 
     private List<CalculationRule> _calcRules = new();
     private List<CalculationResultRow> _calcResults = new();
@@ -344,6 +376,7 @@ else
 
         _order = await _db.Orders
             .IncludeForDetail()
+            .AsSplitQuery()
             .AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == OrderId);
 
@@ -375,9 +408,24 @@ else
                 .ThenBy(o => o.ProductInfo == null ? "" : (o.ProductInfo.Product == null ? "" : (o.ProductInfo.Product.Article ?? "")))
                 .ToListAsync();
         }
+
+        if (OpenReturnTab && _order?.Shipment.Returns.Count > 0)
+        {
+            // Tabs: Товар(0), Цены(1), [Расчёты(2)], Получатель, Отправление, Возврат
+            _selectedTabIndex = (_calcRules.Count > 0 ? 1 : 0) + 4;
+        }
     }
 
     public void Dispose() => _db?.Dispose();
+
+    private static string? GetReturnTypeDisplayName(string? type) => type switch
+    {
+        "Cancellation"  => "Отмена",
+        "FullReturn"    => "Полный возврат",
+        "PartialReturn" => "Частичный возврат",
+        "ClientReturn"  => "Клиентский возврат",
+        _               => type
+    };
 
     private static string GetPriceColor(decimal value) =>
         value < 0 ? "color: var(--rz-danger);" : "";

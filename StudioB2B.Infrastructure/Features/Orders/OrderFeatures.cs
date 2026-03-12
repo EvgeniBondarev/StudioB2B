@@ -40,7 +40,8 @@ public static class OrderExtensions
             .Include(o => o.Recipient).ThenInclude(r => r!.Address)
             .Include(o => o.WarehouseInfo).ThenInclude(wi => wi!.SenderWarehouse)
             .Include(o => o.Prices).ThenInclude(p => p.PriceType)
-            .Include(o => o.Prices).ThenInclude(p => p.Currency);
+            .Include(o => o.Prices).ThenInclude(p => p.Currency)
+            .Include(o => o.Shipment).ThenInclude(s => s.Returns);
     }
 
     /// <summary>

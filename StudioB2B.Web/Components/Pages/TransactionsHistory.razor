@@ -67,10 +67,16 @@ else
                     @if (h.OrderTransaction != null)
                     {
                         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
-                            @if (!string.IsNullOrEmpty(h.OrderTransaction.Color))
-                            {
-                                <span style="width:16px;height:16px;border-radius:4px;background:@GetSoftBackground(h.OrderTransaction.Color);border:1px solid var(--rz-border-color);flex-shrink:0;" title="@h.OrderTransaction.Color"></span>
+                            @{
+                                var hBg = GetSoftBackground(h.OrderTransaction.Color);
+                                var hFg = IsLightColor(hBg) ? "#1f2937" : "#ffffff";
                             }
+                            <span style="@($"width:24px;height:24px;border-radius:6px;background:{hBg};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;")">
+                                @if (!string.IsNullOrEmpty(h.OrderTransaction.Icon))
+                                {
+                                    <i class="rzi" style="font-size:15px;color:@hFg;">@h.OrderTransaction.Icon</i>
+                                }
+                            </span>
                             <span>@h.OrderTransaction.Name</span>
                         </RadzenStack>
                     }

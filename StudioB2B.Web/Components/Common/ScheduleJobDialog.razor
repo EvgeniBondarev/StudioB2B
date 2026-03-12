@@ -138,7 +138,7 @@
     </RadzenStack>
 
     <!-- Параметры задачи (SyncParams) -->
-    @if (_jobType == SyncJobType.Sync || _jobType == SyncJobType.Returns)
+    @if (_jobType == SyncJobType.Sync || _jobType == SyncJobType.Update || _jobType == SyncJobType.Returns)
     {
         <RadzenStack Gap="0.35rem">
             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Параметры синхронизации</RadzenText>
@@ -398,7 +398,7 @@
 
         // Строим SyncParams JSON
         string? syncParams = null;
-        if (_jobType == SyncJobType.Sync)
+        if (_jobType is SyncJobType.Sync or SyncJobType.Update or SyncJobType.Returns)
             syncParams = JsonSerializer.Serialize(new { DaysBack = _syncDaysBack });
 
         var schedule = new SyncJobSchedule

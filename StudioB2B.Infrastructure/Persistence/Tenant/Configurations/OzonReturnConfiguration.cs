@@ -16,6 +16,7 @@ public class OzonReturnConfiguration : IEntityTypeConfiguration<OrderReturn>
         builder.HasIndex(r => r.PostingNumber);
         builder.HasIndex(r => r.VisualStatusSysName);
         builder.HasIndex(r => r.OrderId);
+        builder.HasIndex(r => r.ShipmentId);
 
         builder.Property(r => r.ReturnReasonName).HasMaxLength(500);
         builder.Property(r => r.Type).HasMaxLength(50);
