@@ -48,7 +48,7 @@ public class TenantDbContextFactory : ITenantDbContextFactory
 
         // Check & apply pending migrations only once per tenant per app lifetime.
         var tenantId = _tenantProvider.TenantId.ToString();
-        if (!_migrationsChecked.ContainsKey(tenantId))
+        if (tenantId != null && !_migrationsChecked.ContainsKey(tenantId))
         {
             try
             {
