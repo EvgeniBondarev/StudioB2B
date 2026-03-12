@@ -6,7 +6,7 @@
 @using SyncJobStatus = StudioB2B.Domain.Constants.SyncJobStatusEnum
 @using SyncJobType = StudioB2B.Domain.Constants.SyncJobTypeEnum
 @using StudioB2B.Domain.Entities.Orders
-@using StudioB2B.Infrastructure.Features.Orders
+@using StudioB2B.Infrastructure.Helpers
 @using StudioB2B.Infrastructure.Interfaces
 @inject ITenantProvider TenantProvider
 @inject IOrderSyncJobService JobService
@@ -255,52 +255,44 @@ else
 }
 
 @code {
-    // ── History ───────────────────────────────────────────────────────────────
-    private List<SyncJobHistory> _historyItems  = new();
+    private List<SyncJobHistory> _historyItems = new();
     private List<SyncJobHistory> _filteredItems = new();
     private bool _hasActiveJobs;
     private bool _isLoading;
     private Density _density = Density.Default;
 
-    // ── Filters ───────────────────────────────────────────────────────────────
-    private SyncJobType?   _filterType;
+    private SyncJobType? _filterType;
     private SyncJobStatus? _filterStatus;
 
     private record FilterOption<T>(string Label, T? Value);
 
     private readonly List<FilterOption<SyncJobType>> _filterTypeOptions = new()
     {
-        new("Загрузка заказов",    SyncJobType.Sync),
+        new("Загрузка заказов", SyncJobType.Sync),
         new("Обновление статусов", SyncJobType.Update),
-        new("Загрузка возвратов",  SyncJobType.Returns),
+        new("Загрузка возвратов", SyncJobType.Returns),
     };
 
     private readonly List<FilterOption<SyncJobStatus>> _filterStatusOptions = new()
     {
-        new("В очереди",   SyncJobStatus.Enqueued),
+        new("В очереди", SyncJobStatus.Enqueued),
         new("Выполняется", SyncJobStatus.Processing),
-        new("Завершена",   SyncJobStatus.Succeeded),
-        new("Ошибка",      SyncJobStatus.Failed),
-        new("Отменена",    SyncJobStatus.Cancelled),
+        new("Завершена", SyncJobStatus.Succeeded),
+        new("Ошибка", SyncJobStatus.Failed),
+        new("Отменена", SyncJobStatus.Cancelled),
     };
 
-    // ── Tracking ──────────────────────────────────────────────────────────────
     private readonly HashSet<Guid> _cancellingIds = new();
-    private readonly HashSet<Guid> _deletingIds   = new();
+    private readonly HashSet<Guid> _deletingIds = new();
 
-    // ── Schedules ─────────────────────────────────────────────────────────────
-    private List<SyncJobSchedule>  _schedules            = new();
-    private readonly HashSet<Guid> _deletingScheduleIds  = new();
-    private readonly HashSet<Guid> _togglingScheduleIds  = new();
+    private List<SyncJobSchedule>  _schedules = new();
+    private readonly HashSet<Guid> _deletingScheduleIds = new();
+    private readonly HashSet<Guid> _togglingScheduleIds = new();
 
-    // ── Polling ───────────────────────────────────────────────────────────────
-    private PeriodicTimer?          _pollTimer;
+    private PeriodicTimer? _pollTimer;
     private CancellationTokenSource _pollCts = new();
 
-    // ── SignalR ───────────────────────────────────────────────────────────────
     private HubConnection? _hubConnection;
-
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     protected override async Task OnInitializedAsync()
     {
@@ -359,8 +351,6 @@ else
         }
     }
 
-    // ── Enqueue dialog ────────────────────────────────────────────────────────
-
     private async Task OpenEnqueueDialogAsync()
     {
         var result = await DialogService.OpenAsync(
@@ -378,8 +368,6 @@ else
             StartPollingIfNeeded();
         }
     }
-
-    // ── Cancel ────────────────────────────────────────────────────────────────
 
     private async Task CancelJobAsync(SyncJobHistory h)
     {
@@ -399,8 +387,6 @@ else
             _cancellingIds.Remove(h.Id);
         }
     }
-
-    // ── Delete ────────────────────────────────────────────────────────────────
 
     private async Task DeleteJobAsync(SyncJobHistory h)
     {
@@ -426,8 +412,6 @@ else
             _deletingIds.Remove(h.Id);
         }
     }
-
-    // ── Polling ───────────────────────────────────────────────────────────────
 
     private void StartPollingIfNeeded()
     {
@@ -465,8 +449,6 @@ else
         _pollTimer?.Dispose();
         _pollTimer = null;
     }
-
-    // ── Schedules ─────────────────────────────────────────────────────────────
 
     private async Task LoadSchedulesAsync()
     {
@@ -539,8 +521,6 @@ else
         }
     }
 
-    // ── History & filters ─────────────────────────────────────────────────────
-
     private async Task LoadHistoryAsync()
     {
         _isLoading = true;
@@ -578,15 +558,13 @@ else
         _               => "Обычный режим строк"
     };
 
-    // ── Dialogs ───────────────────────────────────────────────────────────────
-
     private async Task ShowResultDialogAsync(SyncJobHistory history)
     {
         if (string.IsNullOrEmpty(history.ResultJson)) return;
 
         if (history.JobType == SyncJobType.Returns)
         {
-            var returnsSummary = JsonSerializer.Deserialize<ReturnsSyncResult>(history.ResultJson);
+            var returnsSummary = JsonSerializer.Deserialize<ReturnsSyncResultDto>(history.ResultJson);
             if (returnsSummary is null) return;
 
             await DialogService.OpenAsync(
@@ -596,7 +574,7 @@ else
         }
         else
         {
-            var summary = JsonSerializer.Deserialize<OrderSyncSummary>(history.ResultJson);
+            var summary = JsonSerializer.Deserialize<OrderSyncSummaryDto>(history.ResultJson);
             if (summary is null) return;
 
             await DialogService.OpenAsync(
@@ -611,8 +589,6 @@ else
         await DialogService.Alert(history.ErrorMessage ?? "Неизвестная ошибка", "Ошибка задачи",
             new AlertOptions { OkButtonText = "Закрыть" });
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void NotifyJobResult(SyncJobHistory? h, string jobName)
     {
@@ -634,18 +610,18 @@ else
 
     private static BadgeStyle JobTypeBadgeStyle(SyncJobType t) => t switch
     {
-        SyncJobType.Sync    => BadgeStyle.Primary,
-        SyncJobType.Update  => BadgeStyle.Secondary,
+        SyncJobType.Sync => BadgeStyle.Primary,
+        SyncJobType.Update => BadgeStyle.Secondary,
         SyncJobType.Returns => BadgeStyle.Info,
-        _                   => BadgeStyle.Light
+        _ => BadgeStyle.Light
     };
 
     private static string JobTypeLabel(SyncJobType t) => t switch
     {
-        SyncJobType.Sync    => "Загрузка заказов",
-        SyncJobType.Update  => "Обновление статусов",
+        SyncJobType.Sync => "Загрузка заказов",
+        SyncJobType.Update => "Обновление статусов",
         SyncJobType.Returns => "Загрузка возвратов",
-        _                   => t.ToString()
+        _ => t.ToString()
     };
 
     private static string FormatParameters(SyncJobHistory h)
@@ -678,22 +654,22 @@ else
 
     private static BadgeStyle StatusBadgeStyle(SyncJobStatus s) => s switch
     {
-        SyncJobStatus.Enqueued   => BadgeStyle.Warning,
+        SyncJobStatus.Enqueued => BadgeStyle.Warning,
         SyncJobStatus.Processing => BadgeStyle.Info,
-        SyncJobStatus.Succeeded  => BadgeStyle.Success,
-        SyncJobStatus.Failed     => BadgeStyle.Danger,
-        SyncJobStatus.Cancelled  => BadgeStyle.Secondary,
-        _                        => BadgeStyle.Light
+        SyncJobStatus.Succeeded => BadgeStyle.Success,
+        SyncJobStatus.Failed => BadgeStyle.Danger,
+        SyncJobStatus.Cancelled => BadgeStyle.Secondary,
+        _ => BadgeStyle.Light
     };
 
     private static string StatusLabel(SyncJobStatus s) => s switch
     {
-        SyncJobStatus.Enqueued   => "В очереди",
+        SyncJobStatus.Enqueued => "В очереди",
         SyncJobStatus.Processing => "Выполняется",
-        SyncJobStatus.Succeeded  => "Завершена",
-        SyncJobStatus.Failed     => "Ошибка",
-        SyncJobStatus.Cancelled  => "Отменена",
-        _                        => s.ToString()
+        SyncJobStatus.Succeeded => "Завершена",
+        SyncJobStatus.Failed => "Ошибка",
+        SyncJobStatus.Cancelled => "Отменена",
+        _ => s.ToString()
     };
 
     private static int ParseDaysBack(string? syncParams)
@@ -709,16 +685,12 @@ else
         return 7;
     }
 
-    // ── IAsyncDisposable ──────────────────────────────────────────────────────
-
     public async ValueTask DisposeAsync()
     {
         StopPolling();
         if (_hubConnection is not null)
             await _hubConnection.DisposeAsync();
     }
-
-    // ── SignalR payload ───────────────────────────────────────────────────────
 
     private record JobCompletedPayload(Guid HistoryId, string Status, string JobType);
 }

@@ -5,7 +5,7 @@ namespace StudioB2B.Domain.Entities;
 
 /// <summary>
 /// Отправление (posting в терминах Ozon API).
-/// Одно отправление содержит несколько позиций заказа (<see cref="Order"/>).
+/// Одно отправление содержит несколько позиций заказа (<see cref="OrderEntity"/>).
 /// </summary>
 [Display(Name = "Отправление")]
 public class Shipment : IBaseEntity, ISoftDelete
@@ -51,7 +51,7 @@ public class Shipment : IBaseEntity, ISoftDelete
 
     public bool HasReturn { get; set; }
 
-    public List<Order> Orders { get; set; } = [];
+    public List<OrderEntity> Orders { get; set; } = [];
     public List<ShipmentDate> Dates { get; set; } = [];
     public List<OrderReturn> Returns { get; set; } = [];
 }

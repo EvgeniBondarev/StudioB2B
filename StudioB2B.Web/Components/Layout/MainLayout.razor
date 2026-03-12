@@ -120,8 +120,7 @@
     // Страницы где контент занимает весь экран без padding
     private static readonly HashSet<string> FullHeightPages = ["/chats"];
 
-    private bool _isFullHeight =>
-        FullHeightPages.Contains(new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant());
+    private bool _isFullHeight => FullHeightPages.Contains(new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant());
 
     protected override void OnInitialized()
     {

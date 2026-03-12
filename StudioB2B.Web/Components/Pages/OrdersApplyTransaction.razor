@@ -3,7 +3,7 @@
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Constants
 @using StudioB2B.Domain.Entities
-@using StudioB2B.Infrastructure.Features.Orders
+@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
@@ -146,11 +146,11 @@ else
             </RadzenStack>
         }
 
-        <RadzenDataGrid TItem="Order" Data="@_orders" Density="Density.Compact"
+        <RadzenDataGrid TItem="OrderEntity" Data="@_orders" Density="Density.Compact"
                         AllowSorting="false" AllowFiltering="false" AllowPaging="false"
                         EmptyText="@RadzenRuStrings.EmptyText">
             <Columns>
-                <RadzenDataGridColumn TItem="Order" Title="Номер отправления" Width="200px">
+                <RadzenDataGridColumn TItem="OrderEntity" Title="Номер отправления" Width="200px">
                     <Template Context="o">
                         <CopyableText Text="@(o.Shipment?.PostingNumber ?? string.Empty)"
                                       Class="rz-monospace rz-text-sm"
@@ -163,7 +163,7 @@ else
                         </CopyableText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Клиент" Width="160px">
+                <RadzenDataGridColumn TItem="OrderEntity" Title="Клиент" Width="160px">
                     <Template Context="o">
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate"
@@ -171,7 +171,7 @@ else
                         </RadzenText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Принят" Width="130px">
+                <RadzenDataGridColumn TItem="OrderEntity" Title="Принят" Width="130px">
                     <Template Context="o">
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate"
@@ -179,7 +179,7 @@ else
                         </RadzenText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Срок отгрузки" Width="130px">
+                <RadzenDataGridColumn TItem="OrderEntity" Title="Срок отгрузки" Width="130px">
                     <Template Context="o">
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate"
@@ -187,7 +187,7 @@ else
                         </RadzenText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Артикул" Width="160px">
+                <RadzenDataGridColumn TItem="OrderEntity" Title="Артикул" Width="160px">
                     <Template Context="o">
                         <CopyableText Text="@(o.ProductInfo?.Product?.Article ?? string.Empty)"
                                       Class="rz-monospace rz-text-sm"
@@ -200,7 +200,7 @@ else
                         </CopyableText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Товар" Width="280px">
+                <RadzenDataGridColumn TItem="OrderEntity" Title="Товар" Width="280px">
                     <Template Context="o">
                         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem"
                                      Class="rz-w-100">
@@ -219,14 +219,14 @@ else
                         </RadzenStack>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Кол-во" Width="120px" TextAlign="TextAlign.Center">
+                <RadzenDataGridColumn TItem="OrderEntity" Title="Кол-во" Width="120px" TextAlign="TextAlign.Center">
                     <Template Context="o">
                         <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600">
                             @o.Quantity
                         </RadzenText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Статус маркетплейса" Width="190px">
+                <RadzenDataGridColumn TItem="OrderEntity" Title="Статус маркетплейса" Width="190px">
                     <Template Context="o">
                         <RadzenStack JustifyContent="JustifyContent.Center" AlignItems="AlignItems.Center">
                             @if (o.Status != null)
@@ -240,7 +240,7 @@ else
                         </RadzenStack>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Статус приложения" Width="190px">
+                <RadzenDataGridColumn TItem="OrderEntity" Title="Статус приложения" Width="190px">
                     <Template Context="o">
                         <RadzenStack JustifyContent="JustifyContent.Center" AlignItems="AlignItems.Center">
                             @if (o.SystemStatus != null)
@@ -254,7 +254,7 @@ else
                         </RadzenStack>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Способ доставки" Width="180px">
+                <RadzenDataGridColumn TItem="OrderEntity" Title="Способ доставки" Width="180px">
                     <Template Context="o">
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate"
@@ -263,7 +263,7 @@ else
                         </RadzenText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Склад" Width="160px">
+                <RadzenDataGridColumn TItem="OrderEntity" Title="Склад" Width="160px">
                     <Template Context="o">
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate"
@@ -272,7 +272,7 @@ else
                         </RadzenText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Цена" Width="120px">
+                <RadzenDataGridColumn TItem="OrderEntity" Title="Цена" Width="120px">
                     <Template Context="o">
                         @{
                             var price = o.Prices.FirstOrDefault(p => p.PriceType?.Name == "Цена");
@@ -297,7 +297,7 @@ else
                 {
                     @if (!_computedSplitByColumns)
                     {
-                        <RadzenDataGridColumn TItem="Order" Title="Расчёты" Width="200px">
+                        <RadzenDataGridColumn TItem="OrderEntity" Title="Расчёты" Width="200px">
                             <HeaderTemplate>
                                 <span style="cursor: pointer; text-decoration: underline; font-size: 0.85rem;"
                                       title="Щёлкните, чтобы переключить режим отображения расчётов"
@@ -332,7 +332,7 @@ else
                     {
                         @foreach (var rule in _calcRules)
                         {
-                            <RadzenDataGridColumn TItem="Order"
+                            <RadzenDataGridColumn TItem="OrderEntity"
                                                   Title="@rule.Name"
                                                   Width="120px"
                                                   Filterable="false"
@@ -355,7 +355,7 @@ else
                 {
                     @foreach (var fr in _preview.FieldRules.Where(x => x.RequiresUserInput))
                     {
-                        <RadzenDataGridColumn TItem="Order" Title="@(fr.DisplayName + (fr.IsRequired ? " *" : ""))" Width="180px" @key="fr.RuleId">
+                        <RadzenDataGridColumn TItem="OrderEntity" Title="@(fr.DisplayName + (fr.IsRequired ? " *" : ""))" Width="180px" @key="fr.RuleId">
                             <Template Context="o">
                                 @RenderFieldControlPerOrder(o.Id, fr)
                             </Template>
@@ -364,7 +364,7 @@ else
                 }
                 @foreach (var rule in _preview.Rules)
                 {
-                    <RadzenDataGridColumn TItem="Order" Title="@(rule.PriceTypeName + (rule.IsRequired ? " *" : ""))" Width="140px" @key="rule.RuleId">
+                    <RadzenDataGridColumn TItem="OrderEntity" Title="@(rule.PriceTypeName + (rule.IsRequired ? " *" : ""))" Width="140px" @key="rule.RuleId">
                         <Template Context="o">
                             @{
                                 var orderPreview = _orderPreviews.GetValueOrDefault(o.Id);
@@ -407,12 +407,12 @@ else
     private TenantDbContext? _db;
     private bool _loading = true;
     private List<Guid> _orderIds = [];
-    private List<Order> _orders = [];
+    private List<OrderEntity> _orders = [];
     private List<OrderTransaction> _transactions = [];
     private string? _currentStatusName;
     private Guid? _selectedTransactionId;
-    private TransactionApplyPreview? _preview;
-    private Dictionary<Guid, TransactionApplyPreview> _orderPreviews = [];
+    private TransactionApplyPreviewDto? _preview;
+    private Dictionary<Guid, TransactionApplyPreviewDto> _orderPreviews = [];
     private Dictionary<Guid, Dictionary<Guid, decimal>> _userValues = [];
     private Dictionary<Guid, string> _fieldUserValues = [];
     private Dictionary<Guid, Dictionary<Guid, string>> _fieldUserValuesPerOrder = [];
@@ -639,7 +639,7 @@ else
         _fieldUserValuesPerOrder = [];
     }
 
-    private async Task LoadReferenceDataAsync(IEnumerable<TransactionApplyFieldRulePreview> fieldRules)
+    private async Task LoadReferenceDataAsync(IEnumerable<TransactionApplyFieldRulePreviewDto> fieldRules)
     {
         if (_db == null) return;
         var refTypes = fieldRules.Select(f => f.ReferenceType).Distinct().ToList();
@@ -675,13 +675,13 @@ else
                 .ToListAsync();
     }
 
-    private RenderFragment RenderFieldControlMass(TransactionApplyFieldRulePreview fr) => builder =>
+    private RenderFragment RenderFieldControlMass(TransactionApplyFieldRulePreviewDto fr) => builder =>
     {
         var value = _fieldUserValues.GetValueOrDefault(fr.RuleId) ?? "";
         RenderFieldControlInternal(builder, fr, value, v => { _fieldUserValues[fr.RuleId] = v; });
     };
 
-    private RenderFragment RenderFieldControlPerOrder(Guid orderId, TransactionApplyFieldRulePreview fr) => builder =>
+    private RenderFragment RenderFieldControlPerOrder(Guid orderId, TransactionApplyFieldRulePreviewDto fr) => builder =>
     {
         var dict = _fieldUserValuesPerOrder.GetValueOrDefault(orderId);
         var value = dict != null && dict.TryGetValue(fr.RuleId, out var v) ? v : "";
@@ -695,7 +695,7 @@ else
 
     private void RenderFieldControlInternal(
         Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder,
-        TransactionApplyFieldRulePreview fr,
+        TransactionApplyFieldRulePreviewDto fr,
         string value,
         Action<string> setValue)
     {

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
+using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Web.Controllers;
 
@@ -16,16 +17,11 @@ public class UsersController : ControllerBase
 {
     private readonly ITenantDbContextFactory _dbContextFactory;
     private readonly ITenantProvider _tenantProvider;
-    private readonly ILogger<UsersController> _logger;
 
-    public UsersController(
-        ITenantDbContextFactory dbContextFactory,
-        ITenantProvider tenantProvider,
-        ILogger<UsersController> logger)
+    public UsersController(ITenantDbContextFactory dbContextFactory, ITenantProvider tenantProvider)
     {
         _dbContextFactory = dbContextFactory;
         _tenantProvider = tenantProvider;
-        _logger = logger;
     }
 
     /// <summary>
@@ -121,14 +117,3 @@ public class UsersController : ControllerBase
     }
 }
 
-/// <summary>
-/// DTO для передачи данных пользователя
-/// </summary>
-public class UserDto
-{
-    public Guid Id { get; set; }
-    public string Email { get; set; } = string.Empty;
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
-    public bool IsActive { get; set; }
-}

@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Domain.Entities;
-using StudioB2B.Infrastructure.MultiTenancy.Initialization;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
 
 namespace StudioB2B.Infrastructure.Services;
@@ -19,11 +19,8 @@ public class DatabaseMigrationService : IHostedService
     private readonly IHostEnvironment _environment;
     private readonly IConfiguration _configuration;
 
-    public DatabaseMigrationService(
-        IServiceProvider serviceProvider,
-        ILogger<DatabaseMigrationService> logger,
-        IHostEnvironment environment,
-        IConfiguration configuration)
+    public DatabaseMigrationService(IServiceProvider serviceProvider, ILogger<DatabaseMigrationService> logger,
+                                    IHostEnvironment environment, IConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;

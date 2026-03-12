@@ -10,16 +10,16 @@ public interface IOrderAdapter
 {
     string MarketplaceName { get; }
 
-    Task<OrderSyncResult> SyncAsync(MarketplaceClient client, DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default);
+    Task<OrderSyncResultDto> SyncAsync(MarketplaceClient client, DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default);
 
     /// <summary>
     /// Updates statuses and dates for active (non-terminal) shipments of the given client
     /// within the specified date range by fetching each posting from the marketplace API.
     /// </summary>
-    Task<OrderSyncResult> UpdateStatusesAsync(MarketplaceClient client, DateTime from, DateTime to, CancellationToken ct = default);
+    Task<OrderSyncResultDto> UpdateStatusesAsync(MarketplaceClient client, DateTime from, DateTime to, CancellationToken ct = default);
 
     /// <summary>
     /// Updates the status of a single shipment by fetching its posting from the marketplace API.
     /// </summary>
-    Task<ShipmentUpdateItem?> UpdateSingleShipmentStatusAsync(Shipment shipment, MarketplaceClient client, CancellationToken ct = default);
+    Task<ShipmentUpdateItemDto?> UpdateSingleShipmentStatusAsync(Shipment shipment, MarketplaceClient client, CancellationToken ct = default);
 }
