@@ -1,7 +1,7 @@
 @page "/marketplace-clients"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Marketplace
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features.Marketplace
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
@@ -276,8 +276,6 @@ else
             .AsNoTracking().OrderBy(m => m.Name).ToListAsync();
     }
 
-    // ── Wizard dialog ────────────────────────────────────────────────
-
     private async Task OpenCreateWizard()
     {
         var created = await DialogService.OpenAsync<MarketplaceClientWizard>(
@@ -295,8 +293,6 @@ else
             await _grid.Reload();
     }
 
-    // ── Key visibility toggle ────────────────────────────────────────
-
     private void ToggleKeyVisibility(Guid clientId)
     {
         if (!_revealedKeys.Remove(clientId))
@@ -310,8 +306,6 @@ else
         try { return Encryption.Decrypt(encryptedKey); }
         catch { return encryptedKey; }
     }
-
-    // ── Grid editing ─────────────────────────────────────────────────
 
     private async Task EditRow(MarketplaceClient client) => await _grid!.EditRow(client);
 
@@ -374,16 +368,16 @@ else
     {
         ContextMenuService.Open(args,
             [
-                new ContextMenuItem { Text = "Редактировать", Icon = "edit",   Value = "edit" },
-                new ContextMenuItem { Text = "Удалить",       Icon = "delete", Value = "delete" }
+                new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" },
+                new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" }
             ],
             e =>
             {
                 ContextMenuService.Close();
                 if (e.Value?.ToString() == "edit")
-                    InvokeAsync(() => EditRow(args.Data));
+                    InvokeAsync(() => EditRow(args.Data!));
                 else if (e.Value?.ToString() == "delete")
-                    InvokeAsync(() => DeleteRow(args.Data));
+                    InvokeAsync(() => DeleteRow(args.Data!));
             });
     }
 

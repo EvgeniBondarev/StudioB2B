@@ -2,6 +2,9 @@
 @attribute [Authorize(Roles = "Admin")]
 @using System.Text.Json
 @using Microsoft.AspNetCore.SignalR.Client
+@using StudioB2B.Domain.Entities
+@using SyncJobStatus = StudioB2B.Domain.Constants.SyncJobStatusEnum
+@using SyncJobType = StudioB2B.Domain.Constants.SyncJobTypeEnum
 @using StudioB2B.Domain.Entities.Orders
 @using StudioB2B.Infrastructure.Features.Orders
 @using StudioB2B.Infrastructure.Interfaces
@@ -61,8 +64,8 @@ else
                         <RadzenStack Gap="0.4rem">
                             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                                          JustifyContent="JustifyContent.SpaceBetween">
-                                <RadzenBadge BadgeStyle="@(s.JobType == SyncJobType.Sync ? BadgeStyle.Primary : BadgeStyle.Secondary)"
-                                             Text="@(s.JobType == SyncJobType.Sync ? "Загрузка заказов" : "Обновление статусов")" />
+                                <RadzenBadge BadgeStyle="@JobTypeBadgeStyle(s.JobType)"
+                                             Text="@JobTypeLabel(s.JobType)" />
                                 <RadzenToggleButton Value="@s.IsEnabled"
                                                     ButtonStyle="ButtonStyle.Light"
                                                     ToggleButtonStyle="ButtonStyle.Success"
@@ -147,8 +150,8 @@ else
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="JobType" Title="Тип" Width="210px"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="h">
-                    <RadzenBadge BadgeStyle="@(h.JobType == SyncJobType.Sync ? BadgeStyle.Primary : BadgeStyle.Secondary)"
-                                 Text="@(h.JobType == SyncJobType.Sync ? "Загрузка заказов" : "Обновление статусов")" />
+                    <RadzenBadge BadgeStyle="@JobTypeBadgeStyle(h.JobType)"
+                                 Text="@JobTypeLabel(h.JobType)" />
                 </Template>
                 <FilterTemplate Context="col">
                     <div class="filter-all-item @(_filterType == null ? "active" : "")"
@@ -269,6 +272,7 @@ else
     {
         new("Загрузка заказов",    SyncJobType.Sync),
         new("Обновление статусов", SyncJobType.Update),
+        new("Загрузка возвратов",  SyncJobType.Returns),
     };
 
     private readonly List<FilterOption<SyncJobStatus>> _filterStatusOptions = new()
@@ -339,7 +343,7 @@ else
                 await LoadHistoryAsync();
                 var h = _historyItems.FirstOrDefault(x => x.Id == payload.HistoryId);
                 if (h is not null)
-                    NotifyJobResult(h, h.JobType == SyncJobType.Sync ? "Загрузка заказов" : "Обновление статусов");
+                    NotifyJobResult(h, JobTypeLabel(h.JobType));
                 StateHasChanged();
             });
         });
@@ -580,13 +584,26 @@ else
     {
         if (string.IsNullOrEmpty(history.ResultJson)) return;
 
-        var summary = JsonSerializer.Deserialize<OrderSyncSummary>(history.ResultJson);
-        if (summary is null) return;
+        if (history.JobType == SyncJobType.Returns)
+        {
+            var returnsSummary = JsonSerializer.Deserialize<ReturnsSyncResult>(history.ResultJson);
+            if (returnsSummary is null) return;
 
-        await DialogService.OpenAsync(
-            history.JobType == SyncJobType.Sync ? "Результат синхронизации" : "Результат обновления",
-            ds => @<SyncResultDialogContent Summary="@summary" JobType="@history.JobType" />,
-            new DialogOptions { Width = "900px", Resizable = true, Draggable = true });
+            await DialogService.OpenAsync(
+                "Результат загрузки возвратов",
+                ds => @<SyncResultDialogContent ReturnsSummary="@returnsSummary" JobType="@history.JobType" />,
+                new DialogOptions { Width = "600px", Resizable = true, Draggable = true });
+        }
+        else
+        {
+            var summary = JsonSerializer.Deserialize<OrderSyncSummary>(history.ResultJson);
+            if (summary is null) return;
+
+            await DialogService.OpenAsync(
+                history.JobType == SyncJobType.Sync ? "Результат синхронизации" : "Результат обновления",
+                ds => @<SyncResultDialogContent Summary="@summary" JobType="@history.JobType" />,
+                new DialogOptions { Width = "900px", Resizable = true, Draggable = true });
+        }
     }
 
     private async Task ShowErrorDialogAsync(SyncJobHistory history)
@@ -614,6 +631,22 @@ else
                 break;
         }
     }
+
+    private static BadgeStyle JobTypeBadgeStyle(SyncJobType t) => t switch
+    {
+        SyncJobType.Sync    => BadgeStyle.Primary,
+        SyncJobType.Update  => BadgeStyle.Secondary,
+        SyncJobType.Returns => BadgeStyle.Info,
+        _                   => BadgeStyle.Light
+    };
+
+    private static string JobTypeLabel(SyncJobType t) => t switch
+    {
+        SyncJobType.Sync    => "Загрузка заказов",
+        SyncJobType.Update  => "Обновление статусов",
+        SyncJobType.Returns => "Загрузка возвратов",
+        _                   => t.ToString()
+    };
 
     private static string FormatParameters(SyncJobHistory h)
     {

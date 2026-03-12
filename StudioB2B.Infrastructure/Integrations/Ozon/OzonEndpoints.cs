@@ -8,6 +8,9 @@ public static class OzonEndpoints
     public const string ProductInfoAttributes = "v4/product/info/attributes";
     public const string FbsPostingGet         = "v3/posting/fbs/get";
 
+    // ── Returns ──────────────────────────────────────────────────────────────
+    public const string ReturnsList = "v1/returns/list";
+
     // ── Chat ─────────────────────────────────────────────────────────────────
     public const string ChatList        = "v3/chat/list";
     public const string ChatHistory     = "v3/chat/history";

@@ -324,9 +324,9 @@ else
             {
                 ContextMenuService.Close();
                 if (e.Value?.ToString() == "edit")
-                    InvokeAsync(() => { OpenEditForm(args.Data); return Task.CompletedTask; });
+                    InvokeAsync(() => { OpenEditForm(args.Data!); return Task.CompletedTask; });
                 else if (e.Value?.ToString() == "delete")
-                    InvokeAsync(() => DeleteUser(args.Data));
+                    InvokeAsync(() => DeleteUser(args.Data!));
             });
     }
 

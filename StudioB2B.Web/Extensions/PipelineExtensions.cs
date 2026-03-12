@@ -45,9 +45,9 @@ public static class PipelineExtensions
         try
         {
             await using var scope = app.Services.CreateAsyncScope();
-            var masterDb    = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
+            var masterDb = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
             var initializer = scope.ServiceProvider.GetRequiredService<ITenantDatabaseInitializer>();
-            var logger      = scope.ServiceProvider.GetRequiredService<ILogger<WebApplication>>();
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<WebApplication>>();
 
             var tenants = await masterDb.Tenants
                 .Select(t => new { t.Id, t.ConnectionString })

@@ -3,9 +3,13 @@
 @using Microsoft.EntityFrameworkCore
 @using Radzen
 @using Radzen.Blazor.Rendering
+<<<<<<< HEAD
 @using StudioB2B.Domain.Entities.Orders
 @using StudioB2B.Domain.Entities.Marketplace
 @using StudioB2B.Domain.Entities.Warehouses
+=======
+@using StudioB2B.Domain.Entities
+>>>>>>> a00a8bba683eb32c8914ce34d23446bccb0c5a77
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
@@ -15,6 +19,8 @@
 @inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
 @inject ContextMenuService ContextMenuService
+@inject NotificationService NotificationService
+@inject IOrderSyncService OrderSyncService
 @inject NavigationManager Navigation
 @inject TabService TabService
 @inject IJSRuntime JsRuntime
@@ -70,14 +76,18 @@ else
                 else if (_availableTransactions.Count > 0)
                 {
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Style="flex-wrap: wrap;">
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-base-600); margin: 0;">Провести:</RadzenText>
                         @foreach (var t in _availableTransactions)
                         {
-                            var bg = GetSoftBackground(t.Color);
+                            var bg = GetSoftBackground(t.Color ?? string.Empty);
                             var fg = IsLightColor(bg) ? "#1f2937" : "#ffffff";
+                            var tooltip = $"{t.Name}: {t.FromSystemStatus?.Name ?? "—"} \u2192 {t.ToSystemStatus?.Name ?? "—"}";
                             <RadzenButton Text="@t.Name"
+                                          Icon="@(string.IsNullOrEmpty(t.Icon) ? null : t.Icon)"
                                           ButtonStyle="ButtonStyle.Light"
                                           Size="ButtonSize.Small"
-                                          Style="@($"background-color: {bg}; color: {fg}; border: 1px solid {bg};")"
+                                          Title="@tooltip"
+                                          Style="@($"background-color: {bg}; color: {fg}; border: 1px solid {bg}; border-radius: 20px;")"
                                           Click="@(() => OpenApplyTransactionTab(t.Id))" />
                         }
                     </RadzenStack>
@@ -106,6 +116,66 @@ else
         </div>
     </RadzenStack>
 
+    @if (_marketplaceStatuses.Any() || _systemStatuses.Any())
+    {
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                     Style="padding: 0 0 0.75rem 0; flex-wrap: wrap;">
+
+            @{
+                var allActive = _filterStatusId == null && _filterSystemStatusId == null && !_filterHasReturn;
+            }
+            <span @onclick="@(async () => { _filterStatusId = null; _filterSystemStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                  style="@($"display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 10px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(allActive ? "var(--rz-primary)" : "var(--rz-base-200)")};color:{(allActive ? "#fff" : "var(--rz-text-color)")};border:2px solid transparent;")">
+                Все
+            </span>
+
+            @foreach (var s in _marketplaceStatuses
+                .Where(s => _statusCounts.ContainsKey(s.Id))
+                .OrderByDescending(s => _statusCounts.GetValueOrDefault(s.Id)))
+            {
+                var bg = GetSoftBackground(s.Color ?? string.Empty);
+                var fg = GetTextColor(bg);
+                var isActive = _filterStatusId == s.Id;
+                var cnt = _statusCounts.GetValueOrDefault(s.Id);
+                <span @onclick="@(async () => { _filterStatusId = isActive ? (Guid?)null : s.Id; _filterSystemStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                      style="@($"display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 10px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{bg};color:{fg};border:2px solid {(isActive ? fg : "transparent")};")">
+                    @s.Name
+                    <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@cnt</span>
+                </span>
+            }
+
+            @if (_marketplaceStatuses.Any(s => _statusCounts.ContainsKey(s.Id)) &&
+                 _systemStatuses.Any(s => _systemStatusCounts.ContainsKey(s.Id)))
+            {
+                <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 6px;"></span>
+            }
+
+            @foreach (var s in _systemStatuses
+                .Where(s => _systemStatusCounts.ContainsKey(s.Id))
+                .OrderByDescending(s => _systemStatusCounts.GetValueOrDefault(s.Id)))
+            {
+                var bg = GetSoftBackground(s.Color ?? string.Empty);
+                var fg = GetTextColor(bg);
+                var isActive = _filterSystemStatusId == s.Id;
+                var cnt = _systemStatusCounts.GetValueOrDefault(s.Id);
+                <span @onclick="@(async () => { _filterSystemStatusId = isActive ? (Guid?)null : s.Id; _filterStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                      style="@($"display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 10px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{bg};color:{fg};border:2px solid {(isActive ? fg : "transparent")};")">
+                    @s.Name
+                    <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@cnt</span>
+                </span>
+            }
+
+            @if (_returnCount > 0)
+            {
+                <span @onclick="@(async () => { _filterHasReturn = !_filterHasReturn; _filterStatusId = null; _filterSystemStatusId = null; await OnFilterChange(); })"
+                      style="@($"display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 10px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(_filterHasReturn ? "#fee2e2" : "#f9fafb")};color:{(_filterHasReturn ? "#991b1b" : "#6b7280")};border:2px solid {(_filterHasReturn ? "#f87171" : "transparent")};")">
+                    Возвраты
+                    <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@_returnCount</span>
+                </span>
+            }
+
+        </RadzenStack>
+    }
 
     <RadzenDataGrid
         @ref="_grid"
@@ -304,7 +374,7 @@ else
                                   Title="@GetColumn(OrderGridColumns.MarketplaceStatus).Title"
                                   Width="@GetColumn(OrderGridColumns.MarketplaceStatus).Width"
                                   Visible="@GetColumn(OrderGridColumns.MarketplaceStatus).Visible"
-                                  Filterable="true"
+                                  Filterable="false"
                                   Sortable="true" HeaderCssClass="half-painted-header">
 
                 <FilterTemplate>
@@ -342,6 +412,13 @@ else
                             <RadzenBadge Text="@o.Status.Name"
                                          Style="@($"background:{bg}; color:{fg};")"
                                          Class="status-badge"/>
+                            @if (o.Shipment.HasReturn)
+                            {
+                                <span style="color:#ef4444;cursor:pointer;font-size:0.78rem;font-weight:600;margin-left:3px;"
+                                      title="Есть возврат — нажмите для просмотра"
+                                      @onclick:stopPropagation="true"
+                                      @onclick="@(() => OpenOrderDetailAsync(o, openReturnTab: true))">/ Возв.</span>
+                            }
                         }
                     </RadzenStack>
                 </Template>
@@ -384,7 +461,7 @@ else
                                  AlignItems="AlignItems.Center">
                         @if (o.SystemStatus != null)
                         {
-                            var bg = GetSoftBackground(o.SystemStatus.Color);
+                            var bg = GetSoftBackground(o.SystemStatus.Color ?? string.Empty);
                             var fg = GetTextColor(bg);
 
                             <RadzenBadge Text="@o.SystemStatus.Name"
@@ -549,6 +626,9 @@ window.gridResize = {
 </script>
 
 @code {
+    [SupplyParameterFromQuery(Name = "openReturn")]
+    public string? OpenReturnId { get; set; }
+
     private RadzenDataGrid<Order>? _grid;
 
     private TenantDbContext? _db;
@@ -556,16 +636,21 @@ window.gridResize = {
     private int _totalCount;
     private Density _density = Density.Default;
     private bool _loading;
+    private bool _loadDataInProgress;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
 
     private Guid? _filterClientId;
     private Guid? _filterStatusId;
     private Guid? _filterSystemStatusId;
     private Guid? _filterWarehouseId;
+    private bool _filterHasReturn;
     private List<MarketplaceClient> _clients = new();
     private List<OrderStatus> _marketplaceStatuses = new();
     private List<OrderStatus> _systemStatuses = new();
     private List<Warehouse> _warehouses = new();
+    private Dictionary<Guid, int> _statusCounts = new();
+    private Dictionary<Guid, int> _systemStatusCounts = new();
+    private int _returnCount;
 
     private readonly CalculationEngine _calcEngine = new();
     private List<CalculationRule> _calcRules = new();
@@ -601,8 +686,8 @@ window.gridResize = {
         columnsPopup.ToggleAsync(columnsButton.Element);
     }
 
-    RadzenButton columnsButton;
-    Popup columnsPopup;
+    RadzenButton columnsButton = null!;
+    Popup columnsPopup = null!;
 
     // Константы колонок
     public static class OrderGridColumns
@@ -625,8 +710,8 @@ window.gridResize = {
     // Модель конфигурации колонки
     public class ColumnConfig
     {
-        public string Key { get; set; }
-        public string Title { get; set; }
+        public required string Key { get; set; }
+        public required string Title { get; set; }
 
         public bool AutoVisible { get; set; } = true; // управляется шириной экрана
         public bool? UserVisible { get; set; } = null; // null = не переопределено пользователем
@@ -636,7 +721,7 @@ window.gridResize = {
 
         public int Priority { get; set; } = 1;
 
-        public string Width { get; set; }
+        public required string Width { get; set; }
     }
 
     // Список конфигураций колонок
@@ -750,6 +835,26 @@ window.gridResize = {
             await Js.InvokeVoidAsync("gridResize.register", _resizeRef);
 
             StateHasChanged();
+
+            if (!string.IsNullOrEmpty(OpenReturnId) &&
+                Guid.TryParse(OpenReturnId, out var openReturnId) &&
+                TenantProvider.IsResolved)
+            {
+                OpenReturnId = null;
+                await using var db = Factory.CreateDbContext();
+                // Сначала ищем как ShipmentId, потом как OrderId (для обратной совместимости)
+                var order = await db.Orders
+                    .IncludeForGrid()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.ShipmentId == openReturnId)
+                    ?? await db.Orders
+                    .IncludeForGrid()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Id == openReturnId);
+                if (order != null)
+                    await OpenOrderDetailAsync(order, openReturnTab: true);
+                Navigation.NavigateTo("/orders", replace: true);
+            }
         }
     }
 
@@ -832,7 +937,11 @@ window.gridResize = {
 
     private async Task LoadData(LoadDataArgs args)
     {
+        if (_loadDataInProgress) return;
+        _loadDataInProgress = true;
         _loading = true;
+        try
+        {
         await EnsureInitializedAsync();
 
         var query = _db!.Orders
@@ -848,6 +957,8 @@ window.gridResize = {
             query = query.Where(o => o.SystemStatusId == _filterSystemStatusId.Value);
         if (_filterWarehouseId.HasValue)
             query = query.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId == _filterWarehouseId.Value);
+        if (_filterHasReturn)
+            query = query.Where(o => o.Shipment!.HasReturn);
 
         if (!string.IsNullOrEmpty(args.Filter))
             query = query.Where(args.Filter);
@@ -943,13 +1054,18 @@ window.gridResize = {
         }
 
         _loading = false;
+        }
+        finally
+        {
+            _loadDataInProgress = false;
+        }
     }
 
     private void OnRowRender(RowRenderEventArgs<Order> args)
     {
         if (_orderLastTransactionColor.TryGetValue(args.Data.Id, out var color) && !string.IsNullOrEmpty(color))
         {
-            var bg = GetSoftBackground(color);
+            var bg = GetSoftBackground(color!);
             var fg = GetTextColor(bg);
             args.Attributes["style"] = $"background-color: {bg}; color: {fg};";
         }
@@ -958,7 +1074,7 @@ window.gridResize = {
     private async Task EnsureInitializedAsync()
     {
         if (_db != null) return;
-        _db = Factory.CreateDbContext();
+        _db = Factory.CreateDbContext(); // set before first await — prevents re-entry
 
         _clients = await _db.MarketplaceClients!
             .Include(c => c.ClientType)
@@ -986,6 +1102,29 @@ window.gridResize = {
             .ToListAsync();
 
         _calcRules = await _db.GetActiveRulesAsync();
+
+        var msCounts = await _db.Orders
+            .AsNoTracking()
+            .Where(o => o.StatusId != null)
+            .GroupBy(o => o.StatusId!.Value)
+            .Select(g => new { StatusId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        _statusCounts = msCounts.ToDictionary(x => x.StatusId, x => x.Count);
+
+        var ssCounts = await _db.Orders
+            .AsNoTracking()
+            .Where(o => o.SystemStatusId != null)
+            .GroupBy(o => o.SystemStatusId!.Value)
+            .Select(g => new { StatusId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        _systemStatusCounts = ssCounts.ToDictionary(x => x.StatusId, x => x.Count);
+
+        _returnCount = await _db.Orders
+            .AsNoTracking()
+            .Where(o => o.Shipment!.HasReturn)
+            .Select(o => o.ShipmentId)
+            .Distinct()
+            .CountAsync();
     }
 
     private async Task OnFilterChange()
@@ -1002,11 +1141,14 @@ window.gridResize = {
         await OnFilterChange();
     }
 
-    private async Task OpenOrderDetailAsync(Order order)
+    private async Task OpenOrderDetailAsync(Order order, bool openReturnTab = false)
     {
+        var parameters = new Dictionary<string, object?> { ["OrderId"] = order.Id };
+        if (openReturnTab)
+            parameters["OpenReturnTab"] = (object)true;
         await DialogService.OpenAsync<OrderDetailDialog>(
             $"Заказ {order.Shipment?.PostingNumber}",
-            new Dictionary<string, object?> { ["OrderId"] = order.Id },
+            parameters,
             new DialogOptions
             {
                 Width = "900px",
@@ -1073,15 +1215,18 @@ window.gridResize = {
         ContextMenuService.Open(args,
             [
                 new ContextMenuItem { Text = "Открыть", Icon = "open_in_new", Value = "open" },
-                new ContextMenuItem { Text = "История изменений", Icon = "history", Value = "history" }
+                new ContextMenuItem { Text = "История изменений", Icon = "history", Value = "history" },
+                new ContextMenuItem { Text = "Обновить статус", Icon = "sync", Value = "update_status" }
             ],
             async e =>
             {
                 ContextMenuService.Close();
-                if (e.Value?.ToString() == "open")
+                if (e.Value?.ToString() == "open" && args.Data is not null)
                     await OpenOrderDetailAsync(args.Data);
-                else if (e.Value?.ToString() == "history")
+                else if (e.Value?.ToString() == "history" && args.Data is not null)
                     await OpenAuditHistoryAsync(args.Data);
+                else if (e.Value?.ToString() == "update_status" && args.Data is not null)
+                    await UpdateSingleOrderStatusAsync(args.Data);
             });
     }
 
@@ -1158,6 +1303,8 @@ window.gridResize = {
                 var statusId = statusIdsWithValue[0];
                 _selectionStatusName = _systemStatuses.FirstOrDefault(s => s.Id == statusId)?.Name ?? "—";
                 _availableTransactions = await _db.OrderTransactions
+                    .Include(t => t.FromSystemStatus)
+                    .Include(t => t.ToSystemStatus)
                     .Where(t => !t.IsDeleted && t.IsEnabled && t.FromSystemStatusId == statusId)
                     .OrderBy(t => t.Name)
                     .AsNoTracking()
@@ -1196,6 +1343,38 @@ window.gridResize = {
             "История изменений",
             new Dictionary<string, object?> { [nameof(AuditHistoryDialog.Subjects)] = (IReadOnlyList<AuditSubject>)subjects },
             new DialogOptions { Width = "min(960px, 95vw)", Resizable = true, Draggable = true });
+    }
+
+    private async Task UpdateSingleOrderStatusAsync(Order order)
+    {
+        try
+        {
+            var result = await OrderSyncService.UpdateSingleShipmentStatusAsync(order.ShipmentId);
+
+            if (result is not null)
+            {
+                NotificationService.Notify(NotificationSeverity.Success,
+                    "Статус обновлён",
+                    $"{result.PostingNumber}: {result.OldStatusName} → {result.NewStatusName}",
+                    duration: 5000);
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Info,
+                    "Без изменений",
+                    "Статус отправления не изменился.",
+                    duration: 3000);
+            }
+
+            await _grid!.Reload();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error,
+                "Ошибка",
+                ex.Message,
+                duration: 5000);
+        }
     }
 
     public void Dispose()
