@@ -17,12 +17,183 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.13")
+                .HasAnnotation("ProductVersion", "9.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Common.FieldAuditLog", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Address", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Apartment")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("City")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("House")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("PostalCode")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Region")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Street")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Addresses");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.CalculationRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Formula")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ResultKey")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CalculationRules");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Category", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.ToTable("Categories", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Currency", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Currencies");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.DateType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DateTypes");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.DeliveryMethod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("DeliveryTypeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<long?>("ExternalId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeliveryTypeId");
+
+                    b.ToTable("DeliveryMethods");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.DeliveryType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DeliveryTypes");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.FieldAuditLog", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -73,7 +244,31 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("FieldAuditLogs", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Manufacturer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Contact")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Manufacturers");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MarketplaceClient", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -133,7 +328,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("MarketplaceClients");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient1CSettings", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MarketplaceClient1CSettings", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -174,7 +369,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("MarketplaceClient1CSettings");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientMode", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MarketplaceClientMode", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -192,7 +387,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("MarketplaceClientModes");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientSettings", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MarketplaceClientSettings", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -219,7 +414,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("MarketplaceClientSettings");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientType", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MarketplaceClientType", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -237,133 +432,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("MarketplaceClientTypes");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Address", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Apartment")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("City")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Comment")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("House")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("PostalCode")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Region")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Street")
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Addresses");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.CalculationRule", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Formula")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ResultKey")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("CalculationRules");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.DateType", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DateTypes");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.DeliveryMethod", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid?>("DeliveryTypeId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<long?>("ExternalId")
-                        .HasColumnType("bigint");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DeliveryTypeId");
-
-                    b.ToTable("DeliveryMethods");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.DeliveryType", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DeliveryTypes");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Order", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Order", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -411,7 +480,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Orders", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderPrice", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderPrice", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -443,7 +512,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("OrderPrices");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderProductInfo", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderProductInfo", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -473,7 +542,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("OrderProductInfos");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderStatus", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderStatus", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -508,7 +577,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("OrderStatuses");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransaction", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderTransaction", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -519,6 +588,10 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
                     b.Property<Guid>("FromSystemStatusId")
                         .HasColumnType("char(36)");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
@@ -546,7 +619,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("OrderTransactions", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionFieldRule", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderTransactionFieldRule", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -579,7 +652,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("OrderTransactionFieldRules", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderTransactionHistory", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -627,7 +700,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("OrderTransactionHistories", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionRule", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderTransactionRule", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -673,7 +746,308 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("OrderTransactionRules", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Recipient", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderReturn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("CancelledWithCompensationMoment")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("ClearingId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal?>("Commission")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("CommissionPercent")
+                        .HasPrecision(10, 4)
+                        .HasColumnType("decimal(10,4)");
+
+                    b.Property<DateTime?>("CompensationStatusChangeMoment")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("CompensationStatusDisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int?>("CompensationStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("FinalMoment")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsOpened")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsSuperEconom")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("LogisticBarcode")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("OfferId")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("OrderNumber")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<long?>("OzonOrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OzonReturnId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PlaceAddress")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("PlaceName")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("PostingNumber")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("ProductName")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<decimal?>("ProductPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("ProductPriceCurrencyCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<decimal?>("ProductPriceWithoutCommission")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("ProductQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("ProductSku")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ReturnClearingId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("ReturnDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ReturnReasonName")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Schema")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<Guid?>("ShipmentId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<long?>("SourceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("StorageArrivedMoment")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("StorageCurrencyCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<long?>("StorageDays")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal?>("StorageSum")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime?>("StorageTariffStartDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("SyncedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("TechnicalReturnMoment")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime?>("UtilizationForecastDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal?>("UtilizationSum")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime?>("VisualStatusChangeMoment")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("VisualStatusDisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int?>("VisualStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VisualStatusSysName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("OzonOrderId");
+
+                    b.HasIndex("OzonReturnId")
+                        .IsUnique();
+
+                    b.HasIndex("PostingNumber");
+
+                    b.HasIndex("ShipmentId");
+
+                    b.HasIndex("VisualStatusSysName");
+
+                    b.ToTable("OrderReturns", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.PriceType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("CalculationRule")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("DeliveryScheme")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsUserDefined")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PriceTypes");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Product", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Article")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Barcode")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("LinkId")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid?>("ManufacturerId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<long?>("Sku")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("ManufacturerId");
+
+                    b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.ProductAttribute", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ProductAttributes");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.ProductAttributeValue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("AttributeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttributeId");
+
+                    b.HasIndex("ProductId", "AttributeId")
+                        .IsUnique();
+
+                    b.ToTable("ProductAttributeValues", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Recipient", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -698,7 +1072,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Recipients");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Shipment", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Shipment", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -709,6 +1083,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
                     b.Property<Guid?>("DeliveryMethodId")
                         .HasColumnType("char(36)");
+
+                    b.Property<bool>("HasReturn")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime?>("InProcessAt")
                         .HasColumnType("datetime(6)");
@@ -752,7 +1129,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Shipments", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.ShipmentDate", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.ShipmentDate", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -776,7 +1153,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("ShipmentDates");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.StatusColor", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.StatusColor", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -796,7 +1173,31 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("StatusColors");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.SyncJobHistory", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Supplier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Code")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Suppliers");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.SyncJobHistory", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -843,7 +1244,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("SyncJobHistories", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.SyncJobSchedule", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.SyncJobSchedule", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -890,242 +1291,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("SyncJobSchedules");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.WarehouseInfo", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid?>("RecipientWarehouseId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid?>("SenderWarehouseId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RecipientWarehouseId");
-
-                    b.HasIndex("SenderWarehouseId");
-
-                    b.ToTable("WarehouseInfos", (string)null);
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Products.Category", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("varchar(300)");
-
-                    b.Property<Guid?>("ParentId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ParentId");
-
-                    b.ToTable("Categories", (string)null);
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Products.Manufacturer", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Contact")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Manufacturers");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Products.Product", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Article")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Barcode")
-                        .HasColumnType("longtext");
-
-                    b.Property<Guid?>("CategoryId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ImageUrl")
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("LinkId")
-                        .HasColumnType("longtext");
-
-                    b.Property<Guid?>("ManufacturerId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<long?>("Sku")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
-
-                    b.HasIndex("ManufacturerId");
-
-                    b.ToTable("Products");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Products.ProductAttribute", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ProductAttributes");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Products.ProductAttributeValue", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid>("AttributeId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<Guid>("ProductId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttributeId");
-
-                    b.HasIndex("ProductId", "AttributeId")
-                        .IsUnique();
-
-                    b.ToTable("ProductAttributeValues", (string)null);
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Products.Supplier", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Code")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Suppliers");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.References.Currency", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Currencies");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.References.PriceType", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("CalculationRule")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("DeliveryScheme")
-                        .HasColumnType("longtext");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsUserDefined")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("PriceTypes");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantRole", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1147,7 +1313,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Roles", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantUser", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUser", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1191,7 +1357,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantUserRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserRole", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
@@ -1206,7 +1372,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("UserRoles", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouses.Warehouse", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouse", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1230,7 +1396,28 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Warehouses");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouses.WarehouseStock", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.WarehouseInfo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("RecipientWarehouseId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("SenderWarehouseId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipientWarehouseId");
+
+                    b.HasIndex("SenderWarehouseId");
+
+                    b.ToTable("WarehouseInfos", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.WarehouseStock", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1258,13 +1445,32 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("WarehouseStocks", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Category", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientType", "ClientType")
+                    b.HasOne("StudioB2B.Domain.Entities.Category", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.DeliveryMethod", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.DeliveryType", "DeliveryType")
+                        .WithMany()
+                        .HasForeignKey("DeliveryTypeId");
+
+                    b.Navigation("DeliveryType");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MarketplaceClient", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.MarketplaceClientType", "ClientType")
                         .WithMany()
                         .HasForeignKey("ClientTypeId");
 
-                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientMode", "Mode")
+                    b.HasOne("StudioB2B.Domain.Entities.MarketplaceClientMode", "Mode")
                         .WithMany()
                         .HasForeignKey("ModeId");
 
@@ -1273,20 +1479,20 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Mode");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient1CSettings", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MarketplaceClient1CSettings", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", "MarketplaceClient")
+                    b.HasOne("StudioB2B.Domain.Entities.MarketplaceClient", "MarketplaceClient")
                         .WithOne("Settings1C")
-                        .HasForeignKey("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient1CSettings", "MarketplaceClientId")
+                        .HasForeignKey("StudioB2B.Domain.Entities.MarketplaceClient1CSettings", "MarketplaceClientId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("MarketplaceClient");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientSettings", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MarketplaceClientSettings", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", "MarketplaceClient")
+                    b.HasOne("StudioB2B.Domain.Entities.MarketplaceClient", "MarketplaceClient")
                         .WithMany("Settings")
                         .HasForeignKey("MarketplaceClientId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1295,39 +1501,30 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("MarketplaceClient");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.DeliveryMethod", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Order", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.DeliveryType", "DeliveryType")
-                        .WithMany()
-                        .HasForeignKey("DeliveryTypeId");
-
-                    b.Navigation("DeliveryType");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Order", b =>
-                {
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.Recipient", "Recipient")
+                    b.HasOne("StudioB2B.Domain.Entities.Recipient", "Recipient")
                         .WithMany()
                         .HasForeignKey("RecipientId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.Shipment", "Shipment")
+                    b.HasOne("StudioB2B.Domain.Entities.Shipment", "Shipment")
                         .WithMany("Orders")
                         .HasForeignKey("ShipmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderStatus", "Status")
+                    b.HasOne("StudioB2B.Domain.Entities.OrderStatus", "Status")
                         .WithMany()
                         .HasForeignKey("StatusId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderStatus", "SystemStatus")
+                    b.HasOne("StudioB2B.Domain.Entities.OrderStatus", "SystemStatus")
                         .WithMany()
                         .HasForeignKey("SystemStatusId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.WarehouseInfo", "WarehouseInfo")
+                    b.HasOne("StudioB2B.Domain.Entities.WarehouseInfo", "WarehouseInfo")
                         .WithMany()
                         .HasForeignKey("WarehouseInfoId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -1343,19 +1540,19 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("WarehouseInfo");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderPrice", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderPrice", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.References.Currency", "Currency")
+                    b.HasOne("StudioB2B.Domain.Entities.Currency", "Currency")
                         .WithMany()
                         .HasForeignKey("CurrencyId");
 
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.Order", "Order")
+                    b.HasOne("StudioB2B.Domain.Entities.Order", "Order")
                         .WithMany("Prices")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.References.PriceType", "PriceType")
+                    b.HasOne("StudioB2B.Domain.Entities.PriceType", "PriceType")
                         .WithMany()
                         .HasForeignKey("PriceTypeId");
 
@@ -1366,19 +1563,19 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("PriceType");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderProductInfo", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderProductInfo", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.Order", "Order")
+                    b.HasOne("StudioB2B.Domain.Entities.Order", "Order")
                         .WithOne("ProductInfo")
-                        .HasForeignKey("StudioB2B.Domain.Entities.Orders.OrderProductInfo", "OrderId")
+                        .HasForeignKey("StudioB2B.Domain.Entities.OrderProductInfo", "OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Products.Product", "Product")
+                    b.HasOne("StudioB2B.Domain.Entities.Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId");
 
-                    b.HasOne("StudioB2B.Domain.Entities.Products.Supplier", "Supplier")
+                    b.HasOne("StudioB2B.Domain.Entities.Supplier", "Supplier")
                         .WithMany()
                         .HasForeignKey("SupplierId");
 
@@ -1389,24 +1586,24 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Supplier");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderStatus", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderStatus", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClientType", "MarketplaceClientType")
+                    b.HasOne("StudioB2B.Domain.Entities.MarketplaceClientType", "MarketplaceClientType")
                         .WithMany()
                         .HasForeignKey("MarketplaceClientTypeId");
 
                     b.Navigation("MarketplaceClientType");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransaction", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderTransaction", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderStatus", "FromSystemStatus")
+                    b.HasOne("StudioB2B.Domain.Entities.OrderStatus", "FromSystemStatus")
                         .WithMany()
                         .HasForeignKey("FromSystemStatusId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderStatus", "ToSystemStatus")
+                    b.HasOne("StudioB2B.Domain.Entities.OrderStatus", "ToSystemStatus")
                         .WithMany()
                         .HasForeignKey("ToSystemStatusId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -1417,9 +1614,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("ToSystemStatus");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionFieldRule", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderTransactionFieldRule", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderTransaction", "OrderTransaction")
+                    b.HasOne("StudioB2B.Domain.Entities.OrderTransaction", "OrderTransaction")
                         .WithMany("FieldRules")
                         .HasForeignKey("OrderTransactionId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1428,21 +1625,21 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("OrderTransaction");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionHistory", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderTransactionHistory", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.Order", "Order")
+                    b.HasOne("StudioB2B.Domain.Entities.Order", "Order")
                         .WithMany()
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderTransaction", "OrderTransaction")
+                    b.HasOne("StudioB2B.Domain.Entities.OrderTransaction", "OrderTransaction")
                         .WithMany()
                         .HasForeignKey("OrderTransactionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Tenants.TenantUser", null)
+                    b.HasOne("StudioB2B.Domain.Entities.TenantUser", null)
                         .WithMany()
                         .HasForeignKey("PerformedByUserId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -1452,26 +1649,26 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("OrderTransaction");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransactionRule", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderTransactionRule", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.References.Currency", "Currency")
+                    b.HasOne("StudioB2B.Domain.Entities.Currency", "Currency")
                         .WithMany()
                         .HasForeignKey("CurrencyId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderTransaction", "OrderTransaction")
+                    b.HasOne("StudioB2B.Domain.Entities.OrderTransaction", "OrderTransaction")
                         .WithMany("Rules")
                         .HasForeignKey("OrderTransactionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.References.PriceType", "PriceType")
+                    b.HasOne("StudioB2B.Domain.Entities.PriceType", "PriceType")
                         .WithMany()
                         .HasForeignKey("PriceTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Products.Product", "Product")
+                    b.HasOne("StudioB2B.Domain.Entities.Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -1485,29 +1682,80 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Recipient", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderReturn", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.Address", "Address")
+                    b.HasOne("StudioB2B.Domain.Entities.Order", "Order")
+                        .WithMany("Returns")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StudioB2B.Domain.Entities.Shipment", "Shipment")
+                        .WithMany("Returns")
+                        .HasForeignKey("ShipmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Shipment");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Product", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId");
+
+                    b.HasOne("StudioB2B.Domain.Entities.Manufacturer", "Manufacturer")
+                        .WithMany()
+                        .HasForeignKey("ManufacturerId");
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Manufacturer");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.ProductAttributeValue", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.ProductAttribute", "Attribute")
+                        .WithMany()
+                        .HasForeignKey("AttributeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Domain.Entities.Product", "Product")
+                        .WithMany("Attributes")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Attribute");
+
+                    b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Recipient", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Address", "Address")
                         .WithMany()
                         .HasForeignKey("AddressId");
 
                     b.Navigation("Address");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Shipment", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Shipment", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.DeliveryMethod", "DeliveryMethod")
+                    b.HasOne("StudioB2B.Domain.Entities.DeliveryMethod", "DeliveryMethod")
                         .WithMany()
                         .HasForeignKey("DeliveryMethodId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", "MarketplaceClient")
+                    b.HasOne("StudioB2B.Domain.Entities.MarketplaceClient", "MarketplaceClient")
                         .WithMany()
                         .HasForeignKey("MarketplaceClientId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderStatus", "Status")
+                    b.HasOne("StudioB2B.Domain.Entities.OrderStatus", "Status")
                         .WithMany()
                         .HasForeignKey("StatusId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -1519,15 +1767,15 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Status");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.ShipmentDate", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.ShipmentDate", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.DateType", "DateType")
+                    b.HasOne("StudioB2B.Domain.Entities.DateType", "DateType")
                         .WithMany()
                         .HasForeignKey("DateTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.Shipment", "Shipment")
+                    b.HasOne("StudioB2B.Domain.Entities.Shipment", "Shipment")
                         .WithMany("Dates")
                         .HasForeignKey("ShipmentId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1538,9 +1786,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Shipment");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.StatusColor", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.StatusColor", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Orders.OrderStatus", "OrderStatus")
+                    b.HasOne("StudioB2B.Domain.Entities.OrderStatus", "OrderStatus")
                         .WithMany("Colors")
                         .HasForeignKey("OrderStatusId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1549,76 +1797,15 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("OrderStatus");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.WarehouseInfo", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserRole", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Warehouses.Warehouse", "RecipientWarehouse")
-                        .WithMany()
-                        .HasForeignKey("RecipientWarehouseId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("StudioB2B.Domain.Entities.Warehouses.Warehouse", "SenderWarehouse")
-                        .WithMany()
-                        .HasForeignKey("SenderWarehouseId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("RecipientWarehouse");
-
-                    b.Navigation("SenderWarehouse");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Products.Category", b =>
-                {
-                    b.HasOne("StudioB2B.Domain.Entities.Products.Category", "Parent")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Parent");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Products.Product", b =>
-                {
-                    b.HasOne("StudioB2B.Domain.Entities.Products.Category", "Category")
-                        .WithMany()
-                        .HasForeignKey("CategoryId");
-
-                    b.HasOne("StudioB2B.Domain.Entities.Products.Manufacturer", "Manufacturer")
-                        .WithMany()
-                        .HasForeignKey("ManufacturerId");
-
-                    b.Navigation("Category");
-
-                    b.Navigation("Manufacturer");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Products.ProductAttributeValue", b =>
-                {
-                    b.HasOne("StudioB2B.Domain.Entities.Products.ProductAttribute", "Attribute")
-                        .WithMany()
-                        .HasForeignKey("AttributeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("StudioB2B.Domain.Entities.Products.Product", "Product")
-                        .WithMany("Attributes")
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Attribute");
-
-                    b.Navigation("Product");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantUserRole", b =>
-                {
-                    b.HasOne("StudioB2B.Domain.Entities.Tenants.TenantRole", "Role")
+                    b.HasOne("StudioB2B.Domain.Entities.TenantRole", "Role")
                         .WithMany("UserRoles")
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Tenants.TenantUser", "User")
+                    b.HasOne("StudioB2B.Domain.Entities.TenantUser", "User")
                         .WithMany("UserRoles")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1629,15 +1816,32 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouses.WarehouseStock", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.WarehouseInfo", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Products.Product", "Product")
+                    b.HasOne("StudioB2B.Domain.Entities.Warehouse", "RecipientWarehouse")
+                        .WithMany()
+                        .HasForeignKey("RecipientWarehouseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StudioB2B.Domain.Entities.Warehouse", "SenderWarehouse")
+                        .WithMany()
+                        .HasForeignKey("SenderWarehouseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("RecipientWarehouse");
+
+                    b.Navigation("SenderWarehouse");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.WarehouseStock", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Product", "Product")
                         .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Warehouses.Warehouse", "Warehouse")
+                    b.HasOne("StudioB2B.Domain.Entities.Warehouse", "Warehouse")
                         .WithMany("Stocks")
                         .HasForeignKey("WarehouseId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1648,60 +1852,64 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Warehouse");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Marketplace.MarketplaceClient", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Category", b =>
+                {
+                    b.Navigation("Children");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MarketplaceClient", b =>
                 {
                     b.Navigation("Settings");
 
                     b.Navigation("Settings1C");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Order", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Order", b =>
                 {
                     b.Navigation("Prices");
 
                     b.Navigation("ProductInfo");
+
+                    b.Navigation("Returns");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderStatus", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderStatus", b =>
                 {
                     b.Navigation("Colors");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderTransaction", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderTransaction", b =>
                 {
                     b.Navigation("FieldRules");
 
                     b.Navigation("Rules");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.Shipment", b =>
-                {
-                    b.Navigation("Dates");
-
-                    b.Navigation("Orders");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Products.Category", b =>
-                {
-                    b.Navigation("Children");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Products.Product", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Product", b =>
                 {
                     b.Navigation("Attributes");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Shipment", b =>
+                {
+                    b.Navigation("Dates");
+
+                    b.Navigation("Orders");
+
+                    b.Navigation("Returns");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantRole", b =>
                 {
                     b.Navigation("UserRoles");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantUser", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUser", b =>
                 {
                     b.Navigation("UserRoles");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouses.Warehouse", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouse", b =>
                 {
                     b.Navigation("Stocks");
                 });

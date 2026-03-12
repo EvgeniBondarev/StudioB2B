@@ -1,7 +1,7 @@
 @page "/calculation-rules"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
@@ -343,16 +343,16 @@ else
     {
         ContextMenuService.Open(args,
             [
-                new ContextMenuItem { Text = "Редактировать", Icon = "edit",   Value = "edit" },
-                new ContextMenuItem { Text = "Удалить",       Icon = "delete", Value = "delete" }
+                new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" },
+                new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" }
             ],
             e =>
             {
                 ContextMenuService.Close();
                 if (e.Value?.ToString() == "edit")
-                    InvokeAsync(() => EditRow(args.Data));
+                    InvokeAsync(() => EditRow(args.Data!));
                 else if (e.Value?.ToString() == "delete")
-                    InvokeAsync(() => DeleteRow(args.Data));
+                    InvokeAsync(() => DeleteRow(args.Data!));
             });
     }
 

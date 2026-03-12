@@ -1,4 +1,4 @@
-namespace StudioB2B.Domain.Entities.Common;
+namespace StudioB2B.Domain.Entities;
 
 /// <summary>
 /// Запись об изменении одного скалярного поля любой сущности.

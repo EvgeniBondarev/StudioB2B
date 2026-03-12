@@ -15,7 +15,7 @@ public class TenantDbContextCreator : ITenantDbContextCreator
         ITenantProvider tenantProvider,
         ICurrentUserProvider? currentUserProvider = null)
     {
-        _tenantProvider      = tenantProvider;
+        _tenantProvider = tenantProvider;
         _currentUserProvider = currentUserProvider;
     }
 

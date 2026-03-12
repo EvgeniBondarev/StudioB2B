@@ -43,11 +43,11 @@ public class UsersController : ControllerBase
             .AsNoTracking()
             .Select(u => new UserDto
             {
-                Id        = u.Id,
-                Email     = u.Email,
+                Id = u.Id,
+                Email = u.Email,
                 FirstName = u.FirstName,
-                LastName  = u.LastName,
-                IsActive  = u.IsActive
+                LastName = u.LastName,
+                IsActive = u.IsActive
             })
             .ToListAsync();
 
@@ -70,11 +70,11 @@ public class UsersController : ControllerBase
             .Where(u => u.Id == id)
             .Select(u => new UserDto
             {
-                Id        = u.Id,
-                Email     = u.Email,
+                Id = u.Id,
+                Email = u.Email,
                 FirstName = u.FirstName,
-                LastName  = u.LastName,
-                IsActive  = u.IsActive
+                LastName = u.LastName,
+                IsActive = u.IsActive
             })
             .FirstOrDefaultAsync();
 

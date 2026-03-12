@@ -9,8 +9,8 @@ using StudioB2B.Infrastructure.Services;
 namespace StudioB2B.Infrastructure.MultiTenancy.CircuitHandlers;
 //Circuit — это постоянное соединение между браузером пользователя и сервером через SignalR (WebSocket).
 /*
-1. HTTP-запрос       → TenantMiddleware срабатывает ✅
-2. WebSocket открыт  → Circuit создан
+1. HTTP-запрос → TenantMiddleware срабатывает ✅
+2. WebSocket открыт → Circuit создан
 3. Пользователь кликает по UI
 4. Всё идёт через WebSocket → Middleware НЕ вызывается ❌
 TenantMiddleware работает только на HTTP-запросы. После установки WebSocket-соединения middleware больше не вызывается — поэтому нужен TenantCircuitHandler

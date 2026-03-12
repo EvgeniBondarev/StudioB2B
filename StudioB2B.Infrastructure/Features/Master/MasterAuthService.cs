@@ -57,18 +57,16 @@ public class MasterAuthService
         return new MasterAuthResult(true, token, expiresAt);
     }
 
-    // ─── helpers ──────────────────────────────────────────────────────────────
-
     private (string token, DateTime expiresAt) GenerateJwtToken(
         Guid userId, string email, IEnumerable<string> roles)
     {
-        var jwtSection     = _configuration.GetSection("Jwt");
-        var secret         = jwtSection["Secret"]!;
-        var issuer         = jwtSection["Issuer"] ?? "StudioB2B";
-        var audience       = jwtSection["Audience"] ?? "StudioB2B";
+        var jwtSection = _configuration.GetSection("Jwt");
+        var secret = jwtSection["Secret"]!;
+        var issuer = jwtSection["Issuer"] ?? "StudioB2B";
+        var audience = jwtSection["Audience"] ?? "StudioB2B";
         var expiresMinutes = jwtSection.GetValue<int?>("ExpiresMinutes") ?? 60;
 
-        var key   = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
@@ -85,10 +83,10 @@ public class MasterAuthService
         var expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes);
 
         var token = new JwtSecurityToken(
-            issuer:             issuer,
-            audience:           audience,
-            claims:             claims,
-            expires:            expiresAt,
+            issuer: issuer,
+            audience: audience,
+            claims: claims,
+            expires: expiresAt,
             signingCredentials: creds);
 
         return (new JwtSecurityTokenHandler().WriteToken(token), expiresAt);

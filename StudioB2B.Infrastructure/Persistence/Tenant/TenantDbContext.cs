@@ -4,14 +4,8 @@ using System.Reflection;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Microsoft.EntityFrameworkCore.Metadata;
-using StudioB2B.Domain.Entities.Common;
-using StudioB2B.Domain.Entities.Marketplace;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Domain.Entities.Orders;
-using StudioB2B.Domain.Entities.Products;
-using StudioB2B.Domain.Entities.References;
-using StudioB2B.Domain.Entities.Tenants;
-using StudioB2B.Domain.Entities.Warehouses;
 using StudioB2B.Infrastructure.Interfaces;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant;
@@ -124,6 +118,8 @@ public class TenantDbContext : DbContext
 
     public DbSet<SyncJobSchedule> SyncJobSchedules { get; set; } = null!;
 
+    public DbSet<OrderReturn> OrderReturns { get; set; } = null!;
+
     #endregion
 
     public TenantDbContext(
@@ -170,7 +166,7 @@ public class TenantDbContext : DbContext
 
     private List<FieldAuditLog> BuildAuditLogs()
     {
-        var userId   = _currentUserProvider?.UserId   ?? SystemUser.RobotId;
+        var userId = _currentUserProvider?.UserId ?? SystemUser.RobotId;
         var userName = _currentUserProvider?.IsAuthenticated == true
             ? _currentUserProvider.Email
             : SystemUser.RobotEmail;
@@ -183,12 +179,12 @@ public class TenantDbContext : DbContext
                 continue;
 
             var entityName = entry.Metadata.ShortName();
-            var entityId   = entry.Properties
+            var entityId = entry.Properties
                 .FirstOrDefault(p => p.Metadata.IsPrimaryKey())?.CurrentValue?.ToString() ?? string.Empty;
             var changeType = entry.State.ToString();
-            var changedAt  = DateTime.UtcNow;
+            var changedAt = DateTime.UtcNow;
 
-            var clrType   = entry.Entity.GetType();
+            var clrType = entry.Entity.GetType();
             var skipProps = _skipAuditCache.GetOrAdd(clrType, t =>
             {
                 var set = new HashSet<string>(StringComparer.Ordinal);
