@@ -1,8 +1,22 @@
-@using StudioB2B.Domain.Constants
-@if (Summary is not null)
+@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Infrastructure.Features.Orders
+@using SyncJobType = StudioB2B.Domain.Constants.SyncJobTypeEnum
+
+@if (ReturnsSummary is not null)
 {
     <RadzenStack Gap="1rem">
-        @if (JobType == SyncJobTypeEnum.Sync)
+        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Итог загрузки возвратов</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="2rem" Wrap="FlexWrap.Wrap">
+            <RadzenText TextStyle="TextStyle.Body2"><strong>Создано:</strong> @ReturnsSummary.Created</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2"><strong>Обновлено:</strong> @ReturnsSummary.Updated</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2"><strong>Заказов с возвратом:</strong> @ReturnsSummary.Linked</RadzenText>
+        </RadzenStack>
+    </RadzenStack>
+}
+else if (Summary is not null)
+{
+    <RadzenStack Gap="1rem">
+        @if (JobType == SyncJobType.Sync)
         {
             @if (Summary.PerClient.Count > 0)
             {
@@ -76,7 +90,8 @@
 }
 
 @code {
-    [Parameter, EditorRequired] public OrderSyncSummary Summary { get; set; } = null!;
-    [Parameter, EditorRequired] public SyncJobTypeEnum JobType { get; set; }
+    [Parameter] public OrderSyncSummary? Summary { get; set; }
+    [Parameter] public ReturnsSyncResult? ReturnsSummary { get; set; }
+    [Parameter, EditorRequired] public SyncJobType JobType { get; set; }
 }
 

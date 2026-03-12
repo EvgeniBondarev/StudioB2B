@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using StudioB2B.Domain.Entities;
+using StudioB2B.Domain.Entities.Orders;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Configurations;
 
@@ -47,5 +48,10 @@ public class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
             .WithOne(d => d.Shipment)
             .HasForeignKey(d => d.ShipmentId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(s => s.Returns)
+            .WithOne(r => r.Shipment)
+            .HasForeignKey(r => r.ShipmentId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

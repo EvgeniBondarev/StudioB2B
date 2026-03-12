@@ -33,6 +33,10 @@ public class OrderTransaction : IBaseEntity, ISoftDelete
     [Display(Name = "Цвет")]
     public string? Color { get; set; }
 
+    /// <summary>Иконка документа (название Material Icon, например task_alt, local_shipping).</summary>
+    [Display(Name = "Иконка")]
+    public string? Icon { get; set; }
+
     public bool IsDeleted { get; set; }
 
     public List<OrderTransactionRule> Rules { get; set; } = [];
