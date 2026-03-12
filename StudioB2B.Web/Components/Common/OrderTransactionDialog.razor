@@ -1,7 +1,6 @@
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Orders
-@using StudioB2B.Domain.Entities.Products
-@using StudioB2B.Domain.Entities.References
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 
@@ -52,12 +51,45 @@ else
                     <RadzenCheckBox @bind-Value="_isEnabled" />
                     <RadzenLabel Text="Активна" />
                 </RadzenStack>
-                <RadzenFormField Text="Цвет документа" Style="max-width: 200px;">
-                    <RadzenColorPicker @bind-Value="_color"
-                                      ShowColors="true"
-                                      ShowHex="true"
-                                      Style="width: 100%;" />
-                </RadzenFormField>
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Start" Style="flex-wrap: wrap;">
+                    <RadzenFormField Text="Цвет документа" Style="max-width: 200px;">
+                        <RadzenColorPicker @bind-Value="_color"
+                                          ShowColors="true"
+                                          ShowHex="true"
+                                          Style="width: 100%;" />
+                    </RadzenFormField>
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                        <RadzenFormField Text="Иконка" Style="width: 240px;">
+                            <RadzenDropDown Data="@_iconOptions"
+                                            TextProperty="Label"
+                                            ValueProperty="Value"
+                                            @bind-Value="_icon"
+                                            AllowClear="true"
+                                            AllowFiltering="true"
+                                            FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                            FilterOperator="StringFilterOperator.Contains"
+                                            Placeholder="Выберите иконку"
+                                            Style="width: 100%;">
+                                <Template Context="item">
+                                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                        <i class="rzi" style="font-size:1.1rem;">@item.Value</i>
+                                        <span>@item.Label</span>
+                                    </RadzenStack>
+                                </Template>
+                                <ValueTemplate Context="item">
+                                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                        <i class="rzi" style="font-size:1.1rem;">@item.Value</i>
+                                        <span>@item.Label</span>
+                                    </RadzenStack>
+                                </ValueTemplate>
+                            </RadzenDropDown>
+                        </RadzenFormField>
+                        @if (!string.IsNullOrEmpty(_icon))
+                        {
+                            <RadzenIcon Icon="@_icon" Style="font-size: 1.5rem; margin-top: 1.4rem; color: var(--rz-text-color);" />
+                        }
+                    </RadzenStack>
+                </RadzenStack>
             </RadzenStack>
         </RadzenStack>
 
@@ -100,7 +132,7 @@ else
                         </RadzenDataGridColumn>
                         <RadzenDataGridColumn TItem="RuleRow" Title="Формула" Width="220px">
                             <Template Context="r">
-                                @if (r.ValueSource == TransactionValueSource.Formula)
+                                @if (r.ValueSource == TransactionValueSourceEnum.Formula)
                                 {
                                     <RadzenTextBox @bind-Value="r.Formula" Style="width: 100%; font-family: monospace;"
                                                    Placeholder="Цена * 0.85 (переменные — типы цен)" />
@@ -124,7 +156,7 @@ else
                         </RadzenDataGridColumn>
                         <RadzenDataGridColumn TItem="RuleRow" Title="Обязательное" Width="120px">
                             <Template Context="r">
-                                @if (r.ValueSource == TransactionValueSource.UserInput)
+                                @if (r.ValueSource == TransactionValueSourceEnum.UserInput)
                                 {
                                     <RadzenCheckBox @bind-Value="r.IsRequired" />
                                 }
@@ -179,7 +211,7 @@ else
                         </RadzenDataGridColumn>
                         <RadzenDataGridColumn TItem="FieldRuleRow" Title="Фиксированное значение" Width="200px">
                             <Template Context="r">
-                                @if (r.ValueSource == TransactionFieldValueSource.Fixed)
+                                @if (r.ValueSource == TransactionFieldValueSourceEnum.Fixed)
                                 {
                                     <RadzenTextBox @bind-Value="r.FixedValue" Style="width: 100%;"
                                                    Placeholder="Значение" />
@@ -192,7 +224,7 @@ else
                         </RadzenDataGridColumn>
                         <RadzenDataGridColumn TItem="FieldRuleRow" Title="Обязательное" Width="120px">
                             <Template Context="r">
-                                @if (r.ValueSource == TransactionFieldValueSource.UserInput)
+                                @if (r.ValueSource == TransactionFieldValueSourceEnum.UserInput)
                                 {
                                     <RadzenCheckBox @bind-Value="r.IsRequired" />
                                 }
@@ -231,6 +263,7 @@ else
     private Guid? _toStatusId;
     private bool _isEnabled = true;
     private string? _color;
+    private string? _icon;
     private List<OrderStatus> _internalStatuses = [];
     private List<PriceType> _priceTypes = [];
     private List<Product> _products = [];
@@ -239,23 +272,82 @@ else
     private List<OrderTransactionFieldDescriptor> _fieldDescriptors = [];
     private static readonly List<ValueSourceOption> _valueSourceOptions =
     [
-        new ValueSourceOption(TransactionValueSource.Formula, "Формула"),
-        new ValueSourceOption(TransactionValueSource.UserInput, "Ввод при проведении")
+        new ValueSourceOption(TransactionValueSourceEnum.Formula, "Формула"),
+        new ValueSourceOption(TransactionValueSourceEnum.UserInput, "Ввод при проведении")
     ];
     private static readonly List<FieldValueSourceOption> _fieldValueSourceOptions =
     [
-        new FieldValueSourceOption(TransactionFieldValueSource.Fixed, "Фиксированное"),
-        new FieldValueSourceOption(TransactionFieldValueSource.UserInput, "Ввод при проведении")
+        new FieldValueSourceOption(TransactionFieldValueSourceEnum.Fixed, "Фиксированное"),
+        new FieldValueSourceOption(TransactionFieldValueSourceEnum.UserInput, "Ввод при проведении")
     ];
 
-    private record ValueSourceOption(TransactionValueSource Value, string Text);
-    private record FieldValueSourceOption(TransactionFieldValueSource Value, string Text);
+    private record ValueSourceOption(TransactionValueSourceEnum Value, string Text);
+    private record FieldValueSourceOption(TransactionFieldValueSourceEnum Value, string Text);
+    private record IconOption(string Value, string Label);
+
+    private static readonly List<IconOption> _iconOptions =
+    [
+        new("task_alt", "Готово"),
+        new("check_circle", "Выполнено"),
+        new("done_all", "Всё выполнено"),
+        new("local_shipping", "Доставка"),
+        new("inventory_2", "Инвентарь"),
+        new("inventory", "Товары"),
+        new("warehouse", "Склад"),
+        new("receipt_long", "Документ"),
+        new("description", "Описание"),
+        new("assignment", "Задание"),
+        new("assignment_turned_in", "Задание выполнено"),
+        new("fact_check", "Проверка"),
+        new("verified", "Подтверждено"),
+        new("approval", "Одобрено"),
+        new("pending", "В ожидании"),
+        new("pending_actions", "Ожидает действий"),
+        new("hourglass_empty", "В процессе"),
+        new("swap_horiz", "Перемещение"),
+        new("swap_vert", "Перемещение"),
+        new("published_with_changes", "Изменения"),
+        new("sync", "Синхронизация"),
+        new("cached", "Обновление"),
+        new("loop", "Возврат/цикл"),
+        new("undo", "Отменить"),
+        new("redo", "Повторить"),
+        new("cancel", "Отмена"),
+        new("block", "Заблокировано"),
+        new("remove_circle", "Удалено"),
+        new("shopping_cart", "Корзина"),
+        new("shopping_bag", "Заказ"),
+        new("store", "Магазин"),
+        new("sell", "Продажа"),
+        new("price_check", "Цена проверена"),
+        new("payments", "Оплата"),
+        new("account_balance_wallet", "Кошелёк"),
+        new("production_quantity_limits", "Лимит кол-ва"),
+        new("package_2", "Упаковка"),
+        new("conveyor_belt", "Конвейер"),
+        new("forklift", "Погрузчик"),
+        new("flight_takeoff", "Отправлено"),
+        new("flight_land", "Получено"),
+        new("pin_drop", "Точка доставки"),
+        new("location_on", "Местоположение"),
+        new("support_agent", "Поддержка"),
+        new("person", "Клиент"),
+        new("business", "Компания"),
+        new("edit", "Редактировать"),
+        new("note_add", "Добавить заметку"),
+        new("flag", "Флаг"),
+        new("star", "Важно"),
+        new("priority_high", "Высокий приоритет"),
+        new("warning", "Предупреждение"),
+        new("error", "Ошибка"),
+        new("info", "Информация"),
+    ];
 
     private class RuleRow
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public Guid PriceTypeId { get; set; }
-        public TransactionValueSource ValueSource { get; set; }
+        public TransactionValueSourceEnum ValueSource { get; set; }
         public string? Formula { get; set; }
         public Guid? ProductId { get; set; }
         public bool IsRequired { get; set; }
@@ -265,7 +357,7 @@ else
     {
         public Guid Id { get; set; } = Guid.NewGuid();
         public string EntityPath { get; set; } = string.Empty;
-        public TransactionFieldValueSource ValueSource { get; set; }
+        public TransactionFieldValueSourceEnum ValueSource { get; set; }
         public string? FixedValue { get; set; }
         public bool IsRequired { get; set; }
     }
@@ -311,6 +403,7 @@ else
                 _toStatusId = t.ToSystemStatusId;
                 _isEnabled = t.IsEnabled;
                 _color = t.Color;
+                _icon = t.Icon;
                 _rules = t.Rules
                     .OrderBy(r => r.SortOrder)
                     .Select(r => new RuleRow
@@ -350,7 +443,7 @@ else
         _rules = [.._rules, new RuleRow
         {
             PriceTypeId = _priceTypes[0].Id,
-            ValueSource = TransactionValueSource.UserInput,
+            ValueSource = TransactionValueSourceEnum.UserInput,
             IsRequired = false
         }];
         StateHasChanged();
@@ -368,7 +461,7 @@ else
         _fieldRules = [.._fieldRules, new FieldRuleRow
         {
             EntityPath = _fieldDescriptors[0].EntityPath,
-            ValueSource = TransactionFieldValueSource.UserInput,
+            ValueSource = TransactionFieldValueSourceEnum.UserInput,
             IsRequired = false
         }];
         StateHasChanged();
@@ -438,6 +531,7 @@ else
                     t.ToSystemStatusId = _toStatusId.Value;
                     t.IsEnabled = _isEnabled;
                     t.Color = ToHex(_color) ?? _color;
+                    t.Icon = string.IsNullOrWhiteSpace(_icon) ? null : _icon.Trim();
                     _db.OrderTransactionRules.RemoveRange(t.Rules);
                     _db.OrderTransactionFieldRules.RemoveRange(t.FieldRules);
                     var sortOrder = 0;
@@ -449,7 +543,7 @@ else
                             OrderTransactionId = t.Id,
                             PriceTypeId = r.PriceTypeId,
                             ValueSource = r.ValueSource,
-                            Formula = r.ValueSource == TransactionValueSource.Formula ? r.Formula : null,
+                            Formula = r.ValueSource == TransactionValueSourceEnum.Formula ? r.Formula : null,
                             ProductId = r.ProductId,
                             SortOrder = sortOrder++,
                             IsRequired = r.IsRequired
@@ -465,7 +559,7 @@ else
                             OrderTransactionId = t.Id,
                             EntityPath = fr.EntityPath,
                             ValueSource = fr.ValueSource,
-                            FixedValue = fr.ValueSource == TransactionFieldValueSource.Fixed ? fr.FixedValue : null,
+                            FixedValue = fr.ValueSource == TransactionFieldValueSourceEnum.Fixed ? fr.FixedValue : null,
                             SortOrder = sortOrder++,
                             IsRequired = fr.IsRequired
                         });
@@ -484,6 +578,7 @@ else
                     ToSystemStatusId = _toStatusId.Value,
                     IsEnabled = _isEnabled,
                     Color = ToHex(_color) ?? _color,
+                    Icon = string.IsNullOrWhiteSpace(_icon) ? null : _icon.Trim(),
                     SortOrder = 0
                 };
                 _db!.OrderTransactions.Add(t);
@@ -497,7 +592,7 @@ else
                         OrderTransactionId = t.Id,
                         PriceTypeId = r.PriceTypeId,
                         ValueSource = r.ValueSource,
-                        Formula = r.ValueSource == TransactionValueSource.Formula ? r.Formula : null,
+                        Formula = r.ValueSource == TransactionValueSourceEnum.Formula ? r.Formula : null,
                         ProductId = r.ProductId,
                         SortOrder = sortOrder++,
                         IsRequired = r.IsRequired
@@ -514,7 +609,7 @@ else
                         OrderTransactionId = t.Id,
                         EntityPath = fr.EntityPath,
                         ValueSource = fr.ValueSource,
-                        FixedValue = fr.ValueSource == TransactionFieldValueSource.Fixed ? fr.FixedValue : null,
+                        FixedValue = fr.ValueSource == TransactionFieldValueSourceEnum.Fixed ? fr.FixedValue : null,
                         SortOrder = sortOrder++,
                         IsRequired = fr.IsRequired
                     });

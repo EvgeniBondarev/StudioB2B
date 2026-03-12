@@ -27,9 +27,7 @@ public static class AuditDisplayHelper
     private static bool _initialized;
     private static readonly object _lock = new();
 
-    // ──────────────────────────────────────────────────────────────────
-    //  Public API
-    // ──────────────────────────────────────────────────────────────────
+    // Public API
 
     /// <summary>Возвращает отображаемое название сущности по её CLR-имени (без пространства имён).</summary>
     public static string GetEntityDisplayName(string entityName)
@@ -46,9 +44,7 @@ public static class AuditDisplayHelper
         return _fieldNames.TryGetValue(key, out var display) ? display : fieldName;
     }
 
-    // ──────────────────────────────────────────────────────────────────
-    //  Initialization
-    // ──────────────────────────────────────────────────────────────────
+    // Initialization
 
     private static void EnsureInitialized()
     {

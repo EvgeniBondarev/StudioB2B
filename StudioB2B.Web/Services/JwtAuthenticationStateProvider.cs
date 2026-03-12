@@ -58,8 +58,6 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
         catch { return null; }
     }
 
-    // ── Master auth ────────────────────────────────────────────────────────────
-
     public async Task MasterLoginAsync(string token)
     {
         await _js.InvokeVoidAsync("localStorage.setItem", MasterTokenKey, token);

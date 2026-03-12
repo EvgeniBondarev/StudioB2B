@@ -69,7 +69,7 @@ public class OrderSyncService : IOrderSyncService
         return summary;
     }
 
-    public async Task<OrderSyncSummary> UpdateAllAsync(CancellationToken ct = default)
+    public async Task<OrderSyncSummary> UpdateAllAsync(DateTime from, DateTime to, CancellationToken ct = default)
     {
         var ozonClients = await _db.MarketplaceClients!
             .Include(c => c.ClientType)
@@ -78,7 +78,8 @@ public class OrderSyncService : IOrderSyncService
             .ToListAsync(ct);
 
         _logger.LogInformation(
-            "Starting status update for {Count} Ozon FBS client(s).", ozonClients.Count);
+            "Starting status update for {Count} Ozon FBS client(s), period {From}\u2013{To}.",
+            ozonClients.Count, from, to);
 
         var summary = new OrderSyncSummary();
 
@@ -91,7 +92,7 @@ public class OrderSyncService : IOrderSyncService
                     "Updating statuses for client {ClientId} ({ClientName}).",
                     client.ApiId, client.Name);
 
-                var clientResult = await _adapter.UpdateStatusesAsync(client, ct);
+                var clientResult = await _adapter.UpdateStatusesAsync(client, from, to, ct);
                 summary.Total.Add(clientResult);
                 summary.UpdatedShipments.AddRange(clientResult.UpdatedShipments);
                 summary.PerClient.Add(new ClientSyncResultItem
@@ -119,5 +120,31 @@ public class OrderSyncService : IOrderSyncService
 
         _logger.LogInformation("Status update completed.");
         return summary;
+    }
+
+    public async Task<ShipmentUpdateItem?> UpdateSingleShipmentStatusAsync(Guid shipmentId, CancellationToken ct = default)
+    {
+        var shipment = await _db.Shipments
+            .Include(s => s.Status)
+            .Include(s => s.MarketplaceClient)
+                .ThenInclude(c => c.ClientType)
+            .Include(s => s.MarketplaceClient)
+                .ThenInclude(c => c.Mode)
+            .FirstOrDefaultAsync(s => s.Id == shipmentId, ct);
+
+        if (shipment is null)
+        {
+            _logger.LogWarning("Shipment {ShipmentId} not found.", shipmentId);
+            return null;
+        }
+
+        var client = shipment.MarketplaceClient;
+        if (client.ClientType?.Name != "Ozon" || client.Mode?.Name != "FBS")
+        {
+            _logger.LogWarning("Shipment {ShipmentId} belongs to unsupported client type.", shipmentId);
+            return null;
+        }
+
+        return await _adapter.UpdateSingleShipmentStatusAsync(shipment, client, ct);
     }
 }

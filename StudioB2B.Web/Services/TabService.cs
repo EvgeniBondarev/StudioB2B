@@ -11,6 +11,7 @@ public class TabService
             ["/users"]               = ("Пользователи",  "people"),
             ["/marketplace-clients"] = ("Маркетплейс",   "store"),
             ["/orders"]              = ("Заказы",         "receipt_long"),
+            ["/returns"]             = ("Возвраты",        "assignment_return"),
             ["/orders/apply-transaction"] = ("Провести документ", "swap_horiz"),
             ["/orders-sync"]         = ("Загрузка",       "cloud_sync"),
             ["/order-statuses"]      = ("Статусы",        "label"),

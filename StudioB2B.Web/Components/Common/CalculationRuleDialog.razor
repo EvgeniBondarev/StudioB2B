@@ -1,6 +1,6 @@
 @using Microsoft.EntityFrameworkCore
 @using System.Text.RegularExpressions
-@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Features.Orders
@@ -80,14 +80,14 @@ else
                 <RadzenStack Gap="0.3rem">
                     <RadzenText TextStyle="TextStyle.Body2">
                         <strong>Заказ:</strong> <code
-                            style="font-size: 1em;">@_exampleOrder.Shipment?.PostingNumber</code>
+                            style="font-size: 1em;">@_exampleOrder?.Shipment.PostingNumber</code>
                     </RadzenText>
                     <RadzenText TextStyle="TextStyle.Body2">
-                        <strong>Клиент:</strong> @_exampleOrder.Shipment?.MarketplaceClient?.Name
+                        <strong>Клиент:</strong> @_exampleOrder?.Shipment.MarketplaceClient.Name
                     </RadzenText>
                     <RadzenText TextStyle="TextStyle.Body2">
-                        <strong>Товар:</strong> @_exampleOrder.ProductInfo?.Product?.Article
-                        (@_exampleOrder.ProductInfo?.Product?.Name)
+                        <strong>Товар:</strong> @_exampleOrder?.ProductInfo?.Product?.Article
+                        (@_exampleOrder?.ProductInfo?.Product?.Name)
                     </RadzenText>
                 </RadzenStack>
 

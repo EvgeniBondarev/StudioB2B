@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using StudioB2B.Domain.Constants;
 
 namespace StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo;
 
@@ -8,6 +9,6 @@ public class OzonSubscriptionDto
     public bool IsPremium { get; set; }
 
     [JsonPropertyName("type")]
-    public OzonSubscriptionType Type { get; set; }
+    public OzonSubscriptionTypeEnum Type { get; set; }
 }
 

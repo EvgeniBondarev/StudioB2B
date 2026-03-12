@@ -18,8 +18,8 @@ public class OzonChatService : IOzonChatService
         ILogger<OzonChatService> logger)
     {
         _dbFactory = dbFactory;
-        _ozonApi   = ozonApi;
-        _logger    = logger;
+        _ozonApi = ozonApi;
+        _logger = logger;
     }
 
     public async Task<OzonChatPage> GetChatsPageAsync(
@@ -43,7 +43,8 @@ public class OzonChatService : IOzonChatService
             var sep = cursor.IndexOf(':');
             if (sep > 0)
             {
-                int.TryParse(cursor[..sep], out startClientIndex);
+                if (!int.TryParse(cursor[..sep], out startClientIndex))
+                    startClientIndex = 0;
                 ozonCursor = cursor[(sep + 1)..];
                 if (ozonCursor == "") ozonCursor = null;
             }
@@ -58,7 +59,7 @@ public class OzonChatService : IOzonChatService
             {
                 var request = new OzonChatListRequest
                 {
-                    Limit  = remaining,
+                    Limit = remaining,
                     Cursor = (ci == startClientIndex) ? ozonCursor : null,
                     Filter = new OzonChatListFilter
                     {
@@ -90,18 +91,18 @@ public class OzonChatService : IOzonChatService
                     var item = items[i];
                     viewModels.Add(new OzonChatViewModel
                     {
-                        MarketplaceClientId   = client.Id,
+                        MarketplaceClientId = client.Id,
                         MarketplaceClientName = client.Name,
-                        ApiId                 = client.ApiId,
-                        ApiKey                = client.EncryptedApiKey,
-                        ChatId                = item.Chat!.ChatId,
-                        ChatStatus            = item.Chat.ChatStatus,
-                        ChatType              = item.Chat.ChatType,
-                        CreatedAt             = item.Chat.CreatedAt,
-                        LastMessageAt         = lastTimes[i],
-                        FirstUnreadMessageId  = item.FirstUnreadMessageId,
-                        LastMessageId         = item.LastMessageId,
-                        UnreadCount           = item.UnreadCount
+                        ApiId = client.ApiId,
+                        ApiKey = client.EncryptedApiKey,
+                        ChatId = item.Chat!.ChatId,
+                        ChatStatus = item.Chat.ChatStatus,
+                        ChatType = item.Chat.ChatType,
+                        CreatedAt = item.Chat.CreatedAt,
+                        LastMessageAt = lastTimes[i],
+                        FirstUnreadMessageId = item.FirstUnreadMessageId,
+                        LastMessageId = item.LastMessageId,
+                        UnreadCount = item.UnreadCount
                     });
                 }
 
@@ -130,7 +131,7 @@ public class OzonChatService : IOzonChatService
 
         return new OzonChatPage
         {
-            Chats      = viewModels.OrderByDescending(c => c.LastMessageAt).ToList(),
+            Chats = viewModels.OrderByDescending(c => c.LastMessageAt).ToList(),
             NextCursor = nextCursor
         };
     }
@@ -142,9 +143,9 @@ public class OzonChatService : IOzonChatService
         {
             var req = new OzonChatHistoryRequest
             {
-                ChatId    = chatId,
+                ChatId = chatId,
                 Direction = "Backward",
-                Limit     = 1
+                Limit = 1
             };
             var result = await _ozonApi.GetChatHistoryAsync(apiId, encryptedApiKey, req, ct);
             if (result.IsSuccess && result.Data?.Messages.Count > 0)
@@ -162,7 +163,7 @@ public class OzonChatService : IOzonChatService
         CancellationToken ct = default)
     {
         var clients = await GetOzonClientsAsync(marketplaceClientId, ct);
-        var result  = new List<OzonChatViewModel>();
+        var result = new List<OzonChatViewModel>();
 
         foreach (var client in clients)
         {
@@ -170,7 +171,7 @@ public class OzonChatService : IOzonChatService
             {
                 var request = new OzonChatListRequest
                 {
-                    Limit  = 100,
+                    Limit = 100,
                     Filter = new OzonChatListFilter
                     {
                         ChatStatus = string.IsNullOrEmpty(chatStatus) ? null : chatStatus,
@@ -201,18 +202,18 @@ public class OzonChatService : IOzonChatService
 
                         result.Add(new OzonChatViewModel
                         {
-                            MarketplaceClientId   = client.Id,
+                            MarketplaceClientId = client.Id,
                             MarketplaceClientName = client.Name,
-                            ApiId                 = client.ApiId,
-                            ApiKey                = client.EncryptedApiKey,
-                            ChatId                = item.Chat.ChatId,
-                            ChatStatus            = item.Chat.ChatStatus,
-                            ChatType              = item.Chat.ChatType,
-                            CreatedAt             = item.Chat.CreatedAt,
-                            LastMessageAt         = item.Chat.CreatedAt,
-                            FirstUnreadMessageId  = item.FirstUnreadMessageId,
-                            LastMessageId         = item.LastMessageId,
-                            UnreadCount           = item.UnreadCount
+                            ApiId = client.ApiId,
+                            ApiKey = client.EncryptedApiKey,
+                            ChatId = item.Chat.ChatId,
+                            ChatStatus = item.Chat.ChatStatus,
+                            ChatType = item.Chat.ChatType,
+                            CreatedAt = item.Chat.CreatedAt,
+                            LastMessageAt = item.Chat.CreatedAt,
+                            FirstUnreadMessageId = item.FirstUnreadMessageId,
+                            LastMessageId = item.LastMessageId,
+                            UnreadCount = item.UnreadCount
                         });
                     }
 
@@ -243,10 +244,10 @@ public class OzonChatService : IOzonChatService
 
         var request = new OzonChatHistoryRequest
         {
-            ChatId        = chatId,
-            Direction     = direction,
+            ChatId = chatId,
+            Direction = direction,
             FromMessageId = fromMessageId,
-            Limit         = limit
+            Limit = limit
         };
 
         var result = await _ozonApi.GetChatHistoryAsync(client.ApiId, client.EncryptedApiKey, request, ct);
@@ -327,8 +328,6 @@ public class OzonChatService : IOzonChatService
         return result.Data?.UnreadCount ?? 0;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
     private async Task<List<ClientInfo>> GetOzonClientsAsync(Guid? filterById, CancellationToken ct)
     {
         await using var db = _dbFactory.CreateDbContext();
@@ -358,11 +357,11 @@ public class OzonChatService : IOzonChatService
             .FirstOrDefaultAsync(ct);
     }
 
-    private class ClientInfo
+    private sealed class ClientInfo
     {
-        public Guid   Id              { get; set; }
-        public string Name            { get; set; } = string.Empty;
-        public string ApiId           { get; set; } = string.Empty;
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string ApiId { get; set; } = string.Empty;
         public string EncryptedApiKey { get; set; } = string.Empty;
     }
 }
