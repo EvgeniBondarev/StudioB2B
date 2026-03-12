@@ -322,7 +322,7 @@ else
                         @foreach (var r in _order.Shipment.Returns)
                         {
                             <RadzenCard Style="padding: 1rem;">
-                                @DetailRow("Posting Number", r.PostingNumber, mono: true)
+                                @DetailRow("Номер отправления", r.PostingNumber, mono: true)
                                 @DetailRow("Номер заказа", r.OrderNumber, mono: true)
                                 @DetailRow("Товар", r.ProductName)
                                 @DetailRow("Артикул", r.OfferId, mono: true)

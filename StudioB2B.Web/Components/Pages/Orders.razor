@@ -92,8 +92,10 @@ else
                         Нет доступных документов для статуса «@_selectionStatusName»
                     </RadzenText>
                 }
-                <RadzenButton Icon="close" Text="Снять выбор" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                              Variant="Variant.Text" Click="@ClearSelection" />
+                <span @onclick="@ClearSelection"
+                      style="display:inline-flex;align-items:center;gap:4px;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:var(--rz-base-200);color:var(--rz-text-color);border:2px solid transparent;white-space:nowrap;">
+                    <i class="rzi" style="font-size:0.85rem;">close</i> Снять выбор
+                </span>
             }
         </RadzenStack>
         <div>
@@ -109,6 +111,91 @@ else
                           Click="@ToggleDensity" Title="@GetDensityTitle()"/>
         </div>
     </RadzenStack>
+
+    @if (_filterClientId.HasValue || _filterWarehouseId.HasValue || _filterStatusId.HasValue || _filterSystemStatusId.HasValue || _filterHasReturn || GetActiveSorts().Any())
+    {
+        var activeSorts = GetActiveSorts().ToList();
+        var hasFilters = _filterClientId.HasValue || _filterWarehouseId.HasValue || _filterStatusId.HasValue || _filterSystemStatusId.HasValue || _filterHasReturn;
+        var hasSorts = activeSorts.Any();
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                     Style="padding: 0 0 0.5rem 0; flex-wrap: wrap;">
+            @if (hasFilters)
+            {
+                <span style="font-size:0.78rem;color:var(--rz-text-secondary-color);">Фильтры:</span>
+            }
+            @if (_filterClientId.HasValue)
+            {
+                var clientName = _clients.FirstOrDefault(c => c.Id == _filterClientId.Value)?.Name ?? "Клиент";
+                <span @onclick="@(async () => { _filterClientId = null; await OnFilterChange(); })"
+                      style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:16px;cursor:pointer;font-size:0.78rem;font-weight:500;background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">
+                    @clientName
+                    <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                </span>
+            }
+            @if (_filterWarehouseId.HasValue)
+            {
+                var whName = _warehouses.FirstOrDefault(w => w.Id == _filterWarehouseId.Value)?.Name ?? "Склад";
+                <span @onclick="@(async () => { _filterWarehouseId = null; await OnFilterChange(); })"
+                      style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:16px;cursor:pointer;font-size:0.78rem;font-weight:500;background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">
+                    @whName
+                    <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                </span>
+            }
+            @if (_filterStatusId.HasValue)
+            {
+                var statusName = _marketplaceStatuses.FirstOrDefault(s => s.Id == _filterStatusId.Value)?.Name ?? "Статус";
+                <span @onclick="@(async () => { _filterStatusId = null; await OnFilterChange(); })"
+                      style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:16px;cursor:pointer;font-size:0.78rem;font-weight:500;background:#fef3c7;color:#92400e;border:1px solid #fde68a;">
+                    @statusName
+                    <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                </span>
+            }
+            @if (_filterSystemStatusId.HasValue)
+            {
+                var sysStatusName = _systemStatuses.FirstOrDefault(s => s.Id == _filterSystemStatusId.Value)?.Name ?? "Системный статус";
+                <span @onclick="@(async () => { _filterSystemStatusId = null; await OnFilterChange(); })"
+                      style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:16px;cursor:pointer;font-size:0.78rem;font-weight:500;background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;">
+                    @sysStatusName
+                    <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                </span>
+            }
+            @if (_filterHasReturn)
+            {
+                <span @onclick="@(async () => { _filterHasReturn = false; await OnFilterChange(); })"
+                      style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:16px;cursor:pointer;font-size:0.78rem;font-weight:500;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;">
+                    Возвраты
+                    <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                </span>
+            }
+            @if (hasSorts)
+            {
+                @if (hasFilters)
+                {
+                    <span style="font-size:0.78rem;color:var(--rz-text-secondary-color);margin-left:6px;">Сортировка:</span>
+                }
+                else
+                {
+                    <span style="font-size:0.78rem;color:var(--rz-text-secondary-color);">Сортировка:</span>
+                }
+                @foreach (var sort in activeSorts)
+                {
+                    var title = SortPropertyTitles.GetValueOrDefault(sort.Property ?? "", sort.Property ?? "");
+                    var arrow = sort.SortOrder == SortOrder.Ascending ? "↑" : "↓";
+                    var prop = sort.Property!;
+                    <span @onclick="@(async () => await ClearSortAsync(prop))"
+                          style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:16px;cursor:pointer;font-size:0.78rem;font-weight:500;background:#f3e8ff;color:#6b21a8;border:1px solid #e9d5ff;">
+                        @title @arrow
+                        <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                    </span>
+                }
+            }
+            @if (hasFilters)
+            {
+                <span @onclick="@(async () => { _filterClientId = null; _filterWarehouseId = null; _filterStatusId = null; _filterSystemStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                      style="font-size:0.74rem;color:var(--rz-danger);cursor:pointer;text-decoration:underline;margin-left:4px;">Сбросить все</span>
+            }
+        </RadzenStack>
+    }
 
     @if (_marketplaceStatuses.Any() || _systemStatuses.Any())
     {
@@ -187,7 +274,7 @@ else
         LogicalFilterOperator="LogicalFilterOperator.Or"
         AllowSorting="true"
         AllowPaging="true"
-        PageSize="10"
+        PageSize="@_dynamicPageSize"
         PageSizeOptions="@_pageSizeOptions"
         ShowPagingSummary="true"
         PagerHorizontalAlign="HorizontalAlign.Left"
@@ -254,18 +341,23 @@ else
                                   Filterable="true"
                                   HeaderCssClass="half-painted-header">
                 <FilterTemplate>
-                    <div class="filter-all-item @( _filterClientId == null ? "active" : "" )"
-                         @onclick="@(async () => await ClearFilter(() => _filterClientId = null))">
-                        Все
-                    </div>
-                    <RadzenListBox @bind-Value="_filterClientId"
-                                   Data="@_clients"
-                                   TextProperty="Name"
-                                   ValueProperty="Id"
-                                   Placeholder="Все"
-                                   AllowClear="true"
-                                   Style="width:100%;"
-                                   Change="@(async () => await OnFilterChange())"/>
+                    <RadzenStack Gap="0.3rem" Style="padding: 4px 2px; max-height: 370px; overflow-y: auto;">
+                        @{
+                            var allCl = _filterClientId == null;
+                        }
+                        <span @onclick="@(async () => await ClearFilter(() => _filterClientId = null))"
+                              style="@($"display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(allCl ? "var(--rz-primary)" : "var(--rz-base-200)")};color:{(allCl ? "#fff" : "var(--rz-text-color)")};border:2px solid transparent;white-space:nowrap;")">
+                            Все
+                        </span>
+                        @foreach (var c in _clients.OrderBy(c => c.Name))
+                        {
+                            var isActive = _filterClientId == c.Id;
+                            <span @onclick="@(async () => { _filterClientId = isActive ? (Guid?)null : c.Id; await OnFilterChange(); })"
+                                  style="@($"display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:var(--rz-base-200);color:var(--rz-text-color);border:2px solid {(isActive ? "var(--rz-primary)" : "transparent")};white-space:nowrap;")">
+                                @c.Name
+                            </span>
+                        }
+                    </RadzenStack>
                 </FilterTemplate>
 
                 <Template Context="o">
@@ -332,20 +424,28 @@ else
                                   Filterable="false" Sortable="false"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="o">
-                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem"
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
                                  Class="rz-w-100">
                         @if (!string.IsNullOrEmpty(o.ProductInfo?.Product?.ImageUrl))
                         {
                             <img src="@o.ProductInfo?.Product?.ImageUrl"
                                  class="rz-border-radius rz-flex-shrink-0"
-                                 style="width:36px; height:36px; object-fit:contain;"
+                                 style="width:32px; height:32px; object-fit:contain;"
                                  alt=""/>
                         }
-                        <span
-                            class="rz-text-sm  rz-flex-shrink-1 rz-text-truncate rz-ms-1"
-                            title="@o.ProductInfo?.Product?.Name">
-                            @o.ProductInfo?.Product?.Name
-                        </span>
+                        <div style="min-width:0;flex:1;">
+                            <div class="rz-text-sm rz-text-truncate" style="line-height:1.3;"
+                                 title="@o.ProductInfo?.Product?.Name">
+                                @o.ProductInfo?.Product?.Name
+                            </div>
+                            @if (!string.IsNullOrEmpty(o.ProductInfo?.Product?.Article))
+                            {
+                                <div class="rz-monospace" style="font-size:0.7rem;color:var(--rz-text-secondary-color);line-height:1.2;"
+                                     title="@o.ProductInfo?.Product?.Article">
+                                    @o.ProductInfo?.Product?.Article
+                                </div>
+                            }
+                        </div>
                     </RadzenStack>
                 </Template>
             </RadzenDataGridColumn>
@@ -368,53 +468,55 @@ else
                                   Title="@GetColumn(OrderGridColumns.MarketplaceStatus).Title"
                                   Width="@GetColumn(OrderGridColumns.MarketplaceStatus).Width"
                                   Visible="@GetColumn(OrderGridColumns.MarketplaceStatus).Visible"
-                                  Filterable="false"
+                                  Filterable="true"
                                   Sortable="true" HeaderCssClass="half-painted-header">
 
                 <FilterTemplate>
-                    <div class="filter-all-item @( _filterStatusId == null ? "active" : "" )"
-                         @onclick="@(async () => await ClearFilter(() => _filterStatusId = null))">
-                        Все
-                    </div>
-                    <RadzenListBox TItem="OrderStatus"
-                                   @bind-Value="_filterStatusId"
-                                   Data="@_marketplaceStatuses"
-                                   ValueProperty="Id"
-                                   TextProperty="Name"
-                                   AllowClear="true"
-                                   Placeholder="Все"
-                                   Style="width:100%; max-height:370px"
-                                   Change="@(async () => await OnFilterChange())">
-
-                        <Template Context="item">
-                            <RadzenBadge Text="@item.Name"
-                                         Style="@($"background:{GetSoftBackground(item.Color)}; color:{GetTextColor(GetSoftBackground(item.Color))};")"
-                                         Class="status-badge"/>
-                        </Template>
-
-                    </RadzenListBox>
+                    <RadzenStack Gap="0.3rem" Style="padding: 4px 2px; max-height: 370px; overflow-y: auto;">
+                        @{
+                            var allMs = _filterStatusId == null;
+                        }
+                        <span @onclick="@(async () => await ClearFilter(() => _filterStatusId = null))"
+                              style="@($"display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(allMs ? "var(--rz-primary)" : "var(--rz-base-200)")};color:{(allMs ? "#fff" : "var(--rz-text-color)")};border:2px solid transparent;white-space:nowrap;")">
+                            Все
+                        </span>
+                        @foreach (var s in _marketplaceStatuses.OrderBy(s => s.Name))
+                        {
+                            var bg = GetSoftBackground(s.Color ?? string.Empty);
+                            var fg = GetTextColor(bg);
+                            var isActive = _filterStatusId == s.Id;
+                            var cnt = _statusCounts.GetValueOrDefault(s.Id);
+                            <span @onclick="@(async () => { _filterStatusId = isActive ? (Guid?)null : s.Id; _filterSystemStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                                  style="@($"display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{bg};color:{fg};border:2px solid {(isActive ? fg : "transparent")};white-space:nowrap;")">
+                                @s.Name
+                                @if (cnt > 0)
+                                {
+                                    <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@cnt</span>
+                                }
+                            </span>
+                        }
+                    </RadzenStack>
                 </FilterTemplate>
 
                 <Template Context="o">
-                    <RadzenStack JustifyContent="JustifyContent.Center"
-                                 AlignItems="AlignItems.Center">
+                    <div style="display:flex;align-items:center;justify-content:center;gap:3px;flex-wrap:nowrap;">
                         @if (o.Status != null)
                         {
                             var bg = string.IsNullOrEmpty(o.Status.Color) ? "#ececff" : o.Status.Color + "20";
                             var fg = IsLightColor(bg) ? "#1f2937" : "#ffffff";
 
                             <RadzenBadge Text="@o.Status.Name"
-                                         Style="@($"background:{bg}; color:{fg};")"
+                                         Style="@($"background:{bg}; color:{fg}; white-space:nowrap;")"
                                          Class="status-badge"/>
                             @if (o.Shipment.HasReturn)
                             {
-                                <span style="color:#ef4444;cursor:pointer;font-size:0.78rem;font-weight:600;margin-left:3px;"
+                                <span style="color:#ef4444;cursor:pointer;font-size:0.72rem;font-weight:600;white-space:nowrap;"
                                       title="Есть возврат — нажмите для просмотра"
                                       @onclick:stopPropagation="true"
-                                      @onclick="@(() => OpenOrderDetailAsync(o, openReturnTab: true))">/ Возв.</span>
+                                      @onclick="@(() => OpenOrderDetailAsync(o, openReturnTab: true))">Возв.</span>
                             }
                         }
-                    </RadzenStack>
+                    </div>
                 </Template>
             </RadzenDataGridColumn>
 
@@ -428,26 +530,30 @@ else
                                   HeaderCssClass="half-painted-header">
 
                 <FilterTemplate>
-                    <div class="filter-all-item @( _filterSystemStatusId == null ? "active" : "" )"
-                         @onclick="@(async () => await ClearFilter(() => _filterSystemStatusId = null))">
-                        Все
-                    </div>
-                    <RadzenListBox TItem="OrderStatus"
-                                   @bind-Value="_filterSystemStatusId"
-                                   Data="@_systemStatuses"
-                                   TextProperty="Name"
-                                   ValueProperty="Id"
-                                   Placeholder="Все"
-                                   AllowClear="true"
-                                   Style="width:100%; max-height: 370px;"
-                                   Change="@(async () => await OnFilterChange())">
-
-                        <Template Context="item">
-                            <RadzenBadge Text="@item.Name"
-                                         Style="@($"background:{GetSoftBackground(item.Color)}; color:{GetTextColor(GetSoftBackground(item.Color))};")"
-                                         Class="status-badge"/>
-                        </Template>
-                    </RadzenListBox>
+                    <RadzenStack Gap="0.3rem" Style="padding: 4px 2px; max-height: 370px; overflow-y: auto;">
+                        @{
+                            var allSs = _filterSystemStatusId == null;
+                        }
+                        <span @onclick="@(async () => await ClearFilter(() => _filterSystemStatusId = null))"
+                              style="@($"display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(allSs ? "var(--rz-primary)" : "var(--rz-base-200)")};color:{(allSs ? "#fff" : "var(--rz-text-color)")};border:2px solid transparent;white-space:nowrap;")">
+                            Все
+                        </span>
+                        @foreach (var s in _systemStatuses.OrderBy(s => s.Name))
+                        {
+                            var bg = GetSoftBackground(s.Color ?? string.Empty);
+                            var fg = GetTextColor(bg);
+                            var isActive = _filterSystemStatusId == s.Id;
+                            var cnt = _systemStatusCounts.GetValueOrDefault(s.Id);
+                            <span @onclick="@(async () => { _filterSystemStatusId = isActive ? (Guid?)null : s.Id; _filterStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                                  style="@($"display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{bg};color:{fg};border:2px solid {(isActive ? fg : "transparent")};white-space:nowrap;")">
+                                @s.Name
+                                @if (cnt > 0)
+                                {
+                                    <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@cnt</span>
+                                }
+                            </span>
+                        }
+                    </RadzenStack>
                 </FilterTemplate>
 
                 <Template Context="o">
@@ -489,19 +595,23 @@ else
                                   HeaderCssClass="half-painted-header">
 
                 <FilterTemplate>
-                    <div class="filter-all-item @( _filterWarehouseId == null ? "active" : "" )"
-                         @onclick="@(async () => await ClearFilter(() => _filterWarehouseId = null))">
-                        Все
-                    </div>
-                    <RadzenListBox @bind-Value="_filterWarehouseId"
-                                   Data="@_warehouses"
-                                   TextProperty="Name"
-                                   ValueProperty="Id"
-                                   Placeholder="Все"
-                                   AllowClear="true"
-                                   Style="width: 100%; min-width: 0; max-height: 370px;"
-                                   Change="@(async () => await OnFilterChange())"/>
-
+                    <RadzenStack Gap="0.3rem" Style="padding: 4px 2px; max-height: 370px; overflow-y: auto;">
+                        @{
+                            var allWh = _filterWarehouseId == null;
+                        }
+                        <span @onclick="@(async () => await ClearFilter(() => _filterWarehouseId = null))"
+                              style="@($"display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(allWh ? "var(--rz-primary)" : "var(--rz-base-200)")};color:{(allWh ? "#fff" : "var(--rz-text-color)")};border:2px solid transparent;white-space:nowrap;")">
+                            Все
+                        </span>
+                        @foreach (var w in _warehouses.OrderBy(w => w.Name))
+                        {
+                            var isActive = _filterWarehouseId == w.Id;
+                            <span @onclick="@(async () => { _filterWarehouseId = isActive ? (Guid?)null : w.Id; await OnFilterChange(); })"
+                                  style="@($"display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:var(--rz-base-200);color:var(--rz-text-color);border:2px solid {(isActive ? "var(--rz-primary)" : "transparent")};white-space:nowrap;")">
+                                @w.Name
+                            </span>
+                        }
+                    </RadzenStack>
                 </FilterTemplate>
                 <Template Context="o">
                     <RadzenText TextStyle="TextStyle.Body2"
@@ -610,10 +720,11 @@ else
 <script>
 window.gridResize = {
     getWidth: () => window.innerWidth,
+    getHeight: () => window.innerHeight,
 
     register: (dotNetHelper) => {
         window.addEventListener("resize", () => {
-            dotNetHelper.invokeMethodAsync("OnWindowResize", window.innerWidth);
+            dotNetHelper.invokeMethodAsync("OnWindowResize", window.innerWidth, window.innerHeight);
         });
     }
 };
@@ -631,6 +742,7 @@ window.gridResize = {
     private Density _density = Density.Default;
     private bool _loading;
     private bool _loadDataInProgress;
+    private int _dynamicPageSize = 15;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
 
     private Guid? _filterClientId;
@@ -655,6 +767,42 @@ window.gridResize = {
     private DataGridSettings? _gridSettings;
     private const string GridSettingsKey = "orders-grid-settings";
     private const string FiltersKey = "orders-filters";
+    private const string ColumnsKey = "orders-columns-visibility";
+
+    private static readonly Dictionary<string, string> SortPropertyTitles = new()
+    {
+        ["Shipment.PostingNumber"] = "№ Отправления",
+        ["Shipment.MarketplaceClient.Name"] = "Клиент",
+        ["Shipment.InProcessAt"] = "Принят",
+        ["Shipment.ShipmentDate"] = "Отгрузка",
+        ["ProductInfo.Product.Article"] = "Артикул",
+        ["ProductInfo.Product.Name"] = "Товар",
+        ["Quantity"] = "Кол-во",
+        ["Status.Name"] = "Статус МП",
+        ["SystemStatus.Name"] = "Статус",
+        ["Shipment.DeliveryMethod.Name"] = "Доставка",
+        ["WarehouseInfo.SenderWarehouse.Name"] = "Склад",
+    };
+
+    private IEnumerable<DataGridColumnSettings> GetActiveSorts()
+    {
+        return _gridSettings?.Columns?
+            .Where(c => c.SortOrder.HasValue && !string.IsNullOrEmpty(c.Property))
+            .OrderBy(c => c.SortIndex ?? 0) ?? Enumerable.Empty<DataGridColumnSettings>();
+    }
+
+    private async Task ClearSortAsync(string property)
+    {
+        var col = _gridSettings?.Columns?.FirstOrDefault(c => c.Property == property);
+        if (col != null)
+        {
+            col.SortOrder = null;
+            col.SortIndex = null;
+        }
+        await SaveGridSettingsAsync();
+        if (_grid != null)
+            await _grid.Reload();
+    }
 
     private record OrderFilters(Guid? ClientId, Guid? StatusId, Guid? SystemStatusId, Guid? WarehouseId);
 
@@ -721,19 +869,19 @@ window.gridResize = {
     // Список конфигураций колонок
     List<ColumnConfig> Columns = new()
     {
-        new() { Key = OrderGridColumns.ShipmentNumber, Title = "№ Отправления", Frozen = true, Width = "180px", Priority = 1 },
-        new() { Key = OrderGridColumns.Client, Title = "Клиент", Width = "160px", Priority = 4 },
-        new() { Key = OrderGridColumns.AcceptedDate, Title = "Принят", Width = "110px", Priority = 9 },
-        new() { Key = OrderGridColumns.ShippingDate, Title = "Срок отгрузки", Width = "120px", Priority = 8 },
-        new() { Key = OrderGridColumns.Article, Title = "Артикул", Width = "160px", Priority = 12 },
-        new() { Key = OrderGridColumns.Product, Title = "Товар", Frozen = true, Width = "290px", Priority = 2 },
-        new() { Key = OrderGridColumns.Quantity, Title = "Кол-во", Width = "100px", Priority = 5 },
-        new() { Key = OrderGridColumns.MarketplaceStatus, Title = "Статус маркетплейса", Width = "160px", Priority = 6 },
-        new() { Key = OrderGridColumns.AppStatus, Title = "Статус приложения", Width = "160px", Priority = 7 },
-        new() { Key = OrderGridColumns.DeliveryMethod, Title = "Способ доставки", Width = "160px", Priority = 10 },
-        new() { Key = OrderGridColumns.Warehouse, Title = "Склад", Width = "120px", Priority = 11 },
-        new() { Key = OrderGridColumns.Price, Title = "Цена", Width = "120px", Priority = 3 },
-        new() { Key = OrderGridColumns.ExtraCalculations, Title = "Доп. расчёты", Width = "200px", Priority = 13 }
+        new() { Key = OrderGridColumns.ShipmentNumber, Title = "№ Отправления", Frozen = true, Width = "140px", Priority = 1 },
+        new() { Key = OrderGridColumns.Client, Title = "Клиент", Width = "100px", Priority = 4 },
+        new() { Key = OrderGridColumns.AcceptedDate, Title = "Принят", Width = "80px", Priority = 9 },
+        new() { Key = OrderGridColumns.ShippingDate, Title = "Отгрузка", Width = "80px", Priority = 8 },
+        new() { Key = OrderGridColumns.Article, Title = "Артикул", Width = "110px", Priority = 13 },
+        new() { Key = OrderGridColumns.Product, Title = "Товар", Frozen = true, Width = "185px", Priority = 2 },
+        new() { Key = OrderGridColumns.Quantity, Title = "Кол", Width = "48px", Priority = 5 },
+        new() { Key = OrderGridColumns.MarketplaceStatus, Title = "Статус МП", Width = "120px", Priority = 6 },
+        new() { Key = OrderGridColumns.AppStatus, Title = "Статус", Width = "110px", Priority = 7 },
+        new() { Key = OrderGridColumns.DeliveryMethod, Title = "Доставка", Width = "100px", Priority = 10 },
+        new() { Key = OrderGridColumns.Warehouse, Title = "Склад", Width = "90px", Priority = 11 },
+        new() { Key = OrderGridColumns.Price, Title = "Цена", Width = "85px", Priority = 3 },
+        new() { Key = OrderGridColumns.ExtraCalculations, Title = "Расчёты", Width = "130px", Priority = 12 }
     };
 
     void UpdateSelectedColumns()
@@ -751,28 +899,26 @@ window.gridResize = {
     {
         int maxPriority;
 
-        if (width < 1000)
+        if (width < 900)
             maxPriority = 3; // минимальный набор — 3 колонки
+        else if (width < 1050)
+            maxPriority = 5; // + Client + Quantity
         else if (width < 1200)
-            maxPriority = 4; // + Client
-        else if (width < 1350)
-            maxPriority = 5; // + Quantity
-        else if (width < 1550)
             maxPriority = 6; // + MarketplaceStatus
-        else if (width < 1700)
+        else if (width < 1350)
             maxPriority = 7; // + AppStatus
-        else if (width < 1800)
+        else if (width < 1500)
             maxPriority = 8; // + ShippingDate
-        else if (width < 1900)
+        else if (width < 1600)
             maxPriority = 9; // + AcceptedDate
-        else if (width < 2000)
+        else if (width < 1700)
             maxPriority = 10; // + DeliveryMethod
-        else if (width < 2200)
+        else if (width < 1850)
             maxPriority = 11; // + Warehouse
-        else if (width < 2300)
-            maxPriority = 12; // + Article
+        else if (width < 2000)
+            maxPriority = 12; // + ExtraCalculations
         else
-            maxPriority = 13; // + ExtraCalculations
+            maxPriority = 13; // + Article
 
 
         bool changed = false;
@@ -793,11 +939,9 @@ window.gridResize = {
 
     void OnColumnChecked(ColumnConfig col, bool value)
     {
-        // Если пользователь нажал, он явно переопределяет колонку
-        // Если снял галочку на авто-видимой колонке — UserVisible = false
         col.UserVisible = value;
-
         StateHasChanged();
+        _ = SaveColumnsAsync();
     }
 
     // Получение конфигурации
@@ -816,12 +960,14 @@ window.gridResize = {
                 await _grid.Reload();
 
             var width = await Js.InvokeAsync<int>("gridResize.getWidth");
+            var height = await Js.InvokeAsync<int>("gridResize.getHeight");
             UpdateColumnsForWidth(width);
-
+            UpdatePageSizeForHeight(height);
+            await LoadColumnsAsync();
 
             // Синхронизируем dropdown с реально видимыми колонками
             _selectedColumns = Columns
-                .Where(c => c.Visible) // берём колонки, которые реально видимы
+                .Where(c => c.Visible)
                 .Select(c => c.Key)
                 .ToList();
 
@@ -854,9 +1000,25 @@ window.gridResize = {
 
     // Метод, который JS будет вызывать при resize
     [JSInvokable]
-    public void OnWindowResize(int width)
+    public void OnWindowResize(int width, int height)
     {
         UpdateColumnsForWidth(width);
+        UpdatePageSizeForHeight(height);
+    }
+
+    private void UpdatePageSizeForHeight(int windowHeight)
+    {
+        // Примерно: header(56) + tabs(50) + toolbar(90) + filters(80) + thead(44) + pager(40) ≈ 360px overhead
+        // Каждая строка ≈ 45px (Default density) или ≈ 32px (Compact)
+        var overhead = 360;
+        var rowHeight = _density == Density.Compact ? 32 : 45;
+        var available = windowHeight - overhead;
+        var rows = Math.Max(5, available / rowHeight);
+        if (rows != _dynamicPageSize)
+        {
+            _dynamicPageSize = rows;
+            InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task LoadGridSettingsAsync()
@@ -891,6 +1053,40 @@ window.gridResize = {
         catch
         {
         }
+    }
+
+    private async Task LoadColumnsAsync()
+    {
+        try
+        {
+            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", ColumnsKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, bool>>(json);
+                if (dict != null)
+                {
+                    foreach (var col in Columns)
+                    {
+                        if (dict.TryGetValue(col.Key, out var visible))
+                            col.UserVisible = visible;
+                    }
+                }
+            }
+        }
+        catch { }
+    }
+
+    private async Task SaveColumnsAsync()
+    {
+        try
+        {
+            var dict = Columns
+                .Where(c => c.UserVisible.HasValue)
+                .ToDictionary(c => c.Key, c => c.UserVisible!.Value);
+            var json = System.Text.Json.JsonSerializer.Serialize(dict);
+            await JsRuntime.InvokeVoidAsync("localStorage.setItem", ColumnsKey, json);
+        }
+        catch { }
     }
 
     private async Task LoadFiltersAsync()
@@ -938,6 +1134,35 @@ window.gridResize = {
         {
         await EnsureInitializedAsync();
 
+        // Counts for pills — respect client/warehouse/text filters but NOT status/return filters
+        var countBase = _db!.Orders.AsNoTracking().AsQueryable();
+        if (_filterClientId.HasValue)
+            countBase = countBase.Where(o => o.Shipment.MarketplaceClientId == _filterClientId.Value);
+        if (_filterWarehouseId.HasValue)
+            countBase = countBase.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId == _filterWarehouseId.Value);
+        if (!string.IsNullOrEmpty(args.Filter))
+            countBase = countBase.Where(args.Filter);
+
+        var msCounts = await countBase
+            .Where(o => o.StatusId != null)
+            .GroupBy(o => o.StatusId!.Value)
+            .Select(g => new { StatusId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        _statusCounts = msCounts.ToDictionary(x => x.StatusId, x => x.Count);
+
+        var ssCounts = await countBase
+            .Where(o => o.SystemStatusId != null)
+            .GroupBy(o => o.SystemStatusId!.Value)
+            .Select(g => new { StatusId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        _systemStatusCounts = ssCounts.ToDictionary(x => x.StatusId, x => x.Count);
+
+        _returnCount = await countBase
+            .Where(o => _db!.OrderReturns.Any(r => r.ShipmentId == o.ShipmentId))
+            .Select(o => o.ShipmentId)
+            .Distinct()
+            .CountAsync();
+
         var query = _db!.Orders
             .IncludeForGrid()
             .AsNoTracking()
@@ -952,7 +1177,7 @@ window.gridResize = {
         if (_filterWarehouseId.HasValue)
             query = query.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId == _filterWarehouseId.Value);
         if (_filterHasReturn)
-            query = query.Where(o => o.Shipment!.HasReturn);
+            query = query.Where(o => _db!.OrderReturns.Any(r => r.ShipmentId == o.ShipmentId));
 
         if (!string.IsNullOrEmpty(args.Filter))
             query = query.Where(args.Filter);
@@ -1096,29 +1321,6 @@ window.gridResize = {
             .ToListAsync();
 
         _calcRules = await _db.GetActiveRulesAsync();
-
-        var msCounts = await _db.Orders
-            .AsNoTracking()
-            .Where(o => o.StatusId != null)
-            .GroupBy(o => o.StatusId!.Value)
-            .Select(g => new { StatusId = g.Key, Count = g.Count() })
-            .ToListAsync();
-        _statusCounts = msCounts.ToDictionary(x => x.StatusId, x => x.Count);
-
-        var ssCounts = await _db.Orders
-            .AsNoTracking()
-            .Where(o => o.SystemStatusId != null)
-            .GroupBy(o => o.SystemStatusId!.Value)
-            .Select(g => new { StatusId = g.Key, Count = g.Count() })
-            .ToListAsync();
-        _systemStatusCounts = ssCounts.ToDictionary(x => x.StatusId, x => x.Count);
-
-        _returnCount = await _db.Orders
-            .AsNoTracking()
-            .Where(o => o.Shipment!.HasReturn)
-            .Select(o => o.ShipmentId)
-            .Distinct()
-            .CountAsync();
     }
 
     private async Task OnFilterChange()
@@ -1389,8 +1591,12 @@ window.gridResize = {
         return d.Value.Date == DateTime.Today ? d.Value.ToString("HH:mm") : d.Value.ToString("dd.MM.yyyy HH:mm");
     }
 
-    private void ToggleDensity() =>
+    private async Task ToggleDensity()
+    {
         _density = _density == Density.Compact ? Density.Default : Density.Compact;
+        var height = await Js.InvokeAsync<int>("gridResize.getHeight");
+        UpdatePageSizeForHeight(height);
+    }
 
     private string GetDensityTitle() => _density switch
     {
