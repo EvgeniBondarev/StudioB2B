@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Infrastructure.Integrations.Ozon;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
 
@@ -20,10 +19,7 @@ public class ChatFileProxyController : ControllerBase
     private readonly ITenantDbContextFactory _dbFactory;
     private readonly ITenantProvider _tenantProvider;
 
-    public ChatFileProxyController(
-        IOzonApiClient ozonApi,
-        ITenantDbContextFactory dbFactory,
-        ITenantProvider tenantProvider)
+    public ChatFileProxyController(IOzonApiClient ozonApi, ITenantDbContextFactory dbFactory, ITenantProvider tenantProvider)
     {
         _ozonApi = ozonApi;
         _dbFactory = dbFactory;

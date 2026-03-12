@@ -8,7 +8,7 @@ public class OrderTransactionHistory
     public Guid Id { get; set; } = Guid.NewGuid();
 
     public Guid OrderId { get; set; }
-    public Order? Order { get; set; }
+    public OrderEntity? Order { get; set; }
 
     public Guid OrderTransactionId { get; set; }
     public OrderTransaction? OrderTransaction { get; set; }

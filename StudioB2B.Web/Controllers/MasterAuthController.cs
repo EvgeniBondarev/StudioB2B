@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using StudioB2B.Infrastructure.Features.Master;
+using StudioB2B.Infrastructure.Services;
+using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Web.Controllers;
 
@@ -24,7 +25,7 @@ public class MasterAuthController : ControllerBase
     /// </summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login(
-        [FromBody] MasterLoginRequest request, CancellationToken ct = default)
+        [FromBody] MasterLoginDto request, CancellationToken ct = default)
     {
         var result = await _authService.LoginAsync(request, ct);
 

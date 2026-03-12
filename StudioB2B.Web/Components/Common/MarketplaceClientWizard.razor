@@ -1,11 +1,8 @@
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
-@using StudioB2B.Infrastructure.Features.Marketplace
-@using StudioB2B.Infrastructure.Integrations.Ozon
-@using StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo
+@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
-@using StudioB2B.Infrastructure.Services
 
 @inject ITenantDbContextFactory Factory
 @inject IOzonApiClient OzonApiClient
@@ -190,8 +187,8 @@ else if (_step == 3)
 
     private int _step;
     private bool _busy;
-    private NewClientModel _model = new();
-    private OzonSellerInfoResponse? _sellerInfo;
+    private NewClientModelDto _model = new();
+    private OzonSellerInfoResponseDto? _sellerInfo;
 
     protected override async Task OnInitializedAsync()
     {
@@ -308,7 +305,7 @@ else if (_step == 3)
 
             var c = _sellerInfo.Company;
 
-            var request = new CreateMarketplaceClientRequest(
+            var request = new CreateMarketplaceClientDto(
                 Name: c.Name ?? c.LegalName ?? "Ozon клиент",
                 ApiId: _model.ApiId,
                 Key: Encryption.Encrypt(_model.Key), // store encrypted
@@ -343,13 +340,5 @@ else if (_step == 3)
         {
             _busy = false;
         }
-    }
-
-    private sealed class NewClientModel
-    {
-        public Guid? ClientTypeId { get; set; }
-        public Guid? ModeId { get; set; }
-        public string ApiId { get; set; } = string.Empty;
-        public string Key { get; set; } = string.Empty;
     }
 }
