@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using StudioB2B.Domain.Constants;
 
 namespace StudioB2B.Infrastructure.Integrations.Ozon.Models.SellerInfo;
 
@@ -17,9 +18,9 @@ public class OzonRatingDto
     public string? Rating { get; set; }
 
     [JsonPropertyName("status")]
-    public OzonRatingStatus Status { get; set; }
+    public OzonRatingStatusEnum Status { get; set; }
 
     [JsonPropertyName("value_type")]
-    public OzonRatingValueType ValueType { get; set; }
+    public OzonRatingValueTypeEnum ValueType { get; set; }
 }
 

@@ -1,6 +1,8 @@
 @using StudioB2B.Domain.Entities.Orders
 @using System.Text.Json
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
+@using SyncJobType = StudioB2B.Domain.Constants.SyncJobTypeEnum
 
 <RadzenStack Gap="1.25rem">
 
@@ -18,6 +20,12 @@
                 <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center" Style="min-width:140px; padding:0.5rem 0.25rem;">
                     <RadzenIcon Icon="sync" Style="font-size:2rem; color:var(--rz-secondary);" />
                     <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Обновление статусов</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+            <RadzenCard Style="@CardStyle(SyncJobType.Returns)" @onclick="@(() => _jobType = SyncJobType.Returns)" class="rz-cursor-pointer">
+                <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center" Style="min-width:140px; padding:0.5rem 0.25rem;">
+                    <RadzenIcon Icon="assignment_return" Style="font-size:2rem; color:var(--rz-info);" />
+                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Загрузка возвратов</RadzenText>
                 </RadzenStack>
             </RadzenCard>
         </RadzenStack>
@@ -130,7 +138,7 @@
     </RadzenStack>
 
     <!-- Параметры задачи (SyncParams) -->
-    @if (_jobType == SyncJobType.Sync)
+    @if (_jobType == SyncJobType.Sync || _jobType == SyncJobType.Update || _jobType == SyncJobType.Returns)
     {
         <RadzenStack Gap="0.35rem">
             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Параметры синхронизации</RadzenText>
@@ -390,7 +398,7 @@
 
         // Строим SyncParams JSON
         string? syncParams = null;
-        if (_jobType == SyncJobType.Sync)
+        if (_jobType is SyncJobType.Sync or SyncJobType.Update or SyncJobType.Returns)
             syncParams = JsonSerializer.Serialize(new { DaysBack = _syncDaysBack });
 
         var schedule = new SyncJobSchedule

@@ -1,6 +1,6 @@
 @page "/roles"
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Master
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Persistence.Master
 
 @inject MasterDbContext Db
@@ -235,9 +235,9 @@
             {
                 ContextMenuService.Close();
                 if (e.Value?.ToString() == "edit")
-                    InvokeAsync(() => EditRow(args.Data));
+                    InvokeAsync(() => EditRow(args.Data!));
                 else if (e.Value?.ToString() == "delete")
-                    InvokeAsync(() => DeleteRow(args.Data));
+                    InvokeAsync(() => DeleteRow(args.Data!));
             });
     }
 

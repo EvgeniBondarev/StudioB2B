@@ -1,6 +1,4 @@
-using StudioB2B.Domain.Entities.Common;
-
-namespace StudioB2B.Domain.Entities.Master;
+namespace StudioB2B.Domain.Entities;
 
 public class MasterUser : IBaseEntity, ISoftDelete
 {

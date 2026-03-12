@@ -1,4 +1,4 @@
-namespace StudioB2B.Domain.Entities.Common;
+namespace StudioB2B.Domain.Entities;
 
 /// <summary>
 /// Помечает свойство сущности как исключённое из журнала изменений (<see cref="FieldAuditLog"/>).
