@@ -484,7 +484,7 @@ else
         try
         {
             var from = DateTime.UtcNow.Date.AddDays(-30);
-            var to   = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
+            var to = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
             await JobService.EnqueueReturnsSyncAsync(from, to);
             NotificationService.Notify(NotificationSeverity.Success,
                 "Задача поставлена в очередь",
