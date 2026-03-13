@@ -268,6 +268,61 @@ else
                                 <span style="font-size: 0.9rem;" title="@FormatDateTooltip(s.ShipmentDate)">@FormatDateDisplay(s.ShipmentDate)</span>
                             </div>
                         }
+                        {
+                            var term = _order.DeliveryTerm;
+                            if (term is not null)
+                            {
+                                var status = _order.ShipmentStatus;
+                                var shipDate = s.ShipmentDate!.Value;
+                                var accepted = s.InProcessAt!.Value;
+                                var termDays = (int)term.Value.TotalDays;
+                                var termHours = term.Value.Hours;
+                                var termText = termDays > 0 ? $"{termDays} дн. {termHours} ч." : $"{termHours} ч.";
+
+                                <div style="display: flex; gap: 0.75rem; align-items: baseline;">
+                                    <span style="min-width: 160px; color: var(--rz-text-secondary-color); font-size: 0.85rem; flex-shrink: 0;">Срок доставки</span>
+                                    <span style="font-size: 0.9rem;">@termText</span>
+                                </div>
+
+                                if (status.IsBeforeShipment())
+                                {
+                                    var remaining = shipDate - DateTime.Now;
+                                    if (remaining.TotalMinutes <= 0)
+                                    {
+                                        var overdue = DateTime.Now - shipDate;
+                                        var ovDays = (int)overdue.TotalDays;
+                                        var ovHours = overdue.Hours;
+                                        var ovMin = overdue.Minutes;
+                                        var ovText = ovDays > 0 ? $"{ovDays} дн. {ovHours} ч. {ovMin} мин." : $"{ovHours} ч. {ovMin} мин.";
+                                        <div style="display: flex; gap: 0.75rem; align-items: baseline;">
+                                            <span style="min-width: 160px; color: var(--rz-text-secondary-color); font-size: 0.85rem; flex-shrink: 0;">Статус отгрузки</span>
+                                            <span style="font-size: 0.9rem; color: var(--rz-danger); font-weight: 600;">Просрочено на @ovText</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        var remDays = (int)remaining.TotalDays;
+                                        var remHours = remaining.Hours;
+                                        var remMin = remaining.Minutes;
+                                        var remText = remDays > 0 ? $"{remDays} дн. {remHours} ч. {remMin} мин." : $"{remHours} ч. {remMin} мин.";
+                                        var remStyle = remaining.TotalHours < 12 ? "color: var(--rz-danger); font-weight: 600;"
+                                                     : remaining.TotalHours < 24 ? "color: var(--rz-warning-dark);"
+                                                     : "";
+                                        <div style="display: flex; gap: 0.75rem; align-items: baseline;">
+                                            <span style="min-width: 160px; color: var(--rz-text-secondary-color); font-size: 0.85rem; flex-shrink: 0;">Осталось до отгрузки</span>
+                                            <span style="font-size: 0.9rem; @remStyle">@remText</span>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div style="display: flex; gap: 0.75rem; align-items: baseline;">
+                                        <span style="min-width: 160px; color: var(--rz-text-secondary-color); font-size: 0.85rem; flex-shrink: 0;">Статус отгрузки</span>
+                                        <span style="font-size: 0.9rem; color: var(--rz-text-secondary-color);">Отгружено</span>
+                                    </div>
+                                }
+                            }
+                        }
 
                         <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.25rem;">
                             Клиент маркетплейса
