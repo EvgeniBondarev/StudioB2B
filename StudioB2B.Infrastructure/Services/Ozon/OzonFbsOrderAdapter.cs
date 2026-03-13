@@ -13,12 +13,18 @@ public class OzonFbsOrderAdapter : IOrderAdapter
     private readonly IOzonApiClient _api;
     private readonly TenantDbContext _db;
     private readonly ILogger<OzonFbsOrderAdapter> _logger;
+    private readonly IModuleService _moduleService;
 
-    public OzonFbsOrderAdapter(IOzonApiClient api, TenantDbContext db, ILogger<OzonFbsOrderAdapter> logger)
+    public OzonFbsOrderAdapter(
+        IOzonApiClient api,
+        TenantDbContext db,
+        ILogger<OzonFbsOrderAdapter> logger,
+        IModuleService moduleService)
     {
         _api = api;
         _db = db;
         _logger = logger;
+        _moduleService = moduleService;
     }
 
     public string MarketplaceName => "Ozon";
@@ -610,6 +616,26 @@ public class OzonFbsOrderAdapter : IOrderAdapter
             if (string.IsNullOrEmpty(domainProduct.Name))
                 domainProduct.Name = product.Name;
             await _db.SaveChangesAsync(ct);
+        }
+
+        // Resolve manufacturer from article prefix if module enabled
+        if (domainProduct.ManufacturerId == null
+            && !string.IsNullOrWhiteSpace(domainProduct.Article)
+            && await _moduleService.IsEnabledAsync(ModuleCodes.Manufacturers, ct))
+        {
+            var parts = domainProduct.Article.Split('=');
+            if (parts.Length > 1)
+            {
+                var raw = parts[^1];
+                var prefix = raw.Length >= 3 ? raw[..3] : raw;
+                var manufacturer = await _db.Manufacturers
+                    .FirstOrDefaultAsync(m => m.MarketPrefix == prefix || m.Name == prefix, ct);
+                if (manufacturer != null)
+                {
+                    domainProduct.ManufacturerId = manufacturer.Id;
+                    await _db.SaveChangesAsync(ct);
+                }
+            }
         }
 
         return domainProduct;

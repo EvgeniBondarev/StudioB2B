@@ -18,6 +18,7 @@
 @inject NavigationManager Navigation
 @inject TabService TabService
 @inject IJSRuntime JsRuntime
+@inject IModuleService ModuleService
 
 @implements IDisposable
 
@@ -473,6 +474,23 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
+            @if (_manufacturerModuleEnabled)
+            {
+                <RadzenDataGridColumn TItem="OrderEntity" Property="ProductInfo.Product.Manufacturer.Name"
+                                      Title="@GetColumn(OrderGridColumns.Manufacturer).Title"
+                                      Width="@GetColumn(OrderGridColumns.Manufacturer).Width"
+                                      Visible="@GetColumn(OrderGridColumns.Manufacturer).Visible"
+                                      Sortable="true" Filterable="true"
+                                      HeaderCssClass="half-painted-header">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2" Class="rz-text-truncate"
+                                    title="@(o.ProductInfo?.Product?.Manufacturer?.Name)">
+                            @(o.ProductInfo?.Product?.Manufacturer?.Name ?? "—")
+                        </RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+            }
+
             <RadzenDataGridColumn TItem="OrderEntity" Property="Quantity"
                                   Title="@GetColumn(OrderGridColumns.Quantity).Title"
                                   Width="@GetColumn(OrderGridColumns.Quantity).Width"
@@ -765,6 +783,7 @@ window.gridResize = {
     private Density _density = Density.Default;
     private bool _loading;
     private bool _loadDataInProgress;
+    private bool _manufacturerModuleEnabled;
     private int _dynamicPageSize = 15;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
 
@@ -873,6 +892,7 @@ window.gridResize = {
         public const string Price = "Price";
         public const string ExtraCalculations = "ExtraCalculations";
         public const string DeliveryTerm = "DeliveryTerm";
+        public const string Manufacturer = "Manufacturer";
     }
 
     // Модель конфигурации колонки
@@ -908,7 +928,8 @@ window.gridResize = {
         new() { Key = OrderGridColumns.Warehouse, Title = "Склад", Width = "90px", Priority = 11 },
         new() { Key = OrderGridColumns.Price, Title = "Цена", Width = "85px", Priority = 3 },
         new() { Key = OrderGridColumns.ExtraCalculations, Title = "Расчёты", Width = "130px", Priority = 12 },
-        new() { Key = OrderGridColumns.DeliveryTerm, Title = "Срок", Width = "68px", Priority = 14 }
+        new() { Key = OrderGridColumns.DeliveryTerm, Title = "Срок", Width = "68px", Priority = 14 },
+        new() { Key = OrderGridColumns.Manufacturer, Title = "Производитель", Width = "80px", Priority = 15 }
     };
 
     void UpdateSelectedColumns()
@@ -947,7 +968,7 @@ window.gridResize = {
         else if (width < 2150)
             maxPriority = 13; // + Article
         else
-            maxPriority = 14; // + DeliveryTerm
+            maxPriority = 15; // + DeliveryTerm + Manufacturer
 
 
         bool changed = false;
@@ -983,6 +1004,9 @@ window.gridResize = {
     {
         if (firstRender)
         {
+            if (TenantProvider.IsResolved)
+                _manufacturerModuleEnabled = await ModuleService.IsEnabledAsync(ModuleCodes.Manufacturers);
+
             await LoadGridSettingsAsync();
             await LoadFiltersAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
@@ -1176,7 +1200,8 @@ window.gridResize = {
             countBase = countBase.Where(o =>
                 (o.Shipment.PostingNumber != null && o.Shipment.PostingNumber.Contains(term)) ||
                 (o.ProductInfo.Product.Article != null && o.ProductInfo.Product.Article.Contains(term)) ||
-                (o.ProductInfo.Product.Name != null && o.ProductInfo.Product.Name.Contains(term)));
+                (o.ProductInfo.Product.Name != null && o.ProductInfo.Product.Name.Contains(term)) ||
+                (o.ProductInfo.Product.Manufacturer != null && o.ProductInfo.Product.Manufacturer.Name.Contains(term)));
         }
         if (!string.IsNullOrEmpty(args.Filter))
             countBase = countBase.Where(args.Filter);
@@ -1222,7 +1247,8 @@ window.gridResize = {
             query = query.Where(o =>
                 (o.Shipment.PostingNumber != null && o.Shipment.PostingNumber.Contains(term)) ||
                 (o.ProductInfo.Product.Article != null && o.ProductInfo.Product.Article.Contains(term)) ||
-                (o.ProductInfo.Product.Name != null && o.ProductInfo.Product.Name.Contains(term)));
+                (o.ProductInfo.Product.Name != null && o.ProductInfo.Product.Name.Contains(term)) ||
+                (o.ProductInfo.Product.Manufacturer != null && o.ProductInfo.Product.Manufacturer.Name.Contains(term)));
         }
 
         if (!string.IsNullOrEmpty(args.Filter))
