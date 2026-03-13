@@ -1,6 +1,7 @@
 @page "/orders/apply-transaction"
 @attribute [Authorize(Roles = "Admin")]
 @using Microsoft.EntityFrameworkCore
+@using Radzen.Blazor.Rendering
 @using StudioB2B.Domain.Constants
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features
@@ -261,14 +262,22 @@ else
                             {
                                 <img src="@o.ProductInfo?.Product?.ImageUrl"
                                      class="rz-border-radius rz-flex-shrink-0"
-                                     style="width:36px; height:36px; object-fit:contain;"
+                                     style="width:32px; height:32px; object-fit:contain;"
                                      alt=""/>
                             }
-                            <span
-                                class="rz-text-sm rz-flex-shrink-1 rz-text-truncate rz-ms-1"
-                                title="@o.ProductInfo?.Product?.Name">
-                                @o.ProductInfo?.Product?.Name
-                            </span>
+                            <div style="min-width:0;flex:1;">
+                                <div class="rz-text-sm rz-text-truncate" style="line-height:1.3;"
+                                     title="@o.ProductInfo?.Product?.Name">
+                                    @o.ProductInfo?.Product?.Name
+                                </div>
+                                @if (!string.IsNullOrEmpty(o.ProductInfo?.Product?.Article))
+                                {
+                                    <div class="rz-monospace" style="font-size:0.7rem;color:var(--rz-text-secondary-color);line-height:1.2;"
+                                         title="@o.ProductInfo?.Product?.Article">
+                                        @o.ProductInfo?.Product?.Article
+                                    </div>
+                                }
+                            </div>
                         </RadzenStack>
                     </Template>
                 </RadzenDataGridColumn>
