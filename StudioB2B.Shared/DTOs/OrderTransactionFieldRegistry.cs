@@ -2,22 +2,12 @@ using StudioB2B.Domain.Constants;
 
 namespace StudioB2B.Shared.DTOs;
 
-
-/// <summary>
-/// Описание поля, доступного для изменения в документе.
-/// </summary>
-public record OrderTransactionFieldDescriptor(
-    string EntityPath,
-    string DisplayName,
-    TransactionFieldValueTypeEnum ValueType,
-    FieldReferenceTypeEnum ReferenceType = FieldReferenceTypeEnum.None);
-
 /// <summary>
 /// Реестр допустимых полей заказа и связанных сущностей для правил документов.
 /// </summary>
 public static class OrderTransactionFieldRegistry
 {
-    private static readonly Dictionary<string, OrderTransactionFieldDescriptor> _fields = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, OrderTransactionFieldDescriptorDto> _fields = new(StringComparer.OrdinalIgnoreCase)
     {
         // Order
         ["Order.Quantity"] = new("Order.Quantity", "Количество", TransactionFieldValueTypeEnum.Int),
@@ -51,10 +41,10 @@ public static class OrderTransactionFieldRegistry
     };
 
     /// <summary>Все доступные поля.</summary>
-    public static IReadOnlyList<OrderTransactionFieldDescriptor> All => _fields.Values.ToList();
+    public static IReadOnlyList<OrderTransactionFieldDescriptorDto> All => _fields.Values.ToList();
 
     /// <summary>Получить описание по пути.</summary>
-    public static OrderTransactionFieldDescriptor? Get(string? entityPath)
+    public static OrderTransactionFieldDescriptorDto? Get(string? entityPath)
     {
         return _fields.TryGetValue(entityPath ?? string.Empty, out var d) ? d : null;
     }

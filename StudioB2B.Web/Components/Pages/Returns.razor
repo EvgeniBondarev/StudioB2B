@@ -29,7 +29,17 @@ else
 {
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
-        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Возвраты Ozon</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+            <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Возвраты Ozon</RadzenText>
+            <div style="position:relative;display:inline-flex;align-items:center;">
+                <i class="rzi" style="position:absolute;left:2px;font-size:1.05rem;color:var(--rz-text-secondary-color);pointer-events:none;user-select:none;">search</i>
+                <input type="text"
+                       value="@_searchText"
+                       @oninput="@(async e => { _searchText = e.Value?.ToString(); await OnSearchChanged(); })"
+                       placeholder="Артикул, товар, отправление..."
+                       style="border:none;border-bottom:1.5px solid var(--rz-base-300);outline:none;background:transparent;padding:3px 4px 3px 1.7rem;font-size:0.85rem;width:240px;color:var(--rz-text-color);" />
+            </div>
+        </RadzenStack>
         <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
             <RadzenButton Icon="sync" Text="Загрузить за 30 дней" ButtonStyle="ButtonStyle.Primary"
                           Size="ButtonSize.Small" Click="@EnqueueSync" IsBusy="@_enqueueing" />
@@ -37,6 +47,44 @@ else
                           Click="@ToggleDensity" Title="@GetDensityTitle()" />
         </RadzenStack>
     </RadzenStack>
+
+    @if (_typeCounts.Any())
+    {
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                     Style="padding: 0 0 0.75rem 0; flex-wrap: wrap;">
+
+            @{
+                var allActive = _filterType == null && !_filterLinkedToOrder;
+            }
+            <span @onclick="@(async () => { _filterType = null; _filterLinkedToOrder = false; await OnFilterChange(); })"
+                  style="@($"display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 10px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(allActive ? "var(--rz-primary)" : "var(--rz-base-200)")};color:{(allActive ? "#fff" : "var(--rz-text-color)")};border:2px solid transparent;")">
+                Все
+            </span>
+
+            @foreach (var opt in _typeOptions.Where(o => _typeCounts.ContainsKey(o.Value)))
+            {
+                var isActive = _filterType == opt.Value && !_filterLinkedToOrder;
+                var cnt = _typeCounts.GetValueOrDefault(opt.Value);
+                var (bg, fg) = GetTypeColors(opt.Value);
+                <span @onclick="@(async () => { _filterType = isActive ? null : opt.Value; _filterLinkedToOrder = false; await OnFilterChange(); })"
+                      style="@($"display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 10px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{bg};color:{fg};border:2px solid {(isActive ? fg : "transparent")};")">
+                    @opt.Label
+                    <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@cnt</span>
+                </span>
+            }
+
+            @if (_cancellationsWithOrderCount > 0)
+            {
+                <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 6px;"></span>
+                <span @onclick="@(async () => { _filterLinkedToOrder = !_filterLinkedToOrder; _filterType = null; await OnFilterChange(); })"
+                      style="@($"display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 10px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(_filterLinkedToOrder ? "#dcfce7" : "#f9fafb")};color:{(_filterLinkedToOrder ? "#166534" : "#6b7280")};border:2px solid {(_filterLinkedToOrder ? "#4ade80" : "transparent")};")">
+                    Отмены с заказом
+                    <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@_cancellationsWithOrderCount</span>
+                </span>
+            }
+
+        </RadzenStack>
+    }
 
     <RadzenDataGrid @ref="_grid"
                     TItem="OrderReturn"
@@ -83,28 +131,32 @@ else
         <Columns>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="OzonReturnId"
-                                  Title="ID возврата" Width="150px" Frozen="true">
+                                  Title="ID возврата" Width="150px" Frozen="true"
+                                  HeaderCssClass="half-painted-header">
                 <Template Context="r">
                     <span class="rz-monospace rz-text-sm">@r.OzonReturnId</span>
                 </Template>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="PostingNumber"
-                                  Title="Отправление" Width="200px">
+                                  Title="Отправление" Width="200px"
+                                  HeaderCssClass="half-painted-header">
                 <Template Context="r">
                     <span class="rz-monospace rz-text-sm" title="@r.PostingNumber">@(r.PostingNumber ?? "—")</span>
                 </Template>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ReturnDate"
-                                  Title="Дата возврата" Width="130px">
+                                  Title="Дата возврата" Width="130px"
+                                  HeaderCssClass="half-painted-header">
                 <Template Context="r">
                     @(r.ReturnDate.HasValue ? r.ReturnDate.Value.ToLocalTime().ToString("dd.MM.yyyy") : "—")
                 </Template>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ProductName"
-                                  Title="Товар" Width="280px" Sortable="false">
+                                  Title="Товар" Width="280px" Sortable="false"
+                                  HeaderCssClass="half-painted-header">
                 <Template Context="r">
                     <RadzenStack Gap="0.1rem">
                         <span class="rz-text-sm rz-text-truncate"
@@ -123,29 +175,26 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ProductQuantity"
-                                  Title="Кол-во" Width="80px" TextAlign="TextAlign.Center">
+                                  Title="Кол-во" Width="80px" TextAlign="TextAlign.Center"
+                                  HeaderCssClass="half-painted-header">
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="Type"
-                                  Title="Тип" Width="170px">
-                <FilterTemplate>
-                    <div class="filter-all-item @(_filterType == null ? "active" : "")"
-                         @onclick="@(async () => await ClearFilter(() => _filterType = null))">Все</div>
-                    <RadzenListBox TValue="string?" @bind-Value="_filterType"
-                                   Data="@_typeOptions"
-                                   TextProperty="@nameof(FilterOption.Label)"
-                                   ValueProperty="@nameof(FilterOption.Value)"
-                                   AllowClear="true"
-                                   Style="width:100%;"
-                                   Change="@(async _ => { if (_grid != null) await _grid.Reload(); })" />
-                </FilterTemplate>
+                                  Title="Тип" Width="170px"
+                                  HeaderCssClass="half-painted-header">
                 <Template Context="r">
-                    <span style="font-size: 0.85rem;">@GetTypeDisplayName(r.Type)</span>
+                    @{
+                        var (tbg, tfg) = GetTypeColors(r.Type);
+                    }
+                    <span style="@($"display:inline-flex;align-items:center;padding:2px 10px;border-radius:20px;font-size:0.82rem;font-weight:500;background:{tbg};color:{tfg};")" >
+                        @GetTypeDisplayName(r.Type)
+                    </span>
                 </Template>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="Schema"
-                                  Title="Схема" Width="70px" TextAlign="TextAlign.Center">
+                                  Title="Схема" Width="70px" TextAlign="TextAlign.Center"
+                                  HeaderCssClass="half-painted-header">
                 <FilterTemplate>
                     <div class="filter-all-item @(_filterSchema == null ? "active" : "")"
                          @onclick="@(async () => await ClearFilter(() => _filterSchema = null))">Все</div>
@@ -160,7 +209,8 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="VisualStatusDisplayName"
-                                  Title="Статус возврата" Width="220px">
+                                  Title="Статус возврата" Width="220px"
+                                  HeaderCssClass="half-painted-header">
                 <Template Context="r">
                     @if (!string.IsNullOrEmpty(r.VisualStatusDisplayName))
                     {
@@ -172,7 +222,8 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ReturnReasonName"
-                                  Title="Причина" Width="280px" Sortable="false">
+                                  Title="Причина" Width="280px" Sortable="false"
+                                  HeaderCssClass="half-painted-header">
                 <Template Context="r">
                     <span class="rz-text-sm"
                           title="@r.ReturnReasonName"
@@ -183,7 +234,8 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ProductPrice"
-                                  Title="Цена" Width="120px" TextAlign="TextAlign.Right">
+                                  Title="Цена" Width="120px" TextAlign="TextAlign.Right"
+                                  HeaderCssClass="half-painted-header">
                 <Template Context="r">
                     @if (r.ProductPrice.HasValue)
                     {
@@ -197,14 +249,16 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="CommissionPercent"
-                                  Title="Комиссия %" Width="110px" TextAlign="TextAlign.Right">
+                                  Title="Комиссия %" Width="110px" TextAlign="TextAlign.Right"
+                                  HeaderCssClass="half-painted-header">
                 <Template Context="r">
                     @(r.CommissionPercent.HasValue ? $"{r.CommissionPercent:N1}%" : "—")
                 </Template>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="CompensationStatusDisplayName"
-                                  Title="Компенсация" Width="200px" Sortable="false">
+                                  Title="Компенсация" Width="200px" Sortable="false"
+                                  HeaderCssClass="half-painted-header">
                 <Template Context="r">
                     @if (!string.IsNullOrEmpty(r.CompensationStatusDisplayName))
                     {
@@ -218,7 +272,8 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Title="Заказ" Width="100px"
-                                  TextAlign="TextAlign.Center" Sortable="false" Filterable="false">
+                                  TextAlign="TextAlign.Center" Sortable="false" Filterable="false"
+                                  HeaderCssClass="half-painted-header">
                 <Template Context="r">
                     @if (r.OrderId.HasValue)
                     {
@@ -240,7 +295,8 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="SyncedAt"
-                                  Title="Синхронизирован" Width="150px">
+                                  Title="Синхронизирован" Width="150px"
+                                  HeaderCssClass="half-painted-header">
                 <Template Context="r">
                     <span style="font-size: 0.8rem; color: var(--rz-text-secondary-color);">
                         @r.SyncedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
@@ -257,10 +313,10 @@ else
 
     private RadzenDataGrid<OrderReturn>? _grid;
     private List<OrderReturn> _pageItems = [];
-    private int     _totalCount;
-    private bool    _loading;
-    private bool    _loadDataInProgress;
-    private bool    _enqueueing;
+    private int _totalCount;
+    private bool _loading;
+    private bool _loadDataInProgress;
+    private bool _enqueueing;
     private Density _density = Density.Default;
     private TenantDbContext? _db;
 
@@ -269,14 +325,19 @@ else
 
     private string? _filterType;
     private string? _filterSchema;
+    private bool _filterLinkedToOrder; // true = only cancellations linked to an order
+    private string? _searchText;
+
+    private Dictionary<string, int> _typeCounts = new();
+    private int _cancellationsWithOrderCount;
 
     private static readonly List<FilterOption> _typeOptions =
     [
-        new("Отмена",              "Cancellation"),
-        new("Полный возврат",      "FullReturn"),
-        new("Частичный возврат",   "PartialReturn"),
-        new("Клиентский возврат",  "ClientReturn"),
-        new("Технический",         "Unknown"),
+        new("Отмена", "Cancellation"),
+        new("Полный возврат", "FullReturn"),
+        new("Частичный возврат", "PartialReturn"),
+        new("Клиентский возврат", "ClientReturn"),
+        new("Технический", "Unknown"),
     ];
 
     private static readonly List<FilterOption> _schemaOptions =
@@ -285,14 +346,14 @@ else
         new("FBO", "Fbo"),
     ];
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
         if (!TenantProvider.IsResolved) return;
 
         await LoadGridSettingsAsync();
+        await LoadCountsAsync();
+        StateHasChanged();
 
         // When _gridSettings is set, the grid fires LoadData automatically via Settings binding.
         // Without saved settings we must trigger the first load explicitly.
@@ -306,27 +367,56 @@ else
         _db = Factory.CreateDbContext(); // must be before any await
     }
 
-    // ── LoadData ──────────────────────────────────────────────────────────────
+    private async Task LoadCountsAsync()
+    {
+        // Use a separate short-lived context to avoid concurrency with LoadData,
+        // which may be triggered concurrently by the grid Settings binding.
+        using var db = Factory.CreateDbContext();
+
+        var raw = await db.OrderReturns.AsNoTracking()
+            .Where(r => r.Type != null)
+            .GroupBy(r => r.Type!)
+            .Select(g => new { Type = g.Key, Count = g.Count() })
+            .ToListAsync();
+        _typeCounts = raw.ToDictionary(x => x.Type, x => x.Count);
+
+        _cancellationsWithOrderCount = await db.OrderReturns.AsNoTracking()
+            .Where(r => r.Type == "Cancellation" && r.OrderId != null)
+            .Select(r => r.OzonReturnId).Distinct()
+            .CountAsync();
+    }
 
     private async Task LoadData(LoadDataArgs args)
     {
         if (_loadDataInProgress) return;
         _loadDataInProgress = true;
-        _loading = true;
+        if (_pageItems == null || _pageItems.Count == 0)
+            _loading = true;
         try
         {
             await EnsureInitializedAsync();
 
             var query = _db!.OrderReturns.AsNoTracking().AsQueryable();
 
+            if (!string.IsNullOrEmpty(_searchText))
+            {
+                var term = _searchText.Trim();
+                query = query.Where(r =>
+                    (r.PostingNumber != null && r.PostingNumber.Contains(term)) ||
+                    (r.OrderNumber != null && r.OrderNumber.Contains(term)) ||
+                    (r.ProductName != null && r.ProductName.Contains(term)) ||
+                    (r.OfferId != null && r.OfferId.Contains(term)));
+            }
             if (!string.IsNullOrEmpty(args.Filter))
                 query = query.Where(args.Filter);
             if (!string.IsNullOrEmpty(_filterType))
                 query = query.Where(r => r.Type == _filterType);
             if (!string.IsNullOrEmpty(_filterSchema))
                 query = query.Where(r => r.Schema == _filterSchema);
+            if (_filterLinkedToOrder)
+                query = query.Where(r => r.Type == "Cancellation" && r.OrderId != null);
 
-            _totalCount = await query.CountAsync();
+            _totalCount = await query.Select(r => r.OzonReturnId).Distinct().CountAsync();
 
             query = !string.IsNullOrEmpty(args.OrderBy)
                 ? query.OrderBy(args.OrderBy)
@@ -334,7 +424,8 @@ else
 
             var skip = args.Skip ?? 0;
             var take = args.Top is > 0 ? args.Top.Value : 20;
-            _pageItems = await query.Skip(skip).Take(take).ToListAsync();
+            _pageItems = (await query.Skip(skip).Take(take).ToListAsync())
+                .DistinctBy(r => r.OzonReturnId).ToList();
 
             _loading = false;
         }
@@ -344,15 +435,24 @@ else
         }
     }
 
-    // ── Filters ───────────────────────────────────────────────────────────────
+    private async Task OnFilterChange()
+    {
+        StateHasChanged();
+        if (_grid != null)
+            await _grid.Reload();
+    }
+
+    private async Task OnSearchChanged()
+    {
+        if (_grid != null)
+            await _grid.Reload();
+    }
 
     private async Task ClearFilter(Action clear)
     {
         clear();
         if (_grid != null) await _grid.Reload();
     }
-
-    // ── Settings persistence ──────────────────────────────────────────────────
 
     private async Task LoadGridSettingsAsync()
     {
@@ -390,7 +490,7 @@ else
         try
         {
             var from = DateTime.UtcNow.Date.AddDays(-30);
-            var to   = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
+            var to = DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
             await JobService.EnqueueReturnsSyncAsync(from, to);
             NotificationService.Notify(NotificationSeverity.Success,
                 "Задача поставлена в очередь",
@@ -412,28 +512,38 @@ else
     private string GetDensityTitle() => _density switch
     {
         Density.Compact => "Компактный режим строк",
-        _               => "Обычный режим строк"
+        _ => "Обычный режим строк"
     };
 
     private static string GetTypeDisplayName(string? type) => type switch
     {
-        "Cancellation"  => "Отмена",
-        "FullReturn"    => "Полный возврат",
+        "Cancellation" => "Отмена",
+        "FullReturn" => "Полный возврат",
         "PartialReturn" => "Частичный возврат",
-        "ClientReturn"  => "Клиентский возврат",
-        "Unknown"       => "Технический",
-        _               => type ?? "—"
+        "ClientReturn" => "Клиентский возврат",
+        "Unknown" => "Технический",
+        _ => type ?? "—"
+    };
+
+    private static (string bg, string fg) GetTypeColors(string? type) => type switch
+    {
+        "Cancellation" => ("#fee2e2", "#991b1b"),
+        "FullReturn" => ("#fef3c7", "#92400e"),
+        "PartialReturn" => ("#fef9c3", "#713f12"),
+        "ClientReturn" => ("#dbeafe", "#1e40af"),
+        "Unknown" => ("#f3f4f6", "#374151"),
+        _ => ("#f3f4f6", "#374151")
     };
 
     public void Dispose() => _db?.Dispose();
 
     private void OnReturnRowClick(DataGridRowMouseEventArgs<OrderReturn> args)
     {
-        if (args.Data.ShipmentId.HasValue)
+        if (args.Data != null && args.Data.ShipmentId.HasValue)
         {
             Navigation.NavigateTo($"/orders?openReturn={args.Data.ShipmentId.Value}");
         }
-        else if (args.Data.OrderId.HasValue)
+        else if (args.Data != null && args.Data.OrderId.HasValue)
         {
             Navigation.NavigateTo($"/orders?openReturn={args.Data.OrderId.Value}");
         }

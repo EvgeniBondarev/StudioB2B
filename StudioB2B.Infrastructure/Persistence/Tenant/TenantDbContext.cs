@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Infrastructure.Interfaces;
@@ -78,7 +79,7 @@ public class TenantDbContext : DbContext
 
     public DbSet<ShipmentDate> ShipmentDates { get; set; } = null!;
 
-    public DbSet<Order> Orders { get; set; } = null!;
+    public DbSet<OrderEntity> Orders { get; set; } = null!;
 
     public DbSet<OrderPrice> OrderPrices { get; set; } = null!;
 
@@ -249,8 +250,7 @@ public class TenantDbContext : DbContext
 
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(TenantDbContext).Assembly,
-            type => type.Namespace?.Contains("Tenant") == true ||
-                    type.Namespace?.Contains("Configurations") == true);
+            type => type.Namespace?.Contains("Tenant") == true);
 
 
         ApplySoftDeleteFilters(modelBuilder);

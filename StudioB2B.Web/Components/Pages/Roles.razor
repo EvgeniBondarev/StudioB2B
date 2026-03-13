@@ -163,7 +163,7 @@
         _totalCount = await query.CountAsync();
 
         var skip = args.Skip ?? 0;
-        var take = (args.Top is > 0) ? args.Top.Value : (_grid?.PageSize ?? 15);
+        var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 15);
 
         _pageItems = await query.Skip(skip).Take(take).ToListAsync();
         _loading = false;

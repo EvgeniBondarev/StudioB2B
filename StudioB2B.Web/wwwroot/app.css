@@ -44,32 +44,10 @@ h1:focus {
   flex-shrink: 0;
 }
 
-.sidebar-compact .sidebar-logo {
-  justify-content: center;
-  padding: 0.85rem 0 0.5rem;
-}
-
-/* Hide the text label in each menu item */
-.sidebar-compact .rz-navigation-item-text {
-  display: none !important;
-}
-
-/* Center the icon inside the item wrapper */
-.sidebar-compact .rz-navigation-item-wrapper {
-  display: flex !important;
-  justify-content: center !important;
-  padding: 0.5rem !important;
-}
-
-/* Remove right margin from icon so it stays centred */
-.sidebar-compact .rz-navigation-item-icon,
-.sidebar-compact .notranslate {
-  margin-right: 0 !important;
-}
-
-/* Disable the expand arrow (chevron) on parent items */
-.sidebar-compact .rz-navigation-item-toggle-icon {
-  display: none !important;
+/* Smooth sidebar open/close */
+.sidebar-animated {
+  transition: width 0.2s ease;
+  overflow: hidden;
 }
 
 .rz-header-filter-cell {
@@ -203,6 +181,7 @@ h1:focus {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  transition: margin-left 0.2s ease;
 }
 
 /* Контейнер для страниц с full-height layout (чаты и др.) */
@@ -214,15 +193,61 @@ h1:focus {
   min-height: 0;
 }
 
+/* Контейнер контента по умолчанию */
+.body-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Когда боковая панель скрыта — контент на всю ширину и высоту */
+.sidebar-hidden {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sidebar-hidden .rz-data-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 0;
+}
+
+.sidebar-hidden .rz-data-grid .rz-datatable-scrollable-wrapper,
+.sidebar-hidden .rz-data-grid .rz-datatable-scrollable-view {
+  flex: 1;
+  min-height: 0;
+}
+
 /* Общий стиль всех таблиц Radzen */
 .rz-data-grid {
   border-radius: 6px;
   overflow: hidden;
+  overflow-x: hidden !important;
 
   border: 1px solid #e9ecf8;
   box-shadow:
     0 16px 32px rgba(15, 23, 42, 0.10),
     0 3px 8px rgba(15, 23, 42, 0.05);
+}
+
+/* Убираем горизонтальный скроллбар внутри таблицы */
+.rz-data-grid .rz-datatable-scrollable-wrapper {
+  overflow-x: hidden !important;
+}
+
+.rz-data-grid .rz-datatable-scrollable-body {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  scrollbar-width: none !important; /* Firefox */
+}
+
+.rz-data-grid .rz-datatable-scrollable-body::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Edge */
 }
 
 /* Hover строк */
@@ -244,7 +269,7 @@ h1:focus {
 /* Уменьшаем паддинги для всех ячеек таблицы */
 .rz-grid-table td,
 .rz-grid-table th {
-  padding: 0.25rem  !important;
+  padding: 0.25rem 0.35rem !important;
 }
 
 .rz-data-grid th .rz-column-title-content,
@@ -257,6 +282,14 @@ h1:focus {
 
 .rz-grid-table{
   border-bottom: 1px solid #e7ebff;
+  table-layout: fixed;
+}
+
+/* Prevent cell content from expanding columns */
+.rz-grid-table td {
+  overflow: clip;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Отступы заголовков */
