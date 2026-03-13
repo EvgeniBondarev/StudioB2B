@@ -914,16 +914,6 @@ window.gridResize = {
         new() { Key = OrderGridColumns.DeliveryTerm, Title = "Срок", Width = "68px", Priority = 14 }
     };
 
-    void UpdateSelectedColumns()
-    {
-        foreach (var col in Columns)
-        {
-            col.UserVisible = _selectedColumns.Contains(col.Key);
-        }
-
-        StateHasChanged();
-    }
-
     // высчитываем, сколько колонок показывать
     void UpdateColumnsForWidth(int width)
     {
