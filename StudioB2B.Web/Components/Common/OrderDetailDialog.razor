@@ -1,10 +1,11 @@
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
-@using StudioB2B.Infrastructure.Features.Orders
 @using System.Text.RegularExpressions
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Infrastructure.Features
+@using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
@@ -267,6 +268,61 @@ else
                                 <span style="font-size: 0.9rem;" title="@FormatDateTooltip(s.ShipmentDate)">@FormatDateDisplay(s.ShipmentDate)</span>
                             </div>
                         }
+                        {
+                            var term = _order.DeliveryTerm;
+                            if (term is not null)
+                            {
+                                var status = _order.ShipmentStatus;
+                                var shipDate = s.ShipmentDate!.Value;
+                                var accepted = s.InProcessAt!.Value;
+                                var termDays = (int)term.Value.TotalDays;
+                                var termHours = term.Value.Hours;
+                                var termText = termDays > 0 ? $"{termDays} дн. {termHours} ч." : $"{termHours} ч.";
+
+                                <div style="display: flex; gap: 0.75rem; align-items: baseline;">
+                                    <span style="min-width: 160px; color: var(--rz-text-secondary-color); font-size: 0.85rem; flex-shrink: 0;">Срок доставки</span>
+                                    <span style="font-size: 0.9rem;">@termText</span>
+                                </div>
+
+                                if (status.IsBeforeShipment())
+                                {
+                                    var remaining = shipDate - DateTime.Now;
+                                    if (remaining.TotalMinutes <= 0)
+                                    {
+                                        var overdue = DateTime.Now - shipDate;
+                                        var ovDays = (int)overdue.TotalDays;
+                                        var ovHours = overdue.Hours;
+                                        var ovMin = overdue.Minutes;
+                                        var ovText = ovDays > 0 ? $"{ovDays} дн. {ovHours} ч. {ovMin} мин." : $"{ovHours} ч. {ovMin} мин.";
+                                        <div style="display: flex; gap: 0.75rem; align-items: baseline;">
+                                            <span style="min-width: 160px; color: var(--rz-text-secondary-color); font-size: 0.85rem; flex-shrink: 0;">Статус отгрузки</span>
+                                            <span style="font-size: 0.9rem; color: var(--rz-danger); font-weight: 600;">Просрочено на @ovText</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        var remDays = (int)remaining.TotalDays;
+                                        var remHours = remaining.Hours;
+                                        var remMin = remaining.Minutes;
+                                        var remText = remDays > 0 ? $"{remDays} дн. {remHours} ч. {remMin} мин." : $"{remHours} ч. {remMin} мин.";
+                                        var remStyle = remaining.TotalHours < 12 ? "color: var(--rz-danger); font-weight: 600;"
+                                                     : remaining.TotalHours < 24 ? "color: var(--rz-warning-dark);"
+                                                     : "";
+                                        <div style="display: flex; gap: 0.75rem; align-items: baseline;">
+                                            <span style="min-width: 160px; color: var(--rz-text-secondary-color); font-size: 0.85rem; flex-shrink: 0;">Осталось до отгрузки</span>
+                                            <span style="font-size: 0.9rem; @remStyle">@remText</span>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div style="display: flex; gap: 0.75rem; align-items: baseline;">
+                                        <span style="min-width: 160px; color: var(--rz-text-secondary-color); font-size: 0.85rem; flex-shrink: 0;">Статус отгрузки</span>
+                                        <span style="font-size: 0.9rem; color: var(--rz-text-secondary-color);">Отгружено</span>
+                                    </div>
+                                }
+                            }
+                        }
 
                         <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.25rem;">
                             Клиент маркетплейса
@@ -280,7 +336,7 @@ else
                             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.5rem;">
                                 Позиции в отправлении (@_shipmentOrders.Count)
                             </RadzenText>
-                            <RadzenDataGrid TItem="Order"
+                            <RadzenDataGrid TItem="OrderEntity"
                                             Data="@_shipmentOrders"
                                             Density="Density.Compact"
                                             AllowSorting="false"
@@ -292,18 +348,18 @@ else
                                             PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
                                             EmptyText="@RadzenRuStrings.EmptyText">
                                 <Columns>
-                                    <RadzenDataGridColumn TItem="Order" Title="Товар" Width="240px">
+                                    <RadzenDataGridColumn TItem="OrderEntity" Title="Товар" Width="240px">
                                         <Template Context="o">
                                             @(o.ProductInfo?.Product?.Name ?? "—")
                                         </Template>
                                     </RadzenDataGridColumn>
-                                    <RadzenDataGridColumn TItem="Order" Title="Артикул" Width="120px">
+                                    <RadzenDataGridColumn TItem="OrderEntity" Title="Артикул" Width="120px">
                                         <Template Context="o">
                                             <span style="font-family: monospace; font-size: 0.8rem;">@(o.ProductInfo?.Product?.Article ?? "—")</span>
                                         </Template>
                                     </RadzenDataGridColumn>
-                                    <RadzenDataGridColumn TItem="Order" Property="Quantity" Title="Кол-во" Width="80px" TextAlign="TextAlign.Center" />
-                                    <RadzenDataGridColumn TItem="Order" Title="Статус" Width="160px">
+                                    <RadzenDataGridColumn TItem="OrderEntity" Property="Quantity" Title="Кол-во" Width="80px" TextAlign="TextAlign.Center" />
+                                    <RadzenDataGridColumn TItem="OrderEntity" Title="Статус" Width="160px">
                                         <Template Context="o">
                                             @o.Status?.Name
                                         </Template>
@@ -322,7 +378,7 @@ else
                         @foreach (var r in _order.Shipment.Returns)
                         {
                             <RadzenCard Style="padding: 1rem;">
-                                @DetailRow("Posting Number", r.PostingNumber, mono: true)
+                                @DetailRow("Номер отправления", r.PostingNumber, mono: true)
                                 @DetailRow("Номер заказа", r.OrderNumber, mono: true)
                                 @DetailRow("Товар", r.ProductName)
                                 @DetailRow("Артикул", r.OfferId, mono: true)
@@ -361,8 +417,8 @@ else
     [Parameter] public bool OpenReturnTab { get; set; }
 
     private TenantDbContext? _db;
-    private Order? _order;
-    private List<Order> _shipmentOrders = new();
+    private OrderEntity? _order;
+    private List<OrderEntity> _shipmentOrders = new();
     private int _selectedTabIndex;
 
     private List<CalculationRule> _calcRules = new();
@@ -420,11 +476,11 @@ else
 
     private static string? GetReturnTypeDisplayName(string? type) => type switch
     {
-        "Cancellation"  => "Отмена",
-        "FullReturn"    => "Полный возврат",
+        "Cancellation" => "Отмена",
+        "FullReturn" => "Полный возврат",
         "PartialReturn" => "Частичный возврат",
-        "ClientReturn"  => "Клиентский возврат",
-        _               => type
+        "ClientReturn" => "Клиентский возврат",
+        _ => type
     };
 
     private static string GetPriceColor(decimal value) =>

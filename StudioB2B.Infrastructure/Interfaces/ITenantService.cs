@@ -1,4 +1,5 @@
 using StudioB2B.Domain.Entities;
+using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Interfaces;
 
@@ -25,18 +26,6 @@ public interface ITenantService
     /// <summary>
     /// Зарегистрировать нового тенанта и создать его базу данных
     /// </summary>
-    Task<TenantRegistrationResult> RegisterAsync(
-        string companyName,
-        string subdomain,
-        string adminEmail,
-        string adminPassword,
-        CancellationToken ct = default);
+    Task<TenantRegistrationResultDto> RegisterAsync(string companyName, string subdomain, string adminEmail, string adminPassword,
+                                                 CancellationToken ct = default);
 }
-
-/// <summary>
-/// Результат регистрации тенанта
-/// </summary>
-public record TenantRegistrationResult(
-    bool Success,
-    Guid? TenantId = null,
-    string? Error = null);

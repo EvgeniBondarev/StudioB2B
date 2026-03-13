@@ -36,7 +36,7 @@ public class KeyEncryptionService : IKeyEncryptionService
         {
             // Derive a stable key from the application name as a safe fallback
             // (production deployments should always set Encryption:Key explicitly)
-            keyBytes = SHA256.HashData(Encoding.UTF8.GetBytes("StudioB2B-DefaultEncKey"));
+            keyBytes = SHA256.HashData("StudioB2B-DefaultEncKey"u8.ToArray());
         }
 
         _key = keyBytes;

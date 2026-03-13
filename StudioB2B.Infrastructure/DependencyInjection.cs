@@ -4,23 +4,18 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
-using StudioB2B.Infrastructure.Features.Marketplace;
-using StudioB2B.Infrastructure.Features.Orders;
-using StudioB2B.Infrastructure.Features.Roles;
-using StudioB2B.Infrastructure.Features.Users;
-using StudioB2B.Infrastructure.Http.Handlers;
-using StudioB2B.Infrastructure.Integrations.Ozon;
-using StudioB2B.Infrastructure.MultiTenancy;
-using StudioB2B.Infrastructure.MultiTenancy.CircuitHandlers;
-using StudioB2B.Infrastructure.MultiTenancy.Initialization;
-using StudioB2B.Infrastructure.MultiTenancy.Resolution;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
 using System.Text;
-using StudioB2B.Infrastructure.Features.Master;
+using StudioB2B.Domain.Options;
+using StudioB2B.Infrastructure.Features;
+using StudioB2B.Infrastructure.Helpers.Http.Handlers;
 using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Infrastructure.MultiTenancy.Services;
+using StudioB2B.Infrastructure.Services.MultiTenancy;
+using StudioB2B.Infrastructure.Services.Order;
+using StudioB2B.Infrastructure.Services.Ozon;
+using TenantService = StudioB2B.Infrastructure.Services.MultiTenancy.TenantService;
 
 namespace StudioB2B.Infrastructure;
 
@@ -98,7 +93,7 @@ public static class DependencyInjection
 
         // Factory — для сервисов, которым нужно создавать независимые контексты
         // (например OrderSyncJobService, вызываемый параллельно из polling + UI)
-        services.AddScoped<Features.Orders.ITenantDbContextCreator, TenantDbContextCreator>();
+        services.AddScoped<ITenantDbContextCreator, TenantDbContextCreator>();
 
         var jwtSection = configuration.GetSection("Jwt");
         var secret = jwtSection["Secret"] ?? throw new InvalidOperationException("Jwt:Secret is not configured");
@@ -124,12 +119,6 @@ public static class DependencyInjection
             });
 
         services.AddAuthorization();
-
-        services.AddScoped<GetRoles>();
-        services.AddScoped<GetRoleById>();
-        services.AddScoped<CreateRole>();
-        services.AddScoped<UpdateRole>();
-        services.AddScoped<DeleteRole>();
 
         services.AddScoped<GetUsers>();
         services.AddScoped<GetUserById>();

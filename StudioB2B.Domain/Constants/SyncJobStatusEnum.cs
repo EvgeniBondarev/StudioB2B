@@ -2,9 +2,9 @@ namespace StudioB2B.Domain.Constants;
 
 public enum SyncJobStatusEnum
 {
-    Enqueued   = 1,
+    Enqueued = 1,
     Processing = 2,
-    Succeeded  = 3,
-    Failed     = 4,
-    Cancelled  = 5
+    Succeeded = 3,
+    Failed = 4,
+    Cancelled = 5
 }

@@ -1,5 +1,6 @@
 @page "/users"
 @attribute [Authorize(Roles = "Admin")]
+@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject GetUsers GetUsers
@@ -263,7 +264,7 @@ else
             if (model.Id == Guid.Empty)
             {
                 var (ok, error) = await CreateUser.HandleAsync(
-                    new CreateUserRequest(model.Email, model.FirstName, model.LastName,
+                    new CreateUserDto(model.Email, model.FirstName, model.LastName,
                                          model.MiddleName, model.Password ?? "P@ssw0rd", model.Roles));
                 if (ok)
                 {
@@ -279,7 +280,7 @@ else
             else
             {
                 var (ok, error) = await UpdateUser.HandleAsync(model.Id,
-                    new UpdateUserRequest(model.FirstName, model.LastName, model.MiddleName,
+                    new UpdateUserDto(model.FirstName, model.LastName, model.MiddleName,
                                          model.IsActive, model.Roles));
                 if (ok)
                 {

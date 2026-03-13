@@ -10,25 +10,18 @@
 
 <RadzenLayout Style="min-height: 100vh;">
 
-    <!--
-        Sidebar width is controlled manually via Style.
-        @bind-Expanded is intentionally omitted — Radzen collapses it to width:0 when Expanded=false,
-        which hides icons too. Instead we use CSS class .sidebar-compact to show icon-only mode.
-    -->
-    <RadzenSidebar Style="@(_sidebarExpanded ? "width: 220px;" : "width: 64px; overflow: hidden;")">
-        <div class="sidebar-inner @(_sidebarExpanded ? "" : "sidebar-compact")">
+    <RadzenSidebar Style="@(_sidebarExpanded ? "width: 220px;" : "width: 0;")" class="sidebar-animated">
+        <div class="sidebar-inner">
 
             <div class="sidebar-logo">
                 <RadzenIcon Icon="business_center"
                             Style="color: var(--rz-primary-light); font-size: 1.4rem; flex-shrink: 0;" />
 
-                @if (_sidebarExpanded)
-                {
-                    <RadzenText Text="StudioB2B"
-                                TextStyle="TextStyle.H6"
-                                Style="color: var(--rz-primary-light); margin:0; font-weight:700;" />
-                }
+                <RadzenText Text="StudioB2B"
+                            TextStyle="TextStyle.H6"
+                            Style="color: var(--rz-primary-light); margin:0; font-weight:700;" />
             </div>
+
 
             <RadzenPanelMenu>
                 <RadzenPanelMenuItem Text="Главная" Path="/" Icon="home" />
@@ -94,13 +87,13 @@
         <AppTabBar />
         @if (_isFullHeight)
         {
-            <div class="body-full-height" style="padding: 1rem 1.5rem;">
+            <div class="body-full-height @(!_sidebarExpanded ? "sidebar-hidden" : "")" style="@BodyPadding">
                 @Body
             </div>
         }
         else
         {
-            <div style="padding: 1rem 1.5rem;">
+            <div class="body-content @(!_sidebarExpanded ? "sidebar-hidden" : "")" style="@BodyPadding">
                 @Body
             </div>
         }
@@ -116,12 +109,16 @@
     private bool _sidebarExpanded = true;
     private bool _masterAuthenticated;
     private const string TabsStorageKey = "app-tabs";
+    private const string SidebarStorageKey = "sidebar-expanded";
+
+    private string BodyPadding => _sidebarExpanded
+        ? "padding: 1rem 1.5rem;"
+        : "padding: 0.5rem 0;";
 
     // Страницы где контент занимает весь экран без padding
     private static readonly HashSet<string> FullHeightPages = ["/chats"];
 
-    private bool _isFullHeight =>
-        FullHeightPages.Contains(new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant());
+    private bool _isFullHeight => FullHeightPages.Contains(new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant());
 
     protected override void OnInitialized()
     {
@@ -134,6 +131,7 @@
         if (firstRender)
         {
             _masterAuthenticated = await AuthStateProvider.IsMasterAuthenticatedAsync();
+            await LoadSidebarStateAsync();
             await LoadTabsFromStorageAsync();
             OpenCurrentTab();
             StateHasChanged();
@@ -191,7 +189,31 @@
         }
     }
 
-    private void ToggleSidebar() => _sidebarExpanded = !_sidebarExpanded;
+    private void ToggleSidebar()
+    {
+        _sidebarExpanded = !_sidebarExpanded;
+        _ = SaveSidebarStateAsync();
+    }
+
+    private async Task LoadSidebarStateAsync()
+    {
+        try
+        {
+            var val = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", SidebarStorageKey);
+            if (val is not null)
+                _sidebarExpanded = val == "true";
+        }
+        catch { }
+    }
+
+    private async Task SaveSidebarStateAsync()
+    {
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("localStorage.setItem", SidebarStorageKey, _sidebarExpanded ? "true" : "false");
+        }
+        catch { }
+    }
 
     public void Dispose()
     {

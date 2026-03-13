@@ -1,6 +1,7 @@
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Constants
 @using StudioB2B.Domain.Entities
+@using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 
@@ -269,16 +270,16 @@ else
     private List<Product> _products = [];
     private List<RuleRow> _rules = [];
     private List<FieldRuleRow> _fieldRules = [];
-    private List<OrderTransactionFieldDescriptor> _fieldDescriptors = [];
+    private List<OrderTransactionFieldDescriptorDto> _fieldDescriptors = [];
     private static readonly List<ValueSourceOption> _valueSourceOptions =
     [
-        new ValueSourceOption(TransactionValueSourceEnum.Formula, "Формула"),
-        new ValueSourceOption(TransactionValueSourceEnum.UserInput, "Ввод при проведении")
+        new(TransactionValueSourceEnum.Formula, "Формула"),
+        new(TransactionValueSourceEnum.UserInput, "Ввод при проведении")
     ];
     private static readonly List<FieldValueSourceOption> _fieldValueSourceOptions =
     [
-        new FieldValueSourceOption(TransactionFieldValueSourceEnum.Fixed, "Фиксированное"),
-        new FieldValueSourceOption(TransactionFieldValueSourceEnum.UserInput, "Ввод при проведении")
+        new(TransactionFieldValueSourceEnum.Fixed, "Фиксированное"),
+        new(TransactionFieldValueSourceEnum.UserInput, "Ввод при проведении")
     ];
 
     private record ValueSourceOption(TransactionValueSourceEnum Value, string Text);

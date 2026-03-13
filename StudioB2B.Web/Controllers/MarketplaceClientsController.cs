@@ -1,7 +1,7 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using StudioB2B.Infrastructure.Features.Marketplace;
+using StudioB2B.Infrastructure.Features;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
 using StudioB2B.Shared.DTOs;
@@ -17,10 +17,8 @@ public class MarketplaceClientsController : ControllerBase
     private readonly ITenantProvider _tenantProvider;
     private readonly IMapper _mapper;
 
-    public MarketplaceClientsController(
-        ITenantDbContextFactory dbContextFactory,
-        ITenantProvider tenantProvider,
-        IMapper mapper)
+    public MarketplaceClientsController(ITenantDbContextFactory dbContextFactory, ITenantProvider tenantProvider,
+                                        IMapper mapper)
     {
         _dbContextFactory = dbContextFactory;
         _tenantProvider = tenantProvider;
@@ -51,7 +49,7 @@ public class MarketplaceClientsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(CreateMarketplaceClientRequest req)
+    public async Task<IActionResult> Create(CreateMarketplaceClientDto req)
     {
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
@@ -62,7 +60,7 @@ public class MarketplaceClientsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update(Guid id, UpdateMarketplaceClientRequest req)
+    public async Task<IActionResult> Update(Guid id, UpdateMarketplaceClientDto req)
     {
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });

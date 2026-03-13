@@ -8,7 +8,7 @@ namespace StudioB2B.Infrastructure.Services;
 
 /// <summary>
 /// Движок вычисления пользовательских формул на базе DynamicExpresso.
-/// Переменные в контексте берутся из <see cref="Order.Prices"/> по ключу PriceType.Name
+/// Переменные в контексте берутся из <see cref="OrderEntity.Prices"/> по ключу PriceType.Name
 /// (пробелы убираются → CamelCase), а также базовое поле Quantity.
 /// </summary>
 public class CalculationEngine
@@ -31,7 +31,7 @@ public class CalculationEngine
     /// <param name="order">Заказ с загруженными Prices → PriceType.</param>
     /// <param name="rules">Список активных правил, отсортированный по SortOrder.</param>
     /// <returns>Словарь ResultKey → результат вычисления.</returns>
-    public Dictionary<string, decimal> Calculate(Order order, IEnumerable<CalculationRule> rules)
+    public Dictionary<string, decimal> Calculate(OrderEntity order, IEnumerable<CalculationRule> rules)
     {
         _errors.Clear();
 
@@ -111,7 +111,7 @@ public class CalculationEngine
     /// <summary>
     /// Возвращает список доступных имён переменных для данного заказа (для отображения в UI).
     /// </summary>
-    public static IReadOnlyList<string> GetAvailableVariables(Order order) =>
+    public static IReadOnlyList<string> GetAvailableVariables(OrderEntity order) =>
         BuildContext(order).Keys.ToList();
 
     /// <summary>
@@ -119,7 +119,7 @@ public class CalculationEngine
     /// имена переменных → их числовые значения.
     /// Используется для отладки и визуализации в UI.
     /// </summary>
-    public static IReadOnlyDictionary<string, decimal> GetContextSnapshot(Order order) =>
+    public static IReadOnlyDictionary<string, decimal> GetContextSnapshot(OrderEntity order) =>
         BuildContext(order);
 
     /// <summary>
@@ -166,7 +166,7 @@ public class CalculationEngine
         }
     }
 
-    private static Dictionary<string, decimal> BuildContext(Order order)
+    private static Dictionary<string, decimal> BuildContext(OrderEntity order)
     {
         var context = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
         {
