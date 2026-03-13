@@ -216,7 +216,7 @@ h1:focus {
 
 /* Общий стиль всех таблиц Radzen */
 .rz-data-grid {
-  border-radius: 10px;
+  border-radius: 6px;
   overflow: hidden;
 
   border: 1px solid #e9ecf8;
@@ -362,3 +362,21 @@ h1:focus {
   border-radius: var(--rz-border-radius);
   z-index: 2000;
 }
+
+/* шапка кастомных колонкох в таблице Транзакций  */
+.header-bg-full {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  background-color: var(--rz-primary-light) !important;
+  color: white !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  z-index: -1;
+}
+
