@@ -29,13 +29,17 @@ else
                 <RadzenRow Gap="1rem">
                     <RadzenColumn Size="12" SizeMD="6">
                         <RadzenFormField Text="Исходный статус">
-                            <RadzenDropDown Data="@_internalStatuses"
+                            <RadzenDropDown Data="@_nonTerminalStatuses"
                                             TextProperty="Name"
                                             ValueProperty="Id"
                                             @bind-Value="_fromStatusId"
                                             Style="width: 100%;"
                                             Placeholder="Выберите" />
                         </RadzenFormField>
+                        <RadzenText TextStyle="TextStyle.Caption"
+                                    Style="color:var(--rz-text-disabled-color);font-size:0.7rem;margin-top:2px;display:block;">
+                            Конечные статусы недоступны как исходные
+                        </RadzenText>
                     </RadzenColumn>
                     <RadzenColumn Size="12" SizeMD="6">
                         <RadzenFormField Text="Целевой статус">
@@ -257,6 +261,11 @@ else
 @code {
     [Parameter] public Guid? TransactionId { get; set; }
 
+    /// <summary>Pre-filled when opening from the canvas flow editor.</summary>
+    [Parameter] public Guid? InitialFromStatusId { get; set; }
+    /// <summary>Pre-filled when opening from the canvas flow editor.</summary>
+    [Parameter] public Guid? InitialToStatusId { get; set; }
+
     private TenantDbContext? _db;
     private bool _loading = true;
     private string _name = string.Empty;
@@ -266,6 +275,8 @@ else
     private string? _color;
     private string? _icon;
     private List<OrderStatus> _internalStatuses = [];
+    /// <summary>Internal statuses that are NOT terminal — valid as a transaction source.</summary>
+    private List<OrderStatus> _nonTerminalStatuses = [];
     private List<PriceType> _priceTypes = [];
     private List<Product> _products = [];
     private List<RuleRow> _rules = [];
@@ -373,6 +384,9 @@ else
             .AsNoTracking()
             .ToListAsync();
 
+        // Terminal statuses cannot be the source of a transaction
+        _nonTerminalStatuses = _internalStatuses.Where(s => !s.IsTerminal).ToList();
+
         _priceTypes = await _db.PriceTypes
             .Where(p => !p.IsDeleted)
             .OrderBy(p => p.Name)
@@ -432,7 +446,16 @@ else
         }
         else if (_priceTypes.Count > 0)
         {
+            // Pre-fill statuses when opened from the canvas flow editor
+            if (InitialFromStatusId.HasValue) _fromStatusId = InitialFromStatusId;
+            if (InitialToStatusId.HasValue) _toStatusId = InitialToStatusId;
             AddRule();
+        }
+        else
+        {
+            // No price types — still pre-fill statuses from canvas
+            if (InitialFromStatusId.HasValue) _fromStatusId = InitialFromStatusId;
+            if (InitialToStatusId.HasValue) _toStatusId = InitialToStatusId;
         }
 
         _loading = false;
@@ -509,6 +532,15 @@ else
         if (!_fromStatusId.HasValue || !_toStatusId.HasValue)
         {
             NotificationService.Notify(NotificationSeverity.Warning, "Ошибка", "Укажите исходный и целевой статусы.");
+            return;
+        }
+
+        // Terminal status cannot be a transaction source
+        var fromStatus = _internalStatuses.FirstOrDefault(s => s.Id == _fromStatusId.Value);
+        if (fromStatus?.IsTerminal == true)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Запрещено",
+                $"Статус «{fromStatus.Name}» является конечным. Исходящие транзакции из конечного статуса недопустимы.");
             return;
         }
         if (_rules.Count == 0 && _fieldRules.Count == 0)
