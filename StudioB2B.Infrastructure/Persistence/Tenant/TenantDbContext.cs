@@ -121,6 +121,8 @@ public class TenantDbContext : DbContext
 
     public DbSet<OrderReturn> OrderReturns { get; set; } = null!;
 
+    public DbSet<TenantModule> TenantModules { get; set; } = null!;
+
     #endregion
 
     public TenantDbContext(

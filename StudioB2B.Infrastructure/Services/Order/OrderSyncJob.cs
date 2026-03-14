@@ -6,6 +6,7 @@ using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Infrastructure.Services.Modules;
 using StudioB2B.Infrastructure.Services.Ozon;
 
 namespace StudioB2B.Infrastructure.Services.Order;
@@ -22,14 +23,17 @@ public class OrderSyncJob
     private readonly IKeyEncryptionService _encryption;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IEnumerable<IModuleActivator> _moduleActivators;
 
     public OrderSyncJob(ISyncNotificationSender notificationSender, IKeyEncryptionService encryption,
-                        IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory)
+                        IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory,
+                        IEnumerable<IModuleActivator> moduleActivators)
     {
         _notificationSender = notificationSender;
         _encryption = encryption;
         _httpClientFactory = httpClientFactory;
         _loggerFactory = loggerFactory;
+        _moduleActivators = moduleActivators;
     }
 
     [AutomaticRetry(Attempts = 0)]
@@ -315,10 +319,16 @@ public class OrderSyncJob
             _encryption,
             _loggerFactory.CreateLogger<OzonApiClient>());
 
+        var moduleService = new ModuleService(
+            db,
+            _moduleActivators,
+            _loggerFactory.CreateLogger<ModuleService>());
+
         var adapter = new OzonFbsOrderAdapter(
             apiClient,
             db,
-            _loggerFactory.CreateLogger<OzonFbsOrderAdapter>());
+            _loggerFactory.CreateLogger<OzonFbsOrderAdapter>(),
+            moduleService);
 
         return new OrderSyncService(
             db,
