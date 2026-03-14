@@ -29,10 +29,25 @@ else
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
         <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Документы заказов</RadzenText>
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
-            <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                          Click="@ToggleDensity" Title="@GetDensityTitle()" />
-            <RadzenButton Icon="add" Text="Добавить" ButtonStyle="ButtonStyle.Primary"
-                          Click="@OpenCreateDialog" />
+            @if (_viewMode == "table")
+            {
+                <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Click="@ToggleDensity" Title="@GetDensityTitle()" />
+            }
+            <!-- View-mode toggle -->
+            <RadzenButton Icon="table_chart"
+                          ButtonStyle="@(_viewMode == "table" ? ButtonStyle.Primary : ButtonStyle.Light)"
+                          Size="ButtonSize.Small" Title="Режим таблицы"
+                          Click="@(() => SetViewMode("table"))" />
+            <RadzenButton Icon="account_tree"
+                          ButtonStyle="@(_viewMode == "canvas" ? ButtonStyle.Primary : ButtonStyle.Light)"
+                          Size="ButtonSize.Small" Title="Режим холста"
+                          Click="@(() => SetViewMode("canvas"))" />
+            @if (_viewMode == "table")
+            {
+                <RadzenButton Icon="add" Text="Добавить" ButtonStyle="ButtonStyle.Primary"
+                              Click="@OpenCreateDialog" />
+            }
         </RadzenStack>
     </RadzenStack>
 
@@ -41,6 +56,12 @@ else
         Документ — переход заказа из одного системного статуса в другой с изменением цен по правилам.
     </RadzenText>
 
+    @if (_viewMode == "canvas")
+    {
+        <TransactionFlowCanvas @ref="_canvas" OnTransactionsChanged="@OnCanvasTransactionsChanged" />
+    }
+    else
+    {
     @if (_statusMatrix != null && _statusMatrix.Statuses.Count > 0)
     {
         <RadzenCard Style="margin-bottom: 1.5rem;">
@@ -207,16 +228,19 @@ else
 
         </Columns>
     </RadzenDataGrid>
+    } @* end else (table mode) *@
 }
 
 @code {
     private RadzenDataGrid<OrderTransaction>? _grid;
+    private TransactionFlowCanvas? _canvas;
     private TenantDbContext? _db;
     private IEnumerable<OrderTransaction> _pageItems = Array.Empty<OrderTransaction>();
     private int _totalCount;
     private Density _density = Density.Default;
     private bool _loading;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+    private string _viewMode = "table";
     private DataGridSettings? _gridSettings;
     private const string GridSettingsKey = "transactions-grid-settings";
     private StatusTransitionMatrix? _statusMatrix;
@@ -247,6 +271,22 @@ else
 
         public IReadOnlyList<string> GetTransactionNames(Guid fromId, Guid toId) =>
             _map.TryGetValue((fromId, toId), out var list) ? list : [];
+    }
+
+    private async Task SetViewMode(string mode)
+    {
+        _viewMode = mode;
+        if (mode == "table" && _grid != null)
+        {
+            await _grid.Reload();
+        }
+    }
+
+    private async Task OnCanvasTransactionsChanged()
+    {
+        // When a transaction is saved from the canvas, reload the grid data too
+        if (_grid != null)
+            await _grid.Reload();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
