@@ -547,6 +547,7 @@ else
                             var fg = IsLightColor(bg) ? "#1f2937" : "#ffffff";
 
                             <RadzenBadge Text="@o.Status.Name"
+                                         title="@o.Status.Name"
                                          Style="@($"background:{bg}; color:{fg}; white-space:nowrap;")"
                                          Class="status-badge"/>
                             @if (o.Shipment.HasReturn)
@@ -606,6 +607,7 @@ else
                             var fg = GetTextColor(bg);
 
                             <RadzenBadge Text="@o.SystemStatus.Name"
+                                         title="@o.SystemStatus.Name"
                                          Style="@($"background:{bg}; color:{fg};")"
                                          Class="status-badge"/>
                         }
@@ -664,7 +666,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderEntity"
-                                  Title="@GetColumn(OrderGridColumns.Price).Title"
+                                  Title="@GetPriceColumnTitle()"
                                   Width="@GetColumn(OrderGridColumns.Price).Width"
                                   Visible="@GetColumn(OrderGridColumns.Price).Visible"
                                   Filterable="false" Sortable="false"
@@ -675,13 +677,13 @@ else
                     }
                     @if (price != null)
                     {
-                        var priceText = $"{price.Value:N2} {price.Currency?.Code}";
-                        <RadzenText TextStyle="TextStyle.Body2"
-                                    Class="rz-text-truncate"
-                                    Style="@($"font-weight:600; letter-spacing:0.2px; {GetPriceColor(price.Value)}")"
-                                    title="@priceText">
+                        if (_currencyCode == null && !string.IsNullOrEmpty(price.Currency?.Code))
+                            _currencyCode = price.Currency!.Code;
+                        var priceText = FormatPrice(price.Value, price.Currency?.Code);
+                        <span style="font-weight:600; letter-spacing:0.2px; white-space:nowrap; @GetPriceColor(price.Value)"
+                              title="@($"{price.Value:N2} {price.Currency?.Code}")">
                             @priceText
-                        </RadzenText>
+                        </span>
                     }
                     else
                     {
@@ -719,7 +721,7 @@ else
                                                 style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help;"
                                                 title="@GetFormulaBreakdown(o, rule, val)">
                                                 <span style="color: var(--rz-text-secondary-color);">@rule.Name:</span>
-                                                <strong style="@GetPriceColor(val)">@val.ToString("N2")</strong>
+                                                <strong style="@GetPriceColor(val)">@FormatCalcValue(val)</strong>
                                             </span>
                                         }
                                     }
@@ -732,22 +734,21 @@ else
                 {
                     @foreach (var rule in _calcRules)
                     {
-                        var propName = $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(rule.ResultKey)}";
+                        var capturedRule = rule;
+                        var propName = $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(capturedRule.ResultKey)}";
                         <RadzenDataGridColumn TItem="OrderEntity"
-                                              Title="@rule.Name"
+                                              Title="@capturedRule.Name"
                                               Property="@propName"
-                                              Width="@GetColumn(OrderGridColumns.ExtraCalculations).Width"
                                               Visible="@GetColumn(OrderGridColumns.ExtraCalculations).Visible"
                                               Filterable="false"
                                               Sortable="true"
-                                              TextAlign="TextAlign.Right"
                                               HeaderCssClass="half-painted-header">
                             <Template Context="o">
                                 @if (_computed.TryGetValue(o.Id, out var fields) &&
-                                     fields.TryGetValue(rule.ResultKey, out var val) &&
+                                     fields.TryGetValue(capturedRule.ResultKey, out var val) &&
                                      val != decimal.MinValue)
                                 {
-                                    <span title="@GetFormulaBreakdown(o, rule, val)" style="cursor: help; @GetPriceColor(val)">@val.ToString("N2")</span>
+                                    <span title="@GetFormulaBreakdown(o, capturedRule, val)" style="cursor: help; @GetPriceColor(val)">@FormatCalcValue(val)</span>
                                 }
                             </Template>
                         </RadzenDataGridColumn>
@@ -806,10 +807,12 @@ window.gridResize = {
     private List<CalculationRule> _calcRules = new();
     private Dictionary<Guid, Dictionary<string, decimal>> _computed = new();
     private bool _computedSplitByColumns;
+    private int _windowWidth;
+    private string? _currencyCode;
     private Dictionary<Guid, string?> _orderLastTransactionColor = new();
 
     private DataGridSettings? _gridSettings;
-    private const string GridSettingsKey = "orders-grid-settings";
+    private const string GridSettingsKey = "orders-grid-settings-v3";
     private const string FiltersKey = "orders-filters";
     private const string ColumnsKey = "orders-columns-visibility";
 
@@ -915,21 +918,21 @@ window.gridResize = {
     // Список конфигураций колонок
     List<ColumnConfig> Columns = new()
     {
-        new() { Key = OrderGridColumns.ShipmentNumber, Title = "№ Отправления", Frozen = true, Width = "140px", Priority = 1 },
-        new() { Key = OrderGridColumns.Client, Title = "Клиент", Width = "100px", Priority = 4 },
-        new() { Key = OrderGridColumns.AcceptedDate, Title = "Принят", Width = "80px", Priority = 9 },
-        new() { Key = OrderGridColumns.ShippingDate, Title = "Отгрузка", Width = "80px", Priority = 8 },
-        new() { Key = OrderGridColumns.Article, Title = "Артикул", Width = "110px", Priority = 13 },
-        new() { Key = OrderGridColumns.Product, Title = "Товар", Frozen = true, Width = "185px", Priority = 2 },
-        new() { Key = OrderGridColumns.Quantity, Title = "Кол", Width = "48px", Priority = 5 },
-        new() { Key = OrderGridColumns.MarketplaceStatus, Title = "Статус МП", Width = "120px", Priority = 6 },
-        new() { Key = OrderGridColumns.AppStatus, Title = "Статус", Width = "110px", Priority = 7 },
-        new() { Key = OrderGridColumns.DeliveryMethod, Title = "Доставка", Width = "100px", Priority = 10 },
-        new() { Key = OrderGridColumns.Warehouse, Title = "Склад", Width = "90px", Priority = 11 },
-        new() { Key = OrderGridColumns.Price, Title = "Цена", Width = "85px", Priority = 3 },
-        new() { Key = OrderGridColumns.ExtraCalculations, Title = "Расчёты", Width = "130px", Priority = 12 },
-        new() { Key = OrderGridColumns.DeliveryTerm, Title = "Срок", Width = "68px", Priority = 14 },
-        new() { Key = OrderGridColumns.Manufacturer, Title = "Производитель", Width = "80px", Priority = 15 }
+        new() { Key = OrderGridColumns.ShipmentNumber, Title = "№ Отправления", Frozen = true, Width = "10%", Priority = 1 },
+        new() { Key = OrderGridColumns.Client, Title = "Клиент", Width = "7%", Priority = 3 },
+        new() { Key = OrderGridColumns.AcceptedDate, Title = "Принят", Width = "5.5%", Priority = 9 },
+        new() { Key = OrderGridColumns.ShippingDate, Title = "Отгрузка", Width = "5.5%", Priority = 8 },
+        new() { Key = OrderGridColumns.Article, Title = "Артикул", Width = "8%", Priority = 13 },
+        new() { Key = OrderGridColumns.Product, Title = "Товар", Frozen = true, Width = "14%", Priority = 2 },
+        new() { Key = OrderGridColumns.Quantity, Title = "Кол", Width = "3%", Priority = 7 },
+        new() { Key = OrderGridColumns.MarketplaceStatus, Title = "Статус МП", Width = "8%", Priority = 4 },
+        new() { Key = OrderGridColumns.AppStatus, Title = "Статус", Width = "7%", Priority = 5 },
+        new() { Key = OrderGridColumns.DeliveryMethod, Title = "Доставка", Width = "6%", Priority = 10 },
+        new() { Key = OrderGridColumns.Warehouse, Title = "Склад", Width = "6%", Priority = 11 },
+        new() { Key = OrderGridColumns.Price, Title = "Цена", Width = "6%", Priority = 6 },
+        new() { Key = OrderGridColumns.ExtraCalculations, Title = "Расчёты", Width = "9%", Priority = 12 },
+        new() { Key = OrderGridColumns.DeliveryTerm, Title = "Срок", Width = "4%", Priority = 14 },
+        new() { Key = OrderGridColumns.Manufacturer, Title = "Произв.", Width = "5%", Priority = 15 }
     };
 
     void UpdateSelectedColumns()
@@ -945,28 +948,21 @@ window.gridResize = {
     // высчитываем, сколько колонок показывать
     void UpdateColumnsForWidth(int width)
     {
+        _windowWidth = width;
         int maxPriority;
 
         if (width < 900)
             maxPriority = 3; // минимальный набор — 3 колонки
-        else if (width < 1050)
+        else if (width < 1000)
             maxPriority = 5; // + Client + Quantity
+        else if (width < 1100)
+            maxPriority = 7; // + MarketplaceStatus + AppStatus
         else if (width < 1200)
-            maxPriority = 6; // + MarketplaceStatus
-        else if (width < 1350)
-            maxPriority = 7; // + AppStatus
-        else if (width < 1500)
-            maxPriority = 8; // + ShippingDate
-        else if (width < 1600)
-            maxPriority = 9; // + AcceptedDate
-        else if (width < 1700)
-            maxPriority = 10; // + DeliveryMethod
-        else if (width < 1850)
-            maxPriority = 11; // + Warehouse
-        else if (width < 2000)
-            maxPriority = 12; // + ExtraCalculations
-        else if (width < 2150)
-            maxPriority = 13; // + Article
+            maxPriority = 9; // + ShippingDate + AcceptedDate
+        else if (width < 1300)
+            maxPriority = 11; // + DeliveryMethod + Warehouse
+        else if (width < 1400)
+            maxPriority = 13; // + ExtraCalculations + Article
         else
             maxPriority = 15; // + DeliveryTerm + Manufacturer
 
@@ -1730,6 +1726,26 @@ window.gridResize = {
 
     private static string GetPriceColor(decimal value) =>
         value < 0 ? "color: var(--rz-danger);" : "";
+
+    private string GetPriceColumnTitle()
+    {
+        var title = GetColumn(OrderGridColumns.Price).Title;
+        return !string.IsNullOrEmpty(_currencyCode) ? $"{title}, {_currencyCode}" : title;
+    }
+
+    private string FormatPrice(decimal value, string? currencyCode)
+    {
+        if (_windowWidth > 0 && _windowWidth < 1600)
+            return value % 1 == 0 ? $"{value:N0}" : $"{value:N2}";
+        return string.IsNullOrEmpty(currencyCode) ? $"{value:N2}" : $"{value:N2} {currencyCode}";
+    }
+
+    private string FormatCalcValue(decimal value)
+    {
+        if (_windowWidth > 0 && _windowWidth < 1600)
+            return value % 1 == 0 ? $"{value:N0}" : $"{value:N2}";
+        return $"{value:N2}";
+    }
 
     private string GetFormulaBreakdown(OrderEntity o, CalculationRule rule, decimal val)
     {
