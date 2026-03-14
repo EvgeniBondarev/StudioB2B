@@ -1,0 +1,99 @@
+@using StudioB2B.Domain.Entities
+@inject DialogService DialogService
+
+<div style="padding: 0.25rem 0;">
+    @if (Statuses == null || Statuses.Count == 0)
+    {
+        <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false">
+            Все статусы уже добавлены на холст.
+        </RadzenAlert>
+    }
+    else
+    {
+        <RadzenText TextStyle="TextStyle.Body2"
+                    Style="color: var(--rz-text-secondary-color); margin-bottom: 0.75rem; display: block;">
+            Выберите один или несколько статусов для добавления на холст.
+        </RadzenText>
+
+        <div style="max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem;">
+            @foreach (var s in Statuses)
+            {
+                var isSelected = _selected.Contains(s.Id);
+                var color = GetStatusColor(s);
+                var softBg = GetSoftBackground(color);
+
+                <div style="@($"padding: 0.5rem 0.75rem; border-radius: 6px; border: 2px solid {(isSelected ? color : "var(--rz-border-color)")}; background: {(isSelected ? softBg : "var(--rz-base-background)")}; cursor: pointer; display: flex; align-items: center; gap: 0.6rem; transition: border-color .15s;")"
+                     @onclick="@(() => ToggleSelect(s.Id))">
+                    <span style="@($"width: 12px; height: 12px; border-radius: 50%; background: {color}; flex-shrink: 0;")"></span>
+                    <span style="flex: 1; font-size: 0.875rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@s.Name</span>
+                    @if (s.IsTerminal)
+                    {
+                        <span style="background:#fee2e2;color:#b91c1c;border-radius:4px;padding:1px 5px;font-size:0.68rem;font-weight:600;flex-shrink:0;">Конечный</span>
+                    }
+                    @if (s.IsInternal)
+                    {
+                        <span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 5px;font-size:0.68rem;font-weight:600;flex-shrink:0;">Внутренний</span>
+                    }
+                    @if (isSelected)
+                    {
+                        <i class="rzi" style="@($"color:{color}; font-size:1.1rem; flex-shrink:0;")">check_circle</i>
+                    }
+                    else
+                    {
+                        <i class="rzi" style="color: var(--rz-base-300); font-size:1.1rem; flex-shrink:0;">radio_button_unchecked</i>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End"
+                 Gap="0.5rem" Style="margin-top: 1rem;">
+        <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Light"
+                      Click="@(() => DialogService.Close(null))" />
+        <RadzenButton Text="@($"Добавить ({_selected.Count})")"
+                      ButtonStyle="ButtonStyle.Primary"
+                      Disabled="@(_selected.Count == 0)"
+                      Click="@Confirm" />
+    </RadzenStack>
+</div>
+
+@code {
+    [Parameter] public List<OrderStatus> Statuses { get; set; } = [];
+
+    private readonly HashSet<Guid> _selected = new();
+
+    private void ToggleSelect(Guid id)
+    {
+        if (!_selected.Add(id))
+            _selected.Remove(id);
+    }
+
+    private void Confirm() => DialogService.Close(_selected.ToList());
+
+    private static string GetStatusColor(OrderStatus s)
+    {
+        if (!string.IsNullOrEmpty(s.Color)) return s.Color;
+        if (s.Colors?.Count > 0) return s.Colors[0].Hash;
+        return "#6366f1";
+    }
+
+    private static string GetSoftBackground(string? color)
+    {
+        if (string.IsNullOrEmpty(color)) return "#ececff";
+        color = color.TrimStart('#');
+        if (color.Length < 6) return "#ececff";
+        try
+        {
+            var r = Convert.ToInt32(color[..2], 16);
+            var g = Convert.ToInt32(color[2..4], 16);
+            var b = Convert.ToInt32(color[4..6], 16);
+            r = (int)(r + (255 - r) * 0.7);
+            g = (int)(g + (255 - g) * 0.7);
+            b = (int)(b + (255 - b) * 0.7);
+            return $"#{r:X2}{g:X2}{b:X2}";
+        }
+        catch { return "#ececff"; }
+    }
+}
+
