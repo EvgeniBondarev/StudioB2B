@@ -25,6 +25,66 @@ h1:focus {
   content: "Произошла ошибка приложения.";
 }
 
+/* Reconnect dialog */
+#components-reconnect-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#components-reconnect-modal.components-reconnect-hide {
+  display: none;
+}
+#components-reconnect-modal .components-reconnect-dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  max-width: 360px;
+}
+#components-reconnect-modal .components-reconnect-dialog p {
+  margin: 0.8rem 0;
+  font-size: 0.95rem;
+  color: #333;
+}
+#components-reconnect-modal .components-reconnect-dialog button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--rz-primary, #4f46e5);
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+#components-reconnect-modal .components-reconnect-dialog button:hover {
+  opacity: 0.9;
+}
+#components-reconnect-modal .components-rejoining-animation {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 0.5rem;
+}
+#components-reconnect-modal .components-rejoining-animation > div {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--rz-primary, #4f46e5);
+  animation: reconnect-pulse 1.2s infinite ease-in-out;
+}
+#components-reconnect-modal .components-rejoining-animation > div:nth-child(2) {
+  animation-delay: 0.3s;
+}
+@keyframes reconnect-pulse {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
 .sidebar-inner {
   display: flex;
   flex-direction: column;
@@ -269,15 +329,15 @@ h1:focus {
 /* Уменьшаем паддинги для всех ячеек таблицы */
 .rz-grid-table td,
 .rz-grid-table th {
-  padding: 0.25rem 0.35rem !important;
+  padding: 0.2rem 0.3rem !important;
 }
 
 .rz-data-grid th .rz-column-title-content,
 .rz-data-grid th .rz-header-filter-title {
-  font-size: 15px;
+  font-size: 13px;
   color:var(--rz-base-dark) !important;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.1px;
 }
 
 .rz-grid-table{
@@ -290,6 +350,7 @@ h1:focus {
   overflow: clip;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 0.82rem;
 }
 
 /* Отступы заголовков */
