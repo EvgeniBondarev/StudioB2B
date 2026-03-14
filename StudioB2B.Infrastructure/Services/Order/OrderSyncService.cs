@@ -23,7 +23,8 @@ public class OrderSyncService : IOrderSyncService
         _logger = logger;
     }
 
-    public async Task<OrderSyncSummaryDto> SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default)
+    public async Task<OrderSyncSummaryDto> SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo,
+        CancellationToken ct = default, Func<string, Task>? onProgress = null)
     {
         var ozonClients = await _db.MarketplaceClients!
             .Include(c => c.ClientType)
@@ -35,9 +36,13 @@ public class OrderSyncService : IOrderSyncService
             "Starting order sync for {Count} Ozon FBS client(s).", ozonClients.Count);
 
         var summary = new OrderSyncSummaryDto();
+        var total = ozonClients.Count;
 
-        foreach (var client in ozonClients)
+        for (var idx = 0; idx < ozonClients.Count; idx++)
         {
+            var client = ozonClients[idx];
+            if (onProgress is not null)
+                await onProgress($"Клиент {idx + 1}/{total}: {client.Name}");
             try
             {
                 _logger.LogInformation(
@@ -69,7 +74,8 @@ public class OrderSyncService : IOrderSyncService
         return summary;
     }
 
-    public async Task<OrderSyncSummaryDto> UpdateAllAsync(DateTime from, DateTime to, CancellationToken ct = default)
+    public async Task<OrderSyncSummaryDto> UpdateAllAsync(DateTime from, DateTime to, CancellationToken ct = default,
+        Func<string, Task>? onProgress = null)
     {
         var ozonClients = await _db.MarketplaceClients!
             .Include(c => c.ClientType)
@@ -82,10 +88,14 @@ public class OrderSyncService : IOrderSyncService
             ozonClients.Count, from, to);
 
         var summary = new OrderSyncSummaryDto();
+        var total = ozonClients.Count;
 
-        foreach (var client in ozonClients)
+        for (var idx = 0; idx < ozonClients.Count; idx++)
         {
+            var client = ozonClients[idx];
             ct.ThrowIfCancellationRequested();
+            if (onProgress is not null)
+                await onProgress($"\u041a\u043b\u0438\u0435\u043d\u0442 {idx + 1}/{total}: {client.Name}");
             try
             {
                 _logger.LogInformation(

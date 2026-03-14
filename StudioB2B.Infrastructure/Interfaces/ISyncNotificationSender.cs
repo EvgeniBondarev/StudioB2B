@@ -10,5 +10,8 @@ public interface ISyncNotificationSender
     Task SendJobStartedAsync(Guid tenantId, Guid historyId, string jobType, CancellationToken ct = default);
 
     Task SendJobCompletedAsync(Guid tenantId, Guid historyId, string status, string jobType, CancellationToken ct = default);
+
+    /// <summary>Отправляет промежуточный прогресс задачи (например, «обработан клиент N/M»).</summary>
+    Task SendJobProgressAsync(Guid tenantId, Guid historyId, string message, CancellationToken ct = default);
 }
 

@@ -172,7 +172,10 @@ public class OrderSyncJob
                 tenantId, from, to);
 
             var syncService = BuildSyncService(db);
-            var summary = await syncService.SyncAllAsync(from, to, cancellationToken);
+            var summary = await syncService.SyncAllAsync(from, to, cancellationToken, async msg =>
+            {
+                await _notificationSender.SendJobProgressAsync(tenantId, history.Id, msg, CancellationToken.None);
+            });
 
             history.Status = SyncJobStatusEnum.Succeeded;
             history.FinishedAtUtc = DateTime.UtcNow;
@@ -255,7 +258,10 @@ public class OrderSyncJob
                 tenantId, from, to);
 
             var syncService = BuildSyncService(db);
-            var summary = await syncService.UpdateAllAsync(from, to, cancellationToken);
+            var summary = await syncService.UpdateAllAsync(from, to, cancellationToken, async msg =>
+            {
+                await _notificationSender.SendJobProgressAsync(tenantId, history.Id, msg, CancellationToken.None);
+            });
 
             history.Status = SyncJobStatusEnum.Succeeded;
             history.FinishedAtUtc = DateTime.UtcNow;

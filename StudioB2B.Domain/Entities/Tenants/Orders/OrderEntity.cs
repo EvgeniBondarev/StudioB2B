@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities.Orders;
 
 namespace StudioB2B.Domain.Entities;
@@ -41,6 +43,18 @@ public class OrderEntity : IBaseEntity, ISoftDelete
 
     public Guid? WarehouseInfoId { get; set; }
     public WarehouseInfo? WarehouseInfo { get; set; }
+
+    /// <summary>Срок доставки (ShipmentDate − InProcessAt). Null если одна из дат отсутствует.</summary>
+    [NotMapped]
+    public TimeSpan? DeliveryTerm =>
+        Shipment?.ShipmentDate.HasValue == true && Shipment?.InProcessAt.HasValue == true
+            ? Shipment.ShipmentDate!.Value - Shipment.InProcessAt!.Value
+            : null;
+
+    /// <summary>Статус отправления из enum, вычисленный по синониму статуса заказа.</summary>
+    [NotMapped]
+    public OzonShipmentStatusEnum ShipmentStatus =>
+        OzonShipmentStatusExtensions.FromSynonym(Status?.Synonym);
 
     public bool IsDeleted { get; set; }
 

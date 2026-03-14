@@ -52,6 +52,17 @@ else
 
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
             <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Заказы</RadzenText>
+            @if (_selectedOrderIds.Count == 0)
+            {
+                <div style="position:relative;display:inline-flex;align-items:center;">
+                    <i class="rzi" style="position:absolute;left:2px;font-size:1.05rem;color:var(--rz-text-secondary-color);pointer-events:none;user-select:none;">search</i>
+                    <input type="text"
+                           value="@_searchText"
+                           @oninput="@(async e => { _searchText = e.Value?.ToString(); await OnSearchChanged(); })"
+                           placeholder="Артикул, товар, отправление..."
+                           style="border:none;border-bottom:1.5px solid var(--rz-base-300);outline:none;background:transparent;padding:3px 4px 3px 1.7rem;font-size:0.85rem;width:240px;color:var(--rz-text-color);" />
+                </div>
+            }
             @if (_selectedOrderIds.Count > 0)
             {
                 <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-base-600);">
@@ -394,6 +405,18 @@ else
                                 Class="rz-text-truncate"
                                 title="@FormatDateTooltip(o.Shipment?.ShipmentDate)">@FormatDateDisplay(o.Shipment?.ShipmentDate)
                     </RadzenText>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OrderEntity"
+                                  Title="@GetColumn(OrderGridColumns.DeliveryTerm).Title"
+                                  Width="@GetColumn(OrderGridColumns.DeliveryTerm).Width"
+                                  Visible="@GetColumn(OrderGridColumns.DeliveryTerm).Visible"
+                                  Sortable="false" Filterable="false"
+                                  HeaderCssClass="half-painted-header">
+                <Template Context="o">
+                    @{ var (dtText, dtStyle, dtTooltip) = FormatDeliveryInfo(o); }
+                    <span style="font-size:0.78rem;white-space:nowrap;@dtStyle" title="@dtTooltip">@dtText</span>
                 </Template>
             </RadzenDataGridColumn>
 
@@ -745,6 +768,8 @@ window.gridResize = {
     private int _dynamicPageSize = 15;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
 
+    private string? _searchText;
+
     private Guid? _filterClientId;
     private Guid? _filterStatusId;
     private Guid? _filterSystemStatusId;
@@ -847,6 +872,7 @@ window.gridResize = {
         public const string Warehouse = "Warehouse";
         public const string Price = "Price";
         public const string ExtraCalculations = "ExtraCalculations";
+        public const string DeliveryTerm = "DeliveryTerm";
     }
 
     // Модель конфигурации колонки
@@ -881,7 +907,8 @@ window.gridResize = {
         new() { Key = OrderGridColumns.DeliveryMethod, Title = "Доставка", Width = "100px", Priority = 10 },
         new() { Key = OrderGridColumns.Warehouse, Title = "Склад", Width = "90px", Priority = 11 },
         new() { Key = OrderGridColumns.Price, Title = "Цена", Width = "85px", Priority = 3 },
-        new() { Key = OrderGridColumns.ExtraCalculations, Title = "Расчёты", Width = "130px", Priority = 12 }
+        new() { Key = OrderGridColumns.ExtraCalculations, Title = "Расчёты", Width = "130px", Priority = 12 },
+        new() { Key = OrderGridColumns.DeliveryTerm, Title = "Срок", Width = "68px", Priority = 14 }
     };
 
     void UpdateSelectedColumns()
@@ -917,8 +944,10 @@ window.gridResize = {
             maxPriority = 11; // + Warehouse
         else if (width < 2000)
             maxPriority = 12; // + ExtraCalculations
-        else
+        else if (width < 2150)
             maxPriority = 13; // + Article
+        else
+            maxPriority = 14; // + DeliveryTerm
 
 
         bool changed = false;
@@ -1129,17 +1158,26 @@ window.gridResize = {
     {
         if (_loadDataInProgress) return;
         _loadDataInProgress = true;
-        _loading = true;
+        if (!_pageItems.Any())
+            _loading = true;
         try
         {
         await EnsureInitializedAsync();
 
-        // Counts for pills — respect client/warehouse/text filters but NOT status/return filters
+        // Counts for pills — respect client/warehouse/search filters but NOT status/return filters
         var countBase = _db!.Orders.AsNoTracking().AsQueryable();
         if (_filterClientId.HasValue)
             countBase = countBase.Where(o => o.Shipment.MarketplaceClientId == _filterClientId.Value);
         if (_filterWarehouseId.HasValue)
             countBase = countBase.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId == _filterWarehouseId.Value);
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            var term = _searchText.Trim();
+            countBase = countBase.Where(o =>
+                (o.Shipment.PostingNumber != null && o.Shipment.PostingNumber.Contains(term)) ||
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Article != null && o.ProductInfo.Product.Article.Contains(term)) ||
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Name.Contains(term)));
+        }
         if (!string.IsNullOrEmpty(args.Filter))
             countBase = countBase.Where(args.Filter);
 
@@ -1178,6 +1216,14 @@ window.gridResize = {
             query = query.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId == _filterWarehouseId.Value);
         if (_filterHasReturn)
             query = query.Where(o => _db!.OrderReturns.Any(r => r.ShipmentId == o.ShipmentId));
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            var term = _searchText.Trim();
+            query = query.Where(o =>
+                (o.Shipment.PostingNumber != null && o.Shipment.PostingNumber.Contains(term)) ||
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Article != null && o.ProductInfo.Product.Article.Contains(term)) ||
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Name != null && o.ProductInfo.Product.Name.Contains(term)));
+        }
 
         if (!string.IsNullOrEmpty(args.Filter))
             query = query.Where(args.Filter);
@@ -1327,6 +1373,12 @@ window.gridResize = {
     {
         _ = SaveFiltersAsync();
         StateHasChanged();
+        if (_grid != null)
+            await _grid.Reload();
+    }
+
+    private async Task OnSearchChanged()
+    {
         if (_grid != null)
             await _grid.Reload();
     }
@@ -1578,6 +1630,51 @@ window.gridResize = {
         _db?.Dispose();
         _resizeRef?.Dispose();
     }
+
+    private static (string text, string style, string tooltip) FormatDeliveryInfo(OrderEntity o)
+    {
+        var term = o.DeliveryTerm;
+        if (term is null)
+            return ("\u2014", "", "");
+
+        var status = o.ShipmentStatus;
+        var shipDate = o.Shipment!.ShipmentDate!.Value;
+        var accepted = o.Shipment!.InProcessAt!.Value;
+
+        var termText = FormatSpanCompact(term.Value);
+        var baseTooltip = $"Срок: {(int)term.Value.TotalDays}д {term.Value.Hours}ч ({accepted:dd.MM HH:mm} \u2192 {shipDate:dd.MM HH:mm})";
+
+        if (status.IsBeforeShipment())
+        {
+            var remaining = shipDate - DateTime.Now;
+            if (remaining.TotalMinutes <= 0)
+            {
+                var overdue = DateTime.Now - shipDate;
+                return ($"{termText}·пр",
+                    "color:var(--rz-danger);font-weight:600;",
+                    $"{baseTooltip}\nПросрочено на {FormatSpanFull(overdue)}");
+            }
+            return ($"{termText}·{FormatSpanCompact(remaining)}",
+                remaining.TotalHours < 12 ? "color:var(--rz-danger);font-weight:600;"
+                : remaining.TotalHours < 24 ? "color:var(--rz-warning-dark);"
+                : "",
+                $"{baseTooltip}\nОсталось: {FormatSpanFull(remaining)}");
+        }
+
+        return ($"{termText}·отгр",
+            "color:var(--rz-text-secondary-color);",
+            $"{baseTooltip}\nОтгружено");
+    }
+
+    private static string FormatSpanCompact(TimeSpan s)
+    {
+        var d = (int)s.TotalDays;
+        var h = s.Hours;
+        return d > 0 ? $"{d}д{h}ч" : $"{h}ч";
+    }
+
+    private static string FormatSpanFull(TimeSpan s) =>
+        $"{(int)s.TotalDays} дн. {s.Hours} ч. {s.Minutes} мин.";
 
     private static string FormatDateDisplay(DateTime? d)
     {
