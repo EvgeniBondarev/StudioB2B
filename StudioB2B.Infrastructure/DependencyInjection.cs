@@ -13,6 +13,7 @@ using StudioB2B.Infrastructure.Features;
 using StudioB2B.Infrastructure.Helpers.Http.Handlers;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services.MultiTenancy;
+using StudioB2B.Infrastructure.Services.Modules;
 using StudioB2B.Infrastructure.Services.Order;
 using StudioB2B.Infrastructure.Services.Ozon;
 using TenantService = StudioB2B.Infrastructure.Services.MultiTenancy.TenantService;
@@ -134,6 +135,9 @@ public static class DependencyInjection
 
         services.AddScoped<CalculationEngine>();
         services.AddScoped<IOrderTransactionService, OrderTransactionService>();
+
+        services.AddScoped<IModuleService, ModuleService>();
+        services.AddScoped<IModuleActivator, ManufacturerModuleActivator>();
 
         return services;
     }

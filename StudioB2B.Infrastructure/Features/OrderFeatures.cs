@@ -16,6 +16,7 @@ public static class OrderExtensions
             .Include(o => o.Status)
             .Include(o => o.SystemStatus)
             .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
+                .ThenInclude(p => p!.Manufacturer)
             .Include(o => o.WarehouseInfo).ThenInclude(wi => wi!.SenderWarehouse)
             .Include(o => o.Prices).ThenInclude(p => p.PriceType)
             .Include(o => o.Prices).ThenInclude(p => p.Currency);
