@@ -82,7 +82,7 @@ public class ManufacturerModuleActivator : IModuleActivator
 
             // Use INSERT IGNORE to skip collation-level duplicates (e.g. Lesjofors vs LESJÖFORS)
             if (stripped.TrimStart().StartsWith("INSERT INTO", StringComparison.OrdinalIgnoreCase))
-                stripped = "INSERT IGNORE INTO" + stripped.Substring(stripped.IndexOf("INTO", StringComparison.OrdinalIgnoreCase) + 4);
+                stripped = string.Concat("INSERT IGNORE INTO", stripped.AsSpan(stripped.IndexOf("INTO", StringComparison.OrdinalIgnoreCase) + 4));
 
             await db.Database.ExecuteSqlRawAsync(stripped, ct);
             executed++;
@@ -108,8 +108,9 @@ public class ManufacturerModuleActivator : IModuleActivator
                 byName.TryAdd(m.Name, m);
         }
 
+        const string containsValue = "=";
         var products = await db.Products
-            .Where(p => p.Article != null && p.Article.Contains("="))
+            .Where(p => p.Article != null && p.Article.Contains(containsValue))
             .ToListAsync(ct);
 
         var linked = 0;
