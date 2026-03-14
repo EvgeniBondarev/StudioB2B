@@ -8,7 +8,6 @@ WORKDIR /src
 # Copy solution and project files
 COPY StudioB2B.sln .
 COPY StudioB2B.Domain/StudioB2B.Domain.csproj StudioB2B.Domain/
-COPY StudioB2B.Application/StudioB2B.Application.csproj StudioB2B.Application/
 COPY StudioB2B.Infrastructure/StudioB2B.Infrastructure.csproj StudioB2B.Infrastructure/
 COPY StudioB2B.Shared/StudioB2B.Shared.csproj StudioB2B.Shared/
 COPY StudioB2B.Web/StudioB2B.Web.csproj StudioB2B.Web/
