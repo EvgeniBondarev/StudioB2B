@@ -1175,8 +1175,8 @@ window.gridResize = {
             var term = _searchText.Trim();
             countBase = countBase.Where(o =>
                 (o.Shipment.PostingNumber != null && o.Shipment.PostingNumber.Contains(term)) ||
-                (o.ProductInfo.Product.Article != null && o.ProductInfo.Product.Article.Contains(term)) ||
-                (o.ProductInfo.Product.Name != null && o.ProductInfo.Product.Name.Contains(term)));
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Article != null && o.ProductInfo.Product.Article.Contains(term)) ||
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Name.Contains(term)));
         }
         if (!string.IsNullOrEmpty(args.Filter))
             countBase = countBase.Where(args.Filter);
@@ -1221,8 +1221,8 @@ window.gridResize = {
             var term = _searchText.Trim();
             query = query.Where(o =>
                 (o.Shipment.PostingNumber != null && o.Shipment.PostingNumber.Contains(term)) ||
-                (o.ProductInfo.Product.Article != null && o.ProductInfo.Product.Article.Contains(term)) ||
-                (o.ProductInfo.Product.Name != null && o.ProductInfo.Product.Name.Contains(term)));
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Article != null && o.ProductInfo.Product.Article.Contains(term)) ||
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Name != null && o.ProductInfo.Product.Name.Contains(term)));
         }
 
         if (!string.IsNullOrEmpty(args.Filter))
