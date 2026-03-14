@@ -497,7 +497,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
     {
         var normalized = synonym.Trim().ToLower();
         var status = await _db.OrderStatuses
-            .FirstOrDefaultAsync(s => s.Synonym != null && s.Synonym.Equals(normalized, StringComparison.CurrentCultureIgnoreCase), ct);
+            .FirstOrDefaultAsync(s => s.Synonym != null && s.Synonym == normalized, ct);
 
         if (status != null)
             return status;

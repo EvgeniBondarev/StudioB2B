@@ -250,8 +250,7 @@ public class TenantDbContext : DbContext
 
         modelBuilder.ApplyConfigurationsFromAssembly(
             typeof(TenantDbContext).Assembly,
-            type => type.Namespace?.Contains("Tenant") == true ||
-                    type.Namespace?.Contains("Configurations") == true);
+            type => type.Namespace?.Contains("Tenant") == true);
 
 
         ApplySoftDeleteFilters(modelBuilder);

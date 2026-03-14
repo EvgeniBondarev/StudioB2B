@@ -88,6 +88,11 @@ else
                                 Создал: @(s.CreatedByEmail ?? "—")
                             </RadzenText>
                             <RadzenStack Orientation="Orientation.Horizontal" Gap="0.4rem" JustifyContent="JustifyContent.End">
+                                <RadzenButton Icon="play_arrow" Size="ButtonSize.ExtraSmall"
+                                              ButtonStyle="ButtonStyle.Success" title="Запустить сейчас"
+                                              IsBusy="@_runningScheduleIds.Contains(s.Id)"
+                                              Disabled="@_runningScheduleIds.Contains(s.Id)"
+                                              Click="@(() => RunScheduleNowAsync(s))" />
                                 <RadzenButton Icon="edit" Size="ButtonSize.ExtraSmall"
                                               ButtonStyle="ButtonStyle.Light" title="Редактировать"
                                               Click="@(() => OpenEditScheduleDialogAsync(s))" />
@@ -162,10 +167,16 @@ else
                                    Change="@(_ => ApplyFilters())" />
                 </FilterTemplate>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="SyncJobHistory" Property="Status" Title="Статус" Width="160px"
+            <RadzenDataGridColumn TItem="SyncJobHistory" Property="Status" Title="Статус" Width="200px"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="h">
-                    <RadzenBadge BadgeStyle="@StatusBadgeStyle(h.Status)" Text="@StatusLabel(h.Status)" />
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <RadzenBadge BadgeStyle="@StatusBadgeStyle(h.Status)" Text="@StatusLabel(h.Status)" />
+                        @if (_progressMessages.TryGetValue(h.Id, out var prog))
+                        {
+                            <span style="font-size:0.72rem;color:var(--rz-text-secondary-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;" title="@prog">@prog</span>
+                        }
+                    </div>
                 </Template>
                 <FilterTemplate Context="col">
                     <div class="filter-all-item @(_filterStatus == null ? "active" : "")"
@@ -284,10 +295,12 @@ else
 
     private readonly HashSet<Guid> _cancellingIds = new();
     private readonly HashSet<Guid> _deletingIds = new();
+    private readonly Dictionary<Guid, string> _progressMessages = new();
 
     private List<SyncJobSchedule>  _schedules = new();
     private readonly HashSet<Guid> _deletingScheduleIds = new();
     private readonly HashSet<Guid> _togglingScheduleIds = new();
+    private readonly HashSet<Guid> _runningScheduleIds = new();
 
     private PeriodicTimer? _pollTimer;
     private CancellationTokenSource _pollCts = new();
@@ -328,10 +341,20 @@ else
             });
         });
 
+        _hubConnection.On<JobProgressPayload>("JobProgress", payload =>
+        {
+            InvokeAsync(() =>
+            {
+                _progressMessages[payload.HistoryId] = payload.Message;
+                StateHasChanged();
+            });
+        });
+
         _hubConnection.On<JobCompletedPayload>("JobCompleted", async payload =>
         {
             await InvokeAsync(async () =>
             {
+                _progressMessages.Remove(payload.HistoryId);
                 await LoadHistoryAsync();
                 var h = _historyItems.FirstOrDefault(x => x.Id == payload.HistoryId);
                 if (h is not null)
@@ -693,4 +716,38 @@ else
     }
 
     private record JobCompletedPayload(Guid HistoryId, string Status, string JobType);
+    private record JobProgressPayload(Guid HistoryId, string Message);
+
+    private async Task RunScheduleNowAsync(SyncJobSchedule s)
+    {
+        if (_runningScheduleIds.Contains(s.Id)) return;
+        _runningScheduleIds.Add(s.Id);
+        try
+        {
+            var daysBack = ParseDaysBack(s.SyncParams);
+            var from = DateTime.Now.Date.AddDays(-daysBack);
+            var to = DateTime.Now.Date.AddDays(1).AddTicks(-1);
+            var jobTypeLabel = JobTypeLabel(s.JobType);
+
+            if (s.JobType == SyncJobType.Sync)
+                await JobService.EnqueueSyncAsync(from, to);
+            else if (s.JobType == SyncJobType.Returns)
+                await JobService.EnqueueReturnsSyncAsync(from, to);
+            else
+                await JobService.EnqueueUpdateAsync(from, to);
+
+            NotificationService.Notify(NotificationSeverity.Info, $"{jobTypeLabel} запущена",
+                "Следите за прогрессом в таблице ниже.");
+            await LoadHistoryAsync();
+            StartPollingIfNeeded();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка запуска", ex.Message);
+        }
+        finally
+        {
+            _runningScheduleIds.Remove(s.Id);
+        }
+    }
 }
