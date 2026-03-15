@@ -1,11 +1,13 @@
 @inherits LayoutComponentBase
 @using System.Text.Json
 @using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Infrastructure.Services
 @inject ITenantProvider TenantProvider
 @inject NavigationManager Navigation
 @inject TabService TabService
 @inject JwtAuthenticationStateProvider AuthStateProvider
 @inject IJSRuntime JsRuntime
+@inject UserContext UserContext
 @implements IDisposable
 
 <RadzenLayout Style="min-height: 100vh;">
@@ -125,6 +127,7 @@
     {
         TabService.TabsChanged += OnTabsChanged;
         Navigation.LocationChanged += OnLocationChanged;
+        AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -132,11 +135,23 @@
         if (firstRender)
         {
             _masterAuthenticated = await AuthStateProvider.IsMasterAuthenticatedAsync();
+            // Заполняем UserContext — нужен для записи истории изменений из Blazor Server контекста
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            UserContext.SetUser(authState.User);
             await LoadSidebarStateAsync();
             await LoadTabsFromStorageAsync();
             OpenCurrentTab();
             StateHasChanged();
         }
+    }
+
+    private void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        _ = task.ContinueWith(t =>
+        {
+            if (t.IsCompletedSuccessfully)
+                UserContext.SetUser(t.Result.User);
+        }, TaskScheduler.Default);
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
@@ -220,5 +235,6 @@
     {
         TabService.TabsChanged -= OnTabsChanged;
         Navigation.LocationChanged -= OnLocationChanged;
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
     }
 }
