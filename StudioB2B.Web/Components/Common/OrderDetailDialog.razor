@@ -490,11 +490,11 @@ else
     {
         var subjects = new List<AuditSubject>
         {
-            new("Order", OrderId.ToString(), "Заказ"),
+            new("OrderEntity", OrderId.ToString(), "Заказ"),
             new("Shipment", _order!.ShipmentId.ToString(), "Отправление"),
         };
-        if (_order.ProductInfo?.ProductId is { } pid)
-            subjects.Add(new("Product", pid.ToString(), "Товар"));
+        if (_order.ProductInfo is { } pi)
+            subjects.Add(new("OrderProductInfo", pi.Id.ToString(), "Товар в заказе"));
         if (_order.RecipientId is { } rid)
             subjects.Add(new("Recipient", rid.ToString(), "Получатель"));
         if (_order.Recipient?.Address?.Id is { } aid)
