@@ -1603,11 +1603,11 @@ window.gridResize = {
     {
         var subjects = new List<AuditSubject>
         {
-            new("Order", orderEntity.Id.ToString(), "Заказ"),
+            new("OrderEntity", orderEntity.Id.ToString(), "Заказ"),
             new("Shipment", orderEntity.ShipmentId.ToString(), "Отправление"),
         };
-        if (orderEntity.ProductInfo?.ProductId is { } pid)
-            subjects.Add(new("Product", pid.ToString(), "Товар"));
+        if (orderEntity.ProductInfo is { } pi)
+            subjects.Add(new("OrderProductInfo", pi.Id.ToString(), "Товар в заказе"));
 
         await DialogService.OpenAsync<AuditHistoryDialog>(
             "История изменений",
