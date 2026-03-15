@@ -50,10 +50,6 @@
             <RadzenButton Icon="add" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ZoomIn" Title="Увеличить" Style="border-radius:0;border:none;min-width:32px;" />
         </RadzenStack>
-
-        <span style="color:var(--rz-text-secondary-color);font-size:0.8rem;">
-            Колёсико мыши — зум. Перетащите карточку — переместить. <b style="color:#6366f1;">→</b> — создать транзакцию.
-        </span>
     </RadzenStack>
 
     <!-- Canvas -->
@@ -97,7 +93,10 @@
                 var txColor2 = NormColor(tx.Color);
                 var arrowMarkerId = "tc-arr-" + txColor2.TrimStart('#');
                 var arrowPath = Bezier(ax1, ay1, ax2, ay2);
-                <path d="@arrowPath" stroke="@txColor2" stroke-width="2" fill="none" marker-end="url(#@arrowMarkerId)" />
+                <path id="@($"tc-path-{tx.Id:N}")"
+                      data-from-id="@tx.FromSystemStatusId"
+                      data-to-id="@tx.ToSystemStatusId"
+                      d="@arrowPath" stroke="@txColor2" stroke-width="2" fill="none" marker-end="url(#@arrowMarkerId)" />
             }
         </svg>
 
@@ -124,7 +123,10 @@
             var accentBg = "rgba(255,255,255,0.45)"; // semi-transparent section backgrounds
             var isCollapsed = _collapsed.Contains(tx.Id);
 
-            <div style="@cardWrapStyle" @onclick="@(() => EditTxAsync(tx))" title="Нажмите для редактирования">
+            <div id="@($"tc-tx-{tx.Id:N}")"
+                 data-from-id="@tx.FromSystemStatusId"
+                 data-to-id="@tx.ToSystemStatusId"
+                 style="@cardWrapStyle" @onclick="@(() => EditTxAsync(tx))" title="Нажмите для редактирования">
                 <div style="@cardStyle">
 
                     <!-- Solid header: collapse + type marker + icon + name + delete -->
