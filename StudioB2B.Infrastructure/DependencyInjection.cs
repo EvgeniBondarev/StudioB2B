@@ -68,6 +68,7 @@ public static class DependencyInjection
 
         services.AddSingleton<ISubdomainResolver, SubdomainResolver>();
         services.AddScoped<ITenantDatabaseInitializer, TenantDatabaseInitializer>();
+        services.AddScoped<UserContext>();
         services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
         services.AddScoped<ITenantService, TenantService>();
