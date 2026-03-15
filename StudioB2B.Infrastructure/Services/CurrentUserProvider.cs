@@ -5,18 +5,28 @@ using StudioB2B.Infrastructure.Interfaces;
 namespace StudioB2B.Infrastructure.Services;
 
 /// <summary>
-/// Провайдер информации о текущем пользователе
+/// Провайдер информации о текущем пользователе.
+/// Приоритет: UserContext (Blazor Server) → HttpContext (API-контроллеры).
 /// </summary>
 public class CurrentUserProvider : ICurrentUserProvider
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly UserContext _userContext;
 
-    public CurrentUserProvider(IHttpContextAccessor httpContextAccessor)
+    public CurrentUserProvider(IHttpContextAccessor httpContextAccessor, UserContext userContext)
     {
         _httpContextAccessor = httpContextAccessor;
+        _userContext = userContext;
     }
 
-    private ClaimsPrincipal? User => _httpContextAccessor.HttpContext?.User;
+    /// <summary>
+    /// Возвращает principal из UserContext (Blazor) или из HttpContext (API).
+    /// </summary>
+    private ClaimsPrincipal? User =>
+        (_userContext.Principal?.Identity?.IsAuthenticated == true
+            ? _userContext.Principal
+            : null)
+        ?? _httpContextAccessor.HttpContext?.User;
 
     public Guid? UserId
     {
