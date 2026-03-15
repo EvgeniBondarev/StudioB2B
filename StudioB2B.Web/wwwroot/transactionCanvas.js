@@ -1,3 +1,61 @@
+/** Bezier path string for a cubic S-curve between two logical canvas points. */
+function _tcBezier(x1, y1, x2, y2) {
+    const cx = Math.max(60, Math.abs(x2 - x1) / 2);
+    return `M${x1},${y1} C${x1 + cx},${y1} ${x2 - cx},${y2} ${x2},${y2}`;
+}
+
+/** Update SVG paths and transaction-card positions that involve a given statusId
+ *  whose node element has just been moved to (newX, newY) in logical canvas space. */
+function _tcUpdateConnections(statusId, newX, newY) {
+    const NODE_W = 190;
+    const NODE_H = 68;
+
+    // Helper: get logical left/top of a status node element
+    const getNodePos = (id) => {
+        if (id === statusId) return { x: newX, y: newY };
+        const el = document.querySelector(`[data-status-id="${id}"]`);
+        if (!el) return null;
+        return { x: parseFloat(el.style.left) || 0, y: parseFloat(el.style.top) || 0 };
+    };
+
+    // Update SVG paths
+    document.querySelectorAll('path[data-from-id], path[data-to-id]').forEach(path => {
+        const fromId = path.dataset.fromId;
+        const toId   = path.dataset.toId;
+        if (fromId !== statusId && toId !== statusId) return;
+
+        const fp = getNodePos(fromId);
+        const tp = getNodePos(toId);
+        if (!fp || !tp) return;
+
+        const ax1 = fp.x + NODE_W;
+        const ay1 = fp.y + NODE_H / 2;
+        const ax2 = tp.x;
+        const ay2 = tp.y + NODE_H / 2;
+        path.setAttribute('d', _tcBezier(ax1, ay1, ax2, ay2));
+    });
+
+    // Update transaction card positions
+    document.querySelectorAll('[data-from-id][data-to-id][id^="tc-tx-"]').forEach(card => {
+        const fromId = card.dataset.fromId;
+        const toId   = card.dataset.toId;
+        if (fromId !== statusId && toId !== statusId) return;
+
+        const fp = getNodePos(fromId);
+        const tp = getNodePos(toId);
+        if (!fp || !tp) return;
+
+        const ax1 = fp.x + NODE_W;
+        const ay1 = fp.y + NODE_H / 2;
+        const ax2 = tp.x;
+        const ay2 = tp.y + NODE_H / 2;
+        const midX = (ax1 + ax2) / 2;
+        const midY = (ay1 + ay2) / 2;
+        card.style.left = midX + 'px';
+        card.style.top  = midY + 'px';
+    });
+}
+
 window.transactionCanvas = {
 
     // Current transform state (kept in sync with C# via setTransform)
@@ -112,8 +170,12 @@ window.transactionCanvas = {
 
             const onMove = (ev) => {
                 const z = window.transactionCanvas._zoom;
-                el.style.left = Math.max(0, startL + (ev.clientX - startX) / z) + 'px';
-                el.style.top  = Math.max(0, startT + (ev.clientY - startY) / z) + 'px';
+                const newLeft = Math.max(0, startL + (ev.clientX - startX) / z);
+                const newTop  = Math.max(0, startT + (ev.clientY - startY) / z);
+                el.style.left = newLeft + 'px';
+                el.style.top  = newTop  + 'px';
+                // Update connected arrows and transaction cards in real-time
+                _tcUpdateConnections(statusId, newLeft, newTop);
             };
             const onUp = (ev) => {
                 el.style.zIndex = origZ || '10';
@@ -163,14 +225,9 @@ window.transactionCanvas = {
             y: (cy - outerRect.top  - py) / z
         });
 
-        const bezier = (x1, y1, x2, y2) => {
-            const cx = Math.max(60, Math.abs(x2 - x1) / 2);
-            return `M${x1},${y1} C${x1+cx},${y1} ${x2-cx},${y2} ${x2},${y2}`;
-        };
-
         const onMove = (e) => {
             const p = toLogical(e.clientX, e.clientY);
-            tmp.setAttribute('d', bezier(startX, startY, p.x, p.y));
+            tmp.setAttribute('d', _tcBezier(startX, startY, p.x, p.y));
         };
         const onUp = (e) => {
             document.removeEventListener('mousemove', onMove);
