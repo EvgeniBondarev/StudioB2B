@@ -36,7 +36,6 @@ public class TenantMiddleware
             if (tenant != null)
             {
                 tenantProvider.SetTenant(tenant);
-                context.Response.AppendLastTenantCookie(tenant.Subdomain, options.Value.MasterDomain);
             }
             else
             {
@@ -45,10 +44,6 @@ public class TenantMiddleware
                 context.Response.Redirect(masterUrl);
                 return;
             }
-        }
-        else if (await TryRedirectToLastTenantAsync(context, masterDb, options.Value))
-        {
-            return;
         }
 
         await _next(context);
@@ -74,25 +69,5 @@ public class TenantMiddleware
             : string.Empty;
         return $"{scheme}://{normalizedDomain}{portStr}/";
     }
-
-    private async Task<bool> TryRedirectToLastTenantAsync(
-        HttpContext context, MasterDbContext masterDb, MultiTenancyOptions options)
-    {
-        var lastTenant = context.Request.GetLastTenant();
-        if (string.IsNullOrEmpty(lastTenant))
-            return false;
-
-        var exists = await masterDb.Tenants
-            .AnyAsync(t => t.Subdomain == lastTenant && t.IsActive, context.RequestAborted);
-
-        if (!exists)
-            return false;
-
-        var path = context.Request.Path + context.Request.QueryString;
-        var redirectUrl = lastTenant.GetTenantUrl(options.MasterDomain, path);
-
-        _logger.LogInformation("Redirecting to last tenant: {RedirectUrl}", redirectUrl);
-        context.Response.Redirect(redirectUrl);
-        return true;
-    }
 }
+
