@@ -124,7 +124,16 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
             // Проверяем срок действия
             if (jwt.ValidTo < DateTime.UtcNow) return null;
 
-            var identity = new ClaimsIdentity(jwt.Claims, "jwt");
+            // ReadJwtToken() не применяет маппинг JWT-имён ("sub", "email" и т.д.)
+            // в .NET ClaimTypes. Применяем его вручную, чтобы CurrentUserProvider
+            // мог находить ClaimTypes.NameIdentifier и ClaimTypes.Email.
+            var map = JwtSecurityTokenHandler.DefaultInboundClaimTypeMap;
+            var mappedClaims = jwt.Claims.Select(c =>
+                map.TryGetValue(c.Type, out var mapped)
+                    ? new Claim(mapped, c.Value, c.ValueType, c.Issuer)
+                    : c);
+
+            var identity = new ClaimsIdentity(mappedClaims, "jwt");
             return new ClaimsPrincipal(identity);
         }
         catch
