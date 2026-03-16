@@ -16,7 +16,14 @@
 </head>
 
 <body>
-<Routes/>
+<!-- Показывается пока Blazor не установил SignalR-соединение (prerender отключён).
+     Скрывается в Blazor.start().then(...) ниже. -->
+<div id="app-initial-loading">
+    <div class="app-initial-spinner"></div>
+    <p class="app-initial-text">Загрузка...</p>
+</div>
+
+<Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))"/>
 
 <div id="components-reconnect-modal" class="components-reconnect-hide">
     <div class="components-reconnect-dialog">
@@ -31,6 +38,10 @@
 <script src="@Assets["_framework/blazor.web.js"]" autostart="false"></script>
 <script>
     Blazor.start().then(() => {
+        // Скрываем стартовый оверлей — Blazor подключился
+        const loading = document.getElementById('app-initial-loading');
+        if (loading) loading.style.display = 'none';
+
         const modal = document.getElementById('components-reconnect-modal');
         if (!modal) return;
         const msg = modal.querySelector('.reconnect-message');
