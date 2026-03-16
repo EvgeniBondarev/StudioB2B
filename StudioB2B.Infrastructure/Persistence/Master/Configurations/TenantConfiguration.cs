@@ -26,5 +26,14 @@ public class TenantConfiguration : IEntityTypeConfiguration<TenantEntity>
         builder.Property(t => t.ConnectionString)
             .IsRequired()
             .HasMaxLength(500);
+
+        builder.Property(t => t.CreatedByUserId)
+            .IsRequired(false);
+
+        builder.HasOne(t => t.CreatedBy)
+            .WithMany()
+            .HasForeignKey(t => t.CreatedByUserId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
     }
 }

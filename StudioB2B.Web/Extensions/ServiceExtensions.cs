@@ -63,6 +63,7 @@ public static class ServiceExtensions
         services.AddScoped<JwtAuthenticationStateProvider>();
         services.AddScoped<AuthenticationStateProvider>(sp =>
             sp.GetRequiredService<JwtAuthenticationStateProvider>());
+        services.AddScoped<MasterAuthStateService>();
 
         // JWT используется для аутентификации — CSRF-защита не нужна.
         services.AddSingleton<IAntiforgery, NoOpAntiforgery>();
