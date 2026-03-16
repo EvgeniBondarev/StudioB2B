@@ -231,6 +231,17 @@ else
     private DateTime? _filterFrom;
     private DateTime? _filterTo;
 
+    /// <summary>
+    /// true — LoadFilterDataAsync полностью завершён, DbContext свободен для запросов из LoadData.
+    /// В Blazor Server OnInitializedAsync рендерит компонент при каждом await-е,
+    /// поэтому OnAfterRenderAsync(firstRender=true) может сработать ДО завершения
+    /// LoadFilterDataAsync. Этот флаг предотвращает конкурентное обращение к DbContext.
+    /// </summary>
+    private bool _filtersLoaded;
+
+    /// <summary>Гарантирует однократный вызов _grid.Reload() после инициализации.</summary>
+    private bool _gridReloadDone;
+
     public AuditLog()
     {
         _filterFrom = null;
@@ -241,12 +252,19 @@ else
     {
         _db = Factory.CreateDbContext();
         await LoadFilterDataAsync();
+        _filtersLoaded = true;   // только после полного завершения всех запросов фильтров
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && _grid is not null)
+        // Ждём, пока LoadFilterDataAsync не завершится (_filtersLoaded),
+        // чтобы не использовать DbContext конкурентно.
+        // _gridReloadDone — защита от повторного вызова при каждом StateHasChanged.
+        if (!_gridReloadDone && _filtersLoaded && _grid is not null)
+        {
+            _gridReloadDone = true;
             await _grid.Reload();
+        }
     }
 
     private async Task LoadFilterDataAsync()

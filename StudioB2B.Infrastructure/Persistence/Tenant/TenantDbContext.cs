@@ -178,7 +178,7 @@ public class TenantDbContext : DbContext
 
         foreach (EntityEntry entry in ChangeTracker.Entries<IBaseEntity>())
         {
-            if (entry.State is not (EntityState.Modified or EntityState.Deleted))
+            if (entry.State is not (EntityState.Added or EntityState.Modified or EntityState.Deleted))
                 continue;
 
             var entityName = entry.Metadata.ShortName();
