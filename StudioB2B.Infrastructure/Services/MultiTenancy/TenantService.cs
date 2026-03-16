@@ -47,8 +47,12 @@ public partial class TenantService : ITenantService
         return !await _masterDb.Tenants.AnyAsync(t => t.Subdomain == normalized, ct);
     }
 
-    public async Task<TenantRegistrationResultDto> RegisterAsync(string companyName, string subdomain, string adminEmail,
-                                                                 string adminPassword, CancellationToken ct = default)
+    public async Task<TenantRegistrationResultDto> RegisterAsync(
+        string companyName, string subdomain,
+        string adminEmail, string adminPassword,
+        string firstName, string lastName, string? middleName,
+        Guid? createdByUserId = null,
+        CancellationToken ct = default)
     {
         try
         {
@@ -66,7 +70,8 @@ public partial class TenantService : ITenantService
             {
                 Name = companyName,
                 Subdomain = normalized,
-                ConnectionString = connectionString
+                ConnectionString = connectionString,
+                CreatedByUserId = createdByUserId
             };
 
             _masterDb.Tenants.Add(tenant);
@@ -76,7 +81,8 @@ public partial class TenantService : ITenantService
             try
             {
                 await _dbInitializer.MigrateAndSeedAsync(connectionString, ct);
-                await _dbInitializer.CreateAdminUserAsync(connectionString, adminEmail, adminPassword, ct);
+                await _dbInitializer.CreateAdminUserAsync(connectionString, adminEmail, adminPassword,
+                    firstName, lastName, middleName, ct);
                 await _hangfireManager.AddTenant(tenant.Id, connectionString, ct);
 
                 _logger.LogInformation("Tenant registration completed: {TenantId}", tenant.Id);
@@ -93,6 +99,41 @@ public partial class TenantService : ITenantService
             _logger.LogError(ex, "Failed to register tenant: {Subdomain}", subdomain);
             return Fail("Registration failed. Please try again later.");
         }
+    }
+
+    public async Task<List<TenantEntity>> GetAllAsync(CancellationToken ct = default) =>
+        await _masterDb.Tenants.AsNoTracking()
+            .Include(t => t.CreatedBy)
+            .OrderBy(t => t.Name)
+            .ToListAsync(ct);
+
+    public async Task<List<TenantEntity>> GetByCreatorAsync(Guid userId, CancellationToken ct = default) =>
+        await _masterDb.Tenants.AsNoTracking()
+            .Include(t => t.CreatedBy)
+            .Where(t => t.CreatedByUserId == userId)
+            .OrderBy(t => t.Name)
+            .ToListAsync(ct);
+
+    public async Task<bool> SetActiveAsync(Guid tenantId, bool isActive, CancellationToken ct = default)
+    {
+        var tenant = await _masterDb.Tenants.FindAsync([tenantId], ct);
+        if (tenant is null) return false;
+
+        tenant.IsActive = isActive;
+        await _masterDb.SaveChangesAsync(ct);
+        _logger.LogInformation("Tenant {TenantId} IsActive set to {IsActive}", tenantId, isActive);
+        return true;
+    }
+
+    public async Task<bool> DeleteAsync(Guid tenantId, CancellationToken ct = default)
+    {
+        var tenant = await _masterDb.Tenants.FindAsync([tenantId], ct);
+        if (tenant is null) return false;
+
+        tenant.IsDeleted = true;
+        await _masterDb.SaveChangesAsync(ct);
+        _logger.LogInformation("Tenant {TenantId} soft-deleted", tenantId);
+        return true;
     }
 
     private string BuildConnectionString(string subdomain) => string.Format(_options.TenantDbConnectionTemplate, $"StudioB2B_Tenant_{subdomain}");

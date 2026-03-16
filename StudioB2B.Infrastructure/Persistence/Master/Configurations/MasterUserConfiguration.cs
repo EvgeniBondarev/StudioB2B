@@ -16,6 +16,10 @@ public class MasterUserConfiguration : IEntityTypeConfiguration<MasterUser>
         builder.HasIndex(u => u.Email).IsUnique();
 
         builder.Property(u => u.HashPassword).IsRequired().HasMaxLength(256);
+
+        builder.Property(u => u.FirstName).IsRequired().HasMaxLength(100);
+        builder.Property(u => u.LastName).IsRequired().HasMaxLength(100);
+        builder.Property(u => u.MiddleName).HasMaxLength(100);
     }
 }
 
