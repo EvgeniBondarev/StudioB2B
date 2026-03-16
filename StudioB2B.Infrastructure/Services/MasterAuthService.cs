@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Shared.DTOs;
 
@@ -47,12 +48,43 @@ public class MasterAuthService
             .Join(_db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name)
             .ToListAsync(ct);
 
-        var (token, expiresAt) = GenerateJwtToken(user.Id, user.Email, roles);
+        var (token, expiresAt) = GenerateJwtToken(user, roles);
         return new MasterAuthResultDto(true, token, expiresAt);
     }
 
-    private (string token, DateTime expiresAt) GenerateJwtToken(
-        Guid userId, string email, IEnumerable<string> roles)
+    private static readonly string[] UserRoleArray = { "User" };
+
+    public async Task<MasterAuthResultDto> RegisterAsync(MasterRegisterDto request, CancellationToken ct = default)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+
+        if (await _db.Users.AnyAsync(u => u.Email == email, ct))
+            return Fail("Пользователь с таким email уже зарегистрирован");
+
+        var userRole = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "User", ct);
+        if (userRole is null)
+            return Fail("Роль 'User' не найдена. Обратитесь к администратору.");
+
+        var user = new MasterUser
+        {
+            Id = Guid.NewGuid(),
+            Email = email,
+            HashPassword = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
+            MiddleName = string.IsNullOrWhiteSpace(request.MiddleName) ? null : request.MiddleName.Trim(),
+            IsActive = true
+        };
+
+        _db.Users.Add(user);
+        _db.UserRoles.Add(new MasterUserRole { UserId = user.Id, RoleId = userRole.Id });
+        await _db.SaveChangesAsync(ct);
+
+        var (token, expiresAt) = GenerateJwtToken(user, UserRoleArray);
+        return new MasterAuthResultDto(true, token, expiresAt);
+    }
+
+    private (string token, DateTime expiresAt) GenerateJwtToken(MasterUser user, IEnumerable<string> roles)
     {
         var jwtSection = _configuration.GetSection("Jwt");
         var secret = jwtSection["Secret"]!;
@@ -65,11 +97,16 @@ public class MasterAuthService
 
         var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new(JwtRegisteredClaimNames.Email, email),
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(JwtRegisteredClaimNames.Email, user.Email),
+            new(JwtRegisteredClaimNames.GivenName, user.FirstName),
+            new(JwtRegisteredClaimNames.FamilyName, user.LastName),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new("scope", "master")
         };
+
+        if (!string.IsNullOrWhiteSpace(user.MiddleName))
+            claims.Add(new Claim("middle_name", user.MiddleName));
 
         foreach (var role in roles)
             claims.Add(new Claim(ClaimTypes.Role, role));

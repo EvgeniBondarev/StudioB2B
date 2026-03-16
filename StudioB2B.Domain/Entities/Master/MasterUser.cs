@@ -8,6 +8,12 @@ public class MasterUser : IBaseEntity, ISoftDelete
 
     public string HashPassword { get; set; } = null!;
 
+    public string FirstName { get; set; } = null!;
+
+    public string LastName { get; set; } = null!;
+
+    public string? MiddleName { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public bool IsDeleted { get; set; }

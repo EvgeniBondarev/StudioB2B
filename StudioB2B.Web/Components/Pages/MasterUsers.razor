@@ -1,0 +1,278 @@
+@page "/master-users"
+@using Microsoft.EntityFrameworkCore
+@using StudioB2B.Domain.Entities
+@using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Infrastructure.Persistence.Master
+@using StudioB2B.Web.Services
+@inject MasterDbContext Db
+@inject JwtAuthenticationStateProvider AuthStateProvider
+@inject ITenantProvider TenantProvider
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+@inject NavigationManager Navigation
+
+<PageTitle>Пользователи — StudioB2B</PageTitle>
+
+<MasterOnlyGuard>
+    @if (!_isAdmin)
+    {
+        <div style="max-width: 480px; margin: 4rem auto; text-align: center;">
+            <RadzenIcon Icon="lock" Style="font-size: 3rem; color: var(--rz-danger);" />
+            <RadzenText TextStyle="TextStyle.H5" Style="margin-top: 1rem;">Доступ запрещён</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color); margin-top: 0.5rem;">
+                Этот раздел доступен только администраторам.
+            </RadzenText>
+        </div>
+    }
+    else if (_loading)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" Style="padding: 4rem;">
+            <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false" Style="width: 260px;" />
+        </RadzenStack>
+    }
+    else
+    {
+        <RadzenStack Gap="1.5rem">
+
+            <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">
+                Пользователи
+            </RadzenText>
+
+            @if (_users.Count == 0)
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false">
+                    Пользователей пока нет.
+                </RadzenAlert>
+            }
+            else
+            {
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem;">
+                    @foreach (var u in _users)
+                    {
+                        <div style="background: var(--rz-base-background-color);
+                                    border: 1px solid var(--rz-border-color);
+                                    border-radius: var(--rz-border-radius);
+                                    padding: 1.25rem;
+                                    display: flex; flex-direction: column; gap: 0.75rem;
+                                    @(u.IsActive ? "" : "opacity: 0.7;")">
+
+                            <!-- Аватар + имя + статус -->
+                            <RadzenStack Orientation="Orientation.Horizontal"
+                                         AlignItems="AlignItems.Center"
+                                         JustifyContent="JustifyContent.SpaceBetween">
+                                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+                                    <div style="width: 40px; height: 40px; border-radius: 50%;
+                                                background: var(--rz-primary); color: white;
+                                                display: flex; align-items: center; justify-content: center;
+                                                font-size: 1rem; font-weight: 600; flex-shrink: 0;">
+                                        @GetInitials(u.FirstName, u.LastName)
+                                    </div>
+                                    <RadzenStack Gap="0.1rem">
+                                        <RadzenText TextStyle="TextStyle.Subtitle2"
+                                                    Style="font-weight: 600; margin: 0; line-height: 1.2;">
+                                            @u.LastName @u.FirstName @u.MiddleName
+                                        </RadzenText>
+                                        <RadzenText TextStyle="TextStyle.Caption"
+                                                    Style="color: var(--rz-text-secondary-color); margin: 0;">
+                                            @u.Email
+                                        </RadzenText>
+                                    </RadzenStack>
+                                </RadzenStack>
+                                @if (u.IsActive)
+                                {
+                                    <RadzenBadge Text="Активен" BadgeStyle="BadgeStyle.Success" />
+                                }
+                                else
+                                {
+                                    <RadzenBadge Text="Деактивирован" BadgeStyle="BadgeStyle.Danger" />
+                                }
+                            </RadzenStack>
+
+                            <hr style="margin: 0; border-color: var(--rz-border-color);" />
+
+                            <!-- Multiselect ролей -->
+                            <RadzenFormField Text="Роли" Style="width: 100%;">
+                                <RadzenDropDown Data="@_allRoles"
+                                                TextProperty="Name"
+                                                ValueProperty="Id"
+                                                Value="@GetSelectedRoleIds(u.Id)"
+                                                Change="@(async (object v) => await OnRolesChanged(u, (IEnumerable<Guid>)v))"
+                                                Multiple="true"
+                                                AllowClear="true"
+                                                Placeholder="Нет ролей"
+                                                Style="width: 100%;"
+                                                Disabled="@(_busyId == u.Id)" />
+                            </RadzenFormField>
+
+                            <!-- Активация / деактивация -->
+                            @if (u.IsActive)
+                            {
+                                <RadzenButton Text="Деактивировать" Icon="pause_circle"
+                                              ButtonStyle="ButtonStyle.Warning" Size="ButtonSize.Small"
+                                              Variant="Variant.Outlined" Style="width: 100%;"
+                                              IsBusy="@(_busyId == u.Id)"
+                                              Click="@(() => ToggleActive(u, false))" />
+                            }
+                            else
+                            {
+                                <RadzenButton Text="Активировать" Icon="play_circle"
+                                              ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small"
+                                              Variant="Variant.Outlined" Style="width: 100%;"
+                                              IsBusy="@(_busyId == u.Id)"
+                                              Click="@(() => ToggleActive(u, true))" />
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </RadzenStack>
+    }
+</MasterOnlyGuard>
+
+@code {
+    private List<MasterUser> _users = [];
+    private List<MasterRole> _allRoles = [];
+    // userId → список roleId, которые сейчас выбраны
+    private Dictionary<Guid, List<Guid>> _userRoleIds = new();
+    private bool _loading = true;
+    private bool _isAdmin;
+    private Guid _currentUserId;
+    private Guid? _busyId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (TenantProvider.IsResolved)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        var info = await AuthStateProvider.GetMasterUserInfoAsync();
+        _isAdmin = info?.IsAdmin ?? false;
+        _currentUserId = info?.UserId ?? Guid.Empty;
+
+        if (_isAdmin)
+            await LoadDataAsync();
+
+        _loading = false;
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _allRoles = await Db.Roles.AsNoTracking().OrderBy(r => r.Name).ToListAsync();
+
+        _users = await Db.Users.AsNoTracking()
+            .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
+            .ToListAsync();
+
+        var userIds = _users.Select(u => u.Id).ToList();
+        var rawLinks = await Db.UserRoles
+            .AsNoTracking()
+            .Where(ur => userIds.Contains(ur.UserId))
+            .ToListAsync();
+
+        _userRoleIds = rawLinks
+            .GroupBy(x => x.UserId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.RoleId).ToList());
+    }
+
+    private IEnumerable<Guid> GetSelectedRoleIds(Guid userId) =>
+        _userRoleIds.TryGetValue(userId, out var ids) ? ids : [];
+
+    private async Task OnRolesChanged(MasterUser user, IEnumerable<Guid> newRoleIds)
+    {
+        var newIds = newRoleIds.ToHashSet();
+        var oldIds = _userRoleIds.TryGetValue(user.Id, out var existing)
+            ? existing.ToHashSet()
+            : new HashSet<Guid>();
+
+        var toAdd = newIds.Except(oldIds).ToList();
+        var toRemove = oldIds.Except(newIds).ToList();
+
+        // Нельзя снять с себя Admin
+        var adminRole = _allRoles.FirstOrDefault(r => r.Name == "Admin");
+        if (adminRole is not null && user.Id == _currentUserId && toRemove.Contains(adminRole.Id))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Запрещено",
+                "Нельзя снять с себя роль Admin");
+            // Возвращаем Admin обратно
+            newIds.Add(adminRole.Id);
+            toRemove.Remove(adminRole.Id);
+            if (toAdd.Count == 0 && toRemove.Count == 0) return;
+        }
+
+        _busyId = user.Id;
+        try
+        {
+            foreach (var roleId in toAdd)
+                Db.UserRoles.Add(new MasterUserRole { UserId = user.Id, RoleId = roleId });
+
+            if (toRemove.Count > 0)
+            {
+                var linksToRemove = await Db.UserRoles
+                    .Where(ur => ur.UserId == user.Id && toRemove.Contains(ur.RoleId))
+                    .ToListAsync();
+                Db.UserRoles.RemoveRange(linksToRemove);
+            }
+
+            await Db.SaveChangesAsync();
+
+            // Обновляем локальный кеш
+            _userRoleIds[user.Id] = newIds.ToList();
+
+            var addedNames = _allRoles.Where(r => toAdd.Contains(r.Id)).Select(r => r.Name).ToList();
+            var removedNames = _allRoles.Where(r => toRemove.Contains(r.Id)).Select(r => r.Name).ToList();
+
+            if (addedNames.Count > 0)
+                NotificationService.Notify(NotificationSeverity.Success, "Роль выдана",
+                    $"{user.LastName} {user.FirstName}: добавлено {string.Join(", ", addedNames)}");
+            if (removedNames.Count > 0)
+                NotificationService.Notify(NotificationSeverity.Info, "Роль снята",
+                    $"{user.LastName} {user.FirstName}: убрано {string.Join(", ", removedNames)}");
+        }
+        catch
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось сохранить роли");
+            // Откатываем изменения контекста
+            foreach (var entry in Db.ChangeTracker.Entries().ToList())
+                entry.State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+        }
+        finally
+        {
+            _busyId = null;
+        }
+    }
+
+    private async Task ToggleActive(MasterUser user, bool isActive)
+    {
+        _busyId = user.Id;
+        try
+        {
+            var tracked = await Db.Users.FindAsync(user.Id);
+            if (tracked is null) return;
+
+            tracked.IsActive = isActive;
+            await Db.SaveChangesAsync();
+            user.IsActive = isActive;
+
+            NotificationService.Notify(NotificationSeverity.Success, "Успешно",
+                isActive ? $"{user.LastName} {user.FirstName} активирован"
+                         : $"{user.LastName} {user.FirstName} деактивирован");
+        }
+        catch
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось изменить статус");
+        }
+        finally
+        {
+            _busyId = null;
+        }
+    }
+
+    private static string GetInitials(string? firstName, string? lastName)
+    {
+        var f = string.IsNullOrWhiteSpace(firstName) ? "" : firstName[0].ToString();
+        var l = string.IsNullOrWhiteSpace(lastName) ? "" : lastName[0].ToString();
+        return (l + f).ToUpper();
+    }
+}

@@ -72,13 +72,14 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
     }
 
     public async Task CreateAdminUserAsync(
-        string connectionString, string email, string password, CancellationToken ct)
+        string connectionString, string email, string password,
+        string firstName, string lastName, string? middleName, CancellationToken ct)
     {
         await using var context = await CreateContextAsync(connectionString, ct);
 
         await SyncRolesFromMasterAsync(context, ct);
         await EnsureAdminRoleAsync(context, ct);
-        await CreateUserWithRoleAsync(context, email, password, "Admin", ct);
+        await CreateUserWithRoleAsync(context, email, password, firstName, lastName, middleName, "Admin", ct);
 
         _logger.LogInformation("Tenant admin user created: {Email}", email);
     }
@@ -142,7 +143,8 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
     }
 
     private static async Task CreateUserWithRoleAsync(
-        TenantDbContext ctx, string email, string password, string roleName, CancellationToken ct)
+        TenantDbContext ctx, string email, string password,
+        string firstName, string lastName, string? middleName, string roleName, CancellationToken ct)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         if (await ctx.Users.AnyAsync(u => u.Email == normalizedEmail, ct))
@@ -153,8 +155,9 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
             Id = Guid.NewGuid(),
             Email = normalizedEmail,
             HashPassword = BCrypt.Net.BCrypt.HashPassword(password),
-            FirstName = "Admin",
-            LastName = "User",
+            FirstName = firstName,
+            LastName = lastName,
+            MiddleName = middleName,
             IsActive = true
         };
 
