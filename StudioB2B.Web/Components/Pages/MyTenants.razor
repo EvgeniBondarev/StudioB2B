@@ -1,0 +1,230 @@
+@page "/my-tenants"
+@using StudioB2B.Domain.Entities
+@using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Domain.Options
+@using StudioB2B.Web.Services
+@inject ITenantService TenantService
+@inject ITenantProvider TenantProvider
+@inject JwtAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject Microsoft.Extensions.Options.IOptions<MultiTenancyOptions> MultiTenancyOptions
+
+<PageTitle>Мои рабочие пространства</PageTitle>
+
+@if (_loading)
+{
+    <RadzenStack AlignItems="AlignItems.Center" Style="padding: 4rem;">
+        <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false" Style="width: 260px;" />
+    </RadzenStack>
+}
+else if (!_authorized)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
+        Необходимо войти в систему для управления рабочими пространствами.
+    </RadzenAlert>
+}
+else
+{
+    <RadzenStack Gap="1.5rem">
+
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                     JustifyContent="JustifyContent.SpaceBetween" Gap="1rem" Style="flex-wrap: wrap;">
+            <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">
+                @(_isAdmin ? "Все рабочие пространства" : "Мои рабочие пространства")
+            </RadzenText>
+            <RadzenButton Text="Создать новое" Icon="add" ButtonStyle="ButtonStyle.Primary"
+                          Click="@(() => Navigation.NavigateTo("/"))" />
+        </RadzenStack>
+
+        @if (_tenants.Count == 0)
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false">
+                Рабочих пространств пока нет. Нажмите «Создать новое», чтобы добавить первое.
+            </RadzenAlert>
+        }
+        else
+        {
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.25rem;">
+                @foreach (var t in _tenants)
+                {
+                    <div style="background: var(--rz-base-background-color);
+                                border: 1px solid var(--rz-border-color);
+                                border-radius: var(--rz-border-radius);
+                                padding: 1.25rem;
+                                display: flex; flex-direction: column; gap: 0.75rem;
+                                @(t.IsActive ? "" : "opacity: 0.7;")">
+
+                        <!-- Заголовок карточки -->
+                        <RadzenStack Orientation="Orientation.Horizontal"
+                                     AlignItems="AlignItems.Center"
+                                     JustifyContent="JustifyContent.SpaceBetween">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                                <RadzenIcon Icon="apartment"
+                                            Style="color: var(--rz-primary); font-size: 1.4rem;" />
+                                <RadzenText TextStyle="TextStyle.Subtitle1"
+                                            Style="font-weight: 600; margin: 0;">
+                                    @t.Name
+                                </RadzenText>
+                            </RadzenStack>
+                            @if (t.IsActive)
+                            {
+                                <RadzenBadge Text="Активен" BadgeStyle="BadgeStyle.Success" />
+                            }
+                            else
+                            {
+                                <RadzenBadge Text="Деактивирован" BadgeStyle="BadgeStyle.Danger" />
+                            }
+                        </RadzenStack>
+
+                        <!-- Субдомен -->
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                            <RadzenIcon Icon="link" Style="font-size: 1rem; color: var(--rz-text-secondary-color);" />
+                            <RadzenLink Text="@(GetTenantUrl(t.Subdomain))"
+                                        Path="@GetTenantUrl(t.Subdomain)"
+                                        Target="_blank"
+                                        Style="font-size: 0.875rem;" />
+                        </RadzenStack>
+
+                        <!-- Создатель (только для Admin) -->
+                        @if (_isAdmin)
+                        {
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                                <RadzenIcon Icon="person" Style="font-size: 1rem; color: var(--rz-text-secondary-color);" />
+                                <RadzenText TextStyle="TextStyle.Caption"
+                                            Style="color: var(--rz-text-secondary-color); margin: 0;">
+                                    @(t.CreatedBy?.Email ?? "Создатель не указан")
+                                </RadzenText>
+                            </RadzenStack>
+                        }
+
+                        <!-- Разделитель -->
+                        <hr style="margin: 0; border-color: var(--rz-border-color);" />
+
+                        <!-- Кнопки действий -->
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                            @if (t.IsActive)
+                            {
+                                <RadzenButton Text="Деактивировать" Icon="pause_circle"
+                                              ButtonStyle="ButtonStyle.Warning" Size="ButtonSize.Small"
+                                              Variant="Variant.Outlined" Style="flex: 1;"
+                                              Click="@(() => ToggleActive(t, false))"
+                                              IsBusy="@(_busyId == t.Id)" />
+                            }
+                            else
+                            {
+                                <RadzenButton Text="Активировать" Icon="play_circle"
+                                              ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small"
+                                              Variant="Variant.Outlined" Style="flex: 1;"
+                                              Click="@(() => ToggleActive(t, true))"
+                                              IsBusy="@(_busyId == t.Id)" />
+                            }
+                            <RadzenButton Icon="delete_outline" ButtonStyle="ButtonStyle.Danger"
+                                          Size="ButtonSize.Small" Variant="Variant.Outlined"
+                                          Click="@(() => ConfirmDelete(t))"
+                                          IsBusy="@(_busyId == t.Id)" />
+                        </RadzenStack>
+                    </div>
+                }
+            </div>
+        }
+
+    </RadzenStack>
+}
+
+@code {
+    private List<TenantEntity> _tenants = [];
+    private bool _loading = true;
+    private bool _authorized;
+    private bool _isAdmin;
+    private Guid _currentUserId;
+    private Guid? _busyId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (TenantProvider.IsResolved)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        var userInfo = await AuthStateProvider.GetMasterUserInfoAsync();
+        if (userInfo is null)
+        {
+            _loading = false;
+            return;
+        }
+
+        _authorized = true;
+        _isAdmin = userInfo.IsAdmin;
+        _currentUserId = userInfo.UserId;
+
+        await LoadTenantsAsync();
+        _loading = false;
+    }
+
+    private async Task LoadTenantsAsync()
+    {
+        _tenants = _isAdmin
+            ? await TenantService.GetAllAsync()
+            : await TenantService.GetByCreatorAsync(_currentUserId);
+    }
+
+    private async Task ToggleActive(TenantEntity tenant, bool isActive)
+    {
+        _busyId = tenant.Id;
+        try
+        {
+            var ok = await TenantService.SetActiveAsync(tenant.Id, isActive);
+            if (ok)
+            {
+                tenant.IsActive = isActive;
+                NotificationService.Notify(NotificationSeverity.Success, "Успешно",
+                    isActive ? $"«{tenant.Name}» активировано" : $"«{tenant.Name}» деактивировано");
+            }
+        }
+        finally
+        {
+            _busyId = null;
+        }
+    }
+
+    private async Task ConfirmDelete(TenantEntity tenant)
+    {
+        var confirmed = await DialogService.Confirm(
+            $"Удалить рабочее пространство «{tenant.Name}» ({tenant.Subdomain})? Это действие нельзя отменить.",
+            "Подтверждение удаления",
+            new ConfirmOptions { OkButtonText = "Удалить", CancelButtonText = "Отмена", CloseDialogOnOverlayClick = true });
+
+        if (confirmed != true) return;
+
+        _busyId = tenant.Id;
+        try
+        {
+            var ok = await TenantService.DeleteAsync(tenant.Id);
+            if (ok)
+            {
+                _tenants.Remove(tenant);
+                NotificationService.Notify(NotificationSeverity.Info, "Удалено", $"«{tenant.Name}» удалено");
+            }
+        }
+        finally
+        {
+            _busyId = null;
+        }
+    }
+
+    private string GetTenantUrl(string subdomain)
+    {
+        var uri = new Uri(Navigation.Uri);
+        var port = uri.Port is 80 or 443 ? "" : $":{uri.Port}";
+        var masterDomain = MultiTenancyOptions.Value.MasterDomain?.ToLowerInvariant() ?? "localhost";
+
+        if (masterDomain.Contains("localhost"))
+            return $"{uri.Scheme}://{subdomain}.localhost{port}/";
+
+        return $"https://{subdomain}.{masterDomain}/";
+    }
+}
+
