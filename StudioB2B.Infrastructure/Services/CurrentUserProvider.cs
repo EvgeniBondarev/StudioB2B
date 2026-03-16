@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using StudioB2B.Infrastructure.Interfaces;
@@ -32,12 +33,17 @@ public class CurrentUserProvider : ICurrentUserProvider
     {
         get
         {
-            var userIdClaim = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
+            // Сначала ищем по длинному ClaimTypes (после JWT-маппинга),
+            // затем по короткому JWT-имени "sub" (если маппинг не был применён).
+            var value = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        ?? User?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+            return Guid.TryParse(value, out var userId) ? userId : null;
         }
     }
 
-    public string? Email => User?.FindFirst(ClaimTypes.Email)?.Value;
+    public string? Email =>
+        User?.FindFirst(ClaimTypes.Email)?.Value
+        ?? User?.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
 
     public bool IsAuthenticated => User?.Identity?.IsAuthenticated ?? false;
 
