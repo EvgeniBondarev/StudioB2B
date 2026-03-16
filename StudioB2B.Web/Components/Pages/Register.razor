@@ -1,9 +1,138 @@
 @page "/register"
+@using StudioB2B.Shared
 @inject NavigationManager Navigation
+@inject HttpClient Http
+@inject JwtAuthenticationStateProvider AuthStateProvider
+@inject MasterAuthStateService MasterAuthState
+
+<PageTitle>Регистрация — StudioB2B</PageTitle>
+
+<div style="display: flex; justify-content: center; padding-top: 4rem; padding-bottom: 4rem;">
+    <div style="width: 100%; max-width: 460px;">
+
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                Создайте аккаунт для управления рабочими пространствами
+            </RadzenText>
+        </div>
+
+        @if (_error != null)
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                @_error
+            </RadzenAlert>
+        }
+
+        <EditForm Model="@_model" OnValidSubmit="HandleRegister">
+            <DataAnnotationsValidator />
+            <RadzenStack Gap="1rem">
+
+                <RadzenFormField Text="Фамилия *" Style="width: 100%;">
+                    <RadzenTextBox @bind-Value="_model.LastName" Style="width: 100%;" />
+                </RadzenFormField>
+
+                <RadzenFormField Text="Имя *" Style="width: 100%;">
+                    <RadzenTextBox @bind-Value="_model.FirstName" Style="width: 100%;" />
+                </RadzenFormField>
+
+                <RadzenFormField Text="Отчество" Style="width: 100%;">
+                    <RadzenTextBox @bind-Value="_model.MiddleName" Style="width: 100%;" />
+                </RadzenFormField>
+
+                <RadzenFormField Text="Email *" Style="width: 100%;">
+                    <RadzenTextBox @bind-Value="_model.Email" Style="width: 100%;" InputType="InputType.Email" />
+                </RadzenFormField>
+
+                <RadzenFormField Text="Пароль *" Style="width: 100%;">
+                    <ChildContent>
+                        <RadzenPassword @bind-Value="_model.Password" Style="width: 100%;" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов</RadzenText>
+                    </Helper>
+                </RadzenFormField>
+
+                <RadzenFormField Text="Подтверждение пароля *" Style="width: 100%;">
+                    <RadzenPassword @bind-Value="_model.ConfirmPassword" Style="width: 100%;" />
+                </RadzenFormField>
+
+                <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
+
+                <RadzenButton ButtonType="ButtonType.Submit"
+                              Text="Зарегистрироваться"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Style="width: 100%; justify-content: center;"
+                              IsBusy="@_loading" />
+
+            </RadzenStack>
+        </EditForm>
+
+        <hr style="margin-top: 1.5rem;" />
+        <div style="text-align: center; margin-top: 0.75rem;">
+            <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                Уже есть аккаунт?
+                <RadzenLink Text="Войти" Path="/" Style="margin-left: 0.25rem;" />
+            </RadzenText>
+        </div>
+
+    </div>
+</div>
 
 @code {
-    protected override void OnInitialized()
+    private MasterRegisterModelDto _model = new();
+    private bool _loading;
+    private string? _error;
+
+    private async Task HandleRegister()
     {
-        Navigation.NavigateTo("/", replace: true);
+        if (_model.Password != _model.ConfirmPassword)
+        {
+            _error = "Пароли не совпадают";
+            return;
+        }
+
+        _error = null;
+        _loading = true;
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/master/auth/register", new
+            {
+                _model.Email,
+                _model.Password,
+                _model.FirstName,
+                _model.LastName,
+                MiddleName = string.IsNullOrWhiteSpace(_model.MiddleName) ? null : _model.MiddleName
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
+                if (result?.Token is not null)
+                {
+                    await AuthStateProvider.MasterLoginAsync(result.Token);
+                    var userInfo = await AuthStateProvider.GetMasterUserInfoAsync();
+                    MasterAuthState.Set(true, userInfo);
+                    Navigation.NavigateTo("/", replace: true);
+                }
+            }
+            else
+            {
+                var err = await response.Content.ReadFromJsonAsync<ErrorResponse>();
+                _error = err?.Error ?? "Ошибка регистрации";
+            }
+        }
+        catch
+        {
+            _error = "Произошла ошибка при регистрации";
+        }
+        finally
+        {
+            _loading = false;
+        }
     }
+
+    private record ErrorResponse(string? Error);
 }
+

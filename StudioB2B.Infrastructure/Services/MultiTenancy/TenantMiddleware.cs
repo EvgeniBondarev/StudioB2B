@@ -40,8 +40,8 @@ public class TenantMiddleware
             }
             else
             {
-                _logger.LogWarning("No tenant for '{Subdomain}', redirecting to master", subdomain);
-                var masterUrl = $"https://{DomainHelper.Normalize(options.Value.MasterDomain)}/";
+                _logger.LogWarning("No active tenant for '{Subdomain}', redirecting to master", subdomain);
+                var masterUrl = BuildMasterUrl(context, options.Value.MasterDomain);
                 context.Response.Redirect(masterUrl);
                 return;
             }
@@ -59,6 +59,20 @@ public class TenantMiddleware
         return await masterDb.Tenants
             .AsNoTracking()
             .FirstOrDefaultAsync(t => t.Subdomain == subdomain && t.IsActive, ct);
+    }
+
+    /// <summary>
+    /// Строит URL master-домена, сохраняя схему (http/https) и нестандартный порт из текущего запроса.
+    /// </summary>
+    private static string BuildMasterUrl(HttpContext context, string masterDomain)
+    {
+        var scheme = context.Request.Scheme;
+        var normalizedDomain = DomainHelper.Normalize(masterDomain);
+        var port = context.Request.Host.Port;
+        var portStr = port.HasValue && port.Value != 80 && port.Value != 443
+            ? $":{port.Value}"
+            : string.Empty;
+        return $"{scheme}://{normalizedDomain}{portStr}/";
     }
 
     private async Task<bool> TryRedirectToLastTenantAsync(

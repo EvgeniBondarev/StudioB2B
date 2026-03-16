@@ -80,6 +80,35 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
         catch { return false; }
     }
 
+    /// <summary>
+    /// Читает claims из master JWT: email, given_name, family_name, middle_name, roles.
+    /// </summary>
+    public async Task<MasterUserInfo?> GetMasterUserInfoAsync()
+    {
+        try
+        {
+            var token = await _js.InvokeAsync<string?>("localStorage.getItem", MasterTokenKey);
+            if (string.IsNullOrWhiteSpace(token)) return null;
+
+            var handler = new JwtSecurityTokenHandler();
+            if (!handler.CanReadToken(token)) return null;
+
+            var jwt = handler.ReadJwtToken(token);
+            if (jwt.ValidTo < DateTime.UtcNow) return null;
+
+            var email = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Email)?.Value ?? "";
+            var firstName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.GivenName)?.Value ?? "";
+            var lastName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.FamilyName)?.Value ?? "";
+            var middleName = jwt.Claims.FirstOrDefault(c => c.Type == "middle_name")?.Value;
+            var roles = jwt.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
+            var subClaim = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
+            var userId = subClaim is not null && Guid.TryParse(subClaim, out var parsed) ? parsed : Guid.Empty;
+
+            return new MasterUserInfo(userId, email, firstName, lastName, middleName, roles);
+        }
+        catch { return null; }
+    }
+
     private static AuthenticationState Anonymous()
         => new(new ClaimsPrincipal(new ClaimsIdentity()));
 

@@ -16,6 +16,17 @@ public class RegisterModelDto
     [EmailAddress(ErrorMessage = "Некорректный email")]
     public string AdminEmail { get; set; } = "";
 
+    [Required(ErrorMessage = "Введите имя")]
+    [StringLength(100, MinimumLength = 1, ErrorMessage = "До 100 символов")]
+    public string FirstName { get; set; } = "";
+
+    [Required(ErrorMessage = "Введите фамилию")]
+    [StringLength(100, MinimumLength = 1, ErrorMessage = "До 100 символов")]
+    public string LastName { get; set; } = "";
+
+    [StringLength(100, ErrorMessage = "До 100 символов")]
+    public string? MiddleName { get; set; }
+
     [Required(ErrorMessage = "Введите пароль")]
     [MinLength(6, ErrorMessage = "Минимум 6 символов")]
     public string Password { get; set; } = "";

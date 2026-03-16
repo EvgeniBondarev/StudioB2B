@@ -12,7 +12,7 @@ using StudioB2B.Infrastructure.Persistence.Master;
 namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
 {
     [DbContext(typeof(MasterDbContext))]
-    [Migration("20260310180330_Initial")]
+    [Migration("20260316114331_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -20,12 +20,12 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.13")
+                .HasAnnotation("ProductVersion", "9.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Master.MasterRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MasterRole", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -47,7 +47,7 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                     b.ToTable("Roles", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Master.MasterUser", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MasterUser", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -57,6 +57,11 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<string>("HashPassword")
                         .IsRequired()
@@ -69,6 +74,15 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("MiddleName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
@@ -77,7 +91,7 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Master.MasterUserRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MasterUserRole", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
@@ -92,7 +106,7 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                     b.ToTable("UserRoles", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Tenants.TenantEntity", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantEntity", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -102,6 +116,9 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("char(36)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
@@ -121,21 +138,23 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedByUserId");
+
                     b.HasIndex("Subdomain")
                         .IsUnique();
 
                     b.ToTable("Tenants", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Master.MasterUserRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MasterUserRole", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Master.MasterRole", "Role")
+                    b.HasOne("StudioB2B.Domain.Entities.MasterRole", "Role")
                         .WithMany("UserRoles")
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Master.MasterUser", "User")
+                    b.HasOne("StudioB2B.Domain.Entities.MasterUser", "User")
                         .WithMany("UserRoles")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -146,12 +165,22 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Master.MasterRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantEntity", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.MasterUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedBy");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MasterRole", b =>
                 {
                     b.Navigation("UserRoles");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Master.MasterUser", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.MasterUser", b =>
                 {
                     b.Navigation("UserRoles");
                 });
