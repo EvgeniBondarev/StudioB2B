@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -72,6 +73,46 @@ public class AccountController : ControllerBase
         var expiresMinutes = _configuration.GetSection("Jwt").GetValue<int?>("ExpiresMinutes") ?? 60;
 
         _logger.LogInformation("User {Email} logged in successfully", email);
+
+        return Ok(new
+        {
+            token,
+            expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes)
+        });
+    }
+
+    /// <summary>
+    /// Перевыпускает JWT с актуальными ролями текущего пользователя.
+    /// Вызывается клиентом сразу после изменения ролей, чтобы не требовать повторного входа.
+    /// </summary>
+    [HttpGet("refresh")]
+    [Authorize]
+    public async Task<IActionResult> Refresh(CancellationToken ct = default)
+    {
+        if (!_tenantProvider.IsResolved)
+            return BadRequest(new { error = "Tenant not resolved" });
+
+        var subClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                       ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
+        if (!Guid.TryParse(subClaim, out var userId))
+            return Unauthorized(new { error = "Invalid token" });
+
+        await using var db = _dbContextFactory.CreateDbContext();
+
+        var user = await db.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive && !u.IsDeleted, ct);
+
+        if (user is null)
+            return Unauthorized(new { error = "User not found or inactive" });
+
+        var roles = await db.UserRoles.AsNoTracking()
+            .Where(ur => ur.UserId == userId)
+            .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name)
+            .ToListAsync(ct);
+
+        var token = GenerateJwtToken(user.Id, user.Email, roles);
+        var expiresMinutes = _configuration.GetSection("Jwt").GetValue<int?>("ExpiresMinutes") ?? 60;
 
         return Ok(new
         {
