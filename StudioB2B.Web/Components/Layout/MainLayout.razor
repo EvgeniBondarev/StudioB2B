@@ -31,22 +31,44 @@
 
                 @if (TenantProvider.IsResolved)
                 {
-                    <AuthorizeView Roles="Admin">
+                    <AuthorizeView Roles="UsersView">
+                        <Authorized><RadzenPanelMenuItem Text="Пользователи" Path="/users" Icon="people" /></Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="MarketplaceClientsView">
+                        <Authorized><RadzenPanelMenuItem Text="Маркетплейс" Path="/marketplace-clients" Icon="store" /></Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="OrdersView">
                         <Authorized>
-                            <RadzenPanelMenuItem Text="Пользователи" Path="/users" Icon="people" />
-                            <RadzenPanelMenuItem Text="Маркетплейс" Path="/marketplace-clients" Icon="store" />
                             <RadzenPanelMenuItem Text="Заказы" Path="/orders" Icon="receipt_long" />
-                            <RadzenPanelMenuItem Text="Возвраты" Path="/returns" Icon="assignment_return" />
                             <RadzenPanelMenuItem Text="Загрузка" Path="/orders-sync" Icon="cloud_sync" />
-                            <RadzenPanelMenuItem Text="Статусы" Path="/order-statuses" Icon="label" />
-                            <RadzenPanelMenuItem Text="Типы цен" Path="/price-types" Icon="payments" />
+                        </Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="ReturnsView">
+                        <Authorized><RadzenPanelMenuItem Text="Возвраты" Path="/returns" Icon="assignment_return" /></Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="OrderStatusesView">
+                        <Authorized><RadzenPanelMenuItem Text="Статусы" Path="/order-statuses" Icon="label" /></Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="PriceTypesView">
+                        <Authorized><RadzenPanelMenuItem Text="Типы цен" Path="/price-types" Icon="payments" /></Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="TransactionsView">
+                        <Authorized>
                             <RadzenPanelMenuItem Text="Документы" Path="/transactions" Icon="swap_horiz" />
                             <RadzenPanelMenuItem Text="История проведений" Path="/transactions-history" Icon="schedule" />
-                            <RadzenPanelMenuItem Text="Расчёты" Path="/calculation-rules" Icon="calculate" />
-                            <RadzenPanelMenuItem Text="Чаты" Path="/chats" Icon="chat" />
-                            <RadzenPanelMenuItem Text="Журнал" Path="/audit" Icon="history" />
-                            <RadzenPanelMenuItem Text="Модули" Path="/modules" Icon="extension" />
                         </Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="CalculationRulesView">
+                        <Authorized><RadzenPanelMenuItem Text="Расчёты" Path="/calculation-rules" Icon="calculate" /></Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="ChatsView">
+                        <Authorized><RadzenPanelMenuItem Text="Чаты" Path="/chats" Icon="chat" /></Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="AuditView">
+                        <Authorized><RadzenPanelMenuItem Text="Журнал" Path="/audit" Icon="history" /></Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="ModulesView">
+                        <Authorized><RadzenPanelMenuItem Text="Модули" Path="/modules" Icon="extension" /></Authorized>
                     </AuthorizeView>
 
                     <RadzenPanelMenuItem Text="@TenantProvider.Subdomain" Icon="apartment" Disabled="true" />

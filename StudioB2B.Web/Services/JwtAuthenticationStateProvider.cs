@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.JSInterop;
 
@@ -13,10 +15,12 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
     private const string TokenKey = "auth_token";
     private const string MasterTokenKey = "master_auth_token";
     private readonly IJSRuntime _js;
+    private readonly HttpClient _http;
 
-    public JwtAuthenticationStateProvider(IJSRuntime js)
+    public JwtAuthenticationStateProvider(IJSRuntime js, HttpClient http)
     {
         _js = js;
+        _http = http;
     }
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
@@ -56,6 +60,38 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
     {
         try { return await _js.InvokeAsync<string?>("localStorage.getItem", TokenKey); }
         catch { return null; }
+    }
+
+    /// <summary>
+    /// Перевыпускает JWT для текущего пользователя с актуальными ролями из БД.
+    /// Обновляет localStorage и уведомляет Blazor об изменении состояния аутентификации.
+    /// </summary>
+    public async Task RefreshAsync()
+    {
+        try
+        {
+            var currentToken = await GetTokenAsync();
+            if (string.IsNullOrWhiteSpace(currentToken)) return;
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, "api/auth/refresh");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", currentToken);
+
+            var response = await _http.SendAsync(request);
+            if (!response.IsSuccessStatusCode) return;
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("token", out var tokenEl)) return;
+
+            var newToken = tokenEl.GetString();
+            if (string.IsNullOrWhiteSpace(newToken)) return;
+
+            await LoginAsync(newToken);
+        }
+        catch
+        {
+            // Не мешаем работе приложения при ошибке обновления токена
+        }
     }
 
     public async Task MasterLoginAsync(string token)
