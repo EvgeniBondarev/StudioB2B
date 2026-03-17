@@ -1,5 +1,6 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
@@ -49,10 +50,25 @@ public class GetUserById(ITenantDbContextFactory factory, IMapper mapper)
 
 public class GetAvailableRoles(ITenantDbContextFactory factory)
 {
-    public async Task<List<string>> HandleAsync(CancellationToken ct = default)
+    public async Task<List<LabelValueDto>> HandleAsync(CancellationToken ct = default)
     {
         using var db = factory.CreateDbContext();
-        return await db.Roles.AsNoTracking().OrderBy(r => r.Name).Select(r => r.Name).ToListAsync(ct);
+        var names = await db.Roles
+            .AsNoTracking()
+            .Where(r => !r.IsDeleted)
+            .Select(r => r.Name)
+            .ToListAsync(ct);
+
+        return names
+            .Select(name =>
+            {
+                var label = Enum.TryParse<TenantRoleEnum>(name, out var role)
+                    ? TenantRoleHelper.GetDescription(role)
+                    : name;
+                return new LabelValueDto(label, name);
+            })
+            .OrderBy(x => x.Label)
+            .ToList();
     }
 }
 

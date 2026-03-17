@@ -1,5 +1,5 @@
 @page "/transactions"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "TransactionsView")]
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
@@ -45,8 +45,12 @@ else
                           Click="@(() => SetViewMode("canvas"))" />
             @if (_viewMode == "table")
             {
-                <RadzenButton Icon="add" Text="Добавить" ButtonStyle="ButtonStyle.Primary"
-                              Click="@OpenCreateDialog" />
+                <AuthorizeView Roles="TransactionsManage">
+                    <Authorized>
+                        <RadzenButton Icon="add" Text="Добавить" ButtonStyle="ButtonStyle.Primary"
+                                      Click="@OpenCreateDialog" />
+                    </Authorized>
+                </AuthorizeView>
             }
         </RadzenStack>
     </RadzenStack>
@@ -232,6 +236,8 @@ else
 }
 
 @code {
+    [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
+
     private RadzenDataGrid<OrderTransaction>? _grid;
     private TransactionFlowCanvas? _canvas;
     private TenantDbContext? _db;
@@ -239,6 +245,7 @@ else
     private int _totalCount;
     private Density _density = Density.Default;
     private bool _loading;
+    private bool _canManage;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
     private string _viewMode = "table";
     private DataGridSettings? _gridSettings;
@@ -293,6 +300,8 @@ else
     {
         if (firstRender)
         {
+            var state = await AuthState;
+            _canManage = state.User.IsInRole("TransactionsManage");
             await LoadGridSettingsAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
                 await _grid.Reload();
@@ -424,11 +433,15 @@ else
 
     private void ShowContextMenu(DataGridCellMouseEventArgs<OrderTransaction> args)
     {
-        ContextMenuService.Open(args,
-        [
-            new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" },
-            new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" }
-        ],
+        var items = new List<ContextMenuItem>();
+        if (_canManage)
+        {
+            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" });
+            items.Add(new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" });
+        }
+        if (items.Count == 0) return;
+
+        ContextMenuService.Open(args, items,
         async e =>
         {
             ContextMenuService.Close();

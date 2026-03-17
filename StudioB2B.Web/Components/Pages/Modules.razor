@@ -1,5 +1,5 @@
 @page "/modules"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "ModulesView")]
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
@@ -49,9 +49,16 @@ else
                                 <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">
                                     @module.Name
                                 </RadzenText>
-                                <RadzenSwitch Value="@module.IsEnabled"
-                                              Change="@(v => OnToggle(module, (bool)v))"
-                                              Disabled="@_processing" />
+                                <AuthorizeView Roles="ModulesManage">
+                                    <Authorized>
+                                        <RadzenSwitch Value="@module.IsEnabled"
+                                                      Change="@(v => OnToggle(module, (bool)v))"
+                                                      Disabled="@_processing" />
+                                    </Authorized>
+                                    <NotAuthorized>
+                                        <RadzenSwitch Value="@module.IsEnabled" Disabled="true" />
+                                    </NotAuthorized>
+                                </AuthorizeView>
                             </RadzenStack>
 
                             @if (!string.IsNullOrEmpty(module.Description))

@@ -64,6 +64,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 
     private static async Task RunSeedAsync(TenantDbContext context, CancellationToken ct)
     {
+        await SeedRolesFromEnumAsync(context, ct);
         await SeedMarketplaceDataAsync(context, ct);
         await SeedBasePriceTypesAsync(context, ct);
         await SeedBaseCalculationRulesAsync(context, ct);
@@ -77,9 +78,8 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
     {
         await using var context = await CreateContextAsync(connectionString, ct);
 
-        await SyncRolesFromMasterAsync(context, ct);
-        await EnsureAdminRoleAsync(context, ct);
-        await CreateUserWithRoleAsync(context, email, password, firstName, lastName, middleName, "Admin", ct);
+        await SeedRolesFromEnumAsync(context, ct);
+        await CreateUserWithAllRolesAsync(context, email, password, firstName, lastName, middleName, ct);
 
         _logger.LogInformation("Tenant admin user created: {Email}", email);
     }
@@ -118,33 +118,30 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         await ctx.SaveChangesAsync(ct);
     }
 
-    private async Task SyncRolesFromMasterAsync(TenantDbContext ctx, CancellationToken ct)
+    /// <summary>
+    /// Idempotently seeds one TenantRole row per TenantRoleEnum value.
+    /// Only inserts missing rows — never deletes existing data.
+    /// </summary>
+    private static async Task SeedRolesFromEnumAsync(TenantDbContext ctx, CancellationToken ct)
     {
-        var masterRoles = await _masterDb.Roles.AsNoTracking().ToListAsync(ct);
+        var existingNames = await ctx.Roles
+            .Where(r => !r.IsDeleted)
+            .Select(r => r.Name)
+            .ToHashSetAsync(ct);
 
-        foreach (var mr in masterRoles)
+        foreach (var role in TenantRoleHelper.AllRoles())
         {
-            if (!await ctx.Roles.AnyAsync(r => r.Id == mr.Id, ct))
-            {
-                ctx.Roles.Add(new TenantRole { Id = mr.Id, Name = mr.Name });
-            }
+            var name = role.ToString();
+            if (!existingNames.Contains(name))
+                ctx.Roles.Add(new TenantRole { Id = Guid.NewGuid(), Name = name });
         }
 
         await ctx.SaveChangesAsync(ct);
     }
 
-    private static async Task EnsureAdminRoleAsync(TenantDbContext ctx, CancellationToken ct)
-    {
-        if (!await ctx.Roles.AnyAsync(r => r.Name == "Admin", ct))
-        {
-            ctx.Roles.Add(new TenantRole { Id = Guid.NewGuid(), Name = "Admin" });
-            await ctx.SaveChangesAsync(ct);
-        }
-    }
-
-    private static async Task CreateUserWithRoleAsync(
+    private static async Task CreateUserWithAllRolesAsync(
         TenantDbContext ctx, string email, string password,
-        string firstName, string lastName, string? middleName, string roleName, CancellationToken ct)
+        string firstName, string lastName, string? middleName, CancellationToken ct)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         if (await ctx.Users.AnyAsync(u => u.Email == normalizedEmail, ct))
@@ -163,8 +160,8 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 
         ctx.Users.Add(user);
 
-        var role = await ctx.Roles.FirstOrDefaultAsync(r => r.Name == roleName, ct);
-        if (role is not null)
+        var allRoles = await ctx.Roles.Where(r => !r.IsDeleted).ToListAsync(ct);
+        foreach (var role in allRoles)
             ctx.UserRoles.Add(new TenantUserRole { UserId = user.Id, RoleId = role.Id });
 
         await ctx.SaveChangesAsync(ct);
