@@ -1,5 +1,5 @@
 @page "/order-statuses"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "OrderStatusesView")]
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features
@@ -32,8 +32,12 @@ else
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
             <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ToggleDensity" Title="@GetDensityTitle()" />
-            <RadzenButton Icon="add" Text="Добавить" Shade="Shade.Light" ButtonStyle="ButtonStyle.Primary"
-                          Click="@AddRow" />
+            <AuthorizeView Roles="OrderStatusesManage">
+                <Authorized>
+                    <RadzenButton Icon="add" Text="Добавить" Shade="Shade.Light" ButtonStyle="ButtonStyle.Primary"
+                                  Click="@AddRow" />
+                </Authorized>
+            </AuthorizeView>
         </RadzenStack>
     </RadzenStack>
 
@@ -253,12 +257,15 @@ else
 }
 
 @code {
+    [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
+
     private RadzenDataGrid<OrderStatus>? _grid;
     private TenantDbContext? _db;
     private IEnumerable<OrderStatus> _pageItems = Array.Empty<OrderStatus>();
     private int _totalCount;
     private Density _density = Density.Default;
     private bool _loading;
+    private bool _canManage;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
 
     private List<MarketplaceClientType> _clientTypes = new();
@@ -283,6 +290,8 @@ else
     {
         if (firstRender)
         {
+            var state = await AuthState;
+            _canManage = state.User.IsInRole("OrderStatusesManage");
             await LoadGridSettingsAsync();
             await LoadFiltersAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
@@ -471,11 +480,15 @@ else
 
     private void ShowContextMenu(DataGridCellMouseEventArgs<OrderStatus> args)
     {
-        ContextMenuService.Open(args,
-            [
-                new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" },
-                new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" }
-            ],
+        var items = new List<ContextMenuItem>();
+        if (_canManage)
+        {
+            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" });
+            items.Add(new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" });
+        }
+        if (items.Count == 0) return;
+
+        ContextMenuService.Open(args, items,
             e =>
             {
                 ContextMenuService.Close();
