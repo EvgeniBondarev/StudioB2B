@@ -1,6 +1,8 @@
+using System.Net.Http;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
+using Microsoft.AspNetCore.Http;
 using StudioB2B.Web.Infrastructure;
 using StudioB2B.Web.Services;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -23,15 +25,15 @@ public static class ServiceExtensions
         StaticWebAssetsLoader.UseStaticWebAssets(environment, configuration);
 
         services.AddHttpContextAccessor();
-        services.AddHttpClient();
-        services.AddScoped(sp =>
-        {
-            var factory = sp.GetRequiredService<IHttpClientFactory>();
-            var nav = sp.GetRequiredService<NavigationManager>();
-            var client = factory.CreateClient();
-            client.BaseAddress = new Uri(nav.BaseUri);
-            return client;
-        });
+        services.AddScoped<AuthTokenHandler>();
+        services.AddHttpClient("Anonymous", (sp, client) =>
+            ApplyBaseAddress(sp, client, configuration));
+        services.AddHttpClient("StudioB2B", (sp, client) =>
+            ApplyBaseAddress(sp, client, configuration)).AddHttpMessageHandler<AuthTokenHandler>();
+        services.AddScoped<JwtAuthenticationStateProvider>();
+        services.AddScoped<AuthenticationStateProvider>(sp =>
+            sp.GetRequiredService<JwtAuthenticationStateProvider>());
+        services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("StudioB2B"));
 
         services.AddInfrastructure(configuration);
 
@@ -59,16 +61,29 @@ public static class ServiceExtensions
         services.AddRazorComponents()
             .AddInteractiveServerComponents();
 
-        // JWT AuthenticationStateProvider для Blazor
-        services.AddScoped<JwtAuthenticationStateProvider>();
-        services.AddScoped<AuthenticationStateProvider>(sp =>
-            sp.GetRequiredService<JwtAuthenticationStateProvider>());
         services.AddScoped<MasterAuthStateService>();
 
         // JWT используется для аутентификации — CSRF-защита не нужна.
         services.AddSingleton<IAntiforgery, NoOpAntiforgery>();
 
         return services;
+    }
+
+    private static void ApplyBaseAddress(IServiceProvider sp, HttpClient client, IConfiguration configuration)
+    {
+        var httpContext = sp.GetService<IHttpContextAccessor>()?.HttpContext;
+        if (httpContext?.Request != null)
+        {
+            var req = httpContext.Request;
+            client.BaseAddress = new Uri($"{req.Scheme}://{req.Host}{req.PathBase}/");
+        }
+        else
+        {
+            var baseUrl = configuration["App:BaseUrl"]?.TrimEnd('/');
+            client.BaseAddress = !string.IsNullOrEmpty(baseUrl)
+                ? new Uri(baseUrl + "/")
+                : new Uri("http://localhost:5184/");
+        }
     }
 
     private static void ConfigureCors(IServiceCollection services, IWebHostEnvironment environment)

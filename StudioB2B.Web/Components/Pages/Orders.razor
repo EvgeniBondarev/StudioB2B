@@ -26,7 +26,7 @@
 
 <Popup @ref="columnsPopup" Lazy="true" class="my-popup">
     <RadzenStack Gap="8px">
-        @foreach (var col in Columns)
+        @foreach (var col in Columns.Where(c => c.RoleVisible))
         {
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="8px">
                 <RadzenCheckBox TValue="bool"
@@ -773,6 +773,8 @@ window.gridResize = {
 </script>
 
 @code {
+    [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
+
     [SupplyParameterFromQuery(Name = "openReturn")]
     public string? OpenReturnId { get; set; }
 
@@ -785,6 +787,8 @@ window.gridResize = {
     private bool _loading;
     private bool _loadDataInProgress;
     private bool _manufacturerModuleEnabled;
+    private bool _canViewPrice = true;
+    private bool _canViewCalculations = true;
     private int _dynamicPageSize = 15;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
 
@@ -866,7 +870,7 @@ window.gridResize = {
         if (!_columnsPopupVisible)
         {
             _selectedColumns = Columns
-                .Where(c => c.UserVisible ?? c.AutoVisible) // видимые сейчас колонки
+                .Where(c => c.RoleVisible && (c.UserVisible ?? c.AutoVisible))
                 .Select(c => c.Key)
                 .ToList();
         }
@@ -906,8 +910,10 @@ window.gridResize = {
 
         public bool AutoVisible { get; set; } = true; // управляется шириной экрана
         public bool? UserVisible { get; set; } = null; // null = не переопределено пользователем
+        /// <summary>False if the user doesn't have the required role — always hidden.</summary>
+        public bool RoleVisible { get; set; } = true;
 
-        public bool Visible => UserVisible ?? AutoVisible;
+        public bool Visible => (UserVisible ?? AutoVisible) && RoleVisible;
         public bool Frozen { get; set; } = false;
 
         public int Priority { get; set; } = 1;
@@ -1000,6 +1006,30 @@ window.gridResize = {
     {
         if (firstRender)
         {
+            // Resolve role-based column visibility
+            var state = await AuthState;
+            var user = state.User;
+            bool Col(string role) => user.IsInRole("Admin") || user.IsInRole(role);
+
+            _canViewPrice = Col("OrdersViewPrice");
+            _canViewCalculations = Col("OrdersViewCalculations");
+
+            GetColumn(OrderGridColumns.ShipmentNumber).RoleVisible = Col("OrdersColShipmentNumber");
+            GetColumn(OrderGridColumns.Client).RoleVisible = Col("OrdersColClient");
+            GetColumn(OrderGridColumns.AcceptedDate).RoleVisible = Col("OrdersColAcceptedDate");
+            GetColumn(OrderGridColumns.ShippingDate).RoleVisible = Col("OrdersColShippingDate");
+            GetColumn(OrderGridColumns.DeliveryTerm).RoleVisible = Col("OrdersColDeliveryTerm");
+            GetColumn(OrderGridColumns.Article).RoleVisible = Col("OrdersColArticle");
+            GetColumn(OrderGridColumns.Product).RoleVisible = Col("OrdersColProduct");
+            GetColumn(OrderGridColumns.Manufacturer).RoleVisible = Col("OrdersColManufacturer");
+            GetColumn(OrderGridColumns.Quantity).RoleVisible = Col("OrdersColQuantity");
+            GetColumn(OrderGridColumns.MarketplaceStatus).RoleVisible = Col("OrdersColMarketplaceStatus");
+            GetColumn(OrderGridColumns.AppStatus).RoleVisible = Col("OrdersColAppStatus");
+            GetColumn(OrderGridColumns.DeliveryMethod).RoleVisible = Col("OrdersColDeliveryMethod");
+            GetColumn(OrderGridColumns.Warehouse).RoleVisible = Col("OrdersColWarehouse");
+            GetColumn(OrderGridColumns.Price).RoleVisible = _canViewPrice;
+            GetColumn(OrderGridColumns.ExtraCalculations).RoleVisible = _canViewCalculations;
+
             if (TenantProvider.IsResolved)
                 _manufacturerModuleEnabled = await ModuleService.IsEnabledAsync(ModuleCodes.Manufacturers);
 
@@ -1016,7 +1046,7 @@ window.gridResize = {
 
             // Синхронизируем dropdown с реально видимыми колонками
             _selectedColumns = Columns
-                .Where(c => c.Visible)
+                .Where(c => c.RoleVisible && c.Visible)
                 .Select(c => c.Key)
                 .ToList();
 
