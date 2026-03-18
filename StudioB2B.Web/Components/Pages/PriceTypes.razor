@@ -90,13 +90,13 @@ else
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
-            <RadzenDataGridColumn TItem="PriceType" Property="Name" Title="Название" Width="220px" Frozen="true">
+            <RadzenDataGridColumn TItem="PriceType" Property="Name" Title="Название" Width="220px" Frozen="true" Visible="@Col("PriceTypesColName")">
                 <EditTemplate Context="p">
                     <RadzenTextBox @bind-Value="p.Name" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="PriceType" Property="DeliveryScheme" Title="Схема доставки" Width="160px">
+            <RadzenDataGridColumn TItem="PriceType" Property="DeliveryScheme" Title="Схема доставки" Width="160px" Visible="@Col("PriceTypesColDeliveryScheme")">
                 <Template Context="p">
                     @(p.DeliveryScheme ?? "—")
                 </Template>
@@ -106,7 +106,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="PriceType" Property="IsUserDefined" Title="Пользовательский"
-                                 Width="140px" TextAlign="TextAlign.Center" Filterable="false">
+                                 Width="140px" TextAlign="TextAlign.Center" Filterable="false" Visible="@Col("PriceTypesColIsUserDefined")">
                 <Template Context="p">
                     @if (p.IsUserDefined)
                     {
@@ -151,7 +151,10 @@ else
     private Density _density = Density.Default;
     private bool _loading;
     private bool _canManage;
+    private System.Security.Claims.ClaimsPrincipal? _user;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+
+    private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
     private DataGridSettings? _gridSettings;
     private const string GridSettingsKey = "price-types-grid-settings";
 
@@ -160,6 +163,7 @@ else
         if (firstRender)
         {
             var state = await AuthState;
+            _user = state.User;
             _canManage = state.User.IsInRole("PriceTypesManage");
             await LoadGridSettingsAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
