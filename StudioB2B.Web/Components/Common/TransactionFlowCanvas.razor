@@ -327,17 +327,17 @@
 
     // ──────────────────────── zoom / pan ────────────────────────
     private double _zoom = 1.0;
-    private double _panX = 0.0;
-    private double _panY = 0.0;
-    private const double ZoomMin  = 0.2;
-    private const double ZoomMax  = 3.0;
+    private double _panX;
+    private double _panY;
+    private const double ZoomMin = 0.2;
+    private const double ZoomMax = 3.0;
     private const double ZoomStep = 0.15;
 
     [JSInvokable]
     public async Task OnCanvasWheel(double mouseX, double mouseY, double deltaY)
     {
         var oldZoom = _zoom;
-        var factor  = deltaY < 0 ? 1.15 : 1.0 / 1.15;
+        var factor = deltaY < 0 ? 1.15 : 1.0 / 1.15;
         _zoom = Math.Clamp(_zoom * factor, ZoomMin, ZoomMax);
         // Keep the point under the mouse cursor fixed
         _panX = mouseX - (mouseX - _panX) * (_zoom / oldZoom);
@@ -618,15 +618,15 @@
     /// </summary>
     private Dictionary<Guid, Pos> ComputeTopologicalLayout(IList<Guid> ids)
     {
-        const double hGap   = 500;   // left-edge to left-edge of next column
-        const double vGap   = 200;   // top-edge to top-edge of next row within a column
+        const double hGap = 500;   // left-edge to left-edge of next column
+        const double vGap = 200;   // top-edge to top-edge of next row within a column
         const double startX = 60;
         const double startY = 60;
 
         var nodeSet = ids.ToHashSet();
 
         // Build adjacency and in-degree from current transactions
-        var adj   = ids.ToDictionary(id => id, _ => new List<Guid>());
+        var adj = ids.ToDictionary(id => id, _ => new List<Guid>());
         var inDeg = ids.ToDictionary(id => id, _ => 0);
 
         foreach (var tx in _transactions)

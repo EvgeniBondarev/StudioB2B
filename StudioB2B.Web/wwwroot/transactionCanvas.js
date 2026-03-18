@@ -21,7 +21,7 @@ function _tcUpdateConnections(statusId, newX, newY) {
     // Update SVG paths
     document.querySelectorAll('path[data-from-id], path[data-to-id]').forEach(path => {
         const fromId = path.dataset.fromId;
-        const toId   = path.dataset.toId;
+        const toId = path.dataset.toId;
         if (fromId !== statusId && toId !== statusId) return;
 
         const fp = getNodePos(fromId);
@@ -38,7 +38,7 @@ function _tcUpdateConnections(statusId, newX, newY) {
     // Update transaction card positions
     document.querySelectorAll('[data-from-id][data-to-id][id^="tc-tx-"]').forEach(card => {
         const fromId = card.dataset.fromId;
-        const toId   = card.dataset.toId;
+        const toId = card.dataset.toId;
         if (fromId !== statusId && toId !== statusId) return;
 
         const fp = getNodePos(fromId);
@@ -52,7 +52,7 @@ function _tcUpdateConnections(statusId, newX, newY) {
         const midX = (ax1 + ax2) / 2;
         const midY = (ay1 + ay2) / 2;
         card.style.left = midX + 'px';
-        card.style.top  = midY + 'px';
+        card.style.top = midY + 'px';
     });
 }
 
@@ -109,8 +109,8 @@ window.transactionCanvas = {
 
             e.preventDefault();
 
-            const startX    = e.clientX;
-            const startY    = e.clientY;
+            const startX = e.clientX;
+            const startY = e.clientY;
             const startPanX = window.transactionCanvas._panX;
             const startPanY = window.transactionCanvas._panY;
 
@@ -151,7 +151,7 @@ window.transactionCanvas = {
         if (!el) return;
 
         el.style.left = initialX + 'px';
-        el.style.top  = initialY + 'px';
+        el.style.top = initialY + 'px';
 
         const handle = el.querySelector('.tc-node-header') || el;
 
@@ -161,19 +161,19 @@ window.transactionCanvas = {
             e.preventDefault();
             e.stopPropagation();
 
-            const startX   = e.clientX;
-            const startY   = e.clientY;
-            const startL   = parseFloat(el.style.left) || 0;
-            const startT   = parseFloat(el.style.top)  || 0;
-            const origZ    = el.style.zIndex;
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startL = parseFloat(el.style.left) || 0;
+            const startT = parseFloat(el.style.top)  || 0;
+            const origZ = el.style.zIndex;
             el.style.zIndex = '50';
 
             const onMove = (ev) => {
                 const z = window.transactionCanvas._zoom;
                 const newLeft = Math.max(0, startL + (ev.clientX - startX) / z);
-                const newTop  = Math.max(0, startT + (ev.clientY - startY) / z);
+                const newTop = Math.max(0, startT + (ev.clientY - startY) / z);
                 el.style.left = newLeft + 'px';
-                el.style.top  = newTop  + 'px';
+                el.style.top = newTop  + 'px';
                 // Update connected arrows and transaction cards in real-time
                 _tcUpdateConnections(statusId, newLeft, newTop);
             };
@@ -192,12 +192,12 @@ window.transactionCanvas = {
 
     startConnect: function (sourceStatusId, nodeId, outerCanvasId, svgId, dotNetRef) {
         const nodeEl = document.getElementById(nodeId);
-        const outer  = document.getElementById(outerCanvasId); // outer fixed container
-        const svg    = document.getElementById(svgId);
+        const outer = document.getElementById(outerCanvasId); // outer fixed container
+        const svg = document.getElementById(svgId);
         if (!nodeEl || !outer || !svg) return;
 
         const outerRect = outer.getBoundingClientRect();
-        const z  = this._zoom;
+        const z = this._zoom;
         const px = this._panX;
         const py = this._panY;
 

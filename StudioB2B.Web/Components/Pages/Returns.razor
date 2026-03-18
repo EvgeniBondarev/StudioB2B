@@ -132,7 +132,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="OzonReturnId"
                                   Title="ID возврата" Width="150px" Frozen="true"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColReturnId")">
                 <Template Context="r">
                     <span class="rz-monospace rz-text-sm">@r.OzonReturnId</span>
                 </Template>
@@ -140,7 +140,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="PostingNumber"
                                   Title="Отправление" Width="200px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColPostingNumber")">
                 <Template Context="r">
                     <span class="rz-monospace rz-text-sm" title="@r.PostingNumber">@(r.PostingNumber ?? "—")</span>
                 </Template>
@@ -148,7 +148,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ReturnDate"
                                   Title="Дата возврата" Width="130px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColReturnDate")">
                 <Template Context="r">
                     @(r.ReturnDate.HasValue ? r.ReturnDate.Value.ToLocalTime().ToString("dd.MM.yyyy") : "—")
                 </Template>
@@ -156,19 +156,16 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ProductName"
                                   Title="Товар" Width="280px" Sortable="false"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColProduct")">
                 <Template Context="r">
                     <RadzenStack Gap="0.1rem">
-                        <span class="rz-text-sm rz-text-truncate"
-                              title="@r.ProductName"
-                              style="max-width: 260px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <span class="rz-text-sm rz-text-truncate" title="@r.ProductName"
+                              style="max-width:260px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                             @(r.ProductName ?? "—")
                         </span>
                         @if (!string.IsNullOrEmpty(r.OfferId))
                         {
-                            <span class="rz-monospace" style="font-size: 0.75rem; color: var(--rz-text-secondary-color);">
-                                @r.OfferId
-                            </span>
+                            <span class="rz-monospace" style="font-size:0.75rem;color:var(--rz-text-secondary-color);">@r.OfferId</span>
                         }
                     </RadzenStack>
                 </Template>
@@ -176,16 +173,14 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ProductQuantity"
                                   Title="Кол-во" Width="80px" TextAlign="TextAlign.Center"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColQuantity")">
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="Type"
                                   Title="Тип" Width="170px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColType")">
                 <Template Context="r">
-                    @{
-                        var (tbg, tfg) = GetTypeColors(r.Type);
-                    }
+                    @{ var (tbg, tfg) = GetTypeColors(r.Type); }
                     <span style="@($"display:inline-flex;align-items:center;padding:2px 10px;border-radius:20px;font-size:0.82rem;font-weight:500;background:{tbg};color:{tfg};")" >
                         @GetTypeDisplayName(r.Type)
                     </span>
@@ -194,7 +189,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="Schema"
                                   Title="Схема" Width="70px" TextAlign="TextAlign.Center"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColSchema")">
                 <FilterTemplate>
                     <div class="filter-all-item @(_filterSchema == null ? "active" : "")"
                          @onclick="@(async () => await ClearFilter(() => _filterSchema = null))">Все</div>
@@ -202,32 +197,29 @@ else
                                    Data="@_schemaOptions"
                                    TextProperty="@nameof(FilterOption.Label)"
                                    ValueProperty="@nameof(FilterOption.Value)"
-                                   AllowClear="true"
-                                   Style="width:100%;"
+                                   AllowClear="true" Style="width:100%;"
                                    Change="@(async _ => { if (_grid != null) await _grid.Reload(); })" />
                 </FilterTemplate>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="VisualStatusDisplayName"
                                   Title="Статус возврата" Width="220px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColVisualStatus")">
                 <Template Context="r">
                     @if (!string.IsNullOrEmpty(r.VisualStatusDisplayName))
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Light"
-                                     Text="@r.VisualStatusDisplayName"
-                                     Style="font-size: 0.78rem; white-space: normal;" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="@r.VisualStatusDisplayName"
+                                     Style="font-size:0.78rem;white-space:normal;" />
                     }
                 </Template>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ReturnReasonName"
                                   Title="Причина" Width="280px" Sortable="false"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColReason")">
                 <Template Context="r">
-                    <span class="rz-text-sm"
-                          title="@r.ReturnReasonName"
-                          style="display: block; max-width: 270px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <span class="rz-text-sm" title="@r.ReturnReasonName"
+                          style="display:block;max-width:270px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         @(r.ReturnReasonName ?? "—")
                     </span>
                 </Template>
@@ -235,22 +227,19 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ProductPrice"
                                   Title="Цена" Width="120px" TextAlign="TextAlign.Right"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColPrice")">
                 <Template Context="r">
                     @if (r.ProductPrice.HasValue)
                     {
                         <span>@r.ProductPrice.Value.ToString("N2") @r.ProductPriceCurrencyCode</span>
                     }
-                    else
-                    {
-                        <span style="color: var(--rz-text-disabled-color);">—</span>
-                    }
+                    else { <span style="color:var(--rz-text-disabled-color);">—</span> }
                 </Template>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="CommissionPercent"
                                   Title="Комиссия %" Width="110px" TextAlign="TextAlign.Right"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColCommission")">
                 <Template Context="r">
                     @(r.CommissionPercent.HasValue ? $"{r.CommissionPercent:N1}%" : "—")
                 </Template>
@@ -258,47 +247,38 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="CompensationStatusDisplayName"
                                   Title="Компенсация" Width="200px" Sortable="false"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColCompensation")">
                 <Template Context="r">
                     @if (!string.IsNullOrEmpty(r.CompensationStatusDisplayName))
                     {
                         <span class="rz-text-sm">@r.CompensationStatusDisplayName</span>
                     }
-                    else
-                    {
-                        <span style="color: var(--rz-text-disabled-color);">—</span>
-                    }
+                    else { <span style="color:var(--rz-text-disabled-color);">—</span> }
                 </Template>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Title="Заказ" Width="100px"
                                   TextAlign="TextAlign.Center" Sortable="false" Filterable="false"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColOrder")">
                 <Template Context="r">
                     @if (r.OrderId.HasValue)
                     {
-                        <RadzenIcon Icon="link" Style="color: var(--rz-success); font-size: 1.1rem;"
+                        <RadzenIcon Icon="link" Style="color:var(--rz-success);font-size:1.1rem;"
                                     title="@($"Привязан к заказу (OzonOrderId: {r.OzonOrderId})")" />
                     }
                     else if (r.OzonOrderId.HasValue)
                     {
-                        <span style="color: var(--rz-warning); font-size: 0.75rem;"
-                              title="OzonOrderId: @r.OzonOrderId — заказ не найден">
-                            нет связи
-                        </span>
+                        <span style="color:var(--rz-warning);font-size:0.75rem;" title="OzonOrderId: @r.OzonOrderId — заказ не найден">нет связи</span>
                     }
-                    else
-                    {
-                        <span style="color: var(--rz-text-disabled-color); font-size: 0.8rem;">—</span>
-                    }
+                    else { <span style="color:var(--rz-text-disabled-color);font-size:0.8rem;">—</span> }
                 </Template>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="SyncedAt"
                                   Title="Синхронизирован" Width="150px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColSyncedAt")">
                 <Template Context="r">
-                    <span style="font-size: 0.8rem; color: var(--rz-text-secondary-color);">
+                    <span style="font-size:0.8rem;color:var(--rz-text-secondary-color);">
                         @r.SyncedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
                     </span>
                 </Template>
@@ -309,6 +289,8 @@ else
 }
 
 @code {
+    [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
+
     private record FilterOption(string Label, string Value);
 
     private RadzenDataGrid<OrderReturn>? _grid;
@@ -319,6 +301,9 @@ else
     private bool _enqueueing;
     private Density _density = Density.Default;
     private TenantDbContext? _db;
+    private System.Security.Claims.ClaimsPrincipal? _user;
+
+    private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
 
     private DataGridSettings? _gridSettings;
     private const string GridSettingsKey = "returns-grid-settings";
@@ -350,6 +335,9 @@ else
     {
         if (!firstRender) return;
         if (!TenantProvider.IsResolved) return;
+
+        var state = await AuthState;
+        _user = state.User;
 
         await LoadGridSettingsAsync();
         await LoadCountsAsync();

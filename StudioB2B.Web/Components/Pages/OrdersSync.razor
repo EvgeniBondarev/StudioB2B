@@ -1,5 +1,5 @@
 @page "/orders-sync"
-@attribute [Authorize(Roles = "OrdersView")]
+@attribute [Authorize(Roles = "SyncView")]
 @using System.Text.Json
 @using Microsoft.AspNetCore.SignalR.Client
 @using StudioB2B.Domain.Entities
@@ -31,10 +31,13 @@ else
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
         <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Фоновые задачи</RadzenText>
         <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
-            <RadzenButton Text="Запустить задачу" Icon="play_arrow"
-                          ButtonStyle="ButtonStyle.Primary"
-                          Size="ButtonSize.Small"
-                          Click="@OpenEnqueueDialogAsync" />
+            @if (_canRunAny)
+            {
+                <RadzenButton Text="Запустить задачу" Icon="play_arrow"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Size="ButtonSize.Small"
+                              Click="@OpenEnqueueDialogAsync" />
+            }
             <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ToggleDensity" Title="@GetDensityTitle()" />
         </RadzenStack>
@@ -44,9 +47,12 @@ else
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                      JustifyContent="JustifyContent.SpaceBetween">
             <RadzenText TextStyle="TextStyle.Subtitle1" Style="font-weight:600; margin:0;">Расписания</RadzenText>
-            <RadzenButton Text="Добавить расписание" Icon="add_alarm"
-                          ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                          Click="@OpenCreateScheduleDialogAsync" />
+            @if (_canManageSchedules)
+            {
+                <RadzenButton Text="Добавить расписание" Icon="add_alarm"
+                              ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Click="@OpenCreateScheduleDialogAsync" />
+            }
         </RadzenStack>
 
         @if (_schedules.Count == 0)
@@ -66,13 +72,16 @@ else
                                          JustifyContent="JustifyContent.SpaceBetween">
                                 <RadzenBadge BadgeStyle="@JobTypeBadgeStyle(s.JobType)"
                                              Text="@JobTypeLabel(s.JobType)" />
-                                <RadzenToggleButton Value="@s.IsEnabled"
-                                                    ButtonStyle="ButtonStyle.Light"
-                                                    ToggleButtonStyle="ButtonStyle.Success"
-                                                    Icon="@(s.IsEnabled ? "toggle_on" : "toggle_off")"
-                                                    Size="ButtonSize.ExtraSmall"
-                                                    title="@(s.IsEnabled ? "Отключить" : "Включить")"
-                                                    Click="@(() => ToggleScheduleAsync(s))" />
+                                @if (_canManageSchedules)
+                                {
+                                    <RadzenToggleButton Value="@s.IsEnabled"
+                                                        ButtonStyle="ButtonStyle.Light"
+                                                        ToggleButtonStyle="ButtonStyle.Success"
+                                                        Icon="@(s.IsEnabled ? "toggle_on" : "toggle_off")"
+                                                        Size="ButtonSize.ExtraSmall"
+                                                        title="@(s.IsEnabled ? "Отключить" : "Включить")"
+                                                        Click="@(() => ToggleScheduleAsync(s))" />
+                                }
                             </RadzenStack>
                             <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600;">
                                 @ScheduleCronBuilder.Describe(s)
@@ -88,19 +97,25 @@ else
                                 Создал: @(s.CreatedByEmail ?? "—")
                             </RadzenText>
                             <RadzenStack Orientation="Orientation.Horizontal" Gap="0.4rem" JustifyContent="JustifyContent.End">
-                                <RadzenButton Icon="play_arrow" Size="ButtonSize.ExtraSmall"
-                                              ButtonStyle="ButtonStyle.Success" title="Запустить сейчас"
-                                              IsBusy="@_runningScheduleIds.Contains(s.Id)"
-                                              Disabled="@_runningScheduleIds.Contains(s.Id)"
-                                              Click="@(() => RunScheduleNowAsync(s))" />
-                                <RadzenButton Icon="edit" Size="ButtonSize.ExtraSmall"
-                                              ButtonStyle="ButtonStyle.Light" title="Редактировать"
-                                              Click="@(() => OpenEditScheduleDialogAsync(s))" />
-                                <RadzenButton Icon="delete" Size="ButtonSize.ExtraSmall"
-                                              ButtonStyle="ButtonStyle.Light" title="Удалить"
-                                              IsBusy="@_deletingScheduleIds.Contains(s.Id)"
-                                              Disabled="@_deletingScheduleIds.Contains(s.Id)"
-                                              Click="@(() => DeleteScheduleAsync(s))" />
+                                @if (CanRunJobType(s.JobType))
+                                {
+                                    <RadzenButton Icon="play_arrow" Size="ButtonSize.ExtraSmall"
+                                                  ButtonStyle="ButtonStyle.Success" title="Запустить сейчас"
+                                                  IsBusy="@_runningScheduleIds.Contains(s.Id)"
+                                                  Disabled="@_runningScheduleIds.Contains(s.Id)"
+                                                  Click="@(() => RunScheduleNowAsync(s))" />
+                                }
+                                @if (_canManageSchedules)
+                                {
+                                    <RadzenButton Icon="edit" Size="ButtonSize.ExtraSmall"
+                                                  ButtonStyle="ButtonStyle.Light" title="Редактировать"
+                                                  Click="@(() => OpenEditScheduleDialogAsync(s))" />
+                                    <RadzenButton Icon="delete" Size="ButtonSize.ExtraSmall"
+                                                  ButtonStyle="ButtonStyle.Light" title="Удалить"
+                                                  IsBusy="@_deletingScheduleIds.Contains(s.Id)"
+                                                  Disabled="@_deletingScheduleIds.Contains(s.Id)"
+                                                  Click="@(() => DeleteScheduleAsync(s))" />
+                                }
                             </RadzenStack>
                         </RadzenStack>
                     </RadzenCard>
@@ -153,7 +168,7 @@ else
                     Style="width: 100%;">
         <Columns>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="JobType" Title="Тип" Width="210px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColType")">
                 <Template Context="h">
                     <RadzenBadge BadgeStyle="@JobTypeBadgeStyle(h.JobType)"
                                  Text="@JobTypeLabel(h.JobType)" />
@@ -168,7 +183,7 @@ else
                 </FilterTemplate>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="Status" Title="Статус" Width="200px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColStatus")">
                 <Template Context="h">
                     <div style="display:flex;flex-direction:column;gap:2px;">
                         <RadzenBadge BadgeStyle="@StatusBadgeStyle(h.Status)" Text="@StatusLabel(h.Status)" />
@@ -188,7 +203,7 @@ else
                 </FilterTemplate>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Title="Параметры" Width="260px"
-                                  Filterable="false" HeaderCssClass="half-painted-header">
+                                  Filterable="false" HeaderCssClass="half-painted-header" Visible="@Col("SyncColParams")">
                 <Template Context="h">
                     <RadzenText TextStyle="TextStyle.Body2" Class="rz-text-truncate" title="@FormatParameters(h)">
                         @FormatParameters(h)
@@ -196,13 +211,13 @@ else
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="StartedAtUtc" Title="Запуск" Width="160px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColStartedAt")">
                 <Template Context="h">
                     <RadzenText TextStyle="TextStyle.Body2">@($"{h.StartedAtUtc.ToLocalTime():g}")</RadzenText>
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="FinishedAtUtc" Title="Завершено" Width="160px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColFinishedAt")">
                 <Template Context="h">
                     @if (h.FinishedAtUtc.HasValue)
                     { <RadzenText TextStyle="TextStyle.Body2">@($"{h.FinishedAtUtc.Value.ToLocalTime():g}")</RadzenText> }
@@ -211,13 +226,13 @@ else
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Title="Продолжительность" Width="240px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColDuration")">
                 <Template Context="h">
                     <RadzenText TextStyle="TextStyle.Body2">@FormatDuration(h)</RadzenText>
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="InitiatedByEmail" Title="Запустил"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColInitiatedBy")">
                 <Template Context="h">
                     @if (!string.IsNullOrEmpty(h.InitiatedByEmail))
                     { <RadzenText TextStyle="TextStyle.Body2" Class="rz-text-truncate" title="@h.InitiatedByEmail">@h.InitiatedByEmail</RadzenText> }
@@ -266,11 +281,22 @@ else
 }
 
 @code {
+    [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
+
     private List<SyncJobHistory> _historyItems = new();
     private List<SyncJobHistory> _filteredItems = new();
     private bool _hasActiveJobs;
     private bool _isLoading;
     private Density _density = Density.Default;
+
+    private bool _canRunOrders;
+    private bool _canRunStatusUpdate;
+    private bool _canRunReturns;
+    private bool _canRunAny;
+    private bool _canManageSchedules;
+    private System.Security.Claims.ClaimsPrincipal? _syncUser;
+
+    private bool Col(string role) => _syncUser?.IsInRole("Admin") == true || _syncUser?.IsInRole(role) == true;
 
     private SyncJobType? _filterType;
     private SyncJobStatus? _filterStatus;
@@ -309,6 +335,15 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        var state = await AuthState;
+        var user = state.User;
+        _syncUser = user;
+        _canRunOrders = user.IsInRole("Admin") || user.IsInRole("SyncRunOrders");
+        _canRunStatusUpdate = user.IsInRole("Admin") || user.IsInRole("SyncRunStatusUpdate");
+        _canRunReturns = user.IsInRole("Admin") || user.IsInRole("SyncRunReturns");
+        _canRunAny = _canRunOrders || _canRunStatusUpdate || _canRunReturns;
+        _canManageSchedules = user.IsInRole("Admin") || user.IsInRole("SyncManageSchedules");
+
         if (!TenantProvider.IsResolved) return;
 
         await LoadHistoryAsync();
@@ -376,10 +411,16 @@ else
 
     private async Task OpenEnqueueDialogAsync()
     {
+        var allowed = new List<SyncJobType>();
+        if (_canRunOrders) allowed.Add(SyncJobType.Sync);
+        if (_canRunStatusUpdate) allowed.Add(SyncJobType.Update);
+        if (_canRunReturns) allowed.Add(SyncJobType.Returns);
+
         var result = await DialogService.OpenAsync(
             "Запустить фоновую задачу",
             ds => @<EnqueueJobDialog JobService="@JobService"
                                      DialogService="@ds"
+                                     AllowedTypes="@allowed"
                                      NotificationService="@NotificationService" />,
             new DialogOptions { Width = "700px", Resizable = true, Draggable = true });
 
@@ -630,6 +671,14 @@ else
                 break;
         }
     }
+
+    private bool CanRunJobType(SyncJobType t) => t switch
+    {
+        SyncJobType.Sync => _canRunOrders,
+        SyncJobType.Update => _canRunStatusUpdate,
+        SyncJobType.Returns => _canRunReturns,
+        _ => false
+    };
 
     private static BadgeStyle JobTypeBadgeStyle(SyncJobType t) => t switch
     {

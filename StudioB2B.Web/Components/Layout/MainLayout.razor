@@ -40,6 +40,10 @@
                     <AuthorizeView Roles="OrdersView">
                         <Authorized>
                             <RadzenPanelMenuItem Text="Заказы" Path="/orders" Icon="receipt_long" />
+                        </Authorized>
+                    </AuthorizeView>
+                    <AuthorizeView Roles="SyncView">
+                        <Authorized>
                             <RadzenPanelMenuItem Text="Загрузка" Path="/orders-sync" Icon="cloud_sync" />
                         </Authorized>
                     </AuthorizeView>

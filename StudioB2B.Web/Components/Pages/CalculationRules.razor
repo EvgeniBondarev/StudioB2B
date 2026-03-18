@@ -87,19 +87,19 @@ else
         <Columns>
 
             <RadzenDataGridColumn TItem="CalculationRule" Property="SortOrder" Title="#"
-                                  Width="60px" TextAlign="TextAlign.Center" Filterable="false">
+                                  Width="60px" TextAlign="TextAlign.Center" Filterable="false" Visible="@Col("CalcRulesColSortOrder")">
                 <EditTemplate Context="r">
                     <RadzenNumeric @bind-Value="r.SortOrder" Style="width: 100%;" Min="0" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="CalculationRule" Property="Name" Title="Название" Width="200px">
+            <RadzenDataGridColumn TItem="CalculationRule" Property="Name" Title="Название" Width="200px" Visible="@Col("CalcRulesColName")">
                 <EditTemplate Context="r">
                     <RadzenTextBox @bind-Value="r.Name" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="CalculationRule" Property="ResultKey" Title="Ключ результата" Width="180px">
+            <RadzenDataGridColumn TItem="CalculationRule" Property="ResultKey" Title="Ключ результата" Width="180px" Visible="@Col("CalcRulesColResultKey")">
                 <Template Context="r">
                     <span style="font-family: monospace; font-size: 0.82rem; color: var(--rz-primary);">@r.ResultKey</span>
                 </Template>
@@ -108,7 +108,7 @@ else
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="CalculationRule" Property="Formula" Title="Формула" Width="360px">
+            <RadzenDataGridColumn TItem="CalculationRule" Property="Formula" Title="Формула" Width="360px" Visible="@Col("CalcRulesColFormula")">
                 <Template Context="r">
                     <span style="font-family: monospace; font-size: 0.82rem;">@r.Formula</span>
                 </Template>
@@ -125,7 +125,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="CalculationRule" Property="IsActive" Title="Активно"
-                                  Width="90px" TextAlign="TextAlign.Center" Filterable="false">
+                                  Width="90px" TextAlign="TextAlign.Center" Filterable="false" Visible="@Col("CalcRulesColIsActive")">
                 <Template Context="r">
                     @if (r.IsActive)
                     {
@@ -168,8 +168,11 @@ else
     private Density _density = Density.Default;
     private bool _loading;
     private bool _canManage;
+    private System.Security.Claims.ClaimsPrincipal? _user;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
     private List<string> _availableVariables = new();
+
+    private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
 
     private DataGridSettings? _gridSettings;
     private const string GridSettingsKey = "calculation-rules-grid-settings";
@@ -179,6 +182,7 @@ else
         if (firstRender)
         {
             var state = await AuthState;
+            _user = state.User;
             _canManage = state.User.IsInRole("CalculationRulesManage");
             await LoadGridSettingsAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
