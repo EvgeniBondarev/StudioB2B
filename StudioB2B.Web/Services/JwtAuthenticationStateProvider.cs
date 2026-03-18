@@ -15,12 +15,12 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
     private const string TokenKey = "auth_token";
     private const string MasterTokenKey = "master_auth_token";
     private readonly IJSRuntime _js;
-    private readonly HttpClient _http;
+    private readonly IHttpClientFactory _httpFactory;
 
-    public JwtAuthenticationStateProvider(IJSRuntime js, HttpClient http)
+    public JwtAuthenticationStateProvider(IJSRuntime js, IHttpClientFactory httpFactory)
     {
         _js = js;
-        _http = http;
+        _httpFactory = httpFactory;
     }
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
@@ -76,7 +76,8 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
             using var request = new HttpRequestMessage(HttpMethod.Get, "api/auth/refresh");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", currentToken);
 
-            var response = await _http.SendAsync(request);
+            var client = _httpFactory.CreateClient("Anonymous");
+            var response = await client.SendAsync(request);
             if (!response.IsSuccessStatusCode) return;
 
             var json = await response.Content.ReadAsStringAsync();
