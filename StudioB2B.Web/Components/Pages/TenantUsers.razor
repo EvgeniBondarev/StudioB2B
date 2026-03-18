@@ -77,20 +77,22 @@ else
                     PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
-            <RadzenDataGridColumn TItem="UserListDto" Property="LastName" Title="Фамилия" Width="180px" Frozen="true" />
-            <RadzenDataGridColumn TItem="UserListDto" Property="FirstName" Title="Имя" Width="160px" />
-            <RadzenDataGridColumn TItem="UserListDto" Property="MiddleName" Title="Отчество" Width="160px" />
-            <RadzenDataGridColumn TItem="UserListDto" Property="Email" Title="Email" Width="240px" />
+            <RadzenDataGridColumn TItem="UserListDto" Property="LastName" Title="Фамилия" Width="180px" Frozen="true" Visible="@Col("UsersColLastName")" />
+            <RadzenDataGridColumn TItem="UserListDto" Property="FirstName" Title="Имя" Width="160px" Visible="@Col("UsersColFirstName")" />
+            <RadzenDataGridColumn TItem="UserListDto" Property="MiddleName" Title="Отчество" Width="160px" Visible="@Col("UsersColMiddleName")" />
+            <RadzenDataGridColumn TItem="UserListDto" Property="Email" Title="Email" Width="240px" Visible="@Col("UsersColEmail")" />
 
             <RadzenDataGridColumn TItem="UserListDto" Property="IsActive" Title="Активен"
-                                  Width="110px" TextAlign="TextAlign.Center" Filterable="false">
+                                  Width="110px" TextAlign="TextAlign.Center" Filterable="false"
+                                  Visible="@Col("UsersColIsActive")">
                 <Template Context="u">
                     <RadzenCheckBox TValue="bool" Value="@u.IsActive" Disabled="true" />
                 </Template>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="UserListDto" Title="Роли" Width="260px"
-                                  Sortable="false" Filterable="false">
+                                  Sortable="false" Filterable="false"
+                                  Visible="@Col("UsersColRoles")">
                 <Template Context="u">
                     @string.Join(", ", u.Roles.Select(r =>
                         Enum.TryParse<TenantRoleEnum>(r, out var role)
@@ -109,8 +111,13 @@ else
     private List<UserListDto> _users = [];
     private bool _loading = true;
     private bool _canManage;
+    private System.Security.Claims.ClaimsPrincipal? _user;
     private Density _density = Density.Default;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+
+    private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
+
+    // ...existing code...
 
     private DataGridSettings? _gridSettings;
     private const string GridSettingsKey = "tenant-users-grid-settings";
@@ -118,6 +125,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthState;
+        _user = state.User;
         _canManage = state.User.IsInRole("UsersManage");
 
         if (TenantProvider.IsResolved)
@@ -181,33 +189,29 @@ else
 
         if (result is true)
         {
+            await LoadAsync();                              // data first
             var state = await AuthState;
             _canManage = state.User.IsInRole("UsersManage");
-            await LoadAsync();
         }
     }
 
-    private async Task OpenEditDialog(UserListDto user)
+    private async Task OpenEditDialog(UserListDto userArg)
     {
+        // Pass only UserId — the dialog loads fresh data via GetUserById itself,
+        // so we never risk showing stale data captured in args.Data.
         var result = await DialogService.OpenAsync<UserEditDialog>(
             "Редактировать пользователя",
             new Dictionary<string, object?>
             {
-                [nameof(UserEditDialog.UserId)]     = user.Id,
-                [nameof(UserEditDialog.Email)]      = user.Email,
-                [nameof(UserEditDialog.FirstName)]  = user.FirstName,
-                [nameof(UserEditDialog.LastName)]   = user.LastName,
-                [nameof(UserEditDialog.MiddleName)] = (object?)user.MiddleName,
-                [nameof(UserEditDialog.IsActive)]   = user.IsActive,
-                [nameof(UserEditDialog.Roles)]      = user.Roles.ToList()
+                [nameof(UserEditDialog.UserId)] = userArg.Id
             },
             new DialogOptions { Width = "min(640px, 96vw)", CloseDialogOnOverlayClick = true });
 
         if (result is true)
         {
+            await LoadAsync();                              // data first
             var state = await AuthState;
             _canManage = state.User.IsInRole("UsersManage");
-            await LoadAsync();
         }
     }
 

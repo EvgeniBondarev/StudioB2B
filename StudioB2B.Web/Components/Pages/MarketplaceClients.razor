@@ -87,13 +87,13 @@ else
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Name" Title="Название" Width="220px" Frozen="true">
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Name" Title="Название" Width="220px" Frozen="true" Visible="@Col("MktClientsColName")">
                 <EditTemplate Context="c">
                     <RadzenTextBox @bind-Value="c.Name" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="ApiId" Title="API ID" Width="180px">
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="ApiId" Title="API ID" Width="180px" Visible="@Col("MktClientsColApiId")">
                 <EditTemplate Context="c">
                     <RadzenTextBox @bind-Value="c.ApiId" Style="width: 100%;" />
                 </EditTemplate>
@@ -101,7 +101,7 @@ else
 
             <!-- Masked key column with show/hide toggle -->
             <RadzenDataGridColumn TItem="MarketplaceClient" Property="Key" Title="API ключ" Width="240px"
-                                  Filterable="false" Sortable="false">
+                                  Filterable="false" Sortable="false" Visible="@Col("MktClientsColApiKey")">
                 <Template Context="c">
                     <div @key="c.Id" style="display:flex; align-items:center; gap:4px;"
                          @onclick:stopPropagation="true">
@@ -132,7 +132,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="MarketplaceClient" Property="ClientType.Name" Title="Тип" Width="180px"
-                                  Sortable="false" Filterable="false">
+                                  Sortable="false" Filterable="false" Visible="@Col("MktClientsColType")">
                 <EditTemplate Context="c">
                     <RadzenDropDown Data="@_types"
                                     TextProperty="@nameof(MarketplaceClientType.Name)"
@@ -143,7 +143,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="MarketplaceClient" Property="Mode.Name" Title="Режим" Width="180px"
-                                  Sortable="false" Filterable="false">
+                                  Sortable="false" Filterable="false" Visible="@Col("MktClientsColMode")">
                 <EditTemplate Context="c">
                     <RadzenDropDown Data="@_modes"
                                     TextProperty="@nameof(MarketplaceClientMode.Name)"
@@ -153,13 +153,13 @@ else
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Company" Title="Компания" Width="200px">
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Company" Title="Компания" Width="200px" Visible="@Col("MktClientsColCompany")">
                 <EditTemplate Context="c">
                     <RadzenTextBox @bind-Value="c.Company" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="INN" Title="ИНН" Width="160px">
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="INN" Title="ИНН" Width="160px" Visible="@Col("MktClientsColINN")">
                 <EditTemplate Context="c">
                     <RadzenTextBox @bind-Value="c.INN" Style="width: 100%;" />
                 </EditTemplate>
@@ -196,7 +196,10 @@ else
     private Density _density = Density.Default;
     private bool _loading;
     private bool _canManage;
+    private System.Security.Claims.ClaimsPrincipal? _user;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+
+    private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
 
     // tracks which rows have their key revealed
     private readonly HashSet<Guid> _revealedKeys = [];
@@ -209,6 +212,7 @@ else
         if (firstRender)
         {
             var state = await AuthState;
+            _user = state.User;
             _canManage = state.User.IsInRole("MarketplaceClientsManage");
             await LoadGridSettingsAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)

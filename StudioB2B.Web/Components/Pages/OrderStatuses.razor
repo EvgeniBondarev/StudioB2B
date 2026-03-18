@@ -88,7 +88,7 @@ else
         <Columns>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="Name"
-                                  Title="Название" Width="220px" Frozen="true">
+                                  Title="Название" Width="220px" Frozen="true" Visible="@Col("OStatusColName")">
                 <EditTemplate Context="s">
                     <RadzenTextBox @bind-Value="s.Name" Style="width: 100%;" />
                 </EditTemplate>
@@ -96,7 +96,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="Color" Title="Цвет"
                                   Width="120px" TextAlign="TextAlign.Center"
-                                  Filterable="false" Sortable="false">
+                                  Filterable="false" Sortable="false" Visible="@Col("OStatusColColor")">
                 <Template Context="s">
                     @if (!string.IsNullOrEmpty(s.Color))
                     {
@@ -125,7 +125,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="IsTerminal" Title="Конечный"
-                                  Width="100px" TextAlign="TextAlign.Center" Filterable="false">
+                                  Width="100px" TextAlign="TextAlign.Center" Filterable="false" Visible="@Col("OStatusColIsTerminal")">
                 <Template Context="s">
                     @if (s.IsTerminal)
                     {
@@ -143,7 +143,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="IsInternal" Title="Системный"
-                                  Width="110px" TextAlign="TextAlign.Center" Filterable="true">
+                                  Width="110px" TextAlign="TextAlign.Center" Filterable="true" Visible="@Col("OStatusColIsInternal")">
 
                 <FilterTemplate>
                     <div class="filter-all-item @( _filterType == null ? "active" : "" )"
@@ -176,7 +176,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="Synonym" Title="Синоним (API)"
-                                  Width="240px">
+                                  Width="240px" Visible="@Col("OStatusColSynonym")">
                 <Template Context="s">
                     @if (!string.IsNullOrEmpty(s.Synonym))
                     {
@@ -194,7 +194,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="MarketplaceClientType.Name"
-                                  Title="Маркетплейс" Width="160px" Sortable="false" Filterable="true">
+                                  Title="Маркетплейс" Width="160px" Sortable="false" Filterable="true" Visible="@Col("OStatusColClientType")">
                 <FilterTemplate>
                     <div class="filter-all-item @( _filterMarketplaceTypeId == null ? "active" : "" )"
                          @onclick="() => ClearFilter(() => _filterMarketplaceTypeId = null)">
@@ -266,7 +266,10 @@ else
     private Density _density = Density.Default;
     private bool _loading;
     private bool _canManage;
+    private System.Security.Claims.ClaimsPrincipal? _user;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+
+    private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
 
     private List<MarketplaceClientType> _clientTypes = new();
 
@@ -291,6 +294,7 @@ else
         if (firstRender)
         {
             var state = await AuthState;
+            _user = state.User;
             _canManage = state.User.IsInRole("OrderStatusesManage");
             await LoadGridSettingsAsync();
             await LoadFiltersAsync();
