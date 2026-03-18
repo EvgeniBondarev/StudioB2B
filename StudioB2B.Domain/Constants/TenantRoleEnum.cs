@@ -4,6 +4,10 @@ namespace StudioB2B.Domain.Constants;
 
 public enum TenantRoleEnum
 {
+    /// <summary>Администратор — полный доступ ко всем разделам.</summary>
+    [Description("Администратор")]
+    Admin = 0,
+
     // Пользователи
     [Description("Пользователи: просмотр")]
     UsersView = 1,

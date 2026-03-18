@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -11,6 +12,7 @@ using System.Text;
 using StudioB2B.Domain.Options;
 using StudioB2B.Infrastructure.Features;
 using StudioB2B.Infrastructure.Helpers.Http.Handlers;
+using StudioB2B.Infrastructure.Authorization;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services.MultiTenancy;
 using StudioB2B.Infrastructure.Services.Modules;
@@ -121,6 +123,7 @@ public static class DependencyInjection
             });
 
         services.AddAuthorization();
+        services.AddSingleton<IAuthorizationHandler, AdminSatisfiesAllRolesHandler>();
 
         services.AddScoped<GetUsers>();
         services.AddScoped<GetUserById>();
