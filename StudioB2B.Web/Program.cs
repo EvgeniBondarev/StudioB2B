@@ -13,7 +13,7 @@ builder.Host.UseSerilog((context, _, configuration) =>
                                     .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Information)
                                     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Information));
 
-builder.Services.AddApplicationServices(builder.Configuration);
+builder.Services.AddApplicationServices(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 app.ConfigurePipeline();

@@ -25,6 +25,12 @@ public class OzonProductAttributeItemDto
     [JsonPropertyName("primary_image")]
     public string? PrimaryImage { get; set; }
 
+    [JsonPropertyName("images")]
+    public List<string>? Images { get; set; }
+
+    [JsonPropertyName("images360")]
+    public List<string>? Images360 { get; set; }
+
     [JsonPropertyName("sku")]
     public long Sku { get; set; }
 
