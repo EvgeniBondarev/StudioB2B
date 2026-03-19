@@ -1,9 +1,7 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
-using StudioB2B.Domain.Entities.Common;
-using StudioB2B.Domain.Entities.Master;
-using StudioB2B.Domain.Entities.Tenants;
+using StudioB2B.Domain.Entities;
 
 namespace StudioB2B.Infrastructure.Persistence.Master;
 
@@ -32,15 +30,15 @@ public class MasterDbContext : DbContext
 
     private static void ApplySoftDeleteFilters(ModelBuilder modelBuilder)
     {
-        foreach (IMutableEntityType entityType in modelBuilder.Model.GetEntityTypes())
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
             if (!typeof(ISoftDelete).IsAssignableFrom(entityType.ClrType))
                 continue;
 
-            ParameterExpression param = Expression.Parameter(entityType.ClrType, "e");
-            MemberExpression isDeletedProp = Expression.Property(param, nameof(ISoftDelete.IsDeleted));
-            UnaryExpression notDeleted = Expression.Not(isDeletedProp);
-            LambdaExpression lambda = Expression.Lambda(notDeleted, param);
+            var param = Expression.Parameter(entityType.ClrType, "e");
+            var isDeletedProp = Expression.Property(param, nameof(ISoftDelete.IsDeleted));
+            var notDeleted = Expression.Not(isDeletedProp);
+            var lambda = Expression.Lambda(notDeleted, param);
 
             entityType.SetQueryFilter(lambda);
         }

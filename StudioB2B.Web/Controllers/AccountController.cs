@@ -1,11 +1,13 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
+using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Web.Controllers;
 
@@ -18,11 +20,8 @@ public class AccountController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly ILogger<AccountController> _logger;
 
-    public AccountController(
-        ITenantProvider tenantProvider,
-        ITenantDbContextFactory dbContextFactory,
-        IConfiguration configuration,
-        ILogger<AccountController> logger)
+    public AccountController(ITenantProvider tenantProvider, ITenantDbContextFactory dbContextFactory,
+                             IConfiguration configuration, ILogger<AccountController> logger)
     {
         _tenantProvider = tenantProvider;
         _dbContextFactory = dbContextFactory;
@@ -34,7 +33,7 @@ public class AccountController : ControllerBase
     /// Авторизация: возвращает JWT-токен
     /// </summary>
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct = default)
+    public async Task<IActionResult> Login([FromBody] LoginDto request, CancellationToken ct = default)
     {
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
@@ -82,11 +81,51 @@ public class AccountController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Перевыпускает JWT с актуальными ролями текущего пользователя.
+    /// Вызывается клиентом сразу после изменения ролей, чтобы не требовать повторного входа.
+    /// </summary>
+    [HttpGet("refresh")]
+    [Authorize]
+    public async Task<IActionResult> Refresh(CancellationToken ct = default)
+    {
+        if (!_tenantProvider.IsResolved)
+            return BadRequest(new { error = "Tenant not resolved" });
+
+        var subClaim = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                       ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
+        if (!Guid.TryParse(subClaim, out var userId))
+            return Unauthorized(new { error = "Invalid token" });
+
+        await using var db = _dbContextFactory.CreateDbContext();
+
+        var user = await db.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive && !u.IsDeleted, ct);
+
+        if (user is null)
+            return Unauthorized(new { error = "User not found or inactive" });
+
+        var roles = await db.UserRoles.AsNoTracking()
+            .Where(ur => ur.UserId == userId)
+            .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name)
+            .ToListAsync(ct);
+
+        var token = GenerateJwtToken(user.Id, user.Email, roles);
+        var expiresMinutes = _configuration.GetSection("Jwt").GetValue<int?>("ExpiresMinutes") ?? 60;
+
+        return Ok(new
+        {
+            token,
+            expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes)
+        });
+    }
+
     private string GenerateJwtToken(Guid userId, string email, IEnumerable<string> roles)
     {
         var jwtSection = _configuration.GetSection("Jwt");
-        var secret  = jwtSection["Secret"]!;
-        var issuer   = jwtSection["Issuer"] ?? "StudioB2B";
+        var secret = jwtSection["Secret"]!;
+        var issuer = jwtSection["Issuer"] ?? "StudioB2B";
         var audience = jwtSection["Audience"] ?? "StudioB2B";
         var expiresMinutes = jwtSection.GetValue<int?>("ExpiresMinutes") ?? 60;
 
@@ -104,14 +143,12 @@ public class AccountController : ControllerBase
             claims.Add(new Claim(ClaimTypes.Role, role));
 
         var token = new JwtSecurityToken(
-            issuer:             issuer,
-            audience:           audience,
-            claims:             claims,
-            expires:            DateTime.UtcNow.AddMinutes(expiresMinutes),
+            issuer: issuer,
+            audience: audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(expiresMinutes),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
-
-public record LoginRequest(string Email, string Password);

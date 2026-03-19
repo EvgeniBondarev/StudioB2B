@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Infrastructure.Integrations.Ozon;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
 
@@ -20,13 +19,10 @@ public class ChatFileProxyController : ControllerBase
     private readonly ITenantDbContextFactory _dbFactory;
     private readonly ITenantProvider _tenantProvider;
 
-    public ChatFileProxyController(
-        IOzonApiClient ozonApi,
-        ITenantDbContextFactory dbFactory,
-        ITenantProvider tenantProvider)
+    public ChatFileProxyController(IOzonApiClient ozonApi, ITenantDbContextFactory dbFactory, ITenantProvider tenantProvider)
     {
-        _ozonApi       = ozonApi;
-        _dbFactory     = dbFactory;
+        _ozonApi = ozonApi;
+        _dbFactory = dbFactory;
         _tenantProvider = tenantProvider;
     }
 
@@ -79,7 +75,7 @@ public class ChatFileProxyController : ControllerBase
 
         // RFC 5987 для корректной передачи не-ASCII имён файлов
         var encodedName = Uri.EscapeDataString(fileName);
-        Response.Headers["Content-Disposition"] = isInline
+        Response.Headers.ContentDisposition = isInline
             ? $"inline; filename*=UTF-8''{encodedName}"
             : $"attachment; filename*=UTF-8''{encodedName}";
 
@@ -92,22 +88,22 @@ public class ChatFileProxyController : ControllerBase
         return ext switch
         {
             ".jpg" or ".jpeg" => "image/jpeg",
-            ".png"            => "image/png",
-            ".gif"            => "image/gif",
-            ".webp"           => "image/webp",
-            ".pdf"            => "application/pdf",
-            ".mp4"            => "video/mp4",
-            ".mov"            => "video/quicktime",
-            ".avi"            => "video/x-msvideo",
-            ".webm"           => "video/webm",
-            ".mp3"            => "audio/mpeg",
-            ".ogg"            => "audio/ogg",
-            ".wav"            => "audio/wav",
-            ".doc"            => "application/msword",
-            ".docx"           => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ".txt"            => "text/plain",
-            ".zip"            => "application/zip",
-            _                 => "application/octet-stream"
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".pdf" => "application/pdf",
+            ".mp4" => "video/mp4",
+            ".mov" => "video/quicktime",
+            ".avi" => "video/x-msvideo",
+            ".webm" => "video/webm",
+            ".mp3" => "audio/mpeg",
+            ".ogg" => "audio/ogg",
+            ".wav" => "audio/wav",
+            ".doc" => "application/msword",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".txt" => "text/plain",
+            ".zip" => "application/zip",
+            _ => "application/octet-stream"
         };
     }
 

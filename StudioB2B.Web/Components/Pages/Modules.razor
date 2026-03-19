@@ -1,0 +1,188 @@
+@page "/modules"
+@attribute [Authorize(Roles = "ModulesView")]
+@using Microsoft.EntityFrameworkCore
+@using StudioB2B.Domain.Entities
+@using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Infrastructure.Persistence.Tenant
+
+@inject ITenantProvider TenantProvider
+@inject IModuleService ModuleService
+@inject TenantDbContext Db
+@inject NotificationService NotificationService
+
+<PageTitle>Модули</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+{
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                 JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
+        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Модули</RadzenText>
+    </RadzenStack>
+
+    <RadzenText TextStyle="TextStyle.Body2"
+                Style="color: var(--rz-text-secondary-color); margin-bottom: 1rem; display: block;">
+        Управление дополнительными модулями тенанта. Включение модуля может потребовать загрузки справочных данных.
+    </RadzenText>
+
+    @if (_loading)
+    {
+        <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate"
+                                   Style="margin: 2rem auto; display: block;" />
+    }
+    else
+    {
+        <RadzenRow Gap="1rem">
+            @foreach (var module in _modules)
+            {
+                <RadzenColumn Size="12" SizeMD="6" SizeLG="4">
+                    <RadzenCard Style="padding: 1.5rem;">
+                        <RadzenStack Gap="0.75rem">
+                            <RadzenStack Orientation="Orientation.Horizontal"
+                                         AlignItems="AlignItems.Center"
+                                         JustifyContent="JustifyContent.SpaceBetween">
+                                <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">
+                                    @module.Name
+                                </RadzenText>
+                                <AuthorizeView Roles="ModulesManage">
+                                    <Authorized>
+                                        <RadzenSwitch Value="@module.IsEnabled"
+                                                      Change="@(v => OnToggle(module, (bool)v))"
+                                                      Disabled="@_processing" />
+                                    </Authorized>
+                                    <NotAuthorized>
+                                        <RadzenSwitch Value="@module.IsEnabled" Disabled="true" />
+                                    </NotAuthorized>
+                                </AuthorizeView>
+                            </RadzenStack>
+
+                            @if (!string.IsNullOrEmpty(module.Description))
+                            {
+                                <RadzenText TextStyle="TextStyle.Body2"
+                                            Style="color: var(--rz-text-secondary-color);">
+                                    @module.Description
+                                </RadzenText>
+                            }
+
+                            @if (module.IsEnabled && module.EnabledAt.HasValue)
+                            {
+                                <RadzenText TextStyle="TextStyle.Caption"
+                                            Style="color: var(--rz-text-tertiary-color);">
+                                    Включён @module.EnabledAt.Value.ToString("dd.MM.yyyy HH:mm")
+                                </RadzenText>
+                            }
+
+                            @if (module.Code == ModuleCodes.Manufacturers && module.IsEnabled)
+                            {
+                                <RadzenText TextStyle="TextStyle.Caption"
+                                            Style="color: var(--rz-text-tertiary-color);">
+                                    Производителей: @_manufacturerCount.ToString("N0")
+                                </RadzenText>
+                            }
+
+                            @if (_processing && _processingCode == module.Code)
+                            {
+                                <RadzenProgressBar Value="100" ShowValue="false"
+                                                   Mode="ProgressBarMode.Indeterminate"
+                                                   Style="height: 4px;" />
+                            }
+                        </RadzenStack>
+                    </RadzenCard>
+                </RadzenColumn>
+            }
+        </RadzenRow>
+    }
+}
+
+@code {
+    private List<TenantModule> _modules = [];
+    private bool _loading = true;
+    private bool _processing;
+    private string? _processingCode;
+    private int _manufacturerCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!TenantProvider.IsResolved) return;
+
+        await EnsureModulesSeeded();
+        await LoadModules();
+
+        _loading = false;
+    }
+
+    private async Task LoadModules()
+    {
+        _modules = await ModuleService.GetAllAsync();
+        await UpdateManufacturerCount();
+    }
+
+    private async Task UpdateManufacturerCount()
+    {
+        try
+        {
+            _manufacturerCount = await Db.Manufacturers.CountAsync();
+        }
+        catch
+        {
+            _manufacturerCount = 0;
+        }
+    }
+
+    private async Task EnsureModulesSeeded()
+    {
+        var existing = await Db.TenantModules.Select(m => m.Code).ToListAsync();
+
+        if (!existing.Contains(ModuleCodes.Manufacturers))
+        {
+            Db.TenantModules.Add(new TenantModule
+            {
+                Id = Guid.NewGuid(),
+                Code = ModuleCodes.Manufacturers,
+                Name = "Производители",
+                Description = "Справочник производителей с привязкой к товарам по префиксу артикула."
+            });
+            await Db.SaveChangesAsync();
+        }
+    }
+
+    private async Task OnToggle(TenantModule module, bool enabled)
+    {
+        _processing = true;
+        _processingCode = module.Code;
+        StateHasChanged();
+
+        try
+        {
+            if (enabled)
+            {
+                await ModuleService.EnableAsync(module.Code);
+                NotificationService.Notify(NotificationSeverity.Success,
+                    "Модуль включён", $"Модуль «{module.Name}» успешно активирован");
+            }
+            else
+            {
+                await ModuleService.DisableAsync(module.Code);
+                NotificationService.Notify(NotificationSeverity.Info,
+                    "Модуль отключён", $"Модуль «{module.Name}» деактивирован");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error,
+                "Ошибка", ex.Message);
+        }
+        finally
+        {
+            await LoadModules();
+            _processing = false;
+            _processingCode = null;
+            StateHasChanged();
+        }
+    }
+}

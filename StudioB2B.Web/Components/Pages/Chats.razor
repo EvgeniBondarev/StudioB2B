@@ -1,8 +1,6 @@
 @page "/chats"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "ChatsView")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Infrastructure.Features.Marketplace
-@using StudioB2B.Infrastructure.Integrations.Ozon.Models.Chat
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Web.Helpers
@@ -32,17 +30,82 @@ else
         <!-- Заголовок + фильтры -->
         <div class="chats-top">
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
-                         JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 0.6rem;">
+                         JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem; margin-top:0.35rem">
                 <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Чаты</RadzenText>
                 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
                     @if (_totalUnread > 0)
                     {
-                        <RadzenBadge BadgeStyle="BadgeStyle.Danger" Text="@_totalUnread.ToString()" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Secondary" Text="@_totalUnread.ToString()" Class="badge-unread-msg"/>
                         <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color); margin:0;">непрочитанных</RadzenText>
                     }
-                    <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                                  Click="@RefreshAllAsync" IsBusy="@_loadingList" Text="Обновить" />
+                    <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Primary" Shade="Shade.Light" Size="ButtonSize.Small"
+                                  Click="@RefreshAllAsync" IsBusy="@_loadingList" Text="Обновить"/>
                 </RadzenStack>
+            </RadzenStack>
+
+            <!-- Статус + Тип чата: пилюли на одной строке -->
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                         Style="padding: 0 0 0.6rem 0; flex-wrap: wrap;">
+                @{ var allStatusActive = string.IsNullOrEmpty(_filterStatus); }
+                <span class="q-pill @(allStatusActive ? "active" : "")"
+                      style="background:@(allStatusActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allStatusActive ? "#fff" : "var(--rz-text-color)");"
+                      @onclick="@(async () => { _filterStatus = null; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Все
+                </span>
+                <span class="q-pill @(_filterStatus == "OPENED" ? "active" : "")"
+                      style="background:@(_filterStatus == "OPENED" ? "#10b981" : "#d1fae5"); color:@(_filterStatus == "OPENED" ? "#fff" : "#065f46");"
+                      @onclick="@(async () => { _filterStatus = _filterStatus == "OPENED" ? null : "OPENED"; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Открыт
+                    @if (_chatStatusCounts.GetValueOrDefault("OPENED") > 0)
+                    {
+                        <span class="q-pill-count">@_chatStatusCounts.GetValueOrDefault("OPENED")</span>
+                    }
+                </span>
+                <span class="q-pill @(_filterStatus == "CLOSED" ? "active" : "")"
+                      style="background:@(_filterStatus == "CLOSED" ? "#6b7280" : "#f3f4f6"); color:@(_filterStatus == "CLOSED" ? "#fff" : "#374151");"
+                      @onclick="@(async () => { _filterStatus = _filterStatus == "CLOSED" ? null : "CLOSED"; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Закрыт
+                    @if (_chatStatusCounts.GetValueOrDefault("CLOSED") > 0)
+                    {
+                        <span class="q-pill-count">@_chatStatusCounts.GetValueOrDefault("CLOSED")</span>
+                    }
+                </span>
+
+                <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 6px;"></span>
+
+                @{ var allTypeActive = string.IsNullOrEmpty(_filterType); }
+                <span class="q-pill @(allTypeActive ? "active" : "")"
+                      style="background:@(allTypeActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allTypeActive ? "#fff" : "var(--rz-text-color)");"
+                      @onclick="@(async () => { _filterType = null; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Все типы
+                </span>
+                <span class="q-pill @(_filterType == "BUYER_SELLER" ? "active" : "")"
+                      style="background:@(_filterType == "BUYER_SELLER" ? "#f59e0b" : "#fef3c7"); color:@(_filterType == "BUYER_SELLER" ? "#fff" : "#78350f");"
+                      @onclick="@(async () => { _filterType = _filterType == "BUYER_SELLER" ? null : "BUYER_SELLER"; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Покупатель — Продавец
+                    @if (_chatTypeCounts.GetValueOrDefault("BUYER_SELLER") > 0)
+                    {
+                        <span class="q-pill-count">@_chatTypeCounts.GetValueOrDefault("BUYER_SELLER")</span>
+                    }
+                </span>
+                <span class="q-pill @(_filterType == "SELLER_SUPPORT" ? "active" : "")"
+                      style="background:@(_filterType == "SELLER_SUPPORT" ? "#3b82f6" : "#dbeafe"); color:@(_filterType == "SELLER_SUPPORT" ? "#fff" : "#1e3a5f");"
+                      @onclick="@(async () => { _filterType = _filterType == "SELLER_SUPPORT" ? null : "SELLER_SUPPORT"; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Продавец — Поддержка
+                    @if (_chatTypeCounts.GetValueOrDefault("SELLER_SUPPORT") > 0)
+                    {
+                        <span class="q-pill-count">@_chatTypeCounts.GetValueOrDefault("SELLER_SUPPORT")</span>
+                    }
+                </span>
+                <span class="q-pill @(_filterType == "UNSPECIFIED" ? "active" : "")"
+                      style="background:@(_filterType == "UNSPECIFIED" ? "#6b7280" : "#f3f4f6"); color:@(_filterType == "UNSPECIFIED" ? "#fff" : "#374151");"
+                      @onclick="@(async () => { _filterType = _filterType == "UNSPECIFIED" ? null : "UNSPECIFIED"; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Не определён
+                    @if (_chatTypeCounts.GetValueOrDefault("UNSPECIFIED") > 0)
+                    {
+                        <span class="q-pill-count">@_chatTypeCounts.GetValueOrDefault("UNSPECIFIED")</span>
+                    }
+                </span>
             </RadzenStack>
 
             <!-- Фильтры -->
@@ -57,28 +120,6 @@ else
                                         Placeholder="Все"
                                         AllowClear="true"
                                         Style="width: 180px;"
-                                        Change="@OnFilterChanged" />
-                    </RadzenStack>
-
-                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
-                        <RadzenLabel Text="Статус:" Style="white-space: nowrap;" />
-                        <RadzenDropDown TValue="string?" @bind-Value="_filterStatus"
-                                        Data="@_statusOptions"
-                                        TextProperty="Label" ValueProperty="Value"
-                                        Placeholder="Все"
-                                        AllowClear="true"
-                                        Style="width: 130px;"
-                                        Change="@OnFilterChanged" />
-                    </RadzenStack>
-
-                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
-                        <RadzenLabel Text="Тип:" Style="white-space: nowrap;" />
-                        <RadzenDropDown TValue="string?" @bind-Value="_filterType"
-                                        Data="@_typeOptions"
-                                        TextProperty="Label" ValueProperty="Value"
-                                        Placeholder="Все"
-                                        AllowClear="true"
-                                        Style="width: 200px;"
                                         Change="@OnFilterChanged" />
                     </RadzenStack>
 
@@ -135,9 +176,9 @@ else
                                 <div class="chat-item-right">
                                     @if (chat.UnreadCount > 0)
                                     {
-                                        <RadzenBadge BadgeStyle="BadgeStyle.Danger"
+                                        <RadzenBadge BadgeStyle="BadgeStyle.Secondary"
                                                      Text="@chat.UnreadCount.ToString()"
-                                                     Style="font-size: 0.65rem; padding: 2px 6px;" />
+                                                     Class="badge-unread-msg"/>
                                     }
                                     <span class="chat-item-date"
                                           title="@chat.LastMessageAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">
@@ -168,7 +209,8 @@ else
                             else
                             {
                                 <RadzenButton Text="Загрузить ещё"
-                                              ButtonStyle="ButtonStyle.Secondary"
+                                              ButtonStyle="ButtonStyle.Primary"
+                                              Shade="Shade.Lighter"
                                               Variant="Variant.Filled"
                                               Size="ButtonSize.Small"
                                               Icon="expand_more"
@@ -211,14 +253,6 @@ else
                     </RadzenStack>
 
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
-                        @if (_selectedChat.UnreadCount > 0)
-                        {
-                            <RadzenButton Text="Все прочитаны" Icon="done_all"
-                                          ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small"
-                                          Variant="Variant.Outlined"
-                                          Click="@MarkAllReadAsync"
-                                          IsBusy="@_markingRead" />
-                        }
                         <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                                       Click="@RefreshHistoryAsync" IsBusy="@_loadingHistory" />
                     </RadzenStack>
@@ -251,10 +285,17 @@ else
                     {
                         @foreach (var msg in _messages)
                         {
-                            var isSeller   = IsSellerMessage(msg);
+                            @if (_firstUnreadOnOpen == msg.MessageId)
+                            {
+                                <div id="newMessagesDivider" class="new-messages-divider">
+                                    Новые сообщения
+                                </div>
+                            }
+
+                            var isSeller = IsSellerMessage(msg);
                             var senderLabel = GetSenderLabel(msg);
                             var avatarClass = isSeller ? "chat-avatar seller" : "chat-avatar customer";
-                            var avatarLetter = isSeller ? "П" : "К";   // Продавец / Клиент
+                            var avatarLetter = isSeller ? "П" : "К"; // Продавец / Клиент
                             var rowClass = "chat-message-row " + (isSeller ? "from-seller" : "");
                             <div @key="msg.MessageId" class="@rowClass">
 
@@ -292,7 +333,7 @@ else
                                                 @if (IsFileData(d))
                                                 {
                                                     var fname = GetFileName(d);
-                                                    var furl  = GetFileDownloadUrl(d);
+                                                    var furl = GetFileDownloadUrl(d);
                                                     <div class="chat-file-link">
                                                         <RadzenIcon Icon="@GetFileIcon(fname)"
                                                                     Style="font-size: 1.1rem; flex-shrink: 0;" />
@@ -321,17 +362,6 @@ else
                                                         Style="font-size: 0.7rem; color: var(--rz-success);"
                                                         title="Прочитано" />
                                         }
-                                        else
-                                        {
-                                            <span class="chat-unread-dot" title="Не прочитано"></span>
-                                            <RadzenButton Text="Прочитать"
-                                                          Icon="done"
-                                                          ButtonStyle="ButtonStyle.Secondary"
-                                                          Variant="Variant.Outlined"
-                                                          Size="ButtonSize.ExtraSmall"
-                                                          Class="chat-read-btn"
-                                                          Click="@(() => MarkMessageReadAsync(msg))" />
-                                        }
                                     </div>
 
                                 </div>
@@ -347,7 +377,7 @@ else
 
                         <!-- Шаблонные ответы -->
                         <div class="chat-quick-replies">
-                            @foreach (var tpl in _quickReplies)
+                            @foreach (var tpl in QuickReplies)
                             {
                                 <button class="chat-quick-reply-chip" @onclick="@(() => ApplyTemplate(tpl))">
                                     @tpl
@@ -368,30 +398,30 @@ else
                         }
 
                         <div class="chat-input-row">
-                        <div id="chat-input-wrap" style="flex: 1;">
-                            <RadzenTextArea @bind-Value="_messageText"
-                                            Rows="2"
-                                            Placeholder="Введите сообщение…"
-                                            Class="chat-textarea"
-                                            MaxLength="1000"
-                                            Style="width: 100%; resize: none;" />
-                        </div>
-
-                            <RadzenStack Orientation="Orientation.Vertical" Gap="0.3rem">
-                                <RadzenButton Icon="send" ButtonStyle="ButtonStyle.Primary"
+                            <label title="Прикрепить файл (JPG, PNG, PDF, DOC, DOCX, TXT — до 10 МБ)"
+                                   style="cursor: pointer;">
+                                <RadzenButton Icon="attach_file" ButtonStyle="ButtonStyle.Light"
                                               Size="ButtonSize.Small"
-                                              Click="@SendMessageAsync"
-                                              IsBusy="@_sending"
-                                              Disabled="@(!CanSend)"
-                                              Title="Отправить" />
+                                              Click="@TriggerFilePicker" />
+                            </label>
 
-                                <label title="Прикрепить файл (JPG, PNG, PDF, DOC, DOCX, TXT — до 10 МБ)"
-                                       style="cursor: pointer;">
-                                    <RadzenButton Icon="attach_file" ButtonStyle="ButtonStyle.Light"
-                                                  Size="ButtonSize.Small"
-                                                  Click="@TriggerFilePicker" />
-                                </label>
-                            </RadzenStack>
+                            <RadzenTextArea @bind-Value="_messageText"
+                                            Rows="1"
+                                            Placeholder="Введите сообщение…"
+                                            CharacterCounter="true"
+                                            MaxLength="1000"
+                                            Style="width: 100%; flex: 1; resize: none; padding: 2px 10px; max-height: 140px;"
+                                            oninput="this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,200)+'px';"/>
+
+                            <RadzenButton Icon="send" ButtonStyle="ButtonStyle.Primary"
+                                          Size="ButtonSize.Small"
+                                          Click="@SendMessageAsync"
+                                          IsBusy="@_sending"
+                                          Disabled="@(!CanSend)"
+                                          Title="Отправить"/>
+
+
+
                         </div>
 
                         <div class="char-counter @(_messageText.Length > 1000 ? "over-limit" : "")">
@@ -416,7 +446,7 @@ else
                 }
             }
         </div>
-    </div>  <!-- /.chats-layout -->
+    </div> <!-- /.chats-layout -->
 
     @if (_lightboxSrc is not null)
     {
@@ -432,20 +462,32 @@ else
         </div>
     }
 
-    </div>  <!-- /.chats-page-root -->
+    </div> <!-- /.chats-page-root -->
 }
 
+<script>
+    window.scrollToNewMessages = function () {
+        const el = document.getElementById("newMessagesDivider");
+        if (el) {
+            el.scrollIntoView({
+                behavior: "smooth",
+                block: "center"
+            });
+        }
+    };
+</script>
+
 @code {
-    // ── State ─────────────────────────────────────────────────────────────────
-    private List<OzonChatViewModel> _chats = new();
-    private OzonChatViewModel? _selectedChat;
-    private List<OzonChatMessage> _messages = new();
+    private List<OzonChatViewModelDto> _chats = new();
+    private OzonChatViewModelDto? _selectedChat;
+    private List<OzonChatMessageDto> _messages = new();
+
+    private ulong? _firstUnreadOnOpen; // ID первого непрочитанного сообщения при открытии чата
 
     private bool _loadingList;
     private bool _loadingMore;
     private bool _loadingHistory;
     private bool _sending;
-    private bool _markingRead;
 
     // Пагинация чатов
     private string? _nextCursor;
@@ -454,7 +496,7 @@ else
     private string _messageText = string.Empty;
     private string? _lightboxSrc;
 
-    private static readonly string[] _quickReplies =
+    private static readonly string[] QuickReplies =
     [
         "Здравствуйте!",
         "Здравствуйте, для проверки необходим VIN номер Вашего авто",
@@ -482,22 +524,28 @@ else
     private string? _filterType;
     private bool _filterUnreadOnly;
 
-    private List<ClientOption> _clientOptions = new();
+    private Dictionary<string, int> _chatStatusCounts = new();
+    private Dictionary<string, int> _chatTypeCounts = new();
 
-    private static readonly List<LabelValue> _statusOptions =
+    private List<ClientOptionDto> _clientOptions = new();
+
+    private static readonly List<LabelValueDto> StatusOptions =
     [
-        new LabelValue("Открыт",  "OPENED"),
-        new LabelValue("Закрыт",  "CLOSED"),
+        new("Открыт", "OPENED"),
+        new("Закрыт", "CLOSED"),
     ];
 
-    private static readonly List<LabelValue> _typeOptions =
+    private static readonly List<LabelValueDto> TypeOptions =
     [
-        new LabelValue("Покупатель — Продавец", "BUYER_SELLER"),
-        new LabelValue("Продавец — Поддержка",  "SELLER_SUPPORT"),
-        new LabelValue("Не определён",          "UNSPECIFIED"),
+        new ("Покупатель — Продавец", "BUYER_SELLER"),
+        new ("Продавец — Поддержка", "SELLER_SUPPORT"),
+        new ("Не определён", "UNSPECIFIED"),
     ];
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
+    [Inject]
+    private IJSRuntime Js { get; set; } = null!;
+
+
     protected override async Task OnInitializedAsync()
     {
         if (!TenantProvider.IsResolved) return;
@@ -541,7 +589,6 @@ else
         }
     }
 
-    // ── Data loading ──────────────────────────────────────────────────────────
     private async Task LoadClientOptionsAsync()
     {
         try
@@ -551,7 +598,7 @@ else
                 .AsNoTracking()
                 .Where(c => !c.IsDeleted)
                 .OrderBy(c => c.Name)
-                .Select(c => new ClientOption { Id = c.Id, Name = c.Name })
+                .Select(c => new ClientOptionDto { Id = c.Id, Name = c.Name })
                 .ToListAsync();
         }
         catch (Exception ex)
@@ -563,7 +610,7 @@ else
     private async Task LoadChatsAsync()
     {
         _loadingList = true;
-        _nextCursor  = null;
+        _nextCursor = null;
         _hasMoreChats = false;
         StateHasChanged();
         try
@@ -576,10 +623,17 @@ else
                 unreadOnly: _filterUnreadOnly,
                 marketplaceClientId: _filterClientId);
 
-            _chats        = page.Chats;
-            _nextCursor   = page.NextCursor;
+            _chats = page.Chats;
+            _nextCursor = page.NextCursor;
             _hasMoreChats = page.HasMore;
-            _totalUnread  = _chats.Sum(c => c.UnreadCount);
+            _totalUnread = _chats.Sum(c => c.UnreadCount);
+
+            // Save pill counts only from unfiltered load so they stay stable when a filter is active
+            if (string.IsNullOrEmpty(_filterStatus) && string.IsNullOrEmpty(_filterType))
+            {
+                _chatStatusCounts = _chats.GroupBy(c => c.ChatStatus).ToDictionary(g => g.Key, g => g.Count());
+                _chatTypeCounts   = _chats.GroupBy(c => c.ChatType).ToDictionary(g => g.Key, g => g.Count());
+            }
         }
         catch (Exception ex)
         {
@@ -609,9 +663,9 @@ else
                 marketplaceClientId: _filterClientId);
 
             _chats.AddRange(page.Chats);
-            _nextCursor   = page.NextCursor;
+            _nextCursor = page.NextCursor;
             _hasMoreChats = page.HasMore;
-            _totalUnread  = _chats.Sum(c => c.UnreadCount);
+            _totalUnread = _chats.Sum(c => c.UnreadCount);
         }
         catch (Exception ex)
         {
@@ -645,6 +699,11 @@ else
                     .OrderBy(m => m.CreatedAt)
                     .ToList();
 
+                if (_selectedChat?.UnreadCount > 0 && _messages.Count >= _selectedChat.UnreadCount)
+                {
+                    _firstUnreadOnOpen = _messages[^_selectedChat.UnreadCount].MessageId;
+                }
+
                 // Обновляем время последнего сообщения в карточке чата
                 if (_messages.Count > 0 && _selectedChat is not null)
                     _selectedChat.LastMessageAt = _messages[^1].CreatedAt;
@@ -658,11 +717,19 @@ else
         {
             _loadingHistory = false;
             StateHasChanged();
-            await ScrollToBottomAsync();
+
+            if (_firstUnreadOnOpen != null)
+            {
+                await Task.Delay(100);
+                await Js.InvokeVoidAsync("scrollToNewMessages");
+            }
+            else
+            {
+                await ScrollToBottomAsync();
+            }
         }
     }
 
-    // ── Polling ───────────────────────────────────────────────────────────────
     private async Task PollAsync()
     {
         await PollListAsync();
@@ -689,7 +756,7 @@ else
                     c => c.ChatId == f.ChatId && c.MarketplaceClientId == f.MarketplaceClientId);
                 if (existing is not null)
                 {
-                    existing.UnreadCount  = f.UnreadCount;
+                    existing.UnreadCount = f.UnreadCount;
                     existing.LastMessageAt = f.LastMessageAt;
                 }
                 else
@@ -746,9 +813,10 @@ else
         }
     }
 
-    // ── User actions ──────────────────────────────────────────────────────────
-    private async Task SelectChatAsync(OzonChatViewModel chat)
+    private async Task SelectChatAsync(OzonChatViewModelDto chat)
     {
+        _firstUnreadOnOpen = null;
+
         _selectedChat = chat;
         _messages.Clear();
         _messageText = string.Empty;
@@ -877,64 +945,6 @@ else
         catch { /* не мешаем открытию чата при ошибке */ }
     }
 
-    private async Task MarkAllReadAsync()
-    {
-        if (_selectedChat is null) return;
-
-        // Use last message id if available
-        ulong? fromId = _messages.Count > 0 ? _messages[^1].MessageId : null;
-
-        _markingRead = true;
-        StateHasChanged();
-        try
-        {
-            var unread = await ChatService.MarkReadAsync(
-                _selectedChat.MarketplaceClientId,
-                _selectedChat.ChatId,
-                fromId);
-
-            _selectedChat.UnreadCount = unread;
-            // Mark all messages as read locally
-            foreach (var m in _messages) m.IsRead = true;
-            _totalUnread = _chats.Sum(c => c.UnreadCount);
-        }
-        catch (Exception ex)
-        {
-            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 4000);
-        }
-        finally
-        {
-            _markingRead = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task MarkMessageReadAsync(OzonChatMessage msg)
-    {
-        if (_selectedChat is null) return;
-
-        try
-        {
-            var unread = await ChatService.MarkReadAsync(
-                _selectedChat.MarketplaceClientId,
-                _selectedChat.ChatId,
-                msg.MessageId);
-
-            // Mark this and all earlier messages as read
-            var msgTime = msg.CreatedAt;
-            foreach (var m in _messages.Where(m => m.CreatedAt <= msgTime))
-                m.IsRead = true;
-
-            _selectedChat.UnreadCount = unread;
-            _totalUnread = _chats.Sum(c => c.UnreadCount);
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 4000);
-        }
-    }
-
     private async Task OnFileSelected(InputFileChangeEventArgs e)
     {
         const long maxSize = 10 * 1024 * 1024; // 10 MB
@@ -982,7 +992,6 @@ else
         _attachedBase64 = null;
     }
 
-
     private async Task ScrollToBottomAsync()
     {
         try
@@ -993,36 +1002,32 @@ else
         catch { /* ignore */ }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
     private bool CanSend =>
         _selectedChat is not null &&
         !_sending &&
         (_attachedFile is not null || (!string.IsNullOrWhiteSpace(_messageText) && _messageText.Length <= 1000));
 
-    private static string TruncateId(string id) =>
-        id.Length > 24 ? id[..12] + "…" + id[^8..] : id;
-
-    private static bool IsSellerMessage(OzonChatMessage msg) =>
+    private static bool IsSellerMessage(OzonChatMessageDto msg) =>
         msg.User?.Type is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT";
 
-    private static string GetSenderLabel(OzonChatMessage msg) =>
+    private static string GetSenderLabel(OzonChatMessageDto msg) =>
         msg.User?.Type switch
         {
             "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT" => "Продавец",
             // Ozon sometimes sends Cyrillic "С" (U+0421) instead of Latin "C"
-            "Customer" or "Сustomer" or "customer" or "BUYER"            => "Покупатель",
-            "Support"                                                     => "Поддержка Ozon",
-            _                                                             => msg.User?.Type ?? "Система"
+            "Customer" or "Сustomer" or "customer" or "BUYER" => "Покупатель",
+            "Support" => "Поддержка Ozon",
+            _ => msg.User?.Type ?? "Система"
         };
 
     private static string FormatTimeAgo(DateTime utcTime)
     {
         var diff = DateTime.UtcNow - utcTime;
-        if (diff.TotalSeconds < 60)   return "только что";
-        if (diff.TotalMinutes < 60)   return $"{(int)diff.TotalMinutes} мин. назад";
-        if (diff.TotalHours < 24)     return $"{(int)diff.TotalHours} ч. назад";
-        if (diff.TotalDays < 2)       return "вчера";
-        if (diff.TotalDays < 7)       return $"{(int)diff.TotalDays} дн. назад";
+        if (diff.TotalSeconds < 60) return "только что";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} мин. назад";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} ч. назад";
+        if (diff.TotalDays < 2) return "вчера";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} дн. назад";
         return utcTime.ToLocalTime().ToString("dd.MM.yyyy");
     }
 
@@ -1030,46 +1035,37 @@ else
     {
         "OPENED" => "Открыт",
         "CLOSED" => "Закрыт",
-        _        => status ?? "—"
+        _ => status ?? "—"
     };
 
     private static BadgeStyle GetStatusBadgeStyle(string? status) => status switch
     {
         "OPENED" => BadgeStyle.Success,
         "CLOSED" => BadgeStyle.Light,
-        _        => BadgeStyle.Secondary
+        _ => BadgeStyle.Secondary
     };
 
     private static string GetTypeLabel(string? type) => type switch
     {
-        "BUYER_SELLER"   => "Покупатель — Продавец",
+        "BUYER_SELLER" => "Покупатель — Продавец",
         "SELLER_SUPPORT" => "Продавец — Поддержка",
-        "UNSPECIFIED"    => "Не определён",
+        "UNSPECIFIED" => "Не определён",
         // legacy / fallback
         "Seller_Support" => "Продавец — Поддержка",
-        "Customer"       => "Покупатель — Продавец",
-        _                => type ?? "—"
+        "Customer" => "Покупатель — Продавец",
+        _ => type ?? "—"
     };
 
     private static BadgeStyle GetTypeBadgeStyle(string? type) => type switch
     {
-        "BUYER_SELLER"   => BadgeStyle.Warning,
+        "BUYER_SELLER" => BadgeStyle.Warning,
         "SELLER_SUPPORT" => BadgeStyle.Info,
-        "UNSPECIFIED"    => BadgeStyle.Light,
+        "UNSPECIFIED" => BadgeStyle.Light,
         "Seller_Support" => BadgeStyle.Info,
-        "Customer"       => BadgeStyle.Warning,
-        _                => BadgeStyle.Secondary
+        "Customer" => BadgeStyle.Warning,
+        _ => BadgeStyle.Secondary
     };
 
-    /// Ozon возвращает data[] в формате:
-    ///   "data:image/jpeg;base64,![](<url>)"  — для картинок/файлов
-    ///   "обычный текст сообщения"             — для текста
-    /// Извлекаем URL из этого формата.
-    /// Извлекает URL вложения из форматов которые использует Ozon в data[]:
-    ///   "data:image/jpeg;base64,![](<url>)"     — картинка с data-префиксом
-    ///   "data:image/jpeg;base64,![текст](<url>)" — картинка с именем
-    ///   "[имя файла (размер)](<url>)"            — файл без data-префикса
-    /// Возвращает null если это обычный текст (даже с ссылками).
     private static string? ExtractOzonFileUrl(string data)
     {
         if (string.IsNullOrWhiteSpace(data)) return null;
@@ -1081,7 +1077,7 @@ else
             var bracketClose = data.IndexOf(']', bracketOpen);
             if (bracketClose >= 0 && bracketClose + 1 < data.Length && data[bracketClose + 1] == '(')
             {
-                var parenOpen  = bracketClose + 1;
+                var parenOpen = bracketClose + 1;
                 var parenClose = data.IndexOf(')', parenOpen);
                 if (parenClose > parenOpen)
                 {
@@ -1108,18 +1104,18 @@ else
     }
 
     /// Извлекает имя файла из строки Ozon:
-    ///   "[video_2026-02-27.mp4 (15 MB)](url)" → "video_2026-02-27.mp4"
-    ///   "https://.../file.mp4"                → "file.mp4"
+    /// "[video_2026-02-27.mp4 (15 MB)](url)" → "video_2026-02-27.mp4"
+    /// "https://.../file.mp4" → "file.mp4"
     private static string ExtractOzonFileName(string data)
     {
         // Паттерн [текст](url) — берём текст из скобок, убираем "(размер)"
-        var bracketOpen  = data.IndexOf('[');
+        var bracketOpen = data.IndexOf('[');
         var bracketClose = bracketOpen >= 0 ? data.IndexOf(']', bracketOpen) : -1;
         if (bracketOpen >= 0 && bracketClose > bracketOpen)
         {
             var label = data[(bracketOpen + 1)..bracketClose].Trim();
             // Убираем " (размер)" в конце: "video.mp4 (15 MB)" → "video.mp4"
-            var parenIdx = label.LastIndexOf(" (");
+            var parenIdx = label.LastIndexOf(" (", StringComparison.Ordinal);
             if (parenIdx > 0) label = label[..parenIdx].Trim();
             if (!string.IsNullOrWhiteSpace(label)) return label;
         }
@@ -1178,16 +1174,16 @@ else
         var ext = Path.GetExtension(fileName).ToLowerInvariant();
         return ext switch
         {
-            ".pdf"                          => "picture_as_pdf",
-            ".doc" or ".docx"               => "description",
-            ".txt"                          => "article",
+            ".pdf" => "picture_as_pdf",
+            ".doc" or ".docx" => "description",
+            ".txt" => "article",
             ".jpg" or ".jpeg" or ".png"
-                or ".gif" or ".webp"        => "image",
+                or ".gif" or ".webp" => "image",
             ".mp4" or ".avi" or ".mov"
-                or ".mkv" or ".webm"        => "videocam",
-            ".mp3" or ".ogg" or ".wav"      => "audio_file",
-            ".zip" or ".rar" or ".7z"       => "folder_zip",
-            _                               => "attach_file"
+                or ".mkv" or ".webm" => "videocam",
+            ".mp3" or ".ogg" or ".wav" => "audio_file",
+            ".zip" or ".rar" or ".7z" => "folder_zip",
+            _ => "attach_file"
         };
     }
 
@@ -1196,20 +1192,6 @@ else
         if (bytes < 1024) return $"{bytes} Б";
         if (bytes < 1024 * 1024) return $"{bytes / 1024} КБ";
         return $"{bytes / (1024 * 1024.0):F1} МБ";
-    }
-
-    // ── Helper types ──────────────────────────────────────────────────────────
-    private sealed class LabelValue
-    {
-        public LabelValue(string label, string value) { Label = label; Value = value; }
-        public string Label { get; set; }
-        public string Value { get; set; }
-    }
-
-    private sealed class ClientOption
-    {
-        public Guid   Id   { get; set; }
-        public string Name { get; set; } = string.Empty;
     }
 }
 

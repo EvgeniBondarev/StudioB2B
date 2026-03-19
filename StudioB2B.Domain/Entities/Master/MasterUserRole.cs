@@ -1,4 +1,4 @@
-namespace StudioB2B.Domain.Entities.Master;
+namespace StudioB2B.Domain.Entities;
 
 public class MasterUserRole
 {

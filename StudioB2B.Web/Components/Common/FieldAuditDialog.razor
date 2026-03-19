@@ -1,8 +1,9 @@
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Common
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using System.Text.Json
+@using StudioB2B.Domain.Entities
+@using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
@@ -78,10 +79,10 @@
                         @{
                             var (icon, color, label) = log.ChangeType switch
                             {
-                                "Added"    => ("add_circle",    "var(--rz-success)", "Создано"),
-                                "Modified" => ("edit",          "var(--rz-info)",    "Изменено"),
-                                "Deleted"  => ("delete",        "var(--rz-danger)",  "Удалено"),
-                                _          => ("help_outline",  "var(--rz-text-secondary-color)", log.ChangeType)
+                                "Added" => ("add_circle", "var(--rz-success)", "Создано"),
+                                "Modified" => ("edit", "var(--rz-info)", "Изменено"),
+                                "Deleted" => ("delete", "var(--rz-danger)", "Удалено"),
+                                _ => ("help_outline", "var(--rz-text-secondary-color)", log.ChangeType)
                             };
                         }
                         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
@@ -138,15 +139,15 @@
 </div>
 
 @code {
-    [Parameter] public string EntityName  { get; set; } = string.Empty;
-    [Parameter] public string EntityId    { get; set; } = string.Empty;
+    [Parameter] public string EntityName { get; set; } = string.Empty;
+    [Parameter] public string EntityId { get; set; } = string.Empty;
 
     private TenantDbContext? _db;
-    private List<FieldAuditLog> _logs     = [];
+    private List<FieldAuditLog> _logs = [];
     private List<FieldAuditLog> _filtered = [];
-    private List<string>        _fields   = [];
-    private string?             _selectedField;
-    private bool                _loading  = true;
+    private List<string> _fields = [];
+    private string? _selectedField;
+    private bool _loading = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -160,7 +161,7 @@
 
         _fields = _logs.Select(x => x.FieldName).Distinct().OrderBy(x => x).ToList();
         _filtered = _logs;
-        _loading  = false;
+        _loading = false;
     }
 
     private void ApplyFilter()
@@ -173,8 +174,8 @@
     /// <summary>Разворачивает JSON-значение в читабельную строку.</summary>
     private static string FormatValue(string? raw)
     {
-        if (raw is null)     return "—";
-        if (raw == "null")   return "—";
+        if (raw is null) return "—";
+        if (raw == "null") return "—";
 
         try
         {
@@ -182,12 +183,12 @@
             var el = doc.RootElement;
             return el.ValueKind switch
             {
-                JsonValueKind.String  => el.GetString() ?? "—",
-                JsonValueKind.Number  => el.GetRawText(),
-                JsonValueKind.True    => "да",
-                JsonValueKind.False   => "нет",
-                JsonValueKind.Null    => "—",
-                _                    => raw
+                JsonValueKind.String => el.GetString() ?? "—",
+                JsonValueKind.Number => el.GetRawText(),
+                JsonValueKind.True => "да",
+                JsonValueKind.False => "нет",
+                JsonValueKind.Null => "—",
+                _ => raw
             };
         }
         catch

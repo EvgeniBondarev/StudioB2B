@@ -1,22 +1,23 @@
-@using StudioB2B.Domain.Entities.Orders
 @using System.Text.Json
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Domain.Entities
 
 @if (_summary is not null)
 {
     <RadzenStack Gap="1rem">
-        @if (History.Status == SyncJobStatus.Succeeded)
+        @if (History.Status == SyncJobStatusEnum.Succeeded)
         {
             <RadzenAlert AlertStyle="AlertStyle.Success" ShowIcon="true" AllowClose="false">
                 Синхронизация завершена успешно.
             </RadzenAlert>
         }
-        else if (History.Status == SyncJobStatus.Failed)
+        else if (History.Status == SyncJobStatusEnum.Failed)
         {
             <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false">
                 Ошибка: @History.ErrorMessage
             </RadzenAlert>
         }
-        else if (History.Status == SyncJobStatus.Cancelled)
+        else if (History.Status == SyncJobStatusEnum.Cancelled)
         {
             <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
                 Задача была отменена.
@@ -26,15 +27,15 @@
         @if (_summary.PerClient.Count > 0)
         {
             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Итог по клиентам</RadzenText>
-            <RadzenDataGrid TItem="ClientSyncResultItem" Data="@_summary.PerClient"
+            <RadzenDataGrid TItem="ClientSyncResultItemDto" Data="@_summary.PerClient"
                             Density="Density.Compact" AllowSorting="true">
                 <Columns>
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ClientName" Title="Клиент" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="Mode" Title="Режим" Width="80px" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ShipmentsCreated" Title="Отправлений создано" Width="120px" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ShipmentsUpdated" Title="Обновлено" Width="100px" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersCreated" Title="Заказов создано" Width="120px" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersUpdated" Title="Обновлено" Width="100px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ClientName" Title="Клиент" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="Mode" Title="Режим" Width="80px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ShipmentsCreated" Title="Отправлений создано" Width="120px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ShipmentsUpdated" Title="Обновлено" Width="100px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="OrdersCreated" Title="Заказов создано" Width="120px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="OrdersUpdated" Title="Обновлено" Width="100px" />
                 </Columns>
             </RadzenDataGrid>
 
@@ -49,13 +50,13 @@
         }
     </RadzenStack>
 }
-else if (History.Status is SyncJobStatus.Failed)
+else if (History.Status is SyncJobStatusEnum.Failed)
 {
     <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false">
         Ошибка: @History.ErrorMessage
     </RadzenAlert>
 }
-else if (History.Status is SyncJobStatus.Cancelled)
+else if (History.Status is SyncJobStatusEnum.Cancelled)
 {
     <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
         Задача была отменена.
@@ -65,13 +66,13 @@ else if (History.Status is SyncJobStatus.Cancelled)
 @code {
     [Parameter, EditorRequired] public SyncJobHistory History { get; set; } = null!;
 
-    private OrderSyncSummary? _summary;
+    private OrderSyncSummaryDto? _summary;
 
     protected override void OnParametersSet()
     {
         _summary = string.IsNullOrEmpty(History.ResultJson)
             ? null
-            : JsonSerializer.Deserialize<OrderSyncSummary>(History.ResultJson);
+            : JsonSerializer.Deserialize<OrderSyncSummaryDto>(History.ResultJson);
     }
 }
 

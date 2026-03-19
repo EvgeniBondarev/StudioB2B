@@ -1,22 +1,23 @@
-@using StudioB2B.Domain.Entities.Orders
 @using System.Text.Json
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Domain.Entities
 
 @if (_summary is not null)
 {
     <RadzenStack Gap="1rem">
-        @if (History.Status == SyncJobStatus.Succeeded)
+        @if (History.Status == SyncJobStatusEnum.Succeeded)
         {
             <RadzenAlert AlertStyle="AlertStyle.Success" ShowIcon="true" AllowClose="false">
                 Обновление завершено успешно.
             </RadzenAlert>
         }
-        else if (History.Status == SyncJobStatus.Failed)
+        else if (History.Status == SyncJobStatusEnum.Failed)
         {
             <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false">
                 Ошибка: @History.ErrorMessage
             </RadzenAlert>
         }
-        else if (History.Status == SyncJobStatus.Cancelled)
+        else if (History.Status == SyncJobStatusEnum.Cancelled)
         {
             <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
                 Задача была отменена.
@@ -26,15 +27,15 @@
         @if (_summary.PerClient.Count > 0)
         {
             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Итог по клиентам</RadzenText>
-            <RadzenDataGrid TItem="ClientSyncResultItem" Data="@_summary.PerClient"
+            <RadzenDataGrid TItem="ClientSyncResultItemDto" Data="@_summary.PerClient"
                             Density="Density.Compact" AllowSorting="true">
                 <Columns>
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ClientName" Title="Клиент" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="Mode" Title="Режим" Width="80px" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ShipmentsUpdated" Title="Отправлений обновлено" Width="140px" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersSelectedForUpdate" Title="Заказов выбрано для обновления" Width="200px" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersSkipped" Title="Заказов пропущено" Width="140px" />
-                    <RadzenDataGridColumn TItem="ClientSyncResultItem" Title="Изменённые поля">
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ClientName" Title="Клиент" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="Mode" Title="Режим" Width="80px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ShipmentsUpdated" Title="Отправлений обновлено" Width="140px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="OrdersSelectedForUpdate" Title="Заказов выбрано для обновления" Width="200px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="OrdersSkipped" Title="Заказов пропущено" Width="140px" />
+                    <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Title="Изменённые поля">
                         <Template Context="c">@c.UpdatedFieldsSummary</Template>
                     </RadzenDataGridColumn>
                 </Columns>
@@ -52,26 +53,26 @@
         @if (_summary.UpdatedShipments.Count > 0)
         {
             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Детализация изменений статусов</RadzenText>
-            <RadzenDataGrid TItem="ShipmentUpdateItem" Data="@_summary.UpdatedShipments"
+            <RadzenDataGrid TItem="ShipmentUpdateItemDto" Data="@_summary.UpdatedShipments"
                             Density="Density.Compact" AllowSorting="true"
                             AllowPaging="true" PageSize="15">
                 <Columns>
-                    <RadzenDataGridColumn TItem="ShipmentUpdateItem" Property="PostingNumber" Title="Номер отправления" />
-                    <RadzenDataGridColumn TItem="ShipmentUpdateItem" Property="ClientName" Title="Клиент" />
-                    <RadzenDataGridColumn TItem="ShipmentUpdateItem" Property="OldStatusName" Title="Было" />
-                    <RadzenDataGridColumn TItem="ShipmentUpdateItem" Property="NewStatusName" Title="Стало" />
+                    <RadzenDataGridColumn TItem="ShipmentUpdateItemDto" Property="PostingNumber" Title="Номер отправления" />
+                    <RadzenDataGridColumn TItem="ShipmentUpdateItemDto" Property="ClientName" Title="Клиент" />
+                    <RadzenDataGridColumn TItem="ShipmentUpdateItemDto" Property="OldStatusName" Title="Было" />
+                    <RadzenDataGridColumn TItem="ShipmentUpdateItemDto" Property="NewStatusName" Title="Стало" />
                 </Columns>
             </RadzenDataGrid>
         }
     </RadzenStack>
 }
-else if (History.Status is SyncJobStatus.Failed)
+else if (History.Status is SyncJobStatusEnum.Failed)
 {
     <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false">
         Ошибка: @History.ErrorMessage
     </RadzenAlert>
 }
-else if (History.Status is SyncJobStatus.Cancelled)
+else if (History.Status is SyncJobStatusEnum.Cancelled)
 {
     <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
         Задача была отменена.
@@ -81,13 +82,13 @@ else if (History.Status is SyncJobStatus.Cancelled)
 @code {
     [Parameter, EditorRequired] public SyncJobHistory History { get; set; } = null!;
 
-    private OrderSyncSummary? _summary;
+    private OrderSyncSummaryDto? _summary;
 
     protected override void OnParametersSet()
     {
         _summary = string.IsNullOrEmpty(History.ResultJson)
             ? null
-            : JsonSerializer.Deserialize<OrderSyncSummary>(History.ResultJson);
+            : JsonSerializer.Deserialize<OrderSyncSummaryDto>(History.ResultJson);
     }
 }
 

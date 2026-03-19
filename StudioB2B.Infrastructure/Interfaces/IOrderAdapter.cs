@@ -1,4 +1,4 @@
-using StudioB2B.Domain.Entities.Marketplace;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Interfaces;
@@ -10,11 +10,16 @@ public interface IOrderAdapter
 {
     string MarketplaceName { get; }
 
-    Task<OrderSyncResult> SyncAsync(MarketplaceClient client, DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default);
+    Task<OrderSyncResultDto> SyncAsync(MarketplaceClient client, DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default);
 
     /// <summary>
-    /// Updates statuses and dates for all active (non-terminal) shipments of the given client
-    /// by fetching each posting from the marketplace API.
+    /// Updates statuses and dates for active (non-terminal) shipments of the given client
+    /// within the specified date range by fetching each posting from the marketplace API.
     /// </summary>
-    Task<OrderSyncResult> UpdateStatusesAsync(MarketplaceClient client, CancellationToken ct = default);
+    Task<OrderSyncResultDto> UpdateStatusesAsync(MarketplaceClient client, DateTime from, DateTime to, CancellationToken ct = default);
+
+    /// <summary>
+    /// Updates the status of a single shipment by fetching its posting from the marketplace API.
+    /// </summary>
+    Task<ShipmentUpdateItemDto?> UpdateSingleShipmentStatusAsync(Shipment shipment, MarketplaceClient client, CancellationToken ct = default);
 }

@@ -1,62 +1,38 @@
-# StudioB2B Production Docker Compose
-# Usage:
-#   docker-compose up -d
-#
-# Environment variables (set in .env file or pass directly):
-#   MYSQL_ROOT_PASSWORD - MySQL root password
-#   MYSQL_DATABASE - Master database name  
-#   STUDIOB2B_MASTER_DOMAIN - Master domain (e.g., studiob2b.com)
-
-version: '3.8'
-
 services:
   studiob2b:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile
-    container_name: studiob2b-web
-    restart: unless-stopped
+    image: bondarevevgeni/studio2b2:latest
+    container_name: studiob2b
     ports:
-      - "80:8080"
+      - "5184:5184"
     environment:
+      - ConnectionStrings__MasterDb=Server=172.28.0.10;Port=3306;Database=StudioB2B_Master;User=root;Password=root;Allow User Variables=true;MaximumPoolSize=50;ConnectionI>
+      - MultiTenancy__TenantDbConnectionTemplate=Server=172.28.0.10;Port=3306;Database=StudioB2B_Tenant_{0};User=root;Password=root;Allow User Variables=true;MaximumPoolSi>
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__MasterDb=Server=mysql;Database=${MYSQL_DATABASE:-StudioB2B_Master};User=root;Password=${MYSQL_ROOT_PASSWORD};Allow User Variables=true;AllowPublicKeyRetrieval=True;
-      - MultiTenancy__MasterDomain=${STUDIOB2B_MASTER_DOMAIN:-studiob2b.com}
-      - MultiTenancy__DefaultSubdomain=demo
-      - Database__ApplyMigrationsOnStartup=true
-    depends_on:
-      mysql:
-        condition: service_healthy
+      - MultiTenancy__MasterDomain=studiob2b.ru
+      - Jwt__Secret=REMOVED_JWT_SECRET
+    volumes:
+      - ./data-protection-keys:/root/.aspnet/DataProtection-Keys
     networks:
-      - studiob2b-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - studiob2b_network
+    restart: unless-stopped
 
   mysql:
-    image: mysql:8.0
-    container_name: studiob2b-mysql
-    restart: unless-stopped
+    image: mysql:latest
+    container_name: mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-StrongPassword123!}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-StudioB2B_Master}
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_ROOT_HOST=%
+    networks:
+      studiob2b_network:
+        ipv4_address: 172.28.0.10
     ports:
       - "3306:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
-    networks:
-      - studiob2b-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    restart: unless-stopped
 
 networks:
-  studiob2b-network:
+  studiob2b_network:
     driver: bridge
-
-volumes:
-  mysql-data:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1

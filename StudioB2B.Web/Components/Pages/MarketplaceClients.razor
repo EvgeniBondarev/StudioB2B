@@ -1,8 +1,8 @@
 @page "/marketplace-clients"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "MarketplaceClientsView")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Marketplace
-@using StudioB2B.Infrastructure.Features.Marketplace
+@using StudioB2B.Domain.Entities
+@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
@@ -17,6 +17,7 @@
 
 @implements IDisposable
 
+<link rel="stylesheet" href="css/orders.css" />
 <PageTitle>Клиенты маркетплейсов</PageTitle>
 
 @if (!TenantProvider.IsResolved)
@@ -33,9 +34,58 @@ else
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
             <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ToggleDensity" Title="@GetDensityTitle()" />
-            <RadzenButton Icon="add" Text="Добавить" Shade="Shade.Light" ButtonStyle="ButtonStyle.Primary"
-                          Click="@OpenCreateWizard" />
+            <AuthorizeView Roles="MarketplaceClientsManage">
+                <Authorized>
+                    <RadzenButton Icon="add" Text="Добавить" Shade="Shade.Light" ButtonStyle="ButtonStyle.Primary"
+                                  Click="@OpenCreateWizard" />
+                </Authorized>
+            </AuthorizeView>
         </RadzenStack>
+    </RadzenStack>
+
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                 Style="padding: 0 0 0.6rem 0; flex-wrap: wrap;">
+        @{ var allTypesActive = _filterClientTypeId == null; }
+        <span class="q-pill @(allTypesActive ? "active" : "")"
+              style="background:@(allTypesActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allTypesActive ? "#fff" : "var(--rz-text-color)");"
+              @onclick="@(async () => { _filterClientTypeId = null; await OnPillFilter(); })">
+            Все типы
+        </span>
+        @foreach (var t in _types)
+        {
+            var tid = t.Id;
+            var tname = t.Name;
+            var isTypeActive = _filterClientTypeId == tid;
+            var typeCnt = _typeCountsByTypeId.GetValueOrDefault(tid);
+            <span class="q-pill @(isTypeActive ? "active" : "")"
+                  style="background:@(isTypeActive ? "var(--rz-primary)" : "#ececff"); color:@(isTypeActive ? "#fff" : "#1f2937");"
+                  @onclick="@(async () => { _filterClientTypeId = isTypeActive ? null : tid; await OnPillFilter(); })">
+                @tname
+                @if (typeCnt > 0) { <span class="q-pill-count">@typeCnt</span> }
+            </span>
+        }
+
+        <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 6px;"></span>
+
+        @{ var allModesActive = _filterModeId == null; }
+        <span class="q-pill @(allModesActive ? "active" : "")"
+              style="background:@(allModesActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allModesActive ? "#fff" : "var(--rz-text-color)");"
+              @onclick="@(async () => { _filterModeId = null; await OnPillFilter(); })">
+            Все режимы
+        </span>
+        @foreach (var m in _modes)
+        {
+            var mid = m.Id;
+            var mname = m.Name;
+            var isModeActive = _filterModeId == mid;
+            var modeCnt = _modeCountsByModeId.GetValueOrDefault(mid);
+            <span class="q-pill @(isModeActive ? "active" : "")"
+                  style="background:@(isModeActive ? "#10b981" : "#d1fae5"); color:@(isModeActive ? "#fff" : "#065f46");"
+                  @onclick="@(async () => { _filterModeId = isModeActive ? null : mid; await OnPillFilter(); })">
+                @mname
+                @if (modeCnt > 0) { <span class="q-pill-count">@modeCnt</span> }
+            </span>
+        }
     </RadzenStack>
 
     <RadzenDataGrid @ref="_grid"
@@ -83,13 +133,13 @@ else
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Name" Title="Название" Width="220px" Frozen="true">
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Name" Title="Название" Width="220px" Frozen="true" Visible="@Col("MktClientsColName")">
                 <EditTemplate Context="c">
                     <RadzenTextBox @bind-Value="c.Name" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="ApiId" Title="API ID" Width="180px">
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="ApiId" Title="API ID" Width="180px" Visible="@Col("MktClientsColApiId")">
                 <EditTemplate Context="c">
                     <RadzenTextBox @bind-Value="c.ApiId" Style="width: 100%;" />
                 </EditTemplate>
@@ -97,7 +147,7 @@ else
 
             <!-- Masked key column with show/hide toggle -->
             <RadzenDataGridColumn TItem="MarketplaceClient" Property="Key" Title="API ключ" Width="240px"
-                                  Filterable="false" Sortable="false">
+                                  Filterable="false" Sortable="false" Visible="@Col("MktClientsColApiKey")">
                 <Template Context="c">
                     <div @key="c.Id" style="display:flex; align-items:center; gap:4px;"
                          @onclick:stopPropagation="true">
@@ -128,7 +178,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="MarketplaceClient" Property="ClientType.Name" Title="Тип" Width="180px"
-                                  Sortable="false" Filterable="false">
+                                  Sortable="false" Filterable="false" Visible="@Col("MktClientsColType")">
                 <EditTemplate Context="c">
                     <RadzenDropDown Data="@_types"
                                     TextProperty="@nameof(MarketplaceClientType.Name)"
@@ -139,7 +189,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="MarketplaceClient" Property="Mode.Name" Title="Режим" Width="180px"
-                                  Sortable="false" Filterable="false">
+                                  Sortable="false" Filterable="false" Visible="@Col("MktClientsColMode")">
                 <EditTemplate Context="c">
                     <RadzenDropDown Data="@_modes"
                                     TextProperty="@nameof(MarketplaceClientMode.Name)"
@@ -149,13 +199,13 @@ else
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Company" Title="Компания" Width="200px">
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Company" Title="Компания" Width="200px" Visible="@Col("MktClientsColCompany")">
                 <EditTemplate Context="c">
                     <RadzenTextBox @bind-Value="c.Company" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="INN" Title="ИНН" Width="160px">
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="INN" Title="ИНН" Width="160px" Visible="@Col("MktClientsColINN")">
                 <EditTemplate Context="c">
                     <RadzenTextBox @bind-Value="c.INN" Style="width: 100%;" />
                 </EditTemplate>
@@ -180,6 +230,8 @@ else
 }
 
 @code {
+    [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
+
     private RadzenDataGrid<MarketplaceClient>? _grid;
 
     private TenantDbContext? _db;
@@ -189,7 +241,16 @@ else
     private List<MarketplaceClientMode> _modes = [];
     private Density _density = Density.Default;
     private bool _loading;
+    private bool _canManage;
+    private System.Security.Claims.ClaimsPrincipal? _user;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+
+    private Guid? _filterClientTypeId;
+    private Guid? _filterModeId;
+    private Dictionary<Guid, int> _typeCountsByTypeId = new();
+    private Dictionary<Guid, int> _modeCountsByModeId = new();
+
+    private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
 
     // tracks which rows have their key revealed
     private readonly HashSet<Guid> _revealedKeys = [];
@@ -201,6 +262,9 @@ else
     {
         if (firstRender)
         {
+            var state = await AuthState;
+            _user = state.User;
+            _canManage = state.User.IsInRole("MarketplaceClientsManage");
             await LoadGridSettingsAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
                 await _grid.Reload();
@@ -247,6 +311,11 @@ else
             .AsNoTracking()
             .AsQueryable();
 
+        if (_filterClientTypeId.HasValue)
+            query = query.Where(c => c.ClientTypeId == _filterClientTypeId.Value);
+        if (_filterModeId.HasValue)
+            query = query.Where(c => c.ModeId == _filterModeId.Value);
+
         if (!string.IsNullOrEmpty(args.Filter))
             query = query.Where(args.Filter);
 
@@ -274,9 +343,27 @@ else
 
         _modes = await _db.MarketplaceClientModes!
             .AsNoTracking().OrderBy(m => m.Name).ToListAsync();
+
+        var clientData = await _db.MarketplaceClients!
+            .AsNoTracking()
+            .Where(c => !c.IsDeleted)
+            .Select(c => new { c.ClientTypeId, c.ModeId })
+            .ToListAsync();
+        _typeCountsByTypeId = clientData
+            .Where(c => c.ClientTypeId.HasValue)
+            .GroupBy(c => c.ClientTypeId!.Value)
+            .ToDictionary(g => g.Key, g => g.Count());
+        _modeCountsByModeId = clientData
+            .Where(c => c.ModeId.HasValue)
+            .GroupBy(c => c.ModeId!.Value)
+            .ToDictionary(g => g.Key, g => g.Count());
     }
 
-    // ── Wizard dialog ────────────────────────────────────────────────
+    private async Task OnPillFilter()
+    {
+        if (_grid != null)
+            await _grid.Reload();
+    }
 
     private async Task OpenCreateWizard()
     {
@@ -295,8 +382,6 @@ else
             await _grid.Reload();
     }
 
-    // ── Key visibility toggle ────────────────────────────────────────
-
     private void ToggleKeyVisibility(Guid clientId)
     {
         if (!_revealedKeys.Remove(clientId))
@@ -310,8 +395,6 @@ else
         try { return Encryption.Decrypt(encryptedKey); }
         catch { return encryptedKey; }
     }
-
-    // ── Grid editing ─────────────────────────────────────────────────
 
     private async Task EditRow(MarketplaceClient client) => await _grid!.EditRow(client);
 
@@ -372,18 +455,22 @@ else
 
     private void ShowContextMenu(DataGridCellMouseEventArgs<MarketplaceClient> args)
     {
-        ContextMenuService.Open(args,
-            [
-                new ContextMenuItem { Text = "Редактировать", Icon = "edit",   Value = "edit" },
-                new ContextMenuItem { Text = "Удалить",       Icon = "delete", Value = "delete" }
-            ],
+        var items = new List<ContextMenuItem>();
+        if (_canManage)
+        {
+            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" });
+            items.Add(new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" });
+        }
+        if (items.Count == 0) return;
+
+        ContextMenuService.Open(args, items,
             e =>
             {
                 ContextMenuService.Close();
                 if (e.Value?.ToString() == "edit")
-                    InvokeAsync(() => EditRow(args.Data));
+                    InvokeAsync(() => EditRow(args.Data!));
                 else if (e.Value?.ToString() == "delete")
-                    InvokeAsync(() => DeleteRow(args.Data));
+                    InvokeAsync(() => DeleteRow(args.Data!));
             });
     }
 

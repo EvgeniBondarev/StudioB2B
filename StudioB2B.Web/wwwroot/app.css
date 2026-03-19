@@ -25,7 +25,118 @@ h1:focus {
   content: "Произошла ошибка приложения.";
 }
 
-/* ─── Sidebar layout ──────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────
+   Стартовый оверлей — виден пока Blazor не установил SignalR-соединение.
+   Скрывается через Blazor.start().then(...) в App.razor.
+   ────────────────────────────────────────────────────────────── */
+#app-initial-loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  background: #fff;
+  z-index: 9999;
+}
+
+.app-initial-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e0e0e0;
+  border-top-color: #1976d2;
+  border-radius: 50%;
+  animation: app-spin 0.8s linear infinite;
+}
+
+.app-initial-text {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  color: #555;
+}
+
+/* Спиннер авторизации (Authorizing template внутри AuthorizeRouteView) */
+.app-auth-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.app-auth-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #1976d2;
+  border-radius: 50%;
+  animation: app-spin 0.8s linear infinite;
+}
+
+@keyframes app-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Reconnect dialog */
+#components-reconnect-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#components-reconnect-modal.components-reconnect-hide {
+  display: none;
+}
+#components-reconnect-modal .components-reconnect-dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  max-width: 360px;
+}
+#components-reconnect-modal .components-reconnect-dialog p {
+  margin: 0.8rem 0;
+  font-size: 0.95rem;
+  color: #333;
+}
+#components-reconnect-modal .components-reconnect-dialog button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--rz-primary, #4f46e5);
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+#components-reconnect-modal .components-reconnect-dialog button:hover {
+  opacity: 0.9;
+}
+#components-reconnect-modal .components-rejoining-animation {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 0.5rem;
+}
+#components-reconnect-modal .components-rejoining-animation > div {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--rz-primary, #4f46e5);
+  animation: reconnect-pulse 1.2s infinite ease-in-out;
+}
+#components-reconnect-modal .components-rejoining-animation > div:nth-child(2) {
+  animation-delay: 0.3s;
+}
+@keyframes reconnect-pulse {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
 
 .sidebar-inner {
   display: flex;
@@ -46,37 +157,11 @@ h1:focus {
   flex-shrink: 0;
 }
 
-/* ─── Compact (icon-only) mode ────────────────────────────── */
-
-.sidebar-compact .sidebar-logo {
-  justify-content: center;
-  padding: 0.85rem 0 0.5rem;
+/* Smooth sidebar open/close */
+.sidebar-animated {
+  transition: width 0.2s ease;
+  overflow: hidden;
 }
-
-/* Hide the text label in each menu item */
-.sidebar-compact .rz-navigation-item-text {
-  display: none !important;
-}
-
-/* Center the icon inside the item wrapper */
-.sidebar-compact .rz-navigation-item-wrapper {
-  display: flex !important;
-  justify-content: center !important;
-  padding: 0.5rem !important;
-}
-
-/* Remove right margin from icon so it stays centred */
-.sidebar-compact .rz-navigation-item-icon,
-.sidebar-compact .notranslate {
-  margin-right: 0 !important;
-}
-
-/* Disable the expand arrow (chevron) on parent items */
-.sidebar-compact .rz-navigation-item-toggle-icon {
-  display: none !important;
-}
-
-/* ─── Orders: compact header filters ──────────────────────── */
 
 .rz-header-filter-cell {
   display: flex;
@@ -98,8 +183,6 @@ h1:focus {
   padding: 0.2rem 0.4rem !important;
   font-size: 0.8rem !important;
 }
-
-/* ─── Компактная пагинация Radzen DataGrid ────────────────── */
 
 .rz-datatable .rz-paginator,
 .rz-datatable .rz-pager {
@@ -124,13 +207,11 @@ h1:focus {
   padding: 0.2rem 0.5rem !important;
 }
 
-/* ─── Браузерная панель вкладок ──────────────────────────── */
-
 .app-tab-bar {
   display: flex;
   align-items: end;
-  height: 40px;
-  width: 100%;
+  height: 50px;
+  margin: 0 -15px;
   overflow-x: auto;
   border-bottom: 1px solid var(--rz-border-color);
   background: var(--rz-base-background-color);
@@ -213,6 +294,7 @@ h1:focus {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  transition: margin-left 0.2s ease;
 }
 
 /* Контейнер для страниц с full-height layout (чаты и др.) */
@@ -224,15 +306,61 @@ h1:focus {
   min-height: 0;
 }
 
+/* Контейнер контента по умолчанию */
+.body-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Когда боковая панель скрыта — контент на всю ширину и высоту */
+.sidebar-hidden {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sidebar-hidden .rz-data-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 0;
+}
+
+.sidebar-hidden .rz-data-grid .rz-datatable-scrollable-wrapper,
+.sidebar-hidden .rz-data-grid .rz-datatable-scrollable-view {
+  flex: 1;
+  min-height: 0;
+}
+
 /* Общий стиль всех таблиц Radzen */
 .rz-data-grid {
-  border-radius: 10px;
+  border-radius: 6px;
   overflow: hidden;
+  overflow-x: hidden !important;
 
   border: 1px solid #e9ecf8;
   box-shadow:
     0 16px 32px rgba(15, 23, 42, 0.10),
     0 3px 8px rgba(15, 23, 42, 0.05);
+}
+
+/* Убираем горизонтальный скроллбар внутри таблицы */
+.rz-data-grid .rz-datatable-scrollable-wrapper {
+  overflow-x: hidden !important;
+}
+
+.rz-data-grid .rz-datatable-scrollable-body {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  scrollbar-width: none !important; /* Firefox */
+}
+
+.rz-data-grid .rz-datatable-scrollable-body::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Edge */
 }
 
 /* Hover строк */
@@ -251,32 +379,56 @@ h1:focus {
   background: var(--rz-base-200) !important;
 }
 
+/* Уменьшаем паддинги для всех ячеек таблицы */
+.rz-grid-table td,
+.rz-grid-table th {
+  padding: 0.2rem 0.3rem !important;
+}
+
 .rz-data-grid th .rz-column-title-content,
 .rz-data-grid th .rz-header-filter-title {
-  font-size: 15px;
+  font-size: 13px;
   color:var(--rz-base-dark) !important;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.1px;
 }
 
 .rz-grid-table{
   border-bottom: 1px solid #e7ebff;
+  table-layout: fixed;
+}
+
+/* Prevent cell content from expanding columns */
+.rz-grid-table td {
+  overflow: clip;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
 }
 
 /* Отступы заголовков */
 .rz-grid-table thead th > div:not(.rz-cell-filter) {
-  padding: 15px 0;
+  padding: 8px 0;
 }
 
 /* Pager */
 .rz-datatable .rz-pager.rz-unselectable-text {
-  padding: 0.7rem 1rem !important;
+  padding: 0.5rem 1.5rem 0.5rem 0.5rem  !important;
 }
 
 /* Ячейки текста */
 .rz-data-grid .rz-cell-data p {
-  margin: 0 !important;
+  margin: 0 ;
   line-height: 1.4 !important;
+}
+
+/* Иконка фильтра в таблице */
+.rz-grid-filter-icon {
+  margin: 0 !important;
+}
+
+.rz-grid-table thead th .rz-column-title {
+  padding-left: 0.25rem !important;
 }
 
 /* Фильтр "Все" в шапке таблиц */
@@ -317,7 +469,6 @@ h1:focus {
 }
 
 
-/* ───  модальное окно "Новое правило расчёта" ──────────────────────────── */
 
 /* Шапка таблицы*/
 .compact-grid thead th > div {
@@ -344,3 +495,35 @@ h1:focus {
   box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
   transform: translateY(-1px) !important;
 }
+
+.my-popup {
+  display: none;
+  position: absolute;
+  max-height: 300px;
+  width: 220px;
+  overflow: auto;
+  padding: 16px;
+  border: var(--rz-panel-border);
+  background-color: var(--rz-panel-background-color);
+  box-shadow: var(--rz-panel-shadow);
+  border-radius: var(--rz-border-radius);
+  z-index: 2000;
+}
+
+/* шапка кастомных колонкох в таблице Транзакций  */
+.header-bg-full {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  background-color: var(--rz-primary-light) !important;
+  color: white !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  z-index: -1;
+}
+

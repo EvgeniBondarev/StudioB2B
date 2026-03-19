@@ -1,5 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.JSInterop;
 
@@ -13,10 +15,12 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
     private const string TokenKey = "auth_token";
     private const string MasterTokenKey = "master_auth_token";
     private readonly IJSRuntime _js;
+    private readonly IHttpClientFactory _httpFactory;
 
-    public JwtAuthenticationStateProvider(IJSRuntime js)
+    public JwtAuthenticationStateProvider(IJSRuntime js, IHttpClientFactory httpFactory)
     {
         _js = js;
+        _httpFactory = httpFactory;
     }
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
@@ -58,7 +62,38 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
         catch { return null; }
     }
 
-    // ── Master auth ────────────────────────────────────────────────────────────
+    /// <summary>
+    /// Перевыпускает JWT для текущего пользователя с актуальными ролями из БД.
+    /// Обновляет localStorage и уведомляет Blazor об изменении состояния аутентификации.
+    /// </summary>
+    public async Task RefreshAsync()
+    {
+        try
+        {
+            var currentToken = await GetTokenAsync();
+            if (string.IsNullOrWhiteSpace(currentToken)) return;
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, "api/auth/refresh");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", currentToken);
+
+            var client = _httpFactory.CreateClient("Anonymous");
+            var response = await client.SendAsync(request);
+            if (!response.IsSuccessStatusCode) return;
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("token", out var tokenEl)) return;
+
+            var newToken = tokenEl.GetString();
+            if (string.IsNullOrWhiteSpace(newToken)) return;
+
+            await LoginAsync(newToken);
+        }
+        catch
+        {
+            // Не мешаем работе приложения при ошибке обновления токена
+        }
+    }
 
     public async Task MasterLoginAsync(string token)
     {
@@ -82,6 +117,35 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
         catch { return false; }
     }
 
+    /// <summary>
+    /// Читает claims из master JWT: email, given_name, family_name, middle_name, roles.
+    /// </summary>
+    public async Task<MasterUserInfo?> GetMasterUserInfoAsync()
+    {
+        try
+        {
+            var token = await _js.InvokeAsync<string?>("localStorage.getItem", MasterTokenKey);
+            if (string.IsNullOrWhiteSpace(token)) return null;
+
+            var handler = new JwtSecurityTokenHandler();
+            if (!handler.CanReadToken(token)) return null;
+
+            var jwt = handler.ReadJwtToken(token);
+            if (jwt.ValidTo < DateTime.UtcNow) return null;
+
+            var email = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Email)?.Value ?? "";
+            var firstName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.GivenName)?.Value ?? "";
+            var lastName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.FamilyName)?.Value ?? "";
+            var middleName = jwt.Claims.FirstOrDefault(c => c.Type == "middle_name")?.Value;
+            var roles = jwt.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
+            var subClaim = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
+            var userId = subClaim is not null && Guid.TryParse(subClaim, out var parsed) ? parsed : Guid.Empty;
+
+            return new MasterUserInfo(userId, email, firstName, lastName, middleName, roles);
+        }
+        catch { return null; }
+    }
+
     private static AuthenticationState Anonymous()
         => new(new ClaimsPrincipal(new ClaimsIdentity()));
 
@@ -97,7 +161,16 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
             // Проверяем срок действия
             if (jwt.ValidTo < DateTime.UtcNow) return null;
 
-            var identity = new ClaimsIdentity(jwt.Claims, "jwt");
+            // ReadJwtToken() не применяет маппинг JWT-имён ("sub", "email" и т.д.)
+            // в .NET ClaimTypes. Применяем его вручную, чтобы CurrentUserProvider
+            // мог находить ClaimTypes.NameIdentifier и ClaimTypes.Email.
+            var map = JwtSecurityTokenHandler.DefaultInboundClaimTypeMap;
+            var mappedClaims = jwt.Claims.Select(c =>
+                map.TryGetValue(c.Type, out var mapped)
+                    ? new Claim(mapped, c.Value, c.ValueType, c.Issuer)
+                    : c);
+
+            var identity = new ClaimsIdentity(mappedClaims, "jwt");
             return new ClaimsPrincipal(identity);
         }
         catch

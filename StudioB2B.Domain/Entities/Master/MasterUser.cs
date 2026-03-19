@@ -1,6 +1,4 @@
-using StudioB2B.Domain.Entities.Common;
-
-namespace StudioB2B.Domain.Entities.Master;
+namespace StudioB2B.Domain.Entities;
 
 public class MasterUser : IBaseEntity, ISoftDelete
 {
@@ -9,6 +7,12 @@ public class MasterUser : IBaseEntity, ISoftDelete
     public string Email { get; set; } = null!;
 
     public string HashPassword { get; set; } = null!;
+
+    public string FirstName { get; set; } = null!;
+
+    public string LastName { get; set; } = null!;
+
+    public string? MiddleName { get; set; }
 
     public bool IsActive { get; set; } = true;
 

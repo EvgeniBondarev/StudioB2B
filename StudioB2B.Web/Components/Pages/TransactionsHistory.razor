@@ -1,7 +1,7 @@
 @page "/transactions-history"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "TransactionsView")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Orders
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
@@ -62,15 +62,21 @@ else
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
-            <RadzenDataGridColumn TItem="OrderTransactionHistory" Property="OrderTransaction.Name" Title="Документ" Width="200px">
+            <RadzenDataGridColumn TItem="OrderTransactionHistory" Property="OrderTransaction.Name" Title="Документ" Width="200px" Visible="@Col("TransHistColDocument")">
                 <Template Context="h">
                     @if (h.OrderTransaction != null)
                     {
                         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
-                            @if (!string.IsNullOrEmpty(h.OrderTransaction.Color))
-                            {
-                                <span style="width:16px;height:16px;border-radius:4px;background:@GetSoftBackground(h.OrderTransaction.Color);border:1px solid var(--rz-border-color);flex-shrink:0;" title="@h.OrderTransaction.Color"></span>
+                            @{
+                                var hBg = GetSoftBackground(h.OrderTransaction.Color);
+                                var hFg = IsLightColor(hBg) ? "#1f2937" : "#ffffff";
                             }
+                            <span style="@($"width:24px;height:24px;border-radius:6px;background:{hBg};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;")">
+                                @if (!string.IsNullOrEmpty(h.OrderTransaction.Icon))
+                                {
+                                    <i class="rzi" style="font-size:15px;color:@hFg;">@h.OrderTransaction.Icon</i>
+                                }
+                            </span>
                             <span>@h.OrderTransaction.Name</span>
                         </RadzenStack>
                     }
@@ -81,7 +87,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="OrderTransactionHistory" Title="Заказ" Width="320px" Filterable="false" Sortable="false">
+            <RadzenDataGridColumn TItem="OrderTransactionHistory" Title="Заказ" Width="320px" Filterable="false" Sortable="false" Visible="@Col("TransHistColOrder")">
                 <Template Context="h">
                     @if (h.Order != null)
                     {
@@ -124,13 +130,13 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="OrderTransactionHistory" Property="PerformedAtUtc" Title="Время" Width="160px" Sortable="true">
+            <RadzenDataGridColumn TItem="OrderTransactionHistory" Property="PerformedAtUtc" Title="Время" Width="160px" Sortable="true" Visible="@Col("TransHistColTime")">
                 <Template Context="h">
                     @h.PerformedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="OrderTransactionHistory" Title="Результат" Width="200px">
+            <RadzenDataGridColumn TItem="OrderTransactionHistory" Title="Результат" Width="200px" Visible="@Col("TransHistColResult")">
                 <Template Context="h">
                     @if (h.Success)
                     {
@@ -146,7 +152,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="OrderTransactionHistory" Property="PerformedByUserName" Title="Пользователь" Width="200px">
+            <RadzenDataGridColumn TItem="OrderTransactionHistory" Property="PerformedByUserName" Title="Пользователь" Width="200px" Visible="@Col("TransHistColUser")">
                 <Template Context="h">
                     @(h.PerformedByUserName ?? "—")
                 </Template>
@@ -157,18 +163,28 @@ else
 }
 
 @code {
+    [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
+
     private RadzenDataGrid<OrderTransactionHistory>? _grid;
     private TenantDbContext? _db;
     private IEnumerable<OrderTransactionHistory> _pageItems = Array.Empty<OrderTransactionHistory>();
     private int _totalCount;
     private Density _density = Density.Default;
     private bool _loading;
+    private System.Security.Claims.ClaimsPrincipal? _user;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+
+    private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && TenantProvider.IsResolved && _grid != null)
-            await _grid.Reload();
+        if (firstRender)
+        {
+            var state = await AuthState;
+            _user = state.User;
+            if (TenantProvider.IsResolved && _grid != null)
+                await _grid.Reload();
+        }
     }
 
     private async Task LoadData(LoadDataArgs args)
@@ -219,6 +235,7 @@ else
 
     private void OnRowRender(RowRenderEventArgs<OrderTransactionHistory> args)
     {
+        if (args.Data == null) return;
         var color = args.Data.OrderTransaction?.Color;
         if (!string.IsNullOrEmpty(color))
         {

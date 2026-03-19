@@ -1,10 +1,10 @@
 @page "/audit"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "AuditView")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Common
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using System.Text.Json
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider
@@ -113,7 +113,7 @@ else
         <Columns>
 
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="ChangedAtUtc"
-                                  Title="Дата" Width="150px" Sortable="true">
+                                  Title="Дата" Width="150px" Sortable="true" Visible="@Col("AuditColDate")">
                 <Template Context="log">
                     <span title="@log.ChangedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")">
                         @log.ChangedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
@@ -122,15 +122,15 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="ChangeType"
-                                  Title="Операция" Width="110px" Sortable="true">
+                                  Title="Операция" Width="110px" Sortable="true" Visible="@Col("AuditColChangeType")">
                 <Template Context="log">
                     @{
                         var (icon, color, label) = log.ChangeType switch
                         {
-                            "Added"    => ("add_circle",   "var(--rz-success)", "Создано"),
-                            "Modified" => ("edit",         "var(--rz-info)",    "Изменено"),
-                            "Deleted"  => ("delete",       "var(--rz-danger)",  "Удалено"),
-                            _          => ("help_outline", "var(--rz-text-secondary-color)", log.ChangeType)
+                            "Added" => ("add_circle", "var(--rz-success)", "Создано"),
+                            "Modified" => ("edit", "var(--rz-info)", "Изменено"),
+                            "Deleted" => ("delete", "var(--rz-danger)", "Удалено"),
+                            _ => ("help_outline", "var(--rz-text-secondary-color)", log.ChangeType)
                         };
                     }
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
@@ -141,14 +141,14 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="EntityName"
-                                  Title="Сущность" Width="150px" Sortable="true">
+                                  Title="Сущность" Width="150px" Sortable="true" Visible="@Col("AuditColEntity")">
                 <Template Context="log">
                     <span style="font-size: 0.85rem; font-weight: 500;">@AuditDisplayHelper.GetEntityDisplayName(log.EntityName)</span>
                 </Template>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="EntityId"
-                                  Title="ID записи" Width="130px" Sortable="false">
+                                  Title="ID записи" Width="130px" Sortable="false" Visible="@Col("AuditColEntityId")">
                 <Template Context="log">
                     <span style="font-family: monospace; font-size: 0.75rem; color: var(--rz-text-secondary-color);"
                           title="@log.EntityId">
@@ -158,13 +158,13 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="FieldName"
-                                  Title="Поле" Width="160px" Sortable="true">
+                                  Title="Поле" Width="160px" Sortable="true" Visible="@Col("AuditColField")">
                 <Template Context="log">
                     <span style="font-size: 0.8rem;">@AuditDisplayHelper.GetFieldDisplayName(log.EntityName, log.FieldName)</span>
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="FieldAuditLog" Title="Было" Width="220px" Sortable="false">
+            <RadzenDataGridColumn TItem="FieldAuditLog" Title="Было" Width="220px" Sortable="false" Visible="@Col("AuditColOldValue")">
                 <Template Context="log">
                     <span style="color: var(--rz-danger); font-size: 0.85rem; word-break: break-word;">
                         @FormatValue(log.OldValue)
@@ -172,7 +172,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="FieldAuditLog" Title="Стало" Width="220px" Sortable="false">
+            <RadzenDataGridColumn TItem="FieldAuditLog" Title="Стало" Width="220px" Sortable="false" Visible="@Col("AuditColNewValue")">
                 <Template Context="log">
                     <span style="color: var(--rz-success); font-size: 0.85rem; word-break: break-word;">
                         @FormatValue(log.NewValue)
@@ -181,7 +181,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="ChangedByUserName"
-                                  Title="Кто изменил" Width="180px" Sortable="true">
+                                  Title="Кто изменил" Width="180px" Sortable="true" Visible="@Col("AuditColUser")">
                 <Template Context="log">
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.3rem">
                         <RadzenIcon Icon="@(log.ChangedByUserName == SystemUser.RobotEmail ? "smart_toy" : "person")"
@@ -209,38 +209,69 @@ else
 }
 
 @code {
+    [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
+
     private TenantDbContext? _db;
     private RadzenDataGrid<FieldAuditLog>? _grid;
 
-    private List<FieldAuditLog> _pageItems  = [];
-    private int                 _totalCount = 0;
-    private bool                _loading    = false;
+    private List<FieldAuditLog> _pageItems = [];
+    private int _totalCount;
+    private bool _loading;
+    private System.Security.Claims.ClaimsPrincipal? _user;
+
+    private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
 
     private Density _density = Density.Default;
     private readonly int[] _pageSizeOptions = [15, 30, 50, 100];
 
     // Данные для фильтров
-    private List<string> _entityNames   = [];
-    private List<string> _changeTypes   = ["Added", "Modified", "Deleted"];
-    private List<string> _userNames     = [];
+    private List<string> _entityNames = [];
+    private List<string> _changeTypes = ["Added", "Modified", "Deleted"];
+    private List<string> _userNames = [];
 
     // Значения фильтров
-    private string?   _filterEntity     = null;
-    private string?   _filterChangeType = null;
-    private string?   _filterUser       = null;
-    private DateTime? _filterFrom       = null;
-    private DateTime? _filterTo         = null;
+    private string? _filterEntity;
+    private string? _filterChangeType;
+    private string? _filterUser;
+    private DateTime? _filterFrom;
+    private DateTime? _filterTo;
+
+    /// <summary>
+    /// true — LoadFilterDataAsync полностью завершён, DbContext свободен для запросов из LoadData.
+    /// В Blazor Server OnInitializedAsync рендерит компонент при каждом await-е,
+    /// поэтому OnAfterRenderAsync(firstRender=true) может сработать ДО завершения
+    /// LoadFilterDataAsync. Этот флаг предотвращает конкурентное обращение к DbContext.
+    /// </summary>
+    private bool _filtersLoaded;
+
+    /// <summary>Гарантирует однократный вызов _grid.Reload() после инициализации.</summary>
+    private bool _gridReloadDone;
+
+    public AuditLog()
+    {
+        _filterFrom = null;
+        _filterChangeType = null;
+    }
 
     protected override async Task OnInitializedAsync()
     {
+        var state = await AuthState;
+        _user = state.User;
         _db = Factory.CreateDbContext();
         await LoadFilterDataAsync();
+        _filtersLoaded = true;   // только после полного завершения всех запросов фильтров
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && _grid is not null)
+        // Ждём, пока LoadFilterDataAsync не завершится (_filtersLoaded),
+        // чтобы не использовать DbContext конкурентно.
+        // _gridReloadDone — защита от повторного вызова при каждом StateHasChanged.
+        if (!_gridReloadDone && _filtersLoaded && _grid is not null)
+        {
+            _gridReloadDone = true;
             await _grid.Reload();
+        }
     }
 
     private async Task LoadFilterDataAsync()
@@ -329,11 +360,11 @@ else
 
     private async Task ResetFilters()
     {
-        _filterEntity     = null;
+        _filterEntity = null;
         _filterChangeType = null;
-        _filterUser       = null;
-        _filterFrom       = null;
-        _filterTo         = null;
+        _filterUser = null;
+        _filterFrom = null;
+        _filterTo = null;
         await RefreshGrid();
     }
 
@@ -350,11 +381,11 @@ else
             new Dictionary<string, object?>
             {
                 [nameof(FieldAuditDialog.EntityName)] = log.EntityName,
-                [nameof(FieldAuditDialog.EntityId)]   = log.EntityId
+                [nameof(FieldAuditDialog.EntityId)] = log.EntityId
             },
             new DialogOptions
             {
-                Width    = "min(800px, 95vw)",
+                Width = "min(800px, 95vw)",
                 Resizable = true,
                 Draggable = true
             });
@@ -381,10 +412,10 @@ else
             {
                 JsonValueKind.String => el.GetString() ?? "—",
                 JsonValueKind.Number => el.GetRawText(),
-                JsonValueKind.True   => "да",
-                JsonValueKind.False  => "нет",
-                JsonValueKind.Null   => "—",
-                _                    => raw
+                JsonValueKind.True => "да",
+                JsonValueKind.False => "нет",
+                JsonValueKind.Null => "—",
+                _ => raw
             };
         }
         catch { return raw; }

@@ -1,10 +1,10 @@
 @page "/orders/apply-transaction"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "OrdersView")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Orders
-@using StudioB2B.Domain.Entities.Products
-@using StudioB2B.Domain.Entities.Warehouses
-@using StudioB2B.Infrastructure.Features.Orders
+@using Radzen.Blazor.Rendering
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Domain.Entities
+@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
@@ -21,6 +21,22 @@
 
 <PageTitle>Провести документ</PageTitle>
 
+<Popup @ref="columnsPopup" Lazy="true" class="my-popup">
+    <RadzenStack Gap="8px">
+        @foreach (var col in Columns)
+        {
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="8px">
+                <RadzenCheckBox TValue="bool"
+                                Value="@(col.UserVisible ?? col.AutoVisible)"
+                                Change="@(value => OnColumnChecked(col, value))"
+                />
+                <span>@col.Title</span>
+            </RadzenStack>
+        }
+    </RadzenStack>
+</Popup>
+
+
 @if (!TenantProvider.IsResolved)
 {
     <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
@@ -35,7 +51,7 @@ else if (_loading)
 }
 else if (_orderIds.Count == 0)
 {
-    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" Shade="Shade.Lighter" AllowClose="false">
         Не указаны заказы. Выберите заказы на странице <a href="/orders">Заказы</a> и нажмите кнопку документа для проведения.
     </RadzenAlert>
 }
@@ -73,7 +89,18 @@ else if (_preview == null)
                         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
                             @if (!string.IsNullOrEmpty(t.Color))
                             {
-                                <span style="width:16px;height:16px;border-radius:4px;background:@GetSoftBackground(t.Color);border:1px solid var(--rz-border-color);flex-shrink:0;" title="@t.Color"></span>
+                                var sw = GetSoftBackground(t.Color);
+                                var swFg = GetTextColor(sw);
+                                <span style="width:22px;height:22px;border-radius:6px;background:@sw;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;" title="@t.Color">
+                                    @if (!string.IsNullOrEmpty(t.Icon))
+                                    {
+                                        <i class="rzi" style="font-size:14px;color:@swFg;">@t.Icon</i>
+                                    }
+                                </span>
+                            }
+                            else if (!string.IsNullOrEmpty(t.Icon))
+                            {
+                                <RadzenIcon Icon="@t.Icon" Style="font-size:1rem;flex-shrink:0;" />
                             }
                             <span>@t.Name</span>
                         </RadzenStack>
@@ -106,41 +133,55 @@ else
                 @_preview.TransactionName → @_preview.ToStatusName
             </RadzenText>
             <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
-                <RadzenButton Text="Назад" ButtonStyle="ButtonStyle.Light" Click="@BackToSelect" />
-                <RadzenButton Text="Провести" ButtonStyle="ButtonStyle.Primary" Click="@ApplyAllAsync"
-                              Disabled="@(_preview != null && GetValidationErrors().Count > 0)" />
+                <RadzenButton @ref="columnsButton"
+                              Icon="settings"
+                              Shade="Shade.Light"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Size="ButtonSize.Small"
+                              Text="Колонки"
+                              Click="@(_ => ToggleColumnsPopup())"/>
+                <RadzenButton Text="Назад" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@BackToSelect"/>
+                <RadzenButton Text="Провести" ButtonStyle="ButtonStyle.Primary" Shade="Shade.Light" Size="ButtonSize.Small" Click="@ApplyAllAsync"
+                              Disabled="@(_preview != null && GetValidationErrors().Count > 0)"/>
             </RadzenStack>
         </RadzenStack>
 
         @if (_preview.FieldRules.Any(x => x.RequiresUserInput))
         {
-            <RadzenStack Gap="0.5rem" Style="margin-bottom: 0.5rem;">
-                <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Center">
-                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">Режим изменения полей:</RadzenText>
-                    <RadzenRadioButtonList TValue="string" @bind-Value="_fieldEditMode" Data="@_fieldModeOptions"
-                                          TextProperty="Text" ValueProperty="Value"
-                                          Style="flex-direction: row; gap: 1rem;" />
-                </RadzenStack>
-                @if (_fieldEditMode == "Mass")
-                {
-                    <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" Style="flex-wrap: wrap;">
-                        @foreach (var fr in _preview.FieldRules.Where(x => x.RequiresUserInput))
-                        {
-                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
-                                <RadzenLabel Text="@(fr.DisplayName + (fr.IsRequired ? " *" : ""))" Style="min-width: 140px;" />
-                                @RenderFieldControlMass(fr)
-                            </RadzenStack>
-                        }
+            <RadzenCard Variant="Variant.Filled" Style="margin-bottom: 0.5rem;">
+                <RadzenStack Gap="0.5rem">
+                    <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" AlignItems="AlignItems.Center">
+                        <RadzenText TextStyle="TextStyle.Body2" Style="font-weight: 500;">Режим изменения полей:</RadzenText>
+                        <RadzenRadioButtonList TValue="string" @bind-Value="_fieldEditMode" Data="@_fieldModeOptions"
+                                               TextProperty="Text" ValueProperty="Value"
+                                               Style="flex-direction: row; gap: 1rem;" />
                     </RadzenStack>
-                }
-            </RadzenStack>
+                    @if (_fieldEditMode == "Mass")
+                    {
+                        <RadzenStack Orientation="Orientation.Horizontal" Gap="1rem" Style="flex-wrap: wrap;">
+                            @foreach (var fr in _preview.FieldRules.Where(x => x.RequiresUserInput))
+                            {
+                                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
+                                    <RadzenLabel Text="@(fr.DisplayName + (fr.IsRequired ? " *" : ""))" Style="min-width: 140px;" />
+                                    @RenderFieldControlMass(fr)
+                                </RadzenStack>
+                            }
+                        </RadzenStack>
+                    }
+                </RadzenStack>
+            </RadzenCard>
         }
 
-        <RadzenDataGrid TItem="Order" Data="@_orders" Density="Density.Compact"
+        <RadzenDataGrid TItem="OrderEntity" Data="@_orders" Density="Density.Compact"
                         AllowSorting="false" AllowFiltering="false" AllowPaging="false"
                         EmptyText="@RadzenRuStrings.EmptyText">
             <Columns>
-                <RadzenDataGridColumn TItem="Order" Title="Номер отправления" Width="200px">
+
+                <RadzenDataGridColumn TItem="OrderEntity"
+                                      Title="@GetColumn(OrderGridColumns.ShipmentNumber).Title"
+                                      Width="@GetColumn(OrderGridColumns.ShipmentNumber).Width"
+                                      Frozen="@GetColumn(OrderGridColumns.ShipmentNumber).Frozen"
+                                      Visible="@GetColumn(OrderGridColumns.ShipmentNumber).Visible">
                     <Template Context="o">
                         <CopyableText Text="@(o.Shipment?.PostingNumber ?? string.Empty)"
                                       Class="rz-monospace rz-text-sm"
@@ -153,7 +194,11 @@ else
                         </CopyableText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Клиент" Width="160px">
+
+                <RadzenDataGridColumn TItem="OrderEntity"
+                                      Title="@GetColumn(OrderGridColumns.Client).Title"
+                                      Width="@GetColumn(OrderGridColumns.Client).Width"
+                                      Visible="@GetColumn(OrderGridColumns.Client).Visible">
                     <Template Context="o">
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate"
@@ -161,7 +206,11 @@ else
                         </RadzenText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Принят" Width="130px">
+
+                <RadzenDataGridColumn TItem="OrderEntity"
+                                      Title="@GetColumn(OrderGridColumns.AcceptedDate).Title"
+                                      Width="@GetColumn(OrderGridColumns.AcceptedDate).Width"
+                                      Visible="@GetColumn(OrderGridColumns.AcceptedDate).Visible">
                     <Template Context="o">
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate"
@@ -169,7 +218,12 @@ else
                         </RadzenText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Срок отгрузки" Width="130px">
+
+                <RadzenDataGridColumn TItem="OrderEntity"
+                                      Title="@GetColumn(OrderGridColumns.ShippingDate).Title"
+                                      Width="@GetColumn(OrderGridColumns.ShippingDate).Width"
+                                      Visible="@GetColumn(OrderGridColumns.ShippingDate).Visible">
+
                     <Template Context="o">
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate"
@@ -177,7 +231,12 @@ else
                         </RadzenText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Артикул" Width="160px">
+
+                <RadzenDataGridColumn TItem="OrderEntity"
+                                      Title="@GetColumn(OrderGridColumns.Article).Title"
+                                      Width="@GetColumn(OrderGridColumns.Article).Width"
+                                      Visible="@GetColumn(OrderGridColumns.Article).Visible">
+
                     <Template Context="o">
                         <CopyableText Text="@(o.ProductInfo?.Product?.Article ?? string.Empty)"
                                       Class="rz-monospace rz-text-sm"
@@ -190,7 +249,12 @@ else
                         </CopyableText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Товар" Width="280px">
+
+                <RadzenDataGridColumn TItem="OrderEntity"
+                                      Title="@GetColumn(OrderGridColumns.Product).Title"
+                                      Width="@GetColumn(OrderGridColumns.Product).Width"
+                                      Visible="@GetColumn(OrderGridColumns.Product).Visible">
+
                     <Template Context="o">
                         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem"
                                      Class="rz-w-100">
@@ -198,25 +262,44 @@ else
                             {
                                 <img src="@o.ProductInfo?.Product?.ImageUrl"
                                      class="rz-border-radius rz-flex-shrink-0"
-                                     style="width:36px; height:36px; object-fit:contain;"
+                                     style="width:32px; height:32px; object-fit:contain;"
                                      alt=""/>
                             }
-                            <span
-                                class="rz-text-sm  rz-flex-shrink-1 rz-text-truncate rz-ms-1"
-                                title="@o.ProductInfo?.Product?.Name">
-                                @o.ProductInfo?.Product?.Name
-                            </span>
+                            <div style="min-width:0;flex:1;">
+                                <div class="rz-text-sm rz-text-truncate" style="line-height:1.3;"
+                                     title="@o.ProductInfo?.Product?.Name">
+                                    @o.ProductInfo?.Product?.Name
+                                </div>
+                                @if (!string.IsNullOrEmpty(o.ProductInfo?.Product?.Article))
+                                {
+                                    <div class="rz-monospace" style="font-size:0.7rem;color:var(--rz-text-secondary-color);line-height:1.2;"
+                                         title="@o.ProductInfo?.Product?.Article">
+                                        @o.ProductInfo?.Product?.Article
+                                    </div>
+                                }
+                            </div>
                         </RadzenStack>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Кол-во" Width="120px" TextAlign="TextAlign.Center">
+
+                <RadzenDataGridColumn TItem="OrderEntity"
+                                      Title="@GetColumn(OrderGridColumns.Quantity).Title"
+                                      Width="@GetColumn(OrderGridColumns.Quantity).Width"
+                                      Visible="@GetColumn(OrderGridColumns.Quantity).Visible"
+                                      TextAlign="TextAlign.Center">
+
                     <Template Context="o">
                         <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600">
                             @o.Quantity
                         </RadzenText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Статус маркетплейса" Width="190px">
+
+                <RadzenDataGridColumn TItem="OrderEntity"
+                                      Title="@GetColumn(OrderGridColumns.MarketplaceStatus).Title"
+                                      Width="@GetColumn(OrderGridColumns.MarketplaceStatus).Width"
+                                      Visible="@GetColumn(OrderGridColumns.MarketplaceStatus).Visible">
+
                     <Template Context="o">
                         <RadzenStack JustifyContent="JustifyContent.Center" AlignItems="AlignItems.Center">
                             @if (o.Status != null)
@@ -230,7 +313,12 @@ else
                         </RadzenStack>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Статус приложения" Width="190px">
+
+                <RadzenDataGridColumn TItem="OrderEntity"
+                                      Title="@GetColumn(OrderGridColumns.AppStatus).Title"
+                                      Width="@GetColumn(OrderGridColumns.AppStatus).Width"
+                                      Visible="@GetColumn(OrderGridColumns.AppStatus).Visible">
+
                     <Template Context="o">
                         <RadzenStack JustifyContent="JustifyContent.Center" AlignItems="AlignItems.Center">
                             @if (o.SystemStatus != null)
@@ -244,7 +332,12 @@ else
                         </RadzenStack>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Способ доставки" Width="180px">
+
+                <RadzenDataGridColumn TItem="OrderEntity"
+                                      Title="@GetColumn(OrderGridColumns.DeliveryMethod).Title"
+                                      Width="@GetColumn(OrderGridColumns.DeliveryMethod).Width"
+                                      Visible="@GetColumn(OrderGridColumns.DeliveryMethod).Visible">
+
                     <Template Context="o">
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate"
@@ -253,7 +346,12 @@ else
                         </RadzenText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Склад" Width="160px">
+
+                <RadzenDataGridColumn TItem="OrderEntity"
+                                      Title="@GetColumn(OrderGridColumns.Warehouse).Title"
+                                      Width="@GetColumn(OrderGridColumns.Warehouse).Width"
+                                      Visible="@GetColumn(OrderGridColumns.Warehouse).Visible">
+
                     <Template Context="o">
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate"
@@ -262,7 +360,12 @@ else
                         </RadzenText>
                     </Template>
                 </RadzenDataGridColumn>
-                <RadzenDataGridColumn TItem="Order" Title="Цена" Width="120px">
+
+                <RadzenDataGridColumn TItem="OrderEntity"
+                                      Title="@GetColumn(OrderGridColumns.Price).Title"
+                                      Width="@GetColumn(OrderGridColumns.Price).Width"
+                                      Visible="@GetColumn(OrderGridColumns.Price).Visible">
+
                     <Template Context="o">
                         @{
                             var price = o.Prices.FirstOrDefault(p => p.PriceType?.Name == "Цена");
@@ -287,7 +390,11 @@ else
                 {
                     @if (!_computedSplitByColumns)
                     {
-                        <RadzenDataGridColumn TItem="Order" Title="Расчёты" Width="200px">
+                        <RadzenDataGridColumn TItem="OrderEntity"
+                                              Title="Расчёты"
+                                              Width="@GetColumn(OrderGridColumns.ExtraCalculations).Width"
+                                              Visible="@GetColumn(OrderGridColumns.ExtraCalculations).Visible">
+
                             <HeaderTemplate>
                                 <span style="cursor: pointer; text-decoration: underline; font-size: 0.85rem;"
                                       title="Щёлкните, чтобы переключить режим отображения расчётов"
@@ -322,9 +429,10 @@ else
                     {
                         @foreach (var rule in _calcRules)
                         {
-                            <RadzenDataGridColumn TItem="Order"
+                            <RadzenDataGridColumn TItem="OrderEntity"
                                                   Title="@rule.Name"
-                                                  Width="120px"
+                                                  Width="@GetColumn(OrderGridColumns.ExtraCalculations).Width"
+                                                  Visible="@GetColumn(OrderGridColumns.ExtraCalculations).Visible"
                                                   Filterable="false"
                                                   Sortable="false"
                                                   TextAlign="TextAlign.Right">
@@ -345,7 +453,19 @@ else
                 {
                     @foreach (var fr in _preview.FieldRules.Where(x => x.RequiresUserInput))
                     {
-                        <RadzenDataGridColumn TItem="Order" Title="@(fr.DisplayName + (fr.IsRequired ? " *" : ""))" Width="180px" @key="fr.RuleId">
+
+                        var key = $"FieldRule_{fr.RuleId}";
+                        <RadzenDataGridColumn TItem="OrderEntity"
+                                              Title="@(fr.DisplayName + (fr.IsRequired ? " *" : ""))"
+                                              Width="@GetColumn(key).Width"
+                                              Visible="@GetColumn(key).Visible"
+                                              @key="fr.RuleId">
+                            <HeaderTemplate >
+                                <div class="header-bg-full">
+                                    @(fr.DisplayName + (fr.IsRequired ? " *" : ""))
+                                </div>
+                            </HeaderTemplate>
+
                             <Template Context="o">
                                 @RenderFieldControlPerOrder(o.Id, fr)
                             </Template>
@@ -354,31 +474,47 @@ else
                 }
                 @foreach (var rule in _preview.Rules)
                 {
-                    <RadzenDataGridColumn TItem="Order" Title="@(rule.PriceTypeName + (rule.IsRequired ? " *" : ""))" Width="140px" @key="rule.RuleId">
+                    var key = $"Rule_{rule.RuleId}";
+                    <RadzenDataGridColumn TItem="OrderEntity"
+                                          Title="@(rule.PriceTypeName + (rule.IsRequired ? " *" : ""))"
+                                          Width="@GetColumn(key).Width"
+                                          Visible="@GetColumn(key).Visible"
+                                          @key="rule.RuleId">
+                        <HeaderTemplate >
+                            <div class="header-bg-full">
+                                @(rule.PriceTypeName + (rule.IsRequired ? " *" : ""))
+                            </div>
+                        </HeaderTemplate>
+
                         <Template Context="o">
-                            @{
-                                var orderPreview = _orderPreviews.GetValueOrDefault(o.Id);
-                                var rulePreview = orderPreview?.Rules.FirstOrDefault(r => r.RuleId == rule.RuleId);
-                            }
-                            @if (rulePreview != null)
-                            {
-                                @if (rulePreview.RequiresUserInput)
-                                {
-                                    var uv = GetUserValue(o.Id, rule.RuleId);
-                                    <RadzenNumeric TValue="decimal" Value="@uv"
-                                                  ValueChanged="@(v => OnUserValueChanged(o.Id, rule.RuleId, v))"
-                                                  Style="@($"width: 100%; {GetPriceColor(uv)}")" Min="0" Format="N2"
-                                                  Placeholder="Введите" />
+                                @{
+                                    var orderPreview = _orderPreviews.GetValueOrDefault(o.Id);
+                                    var rulePreview = orderPreview?.Rules.FirstOrDefault(r => r.RuleId == rule.RuleId);
                                 }
-                                else
+                                @if (rulePreview != null)
                                 {
-                                    var cv = rulePreview.ComputedValue;
-                                    var breakdown = rulePreview.FormulaBreakdown ?? rulePreview.Formula ?? "";
-                                    <RadzenText TextStyle="TextStyle.Body2" Style="@($"cursor: help; font-family: monospace; {GetPriceColor(cv)}")" title="@breakdown">
-                                        @(cv?.ToString("N2") ?? "—")
-                                    </RadzenText>
+                                    @if (rulePreview.RequiresUserInput)
+                                    {
+
+                                        var uv = GetUserValue(o.Id, rule.RuleId);
+
+                                        <RadzenNumeric TValue="decimal" Value="@uv"
+                                                       ValueChanged="@(v => OnUserValueChanged(o.Id, rule.RuleId, v))"
+                                                       Style="@($"width: 100%; {GetPriceColor(uv)}")" Min="0" Format="N2"
+                                                       Placeholder="Введите"/>
+
+                                    }
+                                    else
+                                    {
+                                        var cv = rulePreview.ComputedValue;
+                                        var breakdown = rulePreview.FormulaBreakdown ?? rulePreview.Formula ?? "";
+
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="@($"cursor: help; font-family: monospace; {GetPriceColor(cv)}")" title="@breakdown">
+                                            @(cv?.ToString("N2") ?? "—")
+                                        </RadzenText>
+
+                                    }
                                 }
-                            }
                         </Template>
                     </RadzenDataGridColumn>
                 }
@@ -397,12 +533,12 @@ else
     private TenantDbContext? _db;
     private bool _loading = true;
     private List<Guid> _orderIds = [];
-    private List<Order> _orders = [];
+    private List<OrderEntity> _orders = [];
     private List<OrderTransaction> _transactions = [];
     private string? _currentStatusName;
     private Guid? _selectedTransactionId;
-    private TransactionApplyPreview? _preview;
-    private Dictionary<Guid, TransactionApplyPreview> _orderPreviews = [];
+    private TransactionApplyPreviewDto? _preview;
+    private Dictionary<Guid, TransactionApplyPreviewDto> _orderPreviews = [];
     private Dictionary<Guid, Dictionary<Guid, decimal>> _userValues = [];
     private Dictionary<Guid, string> _fieldUserValues = [];
     private Dictionary<Guid, Dictionary<Guid, string>> _fieldUserValuesPerOrder = [];
@@ -426,6 +562,186 @@ else
     private Dictionary<Guid, Dictionary<string, decimal>> _computed = [];
     private Dictionary<Guid, Dictionary<string, string>> _computedBreakdown = [];
     private bool _computedSplitByColumns;
+
+    [Inject]
+    private IJSRuntime Js { get; set; } = default!;
+
+    private DotNetObjectReference<OrdersApplyTransaction>? _resizeRef;
+
+    private bool _columnsPopupVisible = false;
+
+    private List<string> _selectedColumns = new();
+
+    void ToggleColumnsPopup()
+    {
+        if (!_columnsPopupVisible)
+        {
+            _selectedColumns = Columns
+                .Where(c => c.UserVisible ?? c.AutoVisible) // видимые сейчас колонки
+                .Select(c => c.Key)
+                .ToList();
+        }
+
+        // Открываем/закрываем popup через Radzen API
+        columnsPopup.ToggleAsync(columnsButton.Element);
+    }
+
+    RadzenButton columnsButton = null!;
+    Popup columnsPopup = null!;
+
+    // Константы колонок
+    public static class OrderGridColumns
+    {
+        public const string ShipmentNumber = "ShipmentNumber";
+        public const string Client = "Client";
+        public const string AcceptedDate = "AcceptedDate";
+        public const string ShippingDate = "ShippingDate";
+        public const string Article = "Article";
+        public const string Product = "Product";
+        public const string Quantity = "Quantity";
+        public const string MarketplaceStatus = "MarketplaceStatus";
+        public const string AppStatus = "AppStatus";
+        public const string DeliveryMethod = "DeliveryMethod";
+        public const string Warehouse = "Warehouse";
+        public const string Price = "Price";
+        public const string ExtraCalculations = "ExtraCalculations";
+    }
+
+    // Модель конфигурации колонки
+    public class ColumnConfig
+    {
+        public required string Key { get; set; }
+        public required string Title { get; set; }
+
+        public bool AutoVisible { get; set; } = true; // управляется шириной экрана
+        public bool? UserVisible { get; set; } = null; // null = не переопределено пользователем
+        public bool AlwaysVisible { get; set; }
+
+        public bool Visible => UserVisible ?? AutoVisible;
+        public bool Frozen { get; set; } = false;
+
+        public int Priority { get; set; } = 1;
+
+        public required string Width { get; set; }
+    }
+
+    // Список конфигураций колонок
+    List<ColumnConfig> Columns = new()
+    {
+        new() { Key = OrderGridColumns.ShipmentNumber, Title = "№ Отправления", Frozen = true, Width = "180px", Priority = 1 },
+        new() { Key = OrderGridColumns.Client, Title = "Клиент", Width = "160px", Priority = 4 },
+        new() { Key = OrderGridColumns.AcceptedDate, Title = "Принят", Width = "110px", Priority = 9 },
+        new() { Key = OrderGridColumns.ShippingDate, Title = "Срок отгрузки", Width = "120px", Priority = 8 },
+        new() { Key = OrderGridColumns.Article, Title = "Артикул", Width = "160px", Priority = 12 },
+        new() { Key = OrderGridColumns.Product, Title = "Товар", Frozen = true, Width = "290px", Priority = 2 },
+        new() { Key = OrderGridColumns.Quantity, Title = "Кол-во", Width = "100px", Priority = 5 },
+        new() { Key = OrderGridColumns.MarketplaceStatus, Title = "Статус маркетплейса", Width = "160px", Priority = 6 },
+        new() { Key = OrderGridColumns.AppStatus, Title = "Статус приложения", Width = "160px", Priority = 7 },
+        new() { Key = OrderGridColumns.DeliveryMethod, Title = "Способ доставки", Width = "160px", Priority = 10 },
+        new() { Key = OrderGridColumns.Warehouse, Title = "Склад", Width = "120px", Priority = 11 },
+        new() { Key = OrderGridColumns.Price, Title = "Цена", Width = "120px", Priority = 3 },
+        new() { Key = OrderGridColumns.ExtraCalculations, Title = "Доп. расчёты", Width = "200px", Priority = 13 }
+    };
+
+    // высчитываем, сколько колонок показывать
+    void UpdateColumnsForWidth(int width)
+    {
+        int maxPriority;
+
+        if (width < 1000)
+            maxPriority = 3; // минимальный набор — 3 колонки
+        else if (width < 1200)
+            maxPriority = 4; // + Client
+        else if (width < 1350)
+            maxPriority = 5; // + Quantity
+        else if (width < 1550)
+            maxPriority = 6; // + MarketplaceStatus
+        else if (width < 1700)
+            maxPriority = 7; // + AppStatus
+        else if (width < 1800)
+            maxPriority = 8; // + ShippingDate
+        else if (width < 1900)
+            maxPriority = 9; // + AcceptedDate
+        else if (width < 2000)
+            maxPriority = 10; // + DeliveryMethod
+        else if (width < 2200)
+            maxPriority = 11; // + Warehouse
+        else if (width < 2300)
+            maxPriority = 12; // + Article
+        else
+            maxPriority = 13; // + ExtraCalculations
+
+
+        bool changed = false;
+
+        foreach (var col in Columns)
+        {
+            var auto = col.AlwaysVisible || col.Priority <= maxPriority;
+            if (col.AutoVisible != auto)
+            {
+                col.AutoVisible = auto;
+                changed = true;
+            }
+        }
+
+        if (changed)
+            InvokeAsync(StateHasChanged);
+    }
+
+    void OnColumnChecked(ColumnConfig col, bool value)
+    {
+        // Если пользователь нажал, он явно переопределяет колонку
+        // Если снял галочку на авто-видимой колонке — UserVisible = false
+        col.UserVisible = value;
+
+        StateHasChanged();
+    }
+
+    // Получение конфигурации
+    ColumnConfig GetColumn(string key)
+    {
+        return Columns.First(x => x.Key == key);
+    }
+
+    void EnsureDynamicColumns()
+    {
+        if (_preview == null)
+            return;
+
+        foreach (var fr in _preview.FieldRules.Where(x => x.RequiresUserInput))
+        {
+            var key = $"FieldRule_{fr.RuleId}";
+
+            if (!Columns.Any(c => c.Key == key))
+            {
+                Columns.Add(new ColumnConfig
+                {
+                    Key = key,
+                    Title = fr.DisplayName,
+                    Width = "180px",
+                    Priority = 0,
+                    AlwaysVisible = true
+                });
+            }
+        }
+
+        foreach (var rule in _preview.Rules)
+        {
+            var key = $"Rule_{rule.RuleId}";
+
+            if (!Columns.Any(c => c.Key == key))
+            {
+                Columns.Add(new ColumnConfig
+                {
+                    Key = key,
+                    Title = rule.PriceTypeName,
+                    Width = "140px",
+                    Priority = 0,
+                    AlwaysVisible = true
+                });
+            }
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -462,6 +778,8 @@ else
                 .AsNoTracking()
                 .ToListAsync();
 
+
+
             var statusIds = _orders.Select(o => o.SystemStatusId).Where(s => s.HasValue).Distinct().ToList();
             _statusGroups = statusIds.Count + (_orders.Any(o => !o.SystemStatusId.HasValue) ? 1 : 0);
             _currentStatusName = _orders.FirstOrDefault()?.SystemStatus?.Name;
@@ -492,6 +810,33 @@ else
         }
     }
 
+    // Метод, который JS будет вызывать при resize
+    [JSInvokable]
+    public void OnWindowResize(int width)
+    {
+        UpdateColumnsForWidth(width);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // логика для ресайза
+            var width = await Js.InvokeAsync<int>("gridResize.getWidth");
+            UpdateColumnsForWidth(width);
+
+            _selectedColumns = Columns
+                .Where(c => c.Visible)
+                .Select(c => c.Key)
+                .ToList();
+
+            _resizeRef = DotNetObjectReference.Create(this);
+            await Js.InvokeVoidAsync("gridResize.register", _resizeRef);
+
+            StateHasChanged();
+        }
+    }
+
     private async Task RecomputeAllAsync()
     {
         if (!_selectedTransactionId.HasValue || _calcRules.Count == 0)
@@ -505,7 +850,7 @@ else
         _computedBreakdown = [];
         foreach (var order in _orders)
         {
-            var ctx = await TransactionService.GetMergedContextAsync(order.Id, _selectedTransactionId.Value, _userValues.GetValueOrDefault(order.Id));
+            var ctx = await TransactionService.GetMergedContextAsync(order.Id, _selectedTransactionId.Value, _userValues.GetValueOrDefault(order.Id) ?? []);
             if (ctx == null) continue;
 
             var dict = new Dictionary<string, decimal>();
@@ -528,7 +873,7 @@ else
 
     private void OnTransactionRowRender(RowRenderEventArgs<OrderTransaction> args)
     {
-        var color = args.Data.Color;
+        var color = args.Data?.Color;
         if (!string.IsNullOrEmpty(color))
         {
             var bg = GetSoftBackground(color);
@@ -592,6 +937,11 @@ else
             }
         }
 
+        // При смене транзакции очищаем динамические колонки и пересоздаём их
+       // на основе текущего _preview (Rules и FieldRules)
+        Columns.RemoveAll(c => c.Key.StartsWith("Rule_") || c.Key.StartsWith("FieldRule_"));
+        EnsureDynamicColumns();
+
         await RecomputeAllAsync();
         _loading = false;
         StateHasChanged();
@@ -629,25 +979,25 @@ else
         _fieldUserValuesPerOrder = [];
     }
 
-    private async Task LoadReferenceDataAsync(IEnumerable<TransactionApplyFieldRulePreview> fieldRules)
+    private async Task LoadReferenceDataAsync(IEnumerable<TransactionApplyFieldRulePreviewDto> fieldRules)
     {
         if (_db == null) return;
         var refTypes = fieldRules.Select(f => f.ReferenceType).Distinct().ToList();
-        if (refTypes.Contains(FieldReferenceType.OrderStatus))
+        if (refTypes.Contains(FieldReferenceTypeEnum.OrderStatus))
             _orderStatuses = await _db.OrderStatuses.Where(s => !s.IsDeleted).OrderBy(s => s.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.Product))
+        if (refTypes.Contains(FieldReferenceTypeEnum.Product))
             _products = await _db.Products.Where(p => !p.IsDeleted).OrderBy(p => p.Article).Take(1000).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.Supplier))
+        if (refTypes.Contains(FieldReferenceTypeEnum.Supplier))
             _suppliers = await _db.Suppliers.Where(s => !s.IsDeleted).OrderBy(s => s.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.Warehouse))
+        if (refTypes.Contains(FieldReferenceTypeEnum.Warehouse))
             _warehouses = await _db.Warehouses.Where(w => !w.IsDeleted).OrderBy(w => w.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.DeliveryMethod))
+        if (refTypes.Contains(FieldReferenceTypeEnum.DeliveryMethod))
             _deliveryMethods = await _db.DeliveryMethods.Where(d => !d.IsDeleted).OrderBy(d => d.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.Recipient))
+        if (refTypes.Contains(FieldReferenceTypeEnum.Recipient))
             _recipients = await _db.Recipients.OrderBy(r => r.Name).Take(500).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.Address))
+        if (refTypes.Contains(FieldReferenceTypeEnum.Address))
             _addresses = await _db.Addresses.Take(500).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.WarehouseInfo))
+        if (refTypes.Contains(FieldReferenceTypeEnum.WarehouseInfo))
             _warehouseInfos = await _db.WarehouseInfos
                 .Include(wi => wi.RecipientWarehouse)
                 .Include(wi => wi.SenderWarehouse)
@@ -655,7 +1005,7 @@ else
                 .Take(500)
                 .AsNoTracking()
                 .ToListAsync();
-        if (refTypes.Contains(FieldReferenceType.OrderProductInfo))
+        if (refTypes.Contains(FieldReferenceTypeEnum.OrderProductInfo))
             _orderProductInfos = await _db.OrderProductInfos
                 .Include(opi => opi.Product)
                 .Where(opi => !opi.IsDeleted)
@@ -665,13 +1015,13 @@ else
                 .ToListAsync();
     }
 
-    private RenderFragment RenderFieldControlMass(TransactionApplyFieldRulePreview fr) => builder =>
+    private RenderFragment RenderFieldControlMass(TransactionApplyFieldRulePreviewDto fr) => builder =>
     {
         var value = _fieldUserValues.GetValueOrDefault(fr.RuleId) ?? "";
         RenderFieldControlInternal(builder, fr, value, v => { _fieldUserValues[fr.RuleId] = v; });
     };
 
-    private RenderFragment RenderFieldControlPerOrder(Guid orderId, TransactionApplyFieldRulePreview fr) => builder =>
+    private RenderFragment RenderFieldControlPerOrder(Guid orderId, TransactionApplyFieldRulePreviewDto fr) => builder =>
     {
         var dict = _fieldUserValuesPerOrder.GetValueOrDefault(orderId);
         var value = dict != null && dict.TryGetValue(fr.RuleId, out var v) ? v : "";
@@ -685,11 +1035,11 @@ else
 
     private void RenderFieldControlInternal(
         Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder,
-        TransactionApplyFieldRulePreview fr,
+        TransactionApplyFieldRulePreviewDto fr,
         string value,
         Action<string> setValue)
     {
-        if (fr.ReferenceType != FieldReferenceType.None && fr.ValueType == TransactionFieldValueType.Guid)
+        if (fr.ReferenceType != FieldReferenceTypeEnum.None && fr.ValueType == TransactionFieldValueTypeEnum.Guid)
         {
             var items = GetReferenceItems(fr.ReferenceType);
             var currentGuid = Guid.TryParse(value, out var g) ? g : (Guid?)null;
@@ -704,7 +1054,7 @@ else
             builder.AddAttribute(8, "AllowClear", true);
             builder.CloseComponent();
         }
-        else if (fr.ValueType == TransactionFieldValueType.DateTime)
+        else if (fr.ValueType == TransactionFieldValueTypeEnum.DateTime)
         {
             var dt = DateTime.TryParse(value, out var d) ? d : (DateTime?)null;
             builder.OpenComponent<RadzenDatePicker<DateTime?>>(0);
@@ -714,7 +1064,7 @@ else
             builder.AddAttribute(4, "Placeholder", "гггг-мм-дд");
             builder.CloseComponent();
         }
-        else if (fr.ValueType == TransactionFieldValueType.Int)
+        else if (fr.ValueType == TransactionFieldValueTypeEnum.Int)
         {
             var n = int.TryParse(value, out var v) ? v : (int?)null;
             builder.OpenComponent<RadzenNumeric<int?>>(0);
@@ -725,7 +1075,7 @@ else
             builder.AddAttribute(5, "Placeholder", "Число");
             builder.CloseComponent();
         }
-        else if (fr.ValueType == TransactionFieldValueType.Decimal)
+        else if (fr.ValueType == TransactionFieldValueTypeEnum.Decimal)
         {
             var n = decimal.TryParse(value, out var v) ? v : (decimal?)null;
             builder.OpenComponent<RadzenNumeric<decimal?>>(0);
@@ -747,17 +1097,17 @@ else
         }
     }
 
-    private object GetReferenceItems(FieldReferenceType refType) => refType switch
+    private object GetReferenceItems(FieldReferenceTypeEnum refType) => refType switch
     {
-        FieldReferenceType.OrderStatus => _orderStatuses.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
-        FieldReferenceType.Product => _products.Select(p => new { p.Id, Name = $"{p.Article} — {p.Name}" }).ToList(),
-        FieldReferenceType.Supplier => _suppliers.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
-        FieldReferenceType.Warehouse => _warehouses.Select(w => new { w.Id, Name = w.Name ?? "" }).ToList(),
-        FieldReferenceType.WarehouseInfo => _warehouseInfos.Select(wi => new { wi.Id, Name = $"{wi.SenderWarehouse?.Name ?? "—"} → {wi.RecipientWarehouse?.Name ?? "—"}" }).ToList(),
-        FieldReferenceType.DeliveryMethod => _deliveryMethods.Select(d => new { d.Id, Name = d.Name ?? "" }).ToList(),
-        FieldReferenceType.OrderProductInfo => _orderProductInfos.Select(opi => new { opi.Id, Name = $"{opi.Product?.Article ?? "—"} — {opi.Product?.Name ?? ""}" }).ToList(),
-        FieldReferenceType.Recipient => _recipients.Select(r => new { r.Id, Name = r.Name ?? "" }).ToList(),
-        FieldReferenceType.Address => _addresses.Select(a => new { a.Id, Name = $"{a.City} {a.Street}".Trim() }).ToList(),
+        FieldReferenceTypeEnum.OrderStatus => _orderStatuses.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.Product => _products.Select(p => new { p.Id, Name = $"{p.Article} — {p.Name}" }).ToList(),
+        FieldReferenceTypeEnum.Supplier => _suppliers.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.Warehouse => _warehouses.Select(w => new { w.Id, Name = w.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.WarehouseInfo => _warehouseInfos.Select(wi => new { wi.Id, Name = $"{wi.SenderWarehouse?.Name ?? "—"} → {wi.RecipientWarehouse?.Name ?? "—"}" }).ToList(),
+        FieldReferenceTypeEnum.DeliveryMethod => _deliveryMethods.Select(d => new { d.Id, Name = d.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.OrderProductInfo => _orderProductInfos.Select(opi => new { opi.Id, Name = $"{opi.Product?.Article ?? "—"} — {opi.Product?.Name ?? ""}" }).ToList(),
+        FieldReferenceTypeEnum.Recipient => _recipients.Select(r => new { r.Id, Name = r.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.Address => _addresses.Select(a => new { a.Id, Name = $"{a.City} {a.Street}".Trim() }).ToList(),
         _ => Array.Empty<object>()
     };
 
@@ -806,15 +1156,15 @@ else
         return errors;
     }
 
-    private static bool IsFieldValueEmpty(string value, TransactionFieldValueType valueType)
+    private static bool IsFieldValueEmpty(string value, TransactionFieldValueTypeEnum valueType)
     {
         if (string.IsNullOrWhiteSpace(value)) return true;
         return valueType switch
         {
-            TransactionFieldValueType.Guid => !Guid.TryParse(value.Trim(), out var g) || g == Guid.Empty,
-            TransactionFieldValueType.DateTime => !DateTime.TryParse(value, out _),
-            TransactionFieldValueType.Int => !int.TryParse(value, out _),
-            TransactionFieldValueType.Decimal => !decimal.TryParse(value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _),
+            TransactionFieldValueTypeEnum.Guid => !Guid.TryParse(value.Trim(), out var g) || g == Guid.Empty,
+            TransactionFieldValueTypeEnum.DateTime => !DateTime.TryParse(value, out _),
+            TransactionFieldValueTypeEnum.Int => !int.TryParse(value, out _),
+            TransactionFieldValueTypeEnum.Decimal => !decimal.TryParse(value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out _),
             _ => false
         };
     }
@@ -856,7 +1206,7 @@ else
                 var postingNumber = order.Shipment?.PostingNumber ?? order.Id.ToString("N")[..8];
                 applyErrors.Add($"Заказ {postingNumber}: {result.ErrorMessage ?? "Неизвестная ошибка"}");
                 foreach (var ve in result.ValidationErrors)
-                    applyErrors.Add($"  • {ve}");
+                    applyErrors.Add($" • {ve}");
             }
         }
 
@@ -885,6 +1235,8 @@ else
     private void ToggleComputedLayout() =>
         _computedSplitByColumns = !_computedSplitByColumns;
 
+
+
     private static bool IsLightColor(string hex)
     {
         try
@@ -902,7 +1254,7 @@ else
         }
     }
 
-    private static string GetSoftBackground(string color)
+    private static string GetSoftBackground(string? color)
     {
         if (string.IsNullOrWhiteSpace(color))
             return "#ececff";

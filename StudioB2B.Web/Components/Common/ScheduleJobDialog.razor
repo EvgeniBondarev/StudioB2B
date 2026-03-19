@@ -1,6 +1,7 @@
-@using StudioB2B.Domain.Entities.Orders
 @using System.Text.Json
+@using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
+@using SyncJobType = StudioB2B.Domain.Constants.SyncJobTypeEnum
 
 <RadzenStack Gap="1.25rem">
 
@@ -18,6 +19,12 @@
                 <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center" Style="min-width:140px; padding:0.5rem 0.25rem;">
                     <RadzenIcon Icon="sync" Style="font-size:2rem; color:var(--rz-secondary);" />
                     <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Обновление статусов</RadzenText>
+                </RadzenStack>
+            </RadzenCard>
+            <RadzenCard Style="@CardStyle(SyncJobType.Returns)" @onclick="@(() => _jobType = SyncJobType.Returns)" class="rz-cursor-pointer">
+                <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center" Style="min-width:140px; padding:0.5rem 0.25rem;">
+                    <RadzenIcon Icon="assignment_return" Style="font-size:2rem; color:var(--rz-info);" />
+                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Загрузка возвратов</RadzenText>
                 </RadzenStack>
             </RadzenCard>
         </RadzenStack>
@@ -41,7 +48,7 @@
     <RadzenStack Gap="0.5rem">
         <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Параметры расписания</RadzenText>
 
-        @if (_scheduleType == ScheduleUiType.EveryNMinutes)
+        @if (_scheduleType == ScheduleUiTypeEnum.EveryNMinutes)
         {
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
                 <RadzenText TextStyle="TextStyle.Body2">Каждые</RadzenText>
@@ -49,7 +56,7 @@
                 <RadzenText TextStyle="TextStyle.Body2">минут</RadzenText>
             </RadzenStack>
         }
-        else if (_scheduleType == ScheduleUiType.EveryNHours)
+        else if (_scheduleType == ScheduleUiTypeEnum.EveryNHours)
         {
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
                 <RadzenText TextStyle="TextStyle.Body2">Каждые</RadzenText>
@@ -57,7 +64,7 @@
                 <RadzenText TextStyle="TextStyle.Body2">часов</RadzenText>
             </RadzenStack>
         }
-        else if (_scheduleType == ScheduleUiType.EveryNDays)
+        else if (_scheduleType == ScheduleUiTypeEnum.EveryNDays)
         {
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
                 <RadzenText TextStyle="TextStyle.Body2">Каждые</RadzenText>
@@ -67,7 +74,7 @@
                                   DateFormat="HH:mm" Style="width:110px;" />
             </RadzenStack>
         }
-        else if (_scheduleType == ScheduleUiType.DailyAt)
+        else if (_scheduleType == ScheduleUiTypeEnum.DailyAt)
         {
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
                 <RadzenText TextStyle="TextStyle.Body2">Ежедневно в</RadzenText>
@@ -75,7 +82,7 @@
                                   DateFormat="HH:mm" Style="width:110px;" />
             </RadzenStack>
         }
-        else if (_scheduleType == ScheduleUiType.WeeklyAt)
+        else if (_scheduleType == ScheduleUiTypeEnum.WeeklyAt)
         {
             <RadzenStack Gap="0.5rem">
                 <RadzenText TextStyle="TextStyle.Body2">Дни недели:</RadzenText>
@@ -96,7 +103,7 @@
                 </RadzenStack>
             </RadzenStack>
         }
-        else if (_scheduleType == ScheduleUiType.MonthlyAt)
+        else if (_scheduleType == ScheduleUiTypeEnum.MonthlyAt)
         {
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem" Wrap="FlexWrap.Wrap">
                 <RadzenText TextStyle="TextStyle.Body2">Числа</RadzenText>
@@ -106,7 +113,7 @@
                                   DateFormat="HH:mm" Style="width:110px;" />
             </RadzenStack>
         }
-        else if (_scheduleType == ScheduleUiType.CustomCron)
+        else if (_scheduleType == ScheduleUiTypeEnum.CustomCron)
         {
             <RadzenStack Gap="0.35rem">
                 <RadzenTextBox @bind-Value="_cronExpression" Placeholder="* * * * *" Style="font-family:monospace; width:100%;" />
@@ -121,7 +128,7 @@
         @{
             var previewCron = BuildCron();
         }
-        @if (!string.IsNullOrEmpty(previewCron) && _scheduleType != ScheduleUiType.CustomCron)
+        @if (!string.IsNullOrEmpty(previewCron) && _scheduleType != ScheduleUiTypeEnum.CustomCron)
         {
             <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color); font-family:monospace;">
                 Cron: <b>@previewCron</b>
@@ -130,7 +137,7 @@
     </RadzenStack>
 
     <!-- Параметры задачи (SyncParams) -->
-    @if (_jobType == SyncJobType.Sync)
+    @if (_jobType == SyncJobType.Sync || _jobType == SyncJobType.Update || _jobType == SyncJobType.Returns)
     {
         <RadzenStack Gap="0.35rem">
             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Параметры синхронизации</RadzenText>
@@ -162,55 +169,40 @@
 </RadzenStack>
 
 @code {
-    [Parameter] public IOrderSyncJobService JobService    { get; set; } = null!;
-    [Parameter] public DialogService        DialogService { get; set; } = null!;
-    [Parameter] public SyncJobSchedule?     EditSchedule  { get; set; }
+    [Parameter] public IOrderSyncJobService JobService { get; set; } = null!;
+    [Parameter] public DialogService DialogService { get; set; } = null!;
+    [Parameter] public SyncJobSchedule? EditSchedule { get; set; }
 
-    // ── Состояние UI ──────────────────────────────────────────────────────────
+    private SyncJobType _jobType = SyncJobType.Sync;
+    private ScheduleUiTypeEnum _scheduleType = ScheduleUiTypeEnum.DailyAt;
 
-    private SyncJobType    _jobType         = SyncJobType.Sync;
-    private ScheduleUiType _scheduleType    = ScheduleUiType.DailyAt;
+    private int _intervalMinutes = 15;
+    private int _intervalHours = 1;
+    private int _intervalDays = 3;
+    private int _dayOfMonth = 1;
+    private DateTime _timeValue = DateTime.Today.AddHours(9);
+    private string _cronExpression = "0 9 * * *";
+    private HashSet<int> _selectedDays = new() { 1, 2, 3, 4, 5 }; // пн–пт
+    private int _syncDaysBack = 7;
 
-    private int          _intervalMinutes   = 15;
-    private int          _intervalHours     = 1;
-    private int          _intervalDays      = 3;
-    private int          _dayOfMonth        = 1;
-    private DateTime     _timeValue         = DateTime.Today.AddHours(9);
-    private string       _cronExpression    = "0 9 * * *";
-    private HashSet<int> _selectedDays      = new() { 1, 2, 3, 4, 5 }; // пн–пт
-    private int          _syncDaysBack      = 7;
+    private bool _isBusy;
+    private string? _errorMessage;
 
-    private bool     _isBusy;
-    private string?  _errorMessage;
-
-    private bool   IsEdit   => EditSchedule is not null;
+    private bool IsEdit => EditSchedule is not null;
     private string SaveText => IsEdit ? "Сохранить" : "Создать";
 
-    // ── Внутренний enum для UI (не хранится в БД) ─────────────────────────────
-
-    private enum ScheduleUiType
-    {
-        EveryNMinutes,
-        EveryNHours,
-        EveryNDays,
-        DailyAt,
-        WeeklyAt,
-        MonthlyAt,
-        CustomCron,
-    }
-
-    private record ScheduleTypeOption(string Label, ScheduleUiType Value);
+    private record ScheduleTypeOption(string Label, ScheduleUiTypeEnum Value);
     private record WeekDayOption(string Label, int Value);
 
     private readonly List<ScheduleTypeOption> _scheduleTypeOptions = new()
     {
-        new("Каждые N мин.",  ScheduleUiType.EveryNMinutes),
-        new("Каждые N ч.",    ScheduleUiType.EveryNHours),
-        new("Каждые N дней",  ScheduleUiType.EveryNDays),
-        new("Ежедневно",      ScheduleUiType.DailyAt),
-        new("По дням недели", ScheduleUiType.WeeklyAt),
-        new("Раз в месяц",    ScheduleUiType.MonthlyAt),
-        new("Свой cron",      ScheduleUiType.CustomCron),
+        new("Каждые N мин.", ScheduleUiTypeEnum.EveryNMinutes),
+        new("Каждые N ч.", ScheduleUiTypeEnum.EveryNHours),
+        new("Каждые N дней", ScheduleUiTypeEnum.EveryNDays),
+        new("Ежедневно", ScheduleUiTypeEnum.DailyAt),
+        new("По дням недели", ScheduleUiTypeEnum.WeeklyAt),
+        new("Раз в месяц", ScheduleUiTypeEnum.MonthlyAt),
+        new("Свой cron", ScheduleUiTypeEnum.CustomCron),
     };
 
     private readonly List<WeekDayOption> _weekDays = new()
@@ -218,8 +210,6 @@
         new("Пн", 1), new("Вт", 2), new("Ср", 3),
         new("Чт", 4), new("Пт", 5), new("Сб", 6), new("Вс", 0),
     };
-
-    // ── Инициализация из EditSchedule ─────────────────────────────────────────
 
     protected override void OnInitialized()
     {
@@ -251,7 +241,7 @@
     {
         if (string.IsNullOrWhiteSpace(cron))
         {
-            _scheduleType   = ScheduleUiType.DailyAt;
+            _scheduleType = ScheduleUiTypeEnum.DailyAt;
             _cronExpression = "0 9 * * *";
             return;
         }
@@ -265,7 +255,7 @@
         if (min.StartsWith("*/") && hour == "*" && dom == "*" && month == "*" && dow == "*"
             && int.TryParse(min[2..], out var nm))
         {
-            _scheduleType    = ScheduleUiType.EveryNMinutes;
+            _scheduleType = ScheduleUiTypeEnum.EveryNMinutes;
             _intervalMinutes = nm;
             return;
         }
@@ -274,8 +264,8 @@
         if (hour.StartsWith("*/") && dom == "*" && month == "*" && dow == "*"
             && int.TryParse(hour[2..], out var nh))
         {
-            _scheduleType   = ScheduleUiType.EveryNHours;
-            _intervalHours  = nh;
+            _scheduleType = ScheduleUiTypeEnum.EveryNHours;
+            _intervalHours = nh;
             return;
         }
 
@@ -284,9 +274,9 @@
             && int.TryParse(dom[2..], out var nd)
             && int.TryParse(hour, out var h2) && int.TryParse(min, out var m2))
         {
-            _scheduleType  = ScheduleUiType.EveryNDays;
-            _intervalDays  = nd;
-            _timeValue     = DateTime.Today.AddHours(h2).AddMinutes(m2);
+            _scheduleType = ScheduleUiTypeEnum.EveryNDays;
+            _intervalDays = nd;
+            _timeValue = DateTime.Today.AddHours(h2).AddMinutes(m2);
             return;
         }
 
@@ -294,8 +284,8 @@
         if (dom == "*" && month == "*" && dow == "*"
             && int.TryParse(hour, out var h3) && int.TryParse(min, out var m3))
         {
-            _scheduleType = ScheduleUiType.DailyAt;
-            _timeValue    = DateTime.Today.AddHours(h3).AddMinutes(m3);
+            _scheduleType = ScheduleUiTypeEnum.DailyAt;
+            _timeValue = DateTime.Today.AddHours(h3).AddMinutes(m3);
             return;
         }
 
@@ -304,9 +294,9 @@
             && int.TryParse(dom, out var day)
             && int.TryParse(hour, out var h4) && int.TryParse(min, out var m4))
         {
-            _scheduleType = ScheduleUiType.MonthlyAt;
-            _dayOfMonth   = day;
-            _timeValue    = DateTime.Today.AddHours(h4).AddMinutes(m4);
+            _scheduleType = ScheduleUiTypeEnum.MonthlyAt;
+            _dayOfMonth = day;
+            _timeValue = DateTime.Today.AddHours(h4).AddMinutes(m4);
             return;
         }
 
@@ -314,8 +304,8 @@
         if (dom == "*" && month == "*" && dow != "*"
             && int.TryParse(hour, out var h5) && int.TryParse(min, out var m5))
         {
-            _scheduleType = ScheduleUiType.WeeklyAt;
-            _timeValue    = DateTime.Today.AddHours(h5).AddMinutes(m5);
+            _scheduleType = ScheduleUiTypeEnum.WeeklyAt;
+            _timeValue = DateTime.Today.AddHours(h5).AddMinutes(m5);
             _selectedDays = dow.Split(',')
                 .Select(p => int.TryParse(p.Trim(), out var dd) ? dd : -1)
                 .Where(dd => dd >= 0)
@@ -328,22 +318,20 @@
 
     private void SetCustomCron(string cron)
     {
-        _scheduleType   = ScheduleUiType.CustomCron;
+        _scheduleType = ScheduleUiTypeEnum.CustomCron;
         _cronExpression = cron;
     }
 
-    // ── Построение cron из UI ─────────────────────────────────────────────────
-
     private string BuildCron() => _scheduleType switch
     {
-        ScheduleUiType.EveryNMinutes => $"*/{_intervalMinutes} * * * *",
-        ScheduleUiType.EveryNHours   => $"0 */{_intervalHours} * * *",
-        ScheduleUiType.EveryNDays    => $"{_timeValue.Minute} {_timeValue.Hour} */{_intervalDays} * *",
-        ScheduleUiType.DailyAt       => $"{_timeValue.Minute} {_timeValue.Hour} * * *",
-        ScheduleUiType.WeeklyAt      => BuildWeeklyCron(),
-        ScheduleUiType.MonthlyAt     => $"{_timeValue.Minute} {_timeValue.Hour} {_dayOfMonth} * *",
-        ScheduleUiType.CustomCron    => _cronExpression.Trim(),
-        _                            => "0 9 * * *"
+        ScheduleUiTypeEnum.EveryNMinutes => $"*/{_intervalMinutes} * * * *",
+        ScheduleUiTypeEnum.EveryNHours => $"0 */{_intervalHours} * * *",
+        ScheduleUiTypeEnum.EveryNDays => $"{_timeValue.Minute} {_timeValue.Hour} */{_intervalDays} * *",
+        ScheduleUiTypeEnum.DailyAt => $"{_timeValue.Minute} {_timeValue.Hour} * * *",
+        ScheduleUiTypeEnum.WeeklyAt => BuildWeeklyCron(),
+        ScheduleUiTypeEnum.MonthlyAt => $"{_timeValue.Minute} {_timeValue.Hour} {_dayOfMonth} * *",
+        ScheduleUiTypeEnum.CustomCron => _cronExpression.Trim(),
+        _ => "0 9 * * *"
     };
 
     private string BuildWeeklyCron()
@@ -363,8 +351,6 @@
             ? "border:2px solid var(--rz-primary); background:var(--rz-primary-lighter); cursor:pointer;"
             : "border:2px solid transparent; cursor:pointer;";
 
-    // ── Валидация и сохранение ────────────────────────────────────────────────
-
     private async Task SubmitAsync()
     {
         _errorMessage = null;
@@ -372,17 +358,17 @@
         // Валидация
         switch (_scheduleType)
         {
-            case ScheduleUiType.EveryNMinutes when _intervalMinutes < 1:
+            case ScheduleUiTypeEnum.EveryNMinutes when _intervalMinutes < 1:
                 _errorMessage = "Интервал должен быть не менее 1 минуты."; return;
-            case ScheduleUiType.EveryNHours when _intervalHours < 1:
+            case ScheduleUiTypeEnum.EveryNHours when _intervalHours < 1:
                 _errorMessage = "Интервал должен быть не менее 1 часа."; return;
-            case ScheduleUiType.EveryNDays when _intervalDays < 1:
+            case ScheduleUiTypeEnum.EveryNDays when _intervalDays < 1:
                 _errorMessage = "Интервал должен быть не менее 1 дня."; return;
-            case ScheduleUiType.WeeklyAt when _selectedDays.Count == 0:
+            case ScheduleUiTypeEnum.WeeklyAt when _selectedDays.Count == 0:
                 _errorMessage = "Выберите хотя бы один день недели."; return;
-            case ScheduleUiType.MonthlyAt when _dayOfMonth is < 1 or > 28:
+            case ScheduleUiTypeEnum.MonthlyAt when _dayOfMonth is < 1 or > 28:
                 _errorMessage = "День месяца: от 1 до 28."; return;
-            case ScheduleUiType.CustomCron when string.IsNullOrWhiteSpace(_cronExpression):
+            case ScheduleUiTypeEnum.CustomCron when string.IsNullOrWhiteSpace(_cronExpression):
                 _errorMessage = "Введите cron-выражение."; return;
         }
 
@@ -390,16 +376,16 @@
 
         // Строим SyncParams JSON
         string? syncParams = null;
-        if (_jobType == SyncJobType.Sync)
+        if (_jobType is SyncJobType.Sync or SyncJobType.Update or SyncJobType.Returns)
             syncParams = JsonSerializer.Serialize(new { DaysBack = _syncDaysBack });
 
         var schedule = new SyncJobSchedule
         {
-            Id                     = EditSchedule?.Id ?? Guid.NewGuid(),
-            JobType                = _jobType,
-            IsEnabled              = EditSchedule?.IsEnabled ?? true,
-            CronExpression         = cron,
-            SyncParams             = syncParams,
+            Id = EditSchedule?.Id ?? Guid.NewGuid(),
+            JobType = _jobType,
+            IsEnabled = EditSchedule?.IsEnabled ?? true,
+            CronExpression = cron,
+            SyncParams = syncParams,
             HangfireRecurringJobId = EditSchedule?.HangfireRecurringJobId,
         };
 

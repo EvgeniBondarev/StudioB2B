@@ -1,4 +1,4 @@
-using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Entities;
 
 namespace StudioB2B.Infrastructure.Interfaces;
 
@@ -10,8 +10,11 @@ public interface IOrderSyncJobService
     /// <summary>Ставит в очередь задачу загрузки заказов за период. Возвращает Id записи истории.</summary>
     Task<Guid> EnqueueSyncAsync(DateTime from, DateTime to);
 
-    /// <summary>Ставит в очередь задачу обновления статусов. Возвращает Id записи истории.</summary>
-    Task<Guid> EnqueueUpdateAsync();
+    /// <summary>Ставит в очередь задачу обновления статусов за период. Возвращает Id записи истории.</summary>
+    Task<Guid> EnqueueUpdateAsync(DateTime from, DateTime to);
+
+    /// <summary>Ставит в очередь задачу синхронизации возвратов за период. Возвращает Id записи истории.</summary>
+    Task<Guid> EnqueueReturnsSyncAsync(DateTime from, DateTime to);
 
     /// <summary>Отменяет задачу (Delete в Hangfire + Status = Cancelled в истории).</summary>
     Task CancelJobAsync(string hangfireJobId);
@@ -24,8 +27,6 @@ public interface IOrderSyncJobService
 
     /// <summary>Удаляет запись из истории. Нельзя удалить активную задачу.</summary>
     Task DeleteJobAsync(Guid historyId);
-
-    // ── Расписания ───────────────────────────────────────────────────────────
 
     /// <summary>Возвращает все расписания тенанта.</summary>
     Task<List<SyncJobSchedule>> GetSchedulesAsync();

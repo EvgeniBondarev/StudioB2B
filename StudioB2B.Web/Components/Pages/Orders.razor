@@ -1,25 +1,44 @@
 @page "/orders"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "OrdersView")]
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Entities.Orders
-@using StudioB2B.Domain.Entities.Marketplace
-@using StudioB2B.Domain.Entities.Warehouses
+@using Radzen
+@using Radzen.Blazor.Rendering
+
+@using StudioB2B.Domain.Entities
+@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
-@using StudioB2B.Infrastructure.Features.Orders
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider
 @inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
 @inject ContextMenuService ContextMenuService
+@inject NotificationService NotificationService
+@inject IOrderSyncService OrderSyncService
 @inject NavigationManager Navigation
 @inject TabService TabService
 @inject IJSRuntime JsRuntime
+@inject IModuleService ModuleService
 
 @implements IDisposable
 
 <PageTitle>Заказы</PageTitle>
+
+<Popup @ref="columnsPopup" Lazy="true" class="my-popup">
+    <RadzenStack Gap="8px">
+        @foreach (var col in Columns.Where(c => c.RoleVisible))
+        {
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="8px">
+                <RadzenCheckBox TValue="bool"
+                                Value="@(col.UserVisible ?? col.AutoVisible)"
+                                Change="@(value => OnColumnChecked(col, value))"
+                               />
+                <span>@col.Title</span>
+            </RadzenStack>
+        }
+    </RadzenStack>
+</Popup>
 
 @if (!TenantProvider.IsResolved)
 {
@@ -29,10 +48,23 @@
 }
 else
 {
+
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
+
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
             <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Заказы</RadzenText>
+            @if (_selectedOrderIds.Count == 0)
+            {
+                <div style="position:relative;display:inline-flex;align-items:center;">
+                    <i class="rzi" style="position:absolute;left:2px;font-size:1.05rem;color:var(--rz-text-secondary-color);pointer-events:none;user-select:none;">search</i>
+                    <input type="text"
+                           value="@_searchText"
+                           @oninput="@(async e => { _searchText = e.Value?.ToString(); await OnSearchChanged(); })"
+                           placeholder="Артикул, товар, отправление..."
+                           style="border:none;border-bottom:1.5px solid var(--rz-base-300);outline:none;background:transparent;padding:3px 4px 3px 1.7rem;font-size:0.85rem;width:240px;color:var(--rz-text-color);" />
+                </div>
+            }
             @if (_selectedOrderIds.Count > 0)
             {
                 <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-base-600);">
@@ -51,14 +83,18 @@ else
                 else if (_availableTransactions.Count > 0)
                 {
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Style="flex-wrap: wrap;">
+                        <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-base-600); margin: 0;">Провести:</RadzenText>
                         @foreach (var t in _availableTransactions)
                         {
-                            var bg = GetSoftBackground(t.Color);
+                            var bg = GetSoftBackground(t.Color ?? string.Empty);
                             var fg = IsLightColor(bg) ? "#1f2937" : "#ffffff";
+                            var tooltip = $"{t.Name}: {t.FromSystemStatus?.Name ?? "—"} \u2192 {t.ToSystemStatus?.Name ?? "—"}";
                             <RadzenButton Text="@t.Name"
+                                          Icon="@(string.IsNullOrEmpty(t.Icon) ? null : t.Icon)"
                                           ButtonStyle="ButtonStyle.Light"
                                           Size="ButtonSize.Small"
-                                          Style="@($"background-color: {bg}; color: {fg}; border: 1px solid {bg};")"
+                                          Title="@tooltip"
+                                          Style="@($"background-color: {bg}; color: {fg}; border: 1px solid {bg}; border-radius: 20px;")"
                                           Click="@(() => OpenApplyTransactionTab(t.Id))" />
                         }
                     </RadzenStack>
@@ -69,17 +105,175 @@ else
                         Нет доступных документов для статуса «@_selectionStatusName»
                     </RadzenText>
                 }
-                <RadzenButton Icon="close" Text="Снять выбор" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                              Variant="Variant.Text" Click="@ClearSelection" />
+                <span @onclick="@ClearSelection"
+                      style="display:inline-flex;align-items:center;gap:4px;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:var(--rz-base-200);color:var(--rz-text-color);border:2px solid transparent;white-space:nowrap;">
+                    <i class="rzi" style="font-size:0.85rem;">close</i> Снять выбор
+                </span>
             }
         </RadzenStack>
-        <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                      Click="@ToggleDensity" Title="@GetDensityTitle()"/>
+        <div>
+            <RadzenButton @ref="columnsButton"
+                          Icon="settings"
+                          Shade="Shade.Light"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Size="ButtonSize.Small"
+                          Text="Колонки"
+                          Click="@(_ => ToggleColumnsPopup())"
+                          Style="margin-right: 10px"/>
+            <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                          Click="@ToggleDensity" Title="@GetDensityTitle()"/>
+        </div>
     </RadzenStack>
+
+    @if (_filterClientId.HasValue || _filterWarehouseId.HasValue || _filterStatusId.HasValue || _filterSystemStatusId.HasValue || _filterHasReturn || GetActiveSorts().Any())
+    {
+        var activeSorts = GetActiveSorts().ToList();
+        var hasFilters = _filterClientId.HasValue || _filterWarehouseId.HasValue || _filterStatusId.HasValue || _filterSystemStatusId.HasValue || _filterHasReturn;
+        var hasSorts = activeSorts.Any();
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                     Style="padding: 0 0 0.5rem 0; flex-wrap: wrap;">
+            @if (hasFilters)
+            {
+                <span style="font-size:0.78rem;color:var(--rz-text-secondary-color);">Фильтры:</span>
+            }
+            @if (_filterClientId.HasValue)
+            {
+                var clientName = _clients.FirstOrDefault(c => c.Id == _filterClientId.Value)?.Name ?? "Клиент";
+                <span @onclick="@(async () => { _filterClientId = null; await OnFilterChange(); })"
+                      style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:16px;cursor:pointer;font-size:0.78rem;font-weight:500;background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">
+                    @clientName
+                    <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                </span>
+            }
+            @if (_filterWarehouseId.HasValue)
+            {
+                var whName = _warehouses.FirstOrDefault(w => w.Id == _filterWarehouseId.Value)?.Name ?? "Склад";
+                <span @onclick="@(async () => { _filterWarehouseId = null; await OnFilterChange(); })"
+                      style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:16px;cursor:pointer;font-size:0.78rem;font-weight:500;background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">
+                    @whName
+                    <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                </span>
+            }
+            @if (_filterStatusId.HasValue)
+            {
+                var statusName = _marketplaceStatuses.FirstOrDefault(s => s.Id == _filterStatusId.Value)?.Name ?? "Статус";
+                <span @onclick="@(async () => { _filterStatusId = null; await OnFilterChange(); })"
+                      style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:16px;cursor:pointer;font-size:0.78rem;font-weight:500;background:#fef3c7;color:#92400e;border:1px solid #fde68a;">
+                    @statusName
+                    <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                </span>
+            }
+            @if (_filterSystemStatusId.HasValue)
+            {
+                var sysStatusName = _systemStatuses.FirstOrDefault(s => s.Id == _filterSystemStatusId.Value)?.Name ?? "Системный статус";
+                <span @onclick="@(async () => { _filterSystemStatusId = null; await OnFilterChange(); })"
+                      style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:16px;cursor:pointer;font-size:0.78rem;font-weight:500;background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;">
+                    @sysStatusName
+                    <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                </span>
+            }
+            @if (_filterHasReturn)
+            {
+                <span @onclick="@(async () => { _filterHasReturn = false; await OnFilterChange(); })"
+                      style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:16px;cursor:pointer;font-size:0.78rem;font-weight:500;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;">
+                    Возвраты
+                    <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                </span>
+            }
+            @if (hasSorts)
+            {
+                @if (hasFilters)
+                {
+                    <span style="font-size:0.78rem;color:var(--rz-text-secondary-color);margin-left:6px;">Сортировка:</span>
+                }
+                else
+                {
+                    <span style="font-size:0.78rem;color:var(--rz-text-secondary-color);">Сортировка:</span>
+                }
+                @foreach (var sort in activeSorts)
+                {
+                    var title = SortPropertyTitles.GetValueOrDefault(sort.Property ?? "", sort.Property ?? "");
+                    var arrow = sort.SortOrder == SortOrder.Ascending ? "↑" : "↓";
+                    var prop = sort.Property!;
+                    <span @onclick="@(async () => await ClearSortAsync(prop))"
+                          style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 10px;border-radius:16px;cursor:pointer;font-size:0.78rem;font-weight:500;background:#f3e8ff;color:#6b21a8;border:1px solid #e9d5ff;">
+                        @title @arrow
+                        <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                    </span>
+                }
+            }
+            @if (hasFilters)
+            {
+                <span @onclick="@(async () => { _filterClientId = null; _filterWarehouseId = null; _filterStatusId = null; _filterSystemStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                      style="font-size:0.74rem;color:var(--rz-danger);cursor:pointer;text-decoration:underline;margin-left:4px;">Сбросить все</span>
+            }
+        </RadzenStack>
+    }
+
+    @if (_marketplaceStatuses.Any() || _systemStatuses.Any())
+    {
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                     Style="padding: 0 0 0.75rem 0; flex-wrap: wrap;">
+
+            @{
+                var allActive = _filterStatusId == null && _filterSystemStatusId == null && !_filterHasReturn;
+            }
+            <span @onclick="@(async () => { _filterStatusId = null; _filterSystemStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                  style="@($"display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 10px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(allActive ? "var(--rz-primary)" : "var(--rz-base-200)")};color:{(allActive ? "#fff" : "var(--rz-text-color)")};border:2px solid transparent;")">
+                Все
+            </span>
+
+            @foreach (var s in _marketplaceStatuses
+                .Where(s => _statusCounts.ContainsKey(s.Id))
+                .OrderByDescending(s => _statusCounts.GetValueOrDefault(s.Id)))
+            {
+                var bg = GetSoftBackground(s.Color ?? string.Empty);
+                var fg = GetTextColor(bg);
+                var isActive = _filterStatusId == s.Id;
+                var cnt = _statusCounts.GetValueOrDefault(s.Id);
+                <span @onclick="@(async () => { _filterStatusId = isActive ? (Guid?)null : s.Id; _filterSystemStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                      style="@($"display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 10px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{bg};color:{fg};border:2px solid {(isActive ? fg : "transparent")};")">
+                    @s.Name
+                    <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@cnt</span>
+                </span>
+            }
+
+            @if (_marketplaceStatuses.Any(s => _statusCounts.ContainsKey(s.Id)) &&
+                 _systemStatuses.Any(s => _systemStatusCounts.ContainsKey(s.Id)))
+            {
+                <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 6px;"></span>
+            }
+
+            @foreach (var s in _systemStatuses
+                .Where(s => _systemStatusCounts.ContainsKey(s.Id))
+                .OrderByDescending(s => _systemStatusCounts.GetValueOrDefault(s.Id)))
+            {
+                var bg = GetSoftBackground(s.Color ?? string.Empty);
+                var fg = GetTextColor(bg);
+                var isActive = _filterSystemStatusId == s.Id;
+                var cnt = _systemStatusCounts.GetValueOrDefault(s.Id);
+                <span @onclick="@(async () => { _filterSystemStatusId = isActive ? (Guid?)null : s.Id; _filterStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                      style="@($"display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 10px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{bg};color:{fg};border:2px solid {(isActive ? fg : "transparent")};")">
+                    @s.Name
+                    <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@cnt</span>
+                </span>
+            }
+
+            @if (_returnCount > 0)
+            {
+                <span @onclick="@(async () => { _filterHasReturn = !_filterHasReturn; _filterStatusId = null; _filterSystemStatusId = null; await OnFilterChange(); })"
+                      style="@($"display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 10px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(_filterHasReturn ? "#fee2e2" : "#f9fafb")};color:{(_filterHasReturn ? "#991b1b" : "#6b7280")};border:2px solid {(_filterHasReturn ? "#f87171" : "transparent")};")">
+                    Возвраты
+                    <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@_returnCount</span>
+                </span>
+            }
+
+        </RadzenStack>
+    }
 
     <RadzenDataGrid
         @ref="_grid"
-        TItem="Order"
+        TItem="OrderEntity"
         Data="@_pageItems"
         Count="@_totalCount"
         LoadData="@LoadData"
@@ -93,7 +287,7 @@ else
         LogicalFilterOperator="LogicalFilterOperator.Or"
         AllowSorting="true"
         AllowPaging="true"
-        PageSize="15"
+        PageSize="@_dynamicPageSize"
         PageSizeOptions="@_pageSizeOptions"
         ShowPagingSummary="true"
         PagerHorizontalAlign="HorizontalAlign.Left"
@@ -122,17 +316,21 @@ else
         EmptyText="@RadzenRuStrings.EmptyText">
 
         <Columns>
-            <RadzenDataGridColumn TItem="Order" Title="" Width="44px" Frozen="true" Sortable="false" Filterable="false">
+            <RadzenDataGridColumn TItem="OrderEntity" Title="" Width="44px" Frozen="true" Sortable="false" Filterable="false">
                 <HeaderTemplate>
-                    <RadzenCheckBox TValue="bool" Value="@IsAllSelected" ValueChanged="@OnSelectAllChanged" />
+                    <RadzenCheckBox TValue="bool" Value="@IsAllSelected" ValueChanged="@OnSelectAllChanged"  Style="margin-left: 6px;"/>
                 </HeaderTemplate>
                 <Template Context="o">
                     <RadzenCheckBox TValue="bool" Value="@_selectedOrderIds.Contains(o.Id)"
+                                    Style="margin-left: 10px;"
                                    ValueChanged="@(v => ToggleOrderSelection(o.Id, v))" />
                 </Template>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="Order" Property="Shipment.PostingNumber"
-                                  Title="Номер отправления" Width="200px" Frozen="true"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="Shipment.PostingNumber"
+                                  Title="@GetColumn(OrderGridColumns.ShipmentNumber).Title"
+                                  Width="@GetColumn(OrderGridColumns.ShipmentNumber).Width"
+                                  Frozen="@GetColumn(OrderGridColumns.ShipmentNumber).Frozen"
+                                  Visible="@GetColumn(OrderGridColumns.ShipmentNumber).Visible"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="o">
                     <CopyableText Text="@(o.Shipment?.PostingNumber ?? string.Empty)"
@@ -141,6 +339,7 @@ else
 
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate rz-monospace"
+                                    Style="margin-left: 10px;"
                                     title="@o.Shipment?.PostingNumber">
                             @o.Shipment?.PostingNumber
                         </RadzenText>
@@ -148,35 +347,47 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="Shipment.MarketplaceClient.Name"
-                                  Title="Клиент" Width="160px" Sortable="true"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="Shipment.MarketplaceClient.Name"
+                                  Title="@GetColumn(OrderGridColumns.Client).Title"
+                                  Width="@GetColumn(OrderGridColumns.Client).Width"
+                                  Visible="@GetColumn(OrderGridColumns.Client).Visible"
+                                  Sortable="true"
                                   Filterable="true"
                                   HeaderCssClass="half-painted-header">
                 <FilterTemplate>
-                    <div class="filter-all-item @( _filterClientId == null ? "active" : "" )"
-                         @onclick="@(async () => await ClearFilter(() => _filterClientId = null))">
-                        Все
-                    </div>
-                    <RadzenListBox @bind-Value="_filterClientId"
-                                   Data="@_clients"
-                                   TextProperty="Name"
-                                   ValueProperty="Id"
-                                   Placeholder="Все"
-                                   AllowClear="true"
-                                   Style="width:100%;"
-                                   Change="@(async () => await OnFilterChange())"/>
+                    <RadzenStack Gap="0.3rem" Style="padding: 4px 2px; max-height: 370px; overflow-y: auto;">
+                        @{
+                            var allCl = _filterClientId == null;
+                        }
+                        <span @onclick="@(async () => await ClearFilter(() => _filterClientId = null))"
+                              style="@($"display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(allCl ? "var(--rz-primary)" : "var(--rz-base-200)")};color:{(allCl ? "#fff" : "var(--rz-text-color)")};border:2px solid transparent;white-space:nowrap;")">
+                            Все
+                        </span>
+                        @foreach (var c in _clients.OrderBy(c => c.Name))
+                        {
+                            var isActive = _filterClientId == c.Id;
+                            <span @onclick="@(async () => { _filterClientId = isActive ? (Guid?)null : c.Id; await OnFilterChange(); })"
+                                  style="@($"display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:var(--rz-base-200);color:var(--rz-text-color);border:2px solid {(isActive ? "var(--rz-primary)" : "transparent")};white-space:nowrap;")">
+                                @c.Name
+                            </span>
+                        }
+                    </RadzenStack>
                 </FilterTemplate>
 
                 <Template Context="o">
                     <RadzenText TextStyle="TextStyle.Body2"
                                 Class="rz-text-truncate"
+                                Style="margin-left: 6px;"
                                 title="@o.Shipment?.MarketplaceClient?.Name">@o.Shipment?.MarketplaceClient?.Name
                     </RadzenText>
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="Shipment.InProcessAt"
-                                  Title="Принят" Width="130px" FormatString="{0:dd.MM.yyyy}"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="Shipment.InProcessAt"
+                                  Title="@GetColumn(OrderGridColumns.AcceptedDate).Title"
+                                  Width="@GetColumn(OrderGridColumns.AcceptedDate).Width"
+                                  Visible="@GetColumn(OrderGridColumns.AcceptedDate).Visible"
+                                  FormatString="{0:dd.MM.yyyy}"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="o">
                     <RadzenText TextStyle="TextStyle.Body2"
@@ -186,8 +397,11 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="Shipment.ShipmentDate"
-                                  Title="Срок отгрузки" Width="130px" FormatString="{0:dd.MM.yyyy}"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="Shipment.ShipmentDate"
+                                  Title="@GetColumn(OrderGridColumns.ShippingDate).Title"
+                                  Width="@GetColumn(OrderGridColumns.ShippingDate).Width"
+                                  Visible="@GetColumn(OrderGridColumns.ShippingDate).Visible"
+                                  FormatString="{0:dd.MM.yyyy}"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="o">
                     <RadzenText TextStyle="TextStyle.Body2"
@@ -197,8 +411,23 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="ProductInfo.Product.Article"
-                                  Title="Артикул" Width="160px" Filterable="true" Sortable="true"
+            <RadzenDataGridColumn TItem="OrderEntity"
+                                  Title="@GetColumn(OrderGridColumns.DeliveryTerm).Title"
+                                  Width="@GetColumn(OrderGridColumns.DeliveryTerm).Width"
+                                  Visible="@GetColumn(OrderGridColumns.DeliveryTerm).Visible"
+                                  Sortable="false" Filterable="false"
+                                  HeaderCssClass="half-painted-header">
+                <Template Context="o">
+                    @{ var (dtText, dtStyle, dtTooltip) = FormatDeliveryInfo(o); }
+                    <span style="font-size:0.78rem;white-space:nowrap;@dtStyle" title="@dtTooltip">@dtText</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OrderEntity" Property="ProductInfo.Product.Article"
+                                  Title="@GetColumn(OrderGridColumns.Article).Title"
+                                  Width="@GetColumn(OrderGridColumns.Article).Width"
+                                  Visible="@GetColumn(OrderGridColumns.Article).Visible"
+                                  Filterable="true" Sortable="true"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="o">
                     <CopyableText Text="@(o.ProductInfo?.Product?.Article ?? string.Empty)"
@@ -214,30 +443,61 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="ProductInfo.Product.Name"
-                                  Title="Товар" Width="280px" Filterable="false" Sortable="false"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="ProductInfo.Product.Name"
+                                  Title="@GetColumn(OrderGridColumns.Product).Title"
+                                  Width="@GetColumn(OrderGridColumns.Product).Width"
+                                  Visible="@GetColumn(OrderGridColumns.Product).Visible"
+                                  Filterable="false" Sortable="false"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="o">
-                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem"
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
                                  Class="rz-w-100">
                         @if (!string.IsNullOrEmpty(o.ProductInfo?.Product?.ImageUrl))
                         {
                             <img src="@o.ProductInfo?.Product?.ImageUrl"
                                  class="rz-border-radius rz-flex-shrink-0"
-                                 style="width:36px; height:36px; object-fit:contain;"
+                                 style="width:32px; height:32px; object-fit:contain;"
                                  alt=""/>
                         }
-                        <span
-                            class="rz-text-sm  rz-flex-shrink-1 rz-text-truncate rz-ms-1"
-                            title="@o.ProductInfo?.Product?.Name">
-                            @o.ProductInfo?.Product?.Name
-                        </span>
+                        <div style="min-width:0;flex:1;">
+                            <div class="rz-text-sm rz-text-truncate" style="line-height:1.3;"
+                                 title="@o.ProductInfo?.Product?.Name">
+                                @o.ProductInfo?.Product?.Name
+                            </div>
+                            @if (!string.IsNullOrEmpty(o.ProductInfo?.Product?.Article))
+                            {
+                                <div class="rz-monospace" style="font-size:0.7rem;color:var(--rz-text-secondary-color);line-height:1.2;"
+                                     title="@o.ProductInfo?.Product?.Article">
+                                    @o.ProductInfo?.Product?.Article
+                                </div>
+                            }
+                        </div>
                     </RadzenStack>
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="Quantity"
-                                  Title="Кол-во" Width="120px" TextAlign="TextAlign.Center"
+            @if (_manufacturerModuleEnabled)
+            {
+                <RadzenDataGridColumn TItem="OrderEntity" Property="ProductInfo.Product.Manufacturer.Name"
+                                      Title="@GetColumn(OrderGridColumns.Manufacturer).Title"
+                                      Width="@GetColumn(OrderGridColumns.Manufacturer).Width"
+                                      Visible="@GetColumn(OrderGridColumns.Manufacturer).Visible"
+                                      Sortable="true" Filterable="true"
+                                      HeaderCssClass="half-painted-header">
+                    <Template Context="o">
+                        <RadzenText TextStyle="TextStyle.Body2" Class="rz-text-truncate"
+                                    title="@(o.ProductInfo?.Product?.Manufacturer?.Name)">
+                            @(o.ProductInfo?.Product?.Manufacturer?.Name ?? "—")
+                        </RadzenText>
+                    </Template>
+                </RadzenDataGridColumn>
+            }
+
+            <RadzenDataGridColumn TItem="OrderEntity" Property="Quantity"
+                                  Title="@GetColumn(OrderGridColumns.Quantity).Title"
+                                  Width="@GetColumn(OrderGridColumns.Quantity).Width"
+                                  Visible="@GetColumn(OrderGridColumns.Quantity).Visible"
+                                  TextAlign="TextAlign.Center"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="o">
                     <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600">
@@ -246,81 +506,98 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order"
-                                  Property="Status.Name" Title="Статус маркетплейса"
-                                  Width="190px" Filterable="true"
+            <RadzenDataGridColumn TItem="OrderEntity"
+                                  Property="Status.Name"
+                                  Title="@GetColumn(OrderGridColumns.MarketplaceStatus).Title"
+                                  Width="@GetColumn(OrderGridColumns.MarketplaceStatus).Width"
+                                  Visible="@GetColumn(OrderGridColumns.MarketplaceStatus).Visible"
+                                  Filterable="true"
                                   Sortable="true" HeaderCssClass="half-painted-header">
 
                 <FilterTemplate>
-                    <div class="filter-all-item @( _filterStatusId == null ? "active" : "" )"
-                         @onclick="@(async () => await ClearFilter(() => _filterStatusId = null))">
-                        Все
-                    </div>
-                    <RadzenListBox TItem="OrderStatus"
-                                   @bind-Value="_filterStatusId"
-                                   Data="@_marketplaceStatuses"
-                                   ValueProperty="Id"
-                                   TextProperty="Name"
-                                   AllowClear="true"
-                                   Placeholder="Все"
-                                   Style="width:100%; max-height:370px"
-                                   Change="@(async () => await OnFilterChange())">
-
-                        <Template Context="item">
-                            <RadzenBadge Text="@item.Name"
-                                         Style="@($"background:{GetSoftBackground(item.Color)}; color:{GetTextColor(GetSoftBackground(item.Color))};")"
-                                         Class="status-badge"/>
-                        </Template>
-
-                    </RadzenListBox>
+                    <RadzenStack Gap="0.3rem" Style="padding: 4px 2px; max-height: 370px; overflow-y: auto;">
+                        @{
+                            var allMs = _filterStatusId == null;
+                        }
+                        <span @onclick="@(async () => await ClearFilter(() => _filterStatusId = null))"
+                              style="@($"display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(allMs ? "var(--rz-primary)" : "var(--rz-base-200)")};color:{(allMs ? "#fff" : "var(--rz-text-color)")};border:2px solid transparent;white-space:nowrap;")">
+                            Все
+                        </span>
+                        @foreach (var s in _marketplaceStatuses.OrderBy(s => s.Name))
+                        {
+                            var bg = GetSoftBackground(s.Color ?? string.Empty);
+                            var fg = GetTextColor(bg);
+                            var isActive = _filterStatusId == s.Id;
+                            var cnt = _statusCounts.GetValueOrDefault(s.Id);
+                            <span @onclick="@(async () => { _filterStatusId = isActive ? (Guid?)null : s.Id; _filterSystemStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                                  style="@($"display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{bg};color:{fg};border:2px solid {(isActive ? fg : "transparent")};white-space:nowrap;")">
+                                @s.Name
+                                @if (cnt > 0)
+                                {
+                                    <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@cnt</span>
+                                }
+                            </span>
+                        }
+                    </RadzenStack>
                 </FilterTemplate>
 
                 <Template Context="o">
-                    <RadzenStack JustifyContent="JustifyContent.Center"
-                                 AlignItems="AlignItems.Center">
+                    <div style="display:flex;align-items:center;justify-content:center;gap:3px;flex-wrap:nowrap;">
                         @if (o.Status != null)
                         {
                             var bg = string.IsNullOrEmpty(o.Status.Color) ? "#ececff" : o.Status.Color + "20";
                             var fg = IsLightColor(bg) ? "#1f2937" : "#ffffff";
 
                             <RadzenBadge Text="@o.Status.Name"
-                                         Style="@($"background:{bg}; color:{fg};")"
+                                         title="@o.Status.Name"
+                                         Style="@($"background:{bg}; color:{fg}; white-space:nowrap;")"
                                          Class="status-badge"/>
+                            @if (o.Shipment.HasReturn)
+                            {
+                                <span style="color:#ef4444;cursor:pointer;font-size:0.72rem;font-weight:600;white-space:nowrap;"
+                                      title="Есть возврат — нажмите для просмотра"
+                                      @onclick:stopPropagation="true"
+                                      @onclick="@(() => OpenOrderDetailAsync(o, openReturnTab: true))">Возв.</span>
+                            }
                         }
-                    </RadzenStack>
+                    </div>
                 </Template>
-
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order"
+            <RadzenDataGridColumn TItem="OrderEntity"
                                   Property="SystemStatus.Name"
-                                  Title="Статус приложения"
-                                  Width="190px"
+                                  Title="@GetColumn(OrderGridColumns.AppStatus).Title"
+                                  Width="@GetColumn(OrderGridColumns.AppStatus).Width"
+                                  Visible="@GetColumn(OrderGridColumns.AppStatus).Visible"
                                   Filterable="true"
                                   Sortable="true"
                                   HeaderCssClass="half-painted-header">
 
                 <FilterTemplate>
-                    <div class="filter-all-item @( _filterSystemStatusId == null ? "active" : "" )"
-                         @onclick="@(async () => await ClearFilter(() => _filterSystemStatusId = null))">
-                        Все
-                    </div>
-                    <RadzenListBox TItem="OrderStatus"
-                                   @bind-Value="_filterSystemStatusId"
-                                   Data="@_systemStatuses"
-                                   TextProperty="Name"
-                                   ValueProperty="Id"
-                                   Placeholder="Все"
-                                   AllowClear="true"
-                                   Style="width:100%; max-height: 370px;"
-                                   Change="@(async () => await OnFilterChange())">
-
-                        <Template Context="item">
-                            <RadzenBadge Text="@item.Name"
-                                         Style="@($"background:{GetSoftBackground(item.Color)}; color:{GetTextColor(GetSoftBackground(item.Color))};")"
-                                         Class="status-badge"/>
-                        </Template>
-                    </RadzenListBox>
+                    <RadzenStack Gap="0.3rem" Style="padding: 4px 2px; max-height: 370px; overflow-y: auto;">
+                        @{
+                            var allSs = _filterSystemStatusId == null;
+                        }
+                        <span @onclick="@(async () => await ClearFilter(() => _filterSystemStatusId = null))"
+                              style="@($"display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(allSs ? "var(--rz-primary)" : "var(--rz-base-200)")};color:{(allSs ? "#fff" : "var(--rz-text-color)")};border:2px solid transparent;white-space:nowrap;")">
+                            Все
+                        </span>
+                        @foreach (var s in _systemStatuses.OrderBy(s => s.Name))
+                        {
+                            var bg = GetSoftBackground(s.Color ?? string.Empty);
+                            var fg = GetTextColor(bg);
+                            var isActive = _filterSystemStatusId == s.Id;
+                            var cnt = _systemStatusCounts.GetValueOrDefault(s.Id);
+                            <span @onclick="@(async () => { _filterSystemStatusId = isActive ? (Guid?)null : s.Id; _filterStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                                  style="@($"display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{bg};color:{fg};border:2px solid {(isActive ? fg : "transparent")};white-space:nowrap;")">
+                                @s.Name
+                                @if (cnt > 0)
+                                {
+                                    <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@cnt</span>
+                                }
+                            </span>
+                        }
+                    </RadzenStack>
                 </FilterTemplate>
 
                 <Template Context="o">
@@ -328,10 +605,11 @@ else
                                  AlignItems="AlignItems.Center">
                         @if (o.SystemStatus != null)
                         {
-                            var bg = GetSoftBackground(o.SystemStatus.Color);
+                            var bg = GetSoftBackground(o.SystemStatus.Color ?? string.Empty);
                             var fg = GetTextColor(bg);
 
                             <RadzenBadge Text="@o.SystemStatus.Name"
+                                         title="@o.SystemStatus.Name"
                                          Style="@($"background:{bg}; color:{fg};")"
                                          Class="status-badge"/>
                         }
@@ -339,8 +617,11 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="Shipment.DeliveryMethod.Name"
-                                  Title="Способ доставки" Width="180px" Filterable="false" Sortable="true"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="Shipment.DeliveryMethod.Name"
+                                  Title="@GetColumn(OrderGridColumns.DeliveryMethod).Title"
+                                  Width="@GetColumn(OrderGridColumns.DeliveryMethod).Width"
+                                  Visible="@GetColumn(OrderGridColumns.DeliveryMethod).Visible"
+                                  Filterable="false" Sortable="true"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="o">
                     <RadzenText TextStyle="TextStyle.Body2"
@@ -351,24 +632,31 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Property="WarehouseInfo.SenderWarehouse.Name"
-                                  Title="Склад" Width="160px" Filterable="true" Sortable="true"
+            <RadzenDataGridColumn TItem="OrderEntity" Property="WarehouseInfo.SenderWarehouse.Name"
+                                  Title="@GetColumn(OrderGridColumns.Warehouse).Title"
+                                  Width="@GetColumn(OrderGridColumns.Warehouse).Width"
+                                  Visible="@GetColumn(OrderGridColumns.Warehouse).Visible"
+                                  Filterable="true" Sortable="true"
                                   HeaderCssClass="half-painted-header">
 
                 <FilterTemplate>
-                    <div class="filter-all-item @( _filterWarehouseId == null ? "active" : "" )"
-                         @onclick="@(async () => await ClearFilter(() => _filterWarehouseId = null))">
-                        Все
-                    </div>
-                    <RadzenListBox @bind-Value="_filterWarehouseId"
-                                   Data="@_warehouses"
-                                   TextProperty="Name"
-                                   ValueProperty="Id"
-                                   Placeholder="Все"
-                                   AllowClear="true"
-                                   Style="width: 100%; min-width: 0; max-height: 370px;"
-                                   Change="@(async () => await OnFilterChange())"/>
-
+                    <RadzenStack Gap="0.3rem" Style="padding: 4px 2px; max-height: 370px; overflow-y: auto;">
+                        @{
+                            var allWh = _filterWarehouseId == null;
+                        }
+                        <span @onclick="@(async () => await ClearFilter(() => _filterWarehouseId = null))"
+                              style="@($"display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(allWh ? "var(--rz-primary)" : "var(--rz-base-200)")};color:{(allWh ? "#fff" : "var(--rz-text-color)")};border:2px solid transparent;white-space:nowrap;")">
+                            Все
+                        </span>
+                        @foreach (var w in _warehouses.OrderBy(w => w.Name))
+                        {
+                            var isActive = _filterWarehouseId == w.Id;
+                            <span @onclick="@(async () => { _filterWarehouseId = isActive ? (Guid?)null : w.Id; await OnFilterChange(); })"
+                                  style="@($"display:inline-flex;align-items:center;padding:3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:var(--rz-base-200);color:var(--rz-text-color);border:2px solid {(isActive ? "var(--rz-primary)" : "transparent")};white-space:nowrap;")">
+                                @w.Name
+                            </span>
+                        }
+                    </RadzenStack>
                 </FilterTemplate>
                 <Template Context="o">
                     <RadzenText TextStyle="TextStyle.Body2"
@@ -379,7 +667,10 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="Order" Title="Цена" Width="120px"
+            <RadzenDataGridColumn TItem="OrderEntity"
+                                  Title="@GetPriceColumnTitle()"
+                                  Width="@GetColumn(OrderGridColumns.Price).Width"
+                                  Visible="@GetColumn(OrderGridColumns.Price).Visible"
                                   Filterable="false" Sortable="false"
                                   HeaderCssClass="half-painted-header">
                 <Template Context="o">
@@ -388,13 +679,13 @@ else
                     }
                     @if (price != null)
                     {
-                        var priceText = $"{price.Value:N2} {price.Currency?.Code}";
-                        <RadzenText TextStyle="TextStyle.Body2"
-                                    Class="rz-text-truncate"
-                                    Style="@($"font-weight:600; letter-spacing:0.2px; {GetPriceColor(price.Value)}")"
-                                    title="@priceText">
+                        if (_currencyCode == null && !string.IsNullOrEmpty(price.Currency?.Code))
+                            _currencyCode = price.Currency!.Code;
+                        var priceText = FormatPrice(price.Value, price.Currency?.Code);
+                        <span style="font-weight:600; letter-spacing:0.2px; white-space:nowrap; @GetPriceColor(price.Value)"
+                              title="@($"{price.Value:N2} {price.Currency?.Code}")">
                             @priceText
-                        </RadzenText>
+                        </span>
                     }
                     else
                     {
@@ -407,7 +698,10 @@ else
             {
                 @if (!_computedSplitByColumns)
                 {
-                    <RadzenDataGridColumn TItem="Order" Title="Расчёты" Width="200px"
+                    <RadzenDataGridColumn TItem="OrderEntity" Title="Расчёты"
+
+                                          Width="@GetColumn(OrderGridColumns.ExtraCalculations).Width"
+                                          Visible="@GetColumn(OrderGridColumns.ExtraCalculations).Visible"
                                           Filterable="false" Sortable="false" HeaderCssClass="half-painted-header">
                         <HeaderTemplate>
                             <span style="cursor: pointer; text-decoration: underline; font-size: 0.85rem;"
@@ -429,7 +723,7 @@ else
                                                 style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help;"
                                                 title="@GetFormulaBreakdown(o, rule, val)">
                                                 <span style="color: var(--rz-text-secondary-color);">@rule.Name:</span>
-                                                <strong style="@GetPriceColor(val)">@val.ToString("N2")</strong>
+                                                <strong style="@GetPriceColor(val)">@FormatCalcValue(val)</strong>
                                             </span>
                                         }
                                     }
@@ -442,21 +736,21 @@ else
                 {
                     @foreach (var rule in _calcRules)
                     {
-                        var propName = $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(rule.ResultKey)}";
-                        <RadzenDataGridColumn TItem="Order"
-                                              Title="@rule.Name"
+                        var capturedRule = rule;
+                        var propName = $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(capturedRule.ResultKey)}";
+                        <RadzenDataGridColumn TItem="OrderEntity"
+                                              Title="@capturedRule.Name"
                                               Property="@propName"
-                                              Width="120px"
+                                              Visible="@GetColumn(OrderGridColumns.ExtraCalculations).Visible"
                                               Filterable="false"
                                               Sortable="true"
-                                              TextAlign="TextAlign.Right"
                                               HeaderCssClass="half-painted-header">
                             <Template Context="o">
                                 @if (_computed.TryGetValue(o.Id, out var fields) &&
-                                     fields.TryGetValue(rule.ResultKey, out var val) &&
+                                     fields.TryGetValue(capturedRule.ResultKey, out var val) &&
                                      val != decimal.MinValue)
                                 {
-                                    <span title="@GetFormulaBreakdown(o, rule, val)" style="cursor: help; @GetPriceColor(val)">@val.ToString("N2")</span>
+                                    <span title="@GetFormulaBreakdown(o, capturedRule, val)" style="cursor: help; @GetPriceColor(val)">@FormatCalcValue(val)</span>
                                 }
                             </Template>
                         </RadzenDataGridColumn>
@@ -467,45 +761,344 @@ else
     </RadzenDataGrid>
 }
 
+<script>
+window.gridResize = {
+    getWidth: () => window.innerWidth,
+    getHeight: () => window.innerHeight,
+
+    register: (dotNetHelper) => {
+        window.addEventListener("resize", () => {
+            dotNetHelper.invokeMethodAsync("OnWindowResize", window.innerWidth, window.innerHeight);
+        });
+    }
+};
+</script>
+
 @code {
-    private RadzenDataGrid<Order>? _grid;
+    [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
+
+    [SupplyParameterFromQuery(Name = "openReturn")]
+    public string? OpenReturnId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? SearchParam { get; set; }
+
+    private RadzenDataGrid<OrderEntity>? _grid;
 
     private TenantDbContext? _db;
-    private IEnumerable<Order> _pageItems = Array.Empty<Order>();
+    private IEnumerable<OrderEntity> _pageItems = Array.Empty<OrderEntity>();
     private int _totalCount;
     private Density _density = Density.Default;
     private bool _loading;
+    private bool _loadDataInProgress;
+    private bool _manufacturerModuleEnabled;
+    private bool _canViewPrice = true;
+    private bool _canViewCalculations = true;
+    private int _dynamicPageSize = 15;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+
+    private string? _searchText;
 
     private Guid? _filterClientId;
     private Guid? _filterStatusId;
     private Guid? _filterSystemStatusId;
     private Guid? _filterWarehouseId;
+    private bool _filterHasReturn;
     private List<MarketplaceClient> _clients = new();
     private List<OrderStatus> _marketplaceStatuses = new();
     private List<OrderStatus> _systemStatuses = new();
     private List<Warehouse> _warehouses = new();
+    private Dictionary<Guid, int> _statusCounts = new();
+    private Dictionary<Guid, int> _systemStatusCounts = new();
+    private int _returnCount;
 
     private readonly CalculationEngine _calcEngine = new();
     private List<CalculationRule> _calcRules = new();
     private Dictionary<Guid, Dictionary<string, decimal>> _computed = new();
     private bool _computedSplitByColumns;
+    private int _windowWidth;
+    private string? _currencyCode;
     private Dictionary<Guid, string?> _orderLastTransactionColor = new();
 
     private DataGridSettings? _gridSettings;
-    private const string GridSettingsKey = "orders-grid-settings";
+    private const string GridSettingsKey = "orders-grid-settings-v3";
     private const string FiltersKey = "orders-filters";
+    private const string ColumnsKey = "orders-columns-visibility";
+
+    private static readonly Dictionary<string, string> SortPropertyTitles = new()
+    {
+        ["Shipment.PostingNumber"] = "№ Отправления",
+        ["Shipment.MarketplaceClient.Name"] = "Клиент",
+        ["Shipment.InProcessAt"] = "Принят",
+        ["Shipment.ShipmentDate"] = "Отгрузка",
+        ["ProductInfo.Product.Article"] = "Артикул",
+        ["ProductInfo.Product.Name"] = "Товар",
+        ["Quantity"] = "Кол-во",
+        ["Status.Name"] = "Статус МП",
+        ["SystemStatus.Name"] = "Статус",
+        ["Shipment.DeliveryMethod.Name"] = "Доставка",
+        ["WarehouseInfo.SenderWarehouse.Name"] = "Склад",
+    };
+
+    private IEnumerable<DataGridColumnSettings> GetActiveSorts()
+    {
+        return _gridSettings?.Columns?
+            .Where(c => c.SortOrder.HasValue && !string.IsNullOrEmpty(c.Property))
+            .OrderBy(c => c.SortIndex ?? 0) ?? Enumerable.Empty<DataGridColumnSettings>();
+    }
+
+    private async Task ClearSortAsync(string property)
+    {
+        var col = _gridSettings?.Columns?.FirstOrDefault(c => c.Property == property);
+        if (col != null)
+        {
+            col.SortOrder = null;
+            col.SortIndex = null;
+        }
+        await SaveGridSettingsAsync();
+        if (_grid != null)
+            await _grid.Reload();
+    }
 
     private record OrderFilters(Guid? ClientId, Guid? StatusId, Guid? SystemStatusId, Guid? WarehouseId);
+
+    [Inject]
+    private IJSRuntime Js { get; set; } = default!;
+
+    private DotNetObjectReference<Orders>? _resizeRef;
+
+    private bool _columnsPopupVisible = false;
+
+    private List<string> _selectedColumns = new();
+
+    void ToggleColumnsPopup()
+    {
+        if (!_columnsPopupVisible)
+        {
+            _selectedColumns = Columns
+                .Where(c => c.RoleVisible && (c.UserVisible ?? c.AutoVisible))
+                .Select(c => c.Key)
+                .ToList();
+        }
+
+        // Открываем/закрываем popup через Radzen API
+        columnsPopup.ToggleAsync(columnsButton.Element);
+    }
+
+    RadzenButton columnsButton = null!;
+    Popup columnsPopup = null!;
+
+    // Константы колонок
+    public static class OrderGridColumns
+    {
+        public const string ShipmentNumber = "ShipmentNumber";
+        public const string Client = "Client";
+        public const string AcceptedDate = "AcceptedDate";
+        public const string ShippingDate = "ShippingDate";
+        public const string Article = "Article";
+        public const string Product = "Product";
+        public const string Quantity = "Quantity";
+        public const string MarketplaceStatus = "MarketplaceStatus";
+        public const string AppStatus = "AppStatus";
+        public const string DeliveryMethod = "DeliveryMethod";
+        public const string Warehouse = "Warehouse";
+        public const string Price = "Price";
+        public const string ExtraCalculations = "ExtraCalculations";
+        public const string DeliveryTerm = "DeliveryTerm";
+        public const string Manufacturer = "Manufacturer";
+    }
+
+    // Модель конфигурации колонки
+    public class ColumnConfig
+    {
+        public required string Key { get; set; }
+        public required string Title { get; set; }
+
+        public bool AutoVisible { get; set; } = true; // управляется шириной экрана
+        public bool? UserVisible { get; set; } = null; // null = не переопределено пользователем
+        /// <summary>False if the user doesn't have the required role — always hidden.</summary>
+        public bool RoleVisible { get; set; } = true;
+
+        public bool Visible => (UserVisible ?? AutoVisible) && RoleVisible;
+        public bool Frozen { get; set; } = false;
+
+        public int Priority { get; set; } = 1;
+
+        public required string Width { get; set; }
+    }
+
+    // Список конфигураций колонок
+    List<ColumnConfig> Columns = new()
+    {
+        new() { Key = OrderGridColumns.ShipmentNumber, Title = "№ Отправления", Frozen = true, Width = "10%", Priority = 1 },
+        new() { Key = OrderGridColumns.Client, Title = "Клиент", Width = "7%", Priority = 3 },
+        new() { Key = OrderGridColumns.AcceptedDate, Title = "Принят", Width = "5.5%", Priority = 9 },
+        new() { Key = OrderGridColumns.ShippingDate, Title = "Отгрузка", Width = "5.5%", Priority = 8 },
+        new() { Key = OrderGridColumns.Article, Title = "Артикул", Width = "8%", Priority = 13 },
+        new() { Key = OrderGridColumns.Product, Title = "Товар", Frozen = true, Width = "14%", Priority = 2 },
+        new() { Key = OrderGridColumns.Quantity, Title = "Кол", Width = "3%", Priority = 7 },
+        new() { Key = OrderGridColumns.MarketplaceStatus, Title = "Статус МП", Width = "8%", Priority = 4 },
+        new() { Key = OrderGridColumns.AppStatus, Title = "Статус", Width = "7%", Priority = 5 },
+        new() { Key = OrderGridColumns.DeliveryMethod, Title = "Доставка", Width = "6%", Priority = 10 },
+        new() { Key = OrderGridColumns.Warehouse, Title = "Склад", Width = "6%", Priority = 11 },
+        new() { Key = OrderGridColumns.Price, Title = "Цена", Width = "6%", Priority = 6 },
+        new() { Key = OrderGridColumns.ExtraCalculations, Title = "Расчёты", Width = "9%", Priority = 12 },
+        new() { Key = OrderGridColumns.DeliveryTerm, Title = "Срок", Width = "4%", Priority = 14 },
+        new() { Key = OrderGridColumns.Manufacturer, Title = "Произв.", Width = "5%", Priority = 15 }
+    };
+
+    // высчитываем, сколько колонок показывать
+    void UpdateColumnsForWidth(int width)
+    {
+        _windowWidth = width;
+        int maxPriority;
+
+        if (width < 900)
+            maxPriority = 3; // минимальный набор — 3 колонки
+        else if (width < 1000)
+            maxPriority = 5; // + Client + Quantity
+        else if (width < 1100)
+            maxPriority = 7; // + MarketplaceStatus + AppStatus
+        else if (width < 1200)
+            maxPriority = 9; // + ShippingDate + AcceptedDate
+        else if (width < 1300)
+            maxPriority = 11; // + DeliveryMethod + Warehouse
+        else if (width < 1400)
+            maxPriority = 13; // + ExtraCalculations + Article
+        else
+            maxPriority = 15; // + DeliveryTerm + Manufacturer
+
+
+        bool changed = false;
+
+        foreach (var col in Columns)
+        {
+            var auto = col.Priority <= maxPriority;
+            if (col.AutoVisible != auto)
+            {
+                col.AutoVisible = auto;
+                changed = true;
+            }
+        }
+
+        if (changed)
+            InvokeAsync(StateHasChanged);
+    }
+
+    void OnColumnChecked(ColumnConfig col, bool value)
+    {
+        col.UserVisible = value;
+        StateHasChanged();
+        _ = SaveColumnsAsync();
+    }
+
+    // Получение конфигурации
+    ColumnConfig GetColumn(string key)
+    {
+        return Columns.First(x => x.Key == key);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            // Resolve role-based column visibility
+            var state = await AuthState;
+            var user = state.User;
+            bool Col(string role) => user.IsInRole("Admin") || user.IsInRole(role);
+
+            _canViewPrice = Col("OrdersViewPrice");
+            _canViewCalculations = Col("OrdersViewCalculations");
+
+            GetColumn(OrderGridColumns.ShipmentNumber).RoleVisible = Col("OrdersColShipmentNumber");
+            GetColumn(OrderGridColumns.Client).RoleVisible = Col("OrdersColClient");
+            GetColumn(OrderGridColumns.AcceptedDate).RoleVisible = Col("OrdersColAcceptedDate");
+            GetColumn(OrderGridColumns.ShippingDate).RoleVisible = Col("OrdersColShippingDate");
+            GetColumn(OrderGridColumns.DeliveryTerm).RoleVisible = Col("OrdersColDeliveryTerm");
+            GetColumn(OrderGridColumns.Article).RoleVisible = Col("OrdersColArticle");
+            GetColumn(OrderGridColumns.Product).RoleVisible = Col("OrdersColProduct");
+            GetColumn(OrderGridColumns.Manufacturer).RoleVisible = Col("OrdersColManufacturer");
+            GetColumn(OrderGridColumns.Quantity).RoleVisible = Col("OrdersColQuantity");
+            GetColumn(OrderGridColumns.MarketplaceStatus).RoleVisible = Col("OrdersColMarketplaceStatus");
+            GetColumn(OrderGridColumns.AppStatus).RoleVisible = Col("OrdersColAppStatus");
+            GetColumn(OrderGridColumns.DeliveryMethod).RoleVisible = Col("OrdersColDeliveryMethod");
+            GetColumn(OrderGridColumns.Warehouse).RoleVisible = Col("OrdersColWarehouse");
+            GetColumn(OrderGridColumns.Price).RoleVisible = _canViewPrice;
+            GetColumn(OrderGridColumns.ExtraCalculations).RoleVisible = _canViewCalculations;
+
+            if (TenantProvider.IsResolved)
+                _manufacturerModuleEnabled = await ModuleService.IsEnabledAsync(ModuleCodes.Manufacturers);
+
+            if (!string.IsNullOrEmpty(SearchParam))
+            {
+                _searchText = SearchParam;
+                SearchParam = null;
+            }
+
             await LoadGridSettingsAsync();
             await LoadFiltersAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
                 await _grid.Reload();
+
+            var width = await Js.InvokeAsync<int>("gridResize.getWidth");
+            var height = await Js.InvokeAsync<int>("gridResize.getHeight");
+            UpdateColumnsForWidth(width);
+            UpdatePageSizeForHeight(height);
+            await LoadColumnsAsync();
+
+            // Синхронизируем dropdown с реально видимыми колонками
+            _selectedColumns = Columns
+                .Where(c => c.RoleVisible && c.Visible)
+                .Select(c => c.Key)
+                .ToList();
+
+            _resizeRef = DotNetObjectReference.Create(this);
+            await Js.InvokeVoidAsync("gridResize.register", _resizeRef);
+
+            StateHasChanged();
+
+            if (!string.IsNullOrEmpty(OpenReturnId) &&
+                Guid.TryParse(OpenReturnId, out var openReturnId) &&
+                TenantProvider.IsResolved)
+            {
+                OpenReturnId = null;
+                await using var db = Factory.CreateDbContext();
+                // Сначала ищем как ShipmentId, потом как OrderId (для обратной совместимости)
+                var order = await db.Orders
+                    .IncludeForGrid()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.ShipmentId == openReturnId)
+                    ?? await db.Orders
+                    .IncludeForGrid()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Id == openReturnId);
+                if (order != null)
+                    await OpenOrderDetailAsync(order, openReturnTab: true);
+                Navigation.NavigateTo("/orders", replace: true);
+            }
+        }
+    }
+
+    // Метод, который JS будет вызывать при resize
+    [JSInvokable]
+    public void OnWindowResize(int width, int height)
+    {
+        UpdateColumnsForWidth(width);
+        UpdatePageSizeForHeight(height);
+    }
+
+    private void UpdatePageSizeForHeight(int windowHeight)
+    {
+        // Примерно: header(56) + tabs(50) + toolbar(90) + filters(80) + thead(44) + pager(40) ≈ 360px overhead
+        // Каждая строка ≈ 45px (Default density) или ≈ 32px (Compact)
+        var overhead = 360;
+        var rowHeight = _density == Density.Compact ? 32 : 45;
+        var available = windowHeight - overhead;
+        var rows = Math.Max(5, available / rowHeight);
+        if (rows != _dynamicPageSize)
+        {
+            _dynamicPageSize = rows;
+            InvokeAsync(StateHasChanged);
         }
     }
 
@@ -541,6 +1134,40 @@ else
         catch
         {
         }
+    }
+
+    private async Task LoadColumnsAsync()
+    {
+        try
+        {
+            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", ColumnsKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, bool>>(json);
+                if (dict != null)
+                {
+                    foreach (var col in Columns)
+                    {
+                        if (dict.TryGetValue(col.Key, out var visible))
+                            col.UserVisible = visible;
+                    }
+                }
+            }
+        }
+        catch { }
+    }
+
+    private async Task SaveColumnsAsync()
+    {
+        try
+        {
+            var dict = Columns
+                .Where(c => c.UserVisible.HasValue)
+                .ToDictionary(c => c.Key, c => c.UserVisible!.Value);
+            var json = System.Text.Json.JsonSerializer.Serialize(dict);
+            await JsRuntime.InvokeVoidAsync("localStorage.setItem", ColumnsKey, json);
+        }
+        catch { }
     }
 
     private async Task LoadFiltersAsync()
@@ -581,8 +1208,51 @@ else
 
     private async Task LoadData(LoadDataArgs args)
     {
-        _loading = true;
+        if (_loadDataInProgress) return;
+        _loadDataInProgress = true;
+        if (!_pageItems.Any())
+            _loading = true;
+        try
+        {
         await EnsureInitializedAsync();
+
+        // Counts for pills — respect client/warehouse/search filters but NOT status/return filters
+        var countBase = _db!.Orders.AsNoTracking().AsQueryable();
+        if (_filterClientId.HasValue)
+            countBase = countBase.Where(o => o.Shipment.MarketplaceClientId == _filterClientId.Value);
+        if (_filterWarehouseId.HasValue)
+            countBase = countBase.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId == _filterWarehouseId.Value);
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            var term = _searchText.Trim();
+            countBase = countBase.Where(o =>
+                o.Shipment.PostingNumber.Contains(term) ||
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Article != null && o.ProductInfo.Product.Article.Contains(term)) ||
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Name.Contains(term)) ||
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Manufacturer != null && o.ProductInfo.Product.Manufacturer.Name.Contains(term)));
+        }
+        if (!string.IsNullOrEmpty(args.Filter))
+            countBase = countBase.Where(args.Filter);
+
+        var msCounts = await countBase
+            .Where(o => o.StatusId != null)
+            .GroupBy(o => o.StatusId!.Value)
+            .Select(g => new { StatusId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        _statusCounts = msCounts.ToDictionary(x => x.StatusId, x => x.Count);
+
+        var ssCounts = await countBase
+            .Where(o => o.SystemStatusId != null)
+            .GroupBy(o => o.SystemStatusId!.Value)
+            .Select(g => new { StatusId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        _systemStatusCounts = ssCounts.ToDictionary(x => x.StatusId, x => x.Count);
+
+        _returnCount = await countBase
+            .Where(o => _db!.OrderReturns.Any(r => r.ShipmentId == o.ShipmentId))
+            .Select(o => o.ShipmentId)
+            .Distinct()
+            .CountAsync();
 
         var query = _db!.Orders
             .IncludeForGrid()
@@ -597,6 +1267,17 @@ else
             query = query.Where(o => o.SystemStatusId == _filterSystemStatusId.Value);
         if (_filterWarehouseId.HasValue)
             query = query.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId == _filterWarehouseId.Value);
+        if (_filterHasReturn)
+            query = query.Where(o => _db!.OrderReturns.Any(r => r.ShipmentId == o.ShipmentId));
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            var term = _searchText.Trim();
+            query = query.Where(o =>
+                o.Shipment.PostingNumber.Contains(term) ||
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Article != null && o.ProductInfo.Product.Article.Contains(term)) ||
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Name.Contains(term)) ||
+                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Manufacturer != null && o.ProductInfo.Product.Manufacturer.Name.Contains(term)));
+        }
 
         if (!string.IsNullOrEmpty(args.Filter))
             query = query.Where(args.Filter);
@@ -652,7 +1333,7 @@ else
 
             if (ruleByProp.TryGetValue(field, out var ruleKey))
             {
-                decimal GetSortValue(Order o) =>
+                decimal GetSortValue(OrderEntity o) =>
                     _computed.TryGetValue(o.Id, out var dict) &&
                     dict.TryGetValue(ruleKey, out var v) && v != decimal.MinValue
                         ? v
@@ -692,13 +1373,18 @@ else
         }
 
         _loading = false;
+        }
+        finally
+        {
+            _loadDataInProgress = false;
+        }
     }
 
-    private void OnRowRender(RowRenderEventArgs<Order> args)
+    private void OnRowRender(RowRenderEventArgs<OrderEntity> args)
     {
-        if (_orderLastTransactionColor.TryGetValue(args.Data.Id, out var color) && !string.IsNullOrEmpty(color))
+        if (args.Data != null && _orderLastTransactionColor.TryGetValue(args.Data.Id, out var color) && !string.IsNullOrEmpty(color))
         {
-            var bg = GetSoftBackground(color);
+            var bg = GetSoftBackground(color!);
             var fg = GetTextColor(bg);
             args.Attributes["style"] = $"background-color: {bg}; color: {fg};";
         }
@@ -707,7 +1393,7 @@ else
     private async Task EnsureInitializedAsync()
     {
         if (_db != null) return;
-        _db = Factory.CreateDbContext();
+        _db = Factory.CreateDbContext(); // set before first await — prevents re-entry
 
         _clients = await _db.MarketplaceClients!
             .Include(c => c.ClientType)
@@ -745,17 +1431,26 @@ else
             await _grid.Reload();
     }
 
+    private async Task OnSearchChanged()
+    {
+        if (_grid != null)
+            await _grid.Reload();
+    }
+
     private async Task ClearFilter(Action clear)
     {
         clear();
         await OnFilterChange();
     }
 
-    private async Task OpenOrderDetailAsync(Order order)
+    private async Task OpenOrderDetailAsync(OrderEntity orderEntity, bool openReturnTab = false)
     {
+        var parameters = new Dictionary<string, object?> { ["OrderId"] = orderEntity.Id };
+        if (openReturnTab)
+            parameters["OpenReturnTab"] = (object)true;
         await DialogService.OpenAsync<OrderDetailDialog>(
-            $"Заказ {order.Shipment?.PostingNumber}",
-            new Dictionary<string, object?> { ["OrderId"] = order.Id },
+            $"Заказ {orderEntity.Shipment?.PostingNumber}",
+            parameters,
             new DialogOptions
             {
                 Width = "900px",
@@ -817,20 +1512,23 @@ else
         return IsLightColor(bg) ? "#1f2937" : "#ffffff";
     }
 
-    private void ShowContextMenu(DataGridCellMouseEventArgs<Order> args)
+    private void ShowContextMenu(DataGridCellMouseEventArgs<OrderEntity> args)
     {
         ContextMenuService.Open(args,
             [
-                new ContextMenuItem { Text = "Открыть",           Icon = "open_in_new", Value = "open"    },
-                new ContextMenuItem { Text = "История изменений", Icon = "history",     Value = "history" }
+                new ContextMenuItem { Text = "Открыть", Icon = "open_in_new", Value = "open" },
+                new ContextMenuItem { Text = "История изменений", Icon = "history", Value = "history" },
+                new ContextMenuItem { Text = "Обновить статус", Icon = "sync", Value = "update_status" }
             ],
             async e =>
             {
                 ContextMenuService.Close();
-                if (e.Value?.ToString() == "open")
+                if (e.Value?.ToString() == "open" && args.Data is not null)
                     await OpenOrderDetailAsync(args.Data);
-                else if (e.Value?.ToString() == "history")
+                else if (e.Value?.ToString() == "history" && args.Data is not null)
                     await OpenAuditHistoryAsync(args.Data);
+                else if (e.Value?.ToString() == "update_status" && args.Data is not null)
+                    await UpdateSingleOrderStatusAsync(args.Data);
             });
     }
 
@@ -907,6 +1605,8 @@ else
                 var statusId = statusIdsWithValue[0];
                 _selectionStatusName = _systemStatuses.FirstOrDefault(s => s.Id == statusId)?.Name ?? "—";
                 _availableTransactions = await _db.OrderTransactions
+                    .Include(t => t.FromSystemStatus)
+                    .Include(t => t.ToSystemStatus)
                     .Where(t => !t.IsDeleted && t.IsEnabled && t.FromSystemStatusId == statusId)
                     .OrderBy(t => t.Name)
                     .AsNoTracking()
@@ -931,15 +1631,15 @@ else
         Navigation.NavigateTo(path);
     }
 
-    private async Task OpenAuditHistoryAsync(Order order)
+    private async Task OpenAuditHistoryAsync(OrderEntity orderEntity)
     {
         var subjects = new List<AuditSubject>
         {
-            new("Order",    order.Id.ToString(),         "Заказ"),
-            new("Shipment", order.ShipmentId.ToString(), "Отправление"),
+            new("OrderEntity", orderEntity.Id.ToString(), "Заказ"),
+            new("Shipment", orderEntity.ShipmentId.ToString(), "Отправление"),
         };
-        if (order.ProductInfo?.ProductId is { } pid)
-            subjects.Add(new("Product", pid.ToString(), "Товар"));
+        if (orderEntity.ProductInfo is { } pi)
+            subjects.Add(new("OrderProductInfo", pi.Id.ToString(), "Товар в заказе"));
 
         await DialogService.OpenAsync<AuditHistoryDialog>(
             "История изменений",
@@ -947,7 +1647,88 @@ else
             new DialogOptions { Width = "min(960px, 95vw)", Resizable = true, Draggable = true });
     }
 
-    public void Dispose() => _db?.Dispose();
+    private async Task UpdateSingleOrderStatusAsync(OrderEntity orderEntity)
+    {
+        try
+        {
+            var result = await OrderSyncService.UpdateSingleShipmentStatusAsync(orderEntity.ShipmentId);
+
+            if (result is not null)
+            {
+                NotificationService.Notify(NotificationSeverity.Success,
+                    "Статус обновлён",
+                    $"{result.PostingNumber}: {result.OldStatusName} → {result.NewStatusName}",
+                    duration: 5000);
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Info,
+                    "Без изменений",
+                    "Статус отправления не изменился.",
+                    duration: 3000);
+            }
+
+            await _grid!.Reload();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error,
+                "Ошибка",
+                ex.Message,
+                duration: 5000);
+        }
+    }
+
+    public void Dispose()
+    {
+        _db?.Dispose();
+        _resizeRef?.Dispose();
+    }
+
+    private static (string text, string style, string tooltip) FormatDeliveryInfo(OrderEntity o)
+    {
+        var term = o.DeliveryTerm;
+        if (term is null)
+            return ("\u2014", "", "");
+
+        var status = o.ShipmentStatus;
+        var shipDate = o.Shipment!.ShipmentDate!.Value;
+        var accepted = o.Shipment!.InProcessAt!.Value;
+
+        var termText = FormatSpanCompact(term.Value);
+        var baseTooltip = $"Срок: {(int)term.Value.TotalDays}д {term.Value.Hours}ч ({accepted:dd.MM HH:mm} \u2192 {shipDate:dd.MM HH:mm})";
+
+        if (status.IsBeforeShipment())
+        {
+            var remaining = shipDate - DateTime.Now;
+            if (remaining.TotalMinutes <= 0)
+            {
+                var overdue = DateTime.Now - shipDate;
+                return ($"{termText}·пр",
+                    "color:var(--rz-danger);font-weight:600;",
+                    $"{baseTooltip}\nПросрочено на {FormatSpanFull(overdue)}");
+            }
+            return ($"{termText}·{FormatSpanCompact(remaining)}",
+                remaining.TotalHours < 12 ? "color:var(--rz-danger);font-weight:600;"
+                : remaining.TotalHours < 24 ? "color:var(--rz-warning-dark);"
+                : "",
+                $"{baseTooltip}\nОсталось: {FormatSpanFull(remaining)}");
+        }
+
+        return ($"{termText}·отгр",
+            "color:var(--rz-text-secondary-color);",
+            $"{baseTooltip}\nОтгружено");
+    }
+
+    private static string FormatSpanCompact(TimeSpan s)
+    {
+        var d = (int)s.TotalDays;
+        var h = s.Hours;
+        return d > 0 ? $"{d}д{h}ч" : $"{h}ч";
+    }
+
+    private static string FormatSpanFull(TimeSpan s) =>
+        $"{(int)s.TotalDays} дн. {s.Hours} ч. {s.Minutes} мин.";
 
     private static string FormatDateDisplay(DateTime? d)
     {
@@ -961,8 +1742,12 @@ else
         return d.Value.Date == DateTime.Today ? d.Value.ToString("HH:mm") : d.Value.ToString("dd.MM.yyyy HH:mm");
     }
 
-    private void ToggleDensity() =>
+    private async Task ToggleDensity()
+    {
         _density = _density == Density.Compact ? Density.Default : Density.Compact;
+        var height = await Js.InvokeAsync<int>("gridResize.getHeight");
+        UpdatePageSizeForHeight(height);
+    }
 
     private string GetDensityTitle() => _density switch
     {
@@ -970,10 +1755,31 @@ else
         _ => "Обычный режим строк"
     };
 
+
     private static string GetPriceColor(decimal value) =>
         value < 0 ? "color: var(--rz-danger);" : "";
 
-    private string GetFormulaBreakdown(Order o, CalculationRule rule, decimal val)
+    private string GetPriceColumnTitle()
+    {
+        var title = GetColumn(OrderGridColumns.Price).Title;
+        return !string.IsNullOrEmpty(_currencyCode) ? $"{title}, {_currencyCode}" : title;
+    }
+
+    private string FormatPrice(decimal value, string? currencyCode)
+    {
+        if (_windowWidth > 0 && _windowWidth < 1600)
+            return value % 1 == 0 ? $"{value:N0}" : $"{value:N2}";
+        return string.IsNullOrEmpty(currencyCode) ? $"{value:N2}" : $"{value:N2} {currencyCode}";
+    }
+
+    private string FormatCalcValue(decimal value)
+    {
+        if (_windowWidth > 0 && _windowWidth < 1600)
+            return value % 1 == 0 ? $"{value:N0}" : $"{value:N2}";
+        return $"{value:N2}";
+    }
+
+    private string GetFormulaBreakdown(OrderEntity o, CalculationRule rule, decimal val)
     {
         var context = new Dictionary<string, decimal>(CalculationEngine.GetContextSnapshot(o), StringComparer.OrdinalIgnoreCase);
         foreach (var r in _calcRules.OrderBy(x => x.SortOrder))

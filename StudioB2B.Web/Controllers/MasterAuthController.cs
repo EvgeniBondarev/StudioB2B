@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using StudioB2B.Infrastructure.Features.Master;
+using StudioB2B.Infrastructure.Services;
+using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Web.Controllers;
 
@@ -24,7 +25,7 @@ public class MasterAuthController : ControllerBase
     /// </summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login(
-        [FromBody] MasterLoginRequest request, CancellationToken ct = default)
+        [FromBody] MasterLoginDto request, CancellationToken ct = default)
     {
         var result = await _authService.LoginAsync(request, ct);
 
@@ -35,6 +36,25 @@ public class MasterAuthController : ControllerBase
         }
 
         _logger.LogInformation("Master user logged in: {Email}", request.Email);
+        return Ok(new { token = result.Token, expiresAt = result.ExpiresAt });
+    }
+
+    /// <summary>
+    /// Регистрация нового master-пользователя. Возвращает JWT-токен (авто-вход).
+    /// </summary>
+    [HttpPost("register")]
+    public async Task<IActionResult> Register(
+        [FromBody] MasterRegisterDto request, CancellationToken ct = default)
+    {
+        var result = await _authService.RegisterAsync(request, ct);
+
+        if (!result.Success)
+        {
+            _logger.LogWarning("Master registration failed for {Email}: {Error}", request.Email, result.Error);
+            return BadRequest(new { error = result.Error });
+        }
+
+        _logger.LogInformation("Master user registered: {Email}", request.Email);
         return Ok(new { token = result.Token, expiresAt = result.ExpiresAt });
     }
 }

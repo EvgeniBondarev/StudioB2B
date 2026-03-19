@@ -2,14 +2,18 @@
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Infrastructure.Services
 @using System.ComponentModel.DataAnnotations
+@using StudioB2B.Domain.Options
 @using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Shared
+@using StudioB2B.Web.Services
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
 @inject NavigationManager Navigation
 @inject ITenantDbContextFactory Factory
 @inject HttpClient Http
 @inject JwtAuthenticationStateProvider AuthStateProvider
-@inject Microsoft.Extensions.Options.IOptions<StudioB2B.Infrastructure.MultiTenancy.MultiTenancyOptions> MultiTenancyOptions
+@inject MasterAuthStateService MasterAuthState
+@inject Microsoft.Extensions.Options.IOptions<MultiTenancyOptions> MultiTenancyOptions
 
 <PageTitle>StudioB2B</PageTitle>
 
@@ -68,6 +72,14 @@
                                       IsBusy="@_masterLoginLoading" />
                     </RadzenStack>
                 </EditForm>
+
+                <hr style="margin-top: 1.5rem;" />
+                <div style="text-align: center; margin-top: 0.75rem;">
+                    <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
+                        Нет аккаунта?
+                        <RadzenLink Text="Зарегистрироваться" Path="/register" Style="margin-left: 0.25rem;" />
+                    </RadzenText>
+                </div>
             }
             else
             {
@@ -79,7 +91,14 @@
                     </RadzenText>
                 </div>
 
-                @if (_registerSuccess)
+                @if (!(_masterUserInfo?.CanCreateTenant ?? false))
+                {
+                    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
+                        У вашего аккаунта нет прав для создания рабочих пространств.
+                        Обратитесь к администратору.
+                    </RadzenAlert>
+                }
+                else if (_registerSuccess)
                 {
                     <RadzenAlert AlertStyle="AlertStyle.Success" ShowIcon="true" AllowClose="false">
                         Компания зарегистрирована! Перенаправление...
@@ -110,8 +129,24 @@
                                 </Helper>
                             </RadzenFormField>
 
+                            <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin-bottom: -0.5rem; color: var(--rz-text-secondary-color);">
+                                Данные администратора рабочего пространства
+                            </RadzenText>
+
                             <RadzenFormField Text="Email администратора" Style="width: 100%;">
-                                <RadzenTextBox @bind-Value="_reg.AdminEmail" Style="width: 100%;" />
+                                <RadzenTextBox @bind-Value="_reg.AdminEmail" Style="width: 100%;" InputType="InputType.Email" />
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Фамилия" Style="width: 100%;">
+                                <RadzenTextBox @bind-Value="_reg.LastName" Style="width: 100%;" />
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Имя" Style="width: 100%;">
+                                <RadzenTextBox @bind-Value="_reg.FirstName" Style="width: 100%;" />
+                            </RadzenFormField>
+
+                            <RadzenFormField Text="Отчество" Style="width: 100%;">
+                                <RadzenTextBox @bind-Value="_reg.MiddleName" Style="width: 100%;" />
                             </RadzenFormField>
 
                             <RadzenFormField Text="Пароль администратора" Style="width: 100%;">
@@ -119,7 +154,7 @@
                                     <RadzenPassword @bind-Value="_reg.Password" Style="width: 100%;" />
                                 </ChildContent>
                                 <Helper>
-                                    <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов. Можно использовать свой текущий пароль.</RadzenText>
                                 </Helper>
                             </RadzenFormField>
 
@@ -161,11 +196,6 @@
                     </RadzenStack>
                 }
 
-                <hr style="margin-top: 1.5rem;" />
-                <RadzenButton Text="Выйти из панели управления" Icon="logout"
-                              ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                              Style="width: 100%; justify-content: center; margin-top: 0.5rem;"
-                              Click="@HandleMasterLogout" />
             }
         }
         else
@@ -277,18 +307,20 @@
 </div>
 
 @code {
-    private Domain.Entities.Tenants.TenantEntity? _tenant;
+    private Domain.Entities.TenantEntity? _tenant;
     private bool _initializing = true;
     private bool _hasMarketplaceClients;
 
-    // Master auth state
-    private bool _masterAuthenticated;
+    // Master auth — читаем через MasterAuthState service
+    private bool _masterAuthenticated => MasterAuthState.IsAuthenticated;
+    private MasterUserInfo? _masterUserInfo => MasterAuthState.UserInfo;
+
     private bool _masterLoginLoading;
     private string? _masterLoginError;
-    private MasterLoginModel _masterLogin = new();
+    private MasterLoginModelDto _masterLogin = new();
 
     // Tenant registration
-    private RegisterModel _reg = new();
+    private RegisterModelDto _reg = new();
     private bool _regLoading;
     private bool _registerSuccess;
     private string? _registerError;
@@ -301,7 +333,7 @@
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
 
     // Tenant login
-    private LoginModel _login = new();
+    private LoginModelDto _login = new();
     private bool _loginLoading;
     private string? _loginError;
 
@@ -316,12 +348,32 @@
                 .AsNoTracking()
                 .AnyAsync();
         }
+        else if (!MasterAuthState.IsAuthenticated)
+        {
+            // Проверяем localStorage только если сервис ещё не инициализирован
+            var isAuth = await AuthStateProvider.IsMasterAuthenticatedAsync();
+            if (isAuth)
+            {
+                var userInfo = await AuthStateProvider.GetMasterUserInfoAsync();
+                MasterAuthState.Set(true, userInfo);
+                FillRegFromUserInfo();
+            }
+        }
         else
         {
-            _masterAuthenticated = await AuthStateProvider.IsMasterAuthenticatedAsync();
+            FillRegFromUserInfo();
         }
 
         _initializing = false;
+    }
+
+    private void FillRegFromUserInfo()
+    {
+        if (_masterUserInfo is null) return;
+        _reg.AdminEmail = _masterUserInfo.Email;
+        _reg.FirstName = _masterUserInfo.FirstName;
+        _reg.LastName = _masterUserInfo.LastName;
+        _reg.MiddleName = _masterUserInfo.MiddleName;
     }
 
     private async Task HandleMasterLogin()
@@ -338,11 +390,13 @@
 
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
                 if (result?.Token is not null)
                 {
                     await AuthStateProvider.MasterLoginAsync(result.Token);
-                    _masterAuthenticated = true;
+                    var userInfo = await AuthStateProvider.GetMasterUserInfoAsync();
+                    MasterAuthState.Set(true, userInfo);
+                    FillRegFromUserInfo();
                 }
             }
             else
@@ -360,15 +414,6 @@
         }
     }
 
-    private async Task HandleMasterLogout()
-    {
-        await AuthStateProvider.MasterLogoutAsync();
-        _masterAuthenticated = false;
-        _reg = new RegisterModel();
-        _showRegTimeline = false;
-        _registerSuccess = false;
-        _registerError = null;
-    }
 
     private async Task HandleRegister()
     {
@@ -389,7 +434,10 @@
         try
         {
             var result = await TenantService.RegisterAsync(
-                _reg.CompanyName, _reg.Subdomain, _reg.AdminEmail, _reg.Password);
+                _reg.CompanyName, _reg.Subdomain,
+                _reg.AdminEmail, _reg.Password,
+                _reg.FirstName, _reg.LastName, _reg.MiddleName,
+                _masterUserInfo?.UserId);
 
             if (result.Success)
             {
@@ -446,9 +494,9 @@
 
     private PointStyle RegStepStyle(int step) => step switch
     {
-        _ when step < _regStep  => PointStyle.Success,
+        _ when step < _regStep => PointStyle.Success,
         _ when step == _regStep => PointStyle.Primary,
-        _                       => PointStyle.Secondary
+        _ => PointStyle.Secondary
     };
 
     private string RegStepLabelStyle(int step) => step == _regStep
@@ -472,7 +520,7 @@
 
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
                 if (result?.Token is not null)
                 {
                     await AuthStateProvider.LoginAsync(result.Token);
@@ -514,49 +562,5 @@
         if (string.IsNullOrWhiteSpace(name)) return "?";
         var local = name.Split('@')[0];
         return local.Length >= 2 ? local[..2].ToUpper() : local.ToUpper();
-    }
-
-    private sealed record LoginResponse(string Token, DateTime ExpiresAt);
-
-    private class MasterLoginModel
-    {
-        [Required(ErrorMessage = "Введите email")]
-        [EmailAddress(ErrorMessage = "Некорректный email")]
-        public string Email { get; set; } = "";
-
-        [Required(ErrorMessage = "Введите пароль")]
-        public string Password { get; set; } = "";
-    }
-
-    private class LoginModel
-    {
-        [Required(ErrorMessage = "Введите email")]
-        [EmailAddress(ErrorMessage = "Некорректный email")]
-        public string Email { get; set; } = "";
-
-        [Required(ErrorMessage = "Введите пароль")]
-        public string Password { get; set; } = "";
-    }
-
-    private class RegisterModel
-    {
-        [Required(ErrorMessage = "Введите название компании")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "От 2 до 100 символов")]
-        public string CompanyName { get; set; } = "";
-
-        [Required(ErrorMessage = "Введите субдомен")]
-        [RegularExpression(@"^[a-z0-9][a-z0-9\-]{1,28}[a-z0-9]$|^[a-z0-9]{3}$", ErrorMessage = "Только a-z, 0-9, дефис (3–30 символов)")]
-        public string Subdomain { get; set; } = "";
-
-        [Required(ErrorMessage = "Введите email администратора")]
-        [EmailAddress(ErrorMessage = "Некорректный email")]
-        public string AdminEmail { get; set; } = "";
-
-        [Required(ErrorMessage = "Введите пароль")]
-        [MinLength(6, ErrorMessage = "Минимум 6 символов")]
-        public string Password { get; set; } = "";
-
-        [Required(ErrorMessage = "Подтвердите пароль")]
-        public string ConfirmPassword { get; set; } = "";
     }
 }

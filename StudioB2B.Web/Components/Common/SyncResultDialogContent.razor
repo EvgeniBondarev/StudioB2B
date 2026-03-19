@@ -1,6 +1,18 @@
 @using StudioB2B.Domain.Entities.Orders
+@using SyncJobType = StudioB2B.Domain.Constants.SyncJobTypeEnum
 
-@if (Summary is not null)
+@if (ReturnsSummary is not null)
+{
+    <RadzenStack Gap="1rem">
+        <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Итог загрузки возвратов</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="2rem" Wrap="FlexWrap.Wrap">
+            <RadzenText TextStyle="TextStyle.Body2"><strong>Создано:</strong> @ReturnsSummary.Created</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2"><strong>Обновлено:</strong> @ReturnsSummary.Updated</RadzenText>
+            <RadzenText TextStyle="TextStyle.Body2"><strong>Заказов с возвратом:</strong> @ReturnsSummary.Linked</RadzenText>
+        </RadzenStack>
+    </RadzenStack>
+}
+else if (Summary is not null)
 {
     <RadzenStack Gap="1rem">
         @if (JobType == SyncJobType.Sync)
@@ -8,15 +20,15 @@
             @if (Summary.PerClient.Count > 0)
             {
                 <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Итог по клиентам</RadzenText>
-                <RadzenDataGrid TItem="ClientSyncResultItem" Data="@Summary.PerClient"
+                <RadzenDataGrid TItem="ClientSyncResultItemDto" Data="@Summary.PerClient"
                                 Density="Density.Compact" AllowSorting="true">
                     <Columns>
-                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ClientName" Title="Клиент" />
-                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="Mode" Title="Режим" Width="80px" />
-                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ShipmentsCreated" Title="Отправлений создано" Width="130px" />
-                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ShipmentsUpdated" Title="Обновлено" Width="100px" />
-                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersCreated" Title="Заказов создано" Width="120px" />
-                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersUpdated" Title="Обновлено" Width="100px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ClientName" Title="Клиент" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="Mode" Title="Режим" Width="80px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ShipmentsCreated" Title="Отправлений создано" Width="130px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ShipmentsUpdated" Title="Обновлено" Width="100px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="OrdersCreated" Title="Заказов создано" Width="120px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="OrdersUpdated" Title="Обновлено" Width="100px" />
                     </Columns>
                 </RadzenDataGrid>
 
@@ -35,15 +47,15 @@
             @if (Summary.PerClient.Count > 0)
             {
                 <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Итог по клиентам</RadzenText>
-                <RadzenDataGrid TItem="ClientSyncResultItem" Data="@Summary.PerClient"
+                <RadzenDataGrid TItem="ClientSyncResultItemDto" Data="@Summary.PerClient"
                                 Density="Density.Compact" AllowSorting="true">
                     <Columns>
-                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ClientName" Title="Клиент" />
-                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="Mode" Title="Режим" Width="80px" />
-                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="ShipmentsUpdated" Title="Отправлений обновлено" Width="150px" />
-                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersSelectedForUpdate" Title="Заказов выбрано для обновления" Width="200px" />
-                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Property="OrdersSkipped" Title="Заказов пропущено" Width="140px" />
-                        <RadzenDataGridColumn TItem="ClientSyncResultItem" Title="Изменённые поля">
+                        <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ClientName" Title="Клиент" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="Mode" Title="Режим" Width="80px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="ShipmentsUpdated" Title="Отправлений обновлено" Width="150px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="OrdersSelectedForUpdate" Title="Заказов выбрано для обновления" Width="200px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Property="OrdersSkipped" Title="Заказов пропущено" Width="140px" />
+                        <RadzenDataGridColumn TItem="ClientSyncResultItemDto" Title="Изменённые поля">
                             <Template Context="c">@c.UpdatedFieldsSummary</Template>
                         </RadzenDataGridColumn>
                     </Columns>
@@ -61,14 +73,14 @@
             @if (Summary.UpdatedShipments.Count > 0)
             {
                 <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Детализация изменений статусов</RadzenText>
-                <RadzenDataGrid TItem="ShipmentUpdateItem" Data="@Summary.UpdatedShipments"
+                <RadzenDataGrid TItem="ShipmentUpdateItemDto" Data="@Summary.UpdatedShipments"
                                 Density="Density.Compact" AllowSorting="true"
                                 AllowPaging="true" PageSize="15">
                     <Columns>
-                        <RadzenDataGridColumn TItem="ShipmentUpdateItem" Property="PostingNumber" Title="Номер отправления" />
-                        <RadzenDataGridColumn TItem="ShipmentUpdateItem" Property="ClientName" Title="Клиент" />
-                        <RadzenDataGridColumn TItem="ShipmentUpdateItem" Property="OldStatusName" Title="Было" />
-                        <RadzenDataGridColumn TItem="ShipmentUpdateItem" Property="NewStatusName" Title="Стало" />
+                        <RadzenDataGridColumn TItem="ShipmentUpdateItemDto" Property="PostingNumber" Title="Номер отправления" />
+                        <RadzenDataGridColumn TItem="ShipmentUpdateItemDto" Property="ClientName" Title="Клиент" />
+                        <RadzenDataGridColumn TItem="ShipmentUpdateItemDto" Property="OldStatusName" Title="Было" />
+                        <RadzenDataGridColumn TItem="ShipmentUpdateItemDto" Property="NewStatusName" Title="Стало" />
                     </Columns>
                 </RadzenDataGrid>
             }
@@ -77,7 +89,8 @@
 }
 
 @code {
-    [Parameter, EditorRequired] public OrderSyncSummary Summary { get; set; } = null!;
+    [Parameter] public OrderSyncSummaryDto? Summary { get; set; }
+    [Parameter] public ReturnsSyncResultDto? ReturnsSummary { get; set; }
     [Parameter, EditorRequired] public SyncJobType JobType { get; set; }
 }
 

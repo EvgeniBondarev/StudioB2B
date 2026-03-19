@@ -3,8 +3,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Domain.Entities.Master;
-using StudioB2B.Infrastructure.MultiTenancy.Initialization;
+using StudioB2B.Domain.Entities;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
 
 namespace StudioB2B.Infrastructure.Services;
@@ -19,11 +19,8 @@ public class DatabaseMigrationService : IHostedService
     private readonly IHostEnvironment _environment;
     private readonly IConfiguration _configuration;
 
-    public DatabaseMigrationService(
-        IServiceProvider serviceProvider,
-        ILogger<DatabaseMigrationService> logger,
-        IHostEnvironment environment,
-        IConfiguration configuration)
+    public DatabaseMigrationService(IServiceProvider serviceProvider, ILogger<DatabaseMigrationService> logger,
+                                    IHostEnvironment environment, IConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
@@ -108,17 +105,26 @@ public class DatabaseMigrationService : IHostedService
     private async Task SeedMasterAsync(MasterDbContext db, CancellationToken ct)
     {
         const string adminRoleName = "Admin";
-        const string adminEmail    = "admin@gmail.com";
+        const string userRoleName = "User";
+        const string adminEmail = "admin@gmail.com";
         const string adminPassword = "Admin1!";
 
         // Роль Admin
-        var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == adminRoleName, ct);
-        if (role is null)
+        var adminRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == adminRoleName, ct);
+        if (adminRole is null)
         {
-            role = new MasterRole { Id = Guid.NewGuid(), Name = adminRoleName };
-            db.Roles.Add(role);
+            adminRole = new MasterRole { Id = Guid.NewGuid(), Name = adminRoleName };
+            db.Roles.Add(adminRole);
             await db.SaveChangesAsync(ct);
             _logger.LogInformation("Master: role '{Role}' created", adminRoleName);
+        }
+
+        // Роль User
+        if (!await db.Roles.AnyAsync(r => r.Name == userRoleName, ct))
+        {
+            db.Roles.Add(new MasterRole { Id = Guid.NewGuid(), Name = userRoleName });
+            await db.SaveChangesAsync(ct);
+            _logger.LogInformation("Master: role '{Role}' created", userRoleName);
         }
 
         // Пользователь Admin
@@ -127,13 +133,15 @@ public class DatabaseMigrationService : IHostedService
         {
             var user = new MasterUser
             {
-                Id           = Guid.NewGuid(),
-                Email        = normalizedEmail,
+                Id = Guid.NewGuid(),
+                Email = normalizedEmail,
                 HashPassword = BCrypt.Net.BCrypt.HashPassword(adminPassword),
-                IsActive     = true
+                FirstName = "Admin",
+                LastName = "User",
+                IsActive = true
             };
             db.Users.Add(user);
-            db.UserRoles.Add(new MasterUserRole { UserId = user.Id, RoleId = role.Id });
+            db.UserRoles.Add(new MasterUserRole { UserId = user.Id, RoleId = adminRole.Id });
             await db.SaveChangesAsync(ct);
             _logger.LogInformation("Master: default admin user created ({Email})", normalizedEmail);
         }

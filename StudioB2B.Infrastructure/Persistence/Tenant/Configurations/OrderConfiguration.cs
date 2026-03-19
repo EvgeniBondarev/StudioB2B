@@ -1,12 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Entities;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Configurations;
 
-public class OrderConfiguration : IEntityTypeConfiguration<Order>
+public class OrderConfiguration : IEntityTypeConfiguration<OrderEntity>
 {
-    public void Configure(EntityTypeBuilder<Order> builder)
+    public void Configure(EntityTypeBuilder<OrderEntity> builder)
     {
         builder.ToTable("Orders");
         builder.HasKey(o => o.Id);
@@ -23,7 +23,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasOne(o => o.ProductInfo)
-            .WithOne(p => p.Order)
+            .WithOne(p => p.OrderEntity)
             .HasForeignKey<OrderProductInfo>(p => p.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
 
@@ -38,7 +38,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(o => o.Prices)
-            .WithOne(p => p.Order)
+            .WithOne(p => p.OrderEntity)
             .HasForeignKey(p => p.OrderId)
             .OnDelete(DeleteBehavior.Cascade);
     }

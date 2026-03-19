@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using StudioB2B.Infrastructure.MultiTenancy.Initialization;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
-using StudioB2B.Infrastructure.MultiTenancy.Middleware;
+using StudioB2B.Infrastructure.Services.MultiTenancy;
 using StudioB2B.Web.Components;
 using StudioB2B.Web.Hubs;
 
@@ -45,9 +45,9 @@ public static class PipelineExtensions
         try
         {
             await using var scope = app.Services.CreateAsyncScope();
-            var masterDb    = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
+            var masterDb = scope.ServiceProvider.GetRequiredService<MasterDbContext>();
             var initializer = scope.ServiceProvider.GetRequiredService<ITenantDatabaseInitializer>();
-            var logger      = scope.ServiceProvider.GetRequiredService<ILogger<WebApplication>>();
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<WebApplication>>();
 
             var tenants = await masterDb.Tenants
                 .Select(t => new { t.Id, t.ConnectionString })

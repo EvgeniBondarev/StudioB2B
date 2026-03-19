@@ -13,7 +13,6 @@
     <ItemGroup>
       <Folder Include="Persistence\Master\Migrations\" />
       <Folder Include="Persistence\Tenant\Migrations\" />
-      <Folder Include="Services\" />
     </ItemGroup>
 
     <ItemGroup>
@@ -30,7 +29,9 @@
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         <PrivateAssets>all</PrivateAssets>
       </PackageReference>
+      <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
       <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.*" />
+      <PackageReference Include="System.Data.SqlClient" Version="4.9.1" />
     </ItemGroup>
 
     <ItemGroup>

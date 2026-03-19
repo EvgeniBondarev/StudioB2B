@@ -1,0 +1,873 @@
+@using Microsoft.EntityFrameworkCore
+@using StudioB2B.Domain.Entities
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Shared.DTOs
+
+@inject ITenantDbContextFactory Factory
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject ContextMenuService ContextMenuService
+@inject IJSRuntime JS
+@inject ITenantProvider TenantProvider
+
+@implements IAsyncDisposable
+
+<div style="display:flex;flex-direction:column;gap:0.75rem;">
+
+    <!-- Toolbar -->
+    <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center" Style="flex-wrap:wrap;">
+        <RadzenButton Icon="add_circle_outline" Text="Добавить статус"
+                      ButtonStyle="ButtonStyle.Primary" Shade="Shade.Light"
+                      Click="@OpenAddStatusDialog" />
+        <RadzenButton Icon="grid_view" Text="Авторазметка"
+                      ButtonStyle="ButtonStyle.Light"
+                      Click="@AutoLayout"
+                      Disabled="@(_nodes.Count == 0)" />
+        <RadzenButton Icon="@(_collapsed.Count == _transactions.Count && _transactions.Count > 0 ? "unfold_more" : "unfold_less")"
+                      Text="@(_collapsed.Count == _transactions.Count && _transactions.Count > 0 ? "Развернуть все" : "Свернуть все")"
+                      ButtonStyle="ButtonStyle.Light"
+                      Click="@ToggleCollapseAll"
+                      Disabled="@(_transactions.Count == 0)" />
+        <RadzenButton Icon="delete_sweep" Text="Очистить холст"
+                      ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text"
+                      Click="@ClearCanvas"
+                      Disabled="@(_nodes.Count == 0)" />
+        @if (_loading)
+        {
+            <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate"
+                                       Size="ProgressBarCircularSize.ExtraSmall" />
+        }
+
+        <!-- Zoom controls -->
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                     Gap="0" Style="margin-left:auto;border:1px solid var(--rz-border-color);border-radius:6px;overflow:hidden;">
+            <RadzenButton Icon="remove" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                          Click="@ZoomOut" Title="Уменьшить" Style="border-radius:0;border:none;min-width:32px;" />
+            <span style="padding:0 8px;font-size:0.8rem;min-width:46px;text-align:center;cursor:pointer;user-select:none;background:var(--rz-base-background);"
+                  @onclick="@ZoomReset" title="Сбросить масштаб">@($"{(int)Math.Round(_zoom * 100)}%")</span>
+            <RadzenButton Icon="add" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                          Click="@ZoomIn" Title="Увеличить" Style="border-radius:0;border:none;min-width:32px;" />
+        </RadzenStack>
+    </RadzenStack>
+
+    <!-- Canvas -->
+    <div id="tc-canvas-outer"
+         style="position:relative;background:var(--rz-base-50);border:1px solid var(--rz-border-color);border-radius:8px;overflow:hidden;height:700px;">
+
+        @if (!_loading && _nodes.Count == 0)
+        {
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;user-select:none;z-index:1;">
+                <i class="rzi" style="font-size:3.5rem;color:var(--rz-text-disabled-color);">account_tree</i>
+                <div style="color:var(--rz-text-secondary-color);margin-top:0.5rem;font-size:0.9rem;">
+                    Нажмите «Добавить статус», чтобы начать строить схему переходов
+                </div>
+            </div>
+        }
+
+        <!-- Inner layer — all content, scaled & panned -->
+        @{
+            var innerTransform = $"translate({F(_panX)}px,{F(_panY)}px) scale({F(_zoom)})";
+            var innerStyle = "position:absolute;top:0;left:0;min-width:3000px;min-height:2000px;transform-origin:0 0;transform:" + innerTransform + ";";
+        }
+        <div id="tc-canvas" style="@innerStyle">
+        <svg @key="@($"svg-{_svgVersion}")" id="tc-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:5;">
+            <defs>
+                <marker id="tc-arrow-head-default" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto">
+                    <polygon points="0 0,10 3.5,0 7" fill="#6366f1" />
+                </marker>
+                @foreach (var arrowColor in GetDistinctTxColors())
+                {
+                    var markerId = "tc-arr-" + arrowColor.TrimStart('#');
+                    <marker id="@markerId" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto">
+                        <polygon points="0 0,10 3.5,0 7" fill="@arrowColor" />
+                    </marker>
+                }
+            </defs>
+            @foreach (var tx in _transactions)
+            {
+                if (!_nodes.TryGetValue(tx.FromSystemStatusId, out var fpx)) continue;
+                if (!_nodes.TryGetValue(tx.ToSystemStatusId, out var tpx)) continue;
+                var (ax1, ay1, ax2, ay2) = GetPorts(fpx, tpx);
+                var txColor2 = NormColor(tx.Color);
+                var arrowMarkerId = "tc-arr-" + txColor2.TrimStart('#');
+                var arrowPath = Bezier(ax1, ay1, ax2, ay2);
+                <path id="@($"tc-path-{tx.Id:N}")"
+                      data-from-id="@tx.FromSystemStatusId"
+                      data-to-id="@tx.ToSystemStatusId"
+                      d="@arrowPath" stroke="@txColor2" stroke-width="2" fill="none" marker-end="url(#@arrowMarkerId)" />
+            }
+        </svg>
+
+        <!-- Transaction cards on arrows (clickable, z-index 12) -->
+        @foreach (var tx in _transactions)
+        {
+            if (!_nodes.TryGetValue(tx.FromSystemStatusId, out var flp)) continue;
+            if (!_nodes.TryGetValue(tx.ToSystemStatusId, out var tlp)) continue;
+            var (lx1, ly1, lx2, ly2) = GetPorts(flp, tlp);
+            var midX = (lx1 + lx2) / 2.0;
+            var midY = (ly1 + ly2) / 2.0;
+            var txColor = NormColor(tx.Color);
+            var txBg = SoftBg(txColor);
+            var sortedRules = tx.Rules.OrderBy(r => r.SortOrder).ToList();
+            var sortedFieldRules = tx.FieldRules.OrderBy(r => r.SortOrder).ToList();
+
+            // Transaction cards: dashed border, white background, action feel
+            var cardWrapStyle = $"position:absolute;left:{F(midX)}px;top:{F(midY)}px;transform:translate(-50%,-50%);width:210px;z-index:12;cursor:pointer;";
+            var cardStyle = $"background:rgba(255,255,255,0.55);backdrop-filter:blur(2px);border:2px dashed {txColor};border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.10);overflow:hidden;";
+            var headerStyle = $"background:{txColor};padding:5px 8px;display:flex;align-items:center;gap:5px;";
+            var headerFg = IsLight(txColor) ? "#1f2937" : "#ffffff";
+            var deleteBtnStyle = $"flex-shrink:0;width:18px;height:18px;border-radius:3px;background:rgba(0,0,0,.2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;color:{headerFg};font-size:0.75rem;line-height:1;";
+            var collapseBtnStyle = $"flex-shrink:0;width:18px;height:18px;border-radius:3px;background:rgba(0,0,0,.15);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;color:{headerFg};font-size:0.7rem;line-height:1;";
+            var accentBg = "rgba(255,255,255,0.45)"; // semi-transparent section backgrounds
+            var isCollapsed = _collapsed.Contains(tx.Id);
+
+            <div id="@($"tc-tx-{tx.Id:N}")"
+                 data-from-id="@tx.FromSystemStatusId"
+                 data-to-id="@tx.ToSystemStatusId"
+                 style="@cardWrapStyle" @onclick="@(() => EditTxAsync(tx))" title="Нажмите для редактирования">
+                <div style="@cardStyle">
+
+                    <!-- Solid header: collapse + type marker + icon + name + delete -->
+                    <div style="@headerStyle">
+                        <!-- Collapse/expand button -->
+                        <button style="@collapseBtnStyle" title="@(isCollapsed ? "Развернуть" : "Свернуть")"
+                                @onclick="@(() => ToggleCollapse(tx.Id))"
+                                @onclick:stopPropagation="true">
+                            <i class="rzi" style="font-size:0.75rem;pointer-events:none;">@(isCollapsed ? "expand_more" : "expand_less")</i>
+                        </button>
+                        <span style="@($"font-size:0.65rem;color:{headerFg};opacity:.8;flex-shrink:0;")">⚡</span>
+                        @if (!string.IsNullOrEmpty(tx.Icon))
+                        {
+                            <i class="rzi" style="@($"font-size:0.9rem;color:{headerFg};flex-shrink:0;")">@tx.Icon</i>
+                        }
+                        <span style="@($"font-size:0.73rem;font-weight:700;color:{headerFg};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;")">@tx.Name</span>
+                        @if (!tx.IsEnabled)
+                        {
+                            <span style="font-size:0.65rem;color:@headerFg;opacity:.7;flex-shrink:0;" title="Неактивна">⊘</span>
+                        }
+                        <button style="@deleteBtnStyle" title="Удалить транзакцию"
+                                @onclick="@(() => DeleteTxAsync(tx))"
+                                @onclick:stopPropagation="true">×</button>
+                    </div>
+
+                    @if (!isCollapsed)
+                    {
+                        <!-- Direction hint bar -->
+                        var fromName = _allStatuses.FirstOrDefault(s => s.Id == tx.FromSystemStatusId)?.Name ?? "?";
+                        var toName = _allStatuses.FirstOrDefault(s => s.Id == tx.ToSystemStatusId)?.Name ?? "?";
+                        <div style="@($"background:{accentBg};padding:3px 8px;display:flex;align-items:center;gap:4px;border-bottom:1px dashed {txColor};")">
+                            <span style="font-size:0.62rem;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70px;" title="@fromName">@fromName</span>
+                            <span style="@($"font-size:0.7rem;color:{txColor};font-weight:700;flex-shrink:0;")">→</span>
+                            <span style="font-size:0.62rem;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70px;" title="@toName">@toName</span>
+                        </div>
+
+                        <!-- Price rules -->
+                        @if (sortedRules.Count > 0)
+                        {
+                            <div style="@($"padding:4px 8px;border-bottom:1px dashed {txColor};background:{accentBg};")">
+                                <div style="font-size:0.62rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">
+                                    💰 Правила цен
+                                </div>
+                                @foreach (var r in sortedRules)
+                                {
+                                    var ptName = r.PriceType?.Name ?? "—";
+                                    var srcLabel = r.ValueSource == TransactionValueSourceEnum.Formula
+                                        ? $"= {(string.IsNullOrEmpty(r.Formula) ? "формула" : TruncateFormula(r.Formula))}"
+                                        : "ввод";
+                                    var srcColor = r.ValueSource == TransactionValueSourceEnum.Formula ? "#0369a1" : "#6b7280";
+                                    <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">
+                                        <span style="font-size:0.7rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1f2937;" title="@ptName">@ptName</span>
+                                        <span style="@($"font-size:0.62rem;color:{srcColor};flex-shrink:0;font-style:italic;background:rgba(255,255,255,.6);border-radius:3px;padding:0 3px;")">@srcLabel</span>
+                                        @if (r.IsRequired)
+                                        {
+                                            <span style="color:#dc2626;font-size:0.7rem;flex-shrink:0;font-weight:700;" title="Обязательное">*</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <!-- Field rules -->
+                        @if (sortedFieldRules.Count > 0)
+                        {
+                            <div style="@($"padding:4px 8px;background:{accentBg};")">
+                                <div style="font-size:0.62rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;">
+                                    ✏️ Правила полей
+                                </div>
+                                @foreach (var fr in sortedFieldRules)
+                                {
+                                    var fieldName = OrderTransactionFieldRegistry.Get(fr.EntityPath)?.DisplayName ?? fr.EntityPath;
+                                    var fSrcLabel = fr.ValueSource == TransactionFieldValueSourceEnum.Fixed
+                                        ? $"= {fr.FixedValue ?? "—"}"
+                                        : "ввод";
+                                    var fSrcColor = fr.ValueSource == TransactionFieldValueSourceEnum.Fixed ? "#0369a1" : "#6b7280";
+                                    <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;">
+                                        <span style="font-size:0.7rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1f2937;" title="@fieldName">@fieldName</span>
+                                        <span style="@($"font-size:0.62rem;color:{fSrcColor};flex-shrink:0;font-style:italic;background:rgba(255,255,255,.6);border-radius:3px;padding:0 3px;")">@fSrcLabel</span>
+                                        @if (fr.IsRequired)
+                                        {
+                                            <span style="color:#dc2626;font-size:0.7rem;flex-shrink:0;font-weight:700;" title="Обязательное">*</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        @if (sortedRules.Count == 0 && sortedFieldRules.Count == 0)
+                        {
+                            <div style="@($"padding:5px 8px;background:{accentBg};")">
+                                <span style="font-size:0.7rem;color:#9ca3af;font-style:italic;">Нет правил</span>
+                            </div>
+                        }
+                    }
+
+                </div>
+            </div>
+        }
+
+        <!-- Status node cards (z-index 10, draggable via JS) -->
+        @foreach (var statusId in _nodes.Keys)
+        {
+            var status = _allStatuses.FirstOrDefault(s => s.Id == statusId);
+            if (status == null) continue;
+            var nodeId = $"tc-node-{statusId:N}";
+            var sc = GetStatusColor(status);
+            var scFg = IsLight(sc) ? "#1f2937" : "#ffffff";
+            var scSoft = SoftBg(sc);
+            var txOut = _transactions.Count(t => t.FromSystemStatusId == statusId);
+            var txIn = _transactions.Count(t => t.ToSystemStatusId == statusId);
+
+            // Status nodes: pill shape, full-color header, solid border, left accent stripe
+            var nodeWrapperStyle = "position:absolute;width:190px;user-select:none;z-index:10;";
+            // Solid border + thick left accent stripe via box-shadow inset
+            var cardStyle = $"background:white;border:2px solid {sc};border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.14),inset 4px 0 0 {sc};position:relative;overflow:hidden;";
+            // Header: FULL color background (contrasts with transaction cards that use soft tint)
+            var headerStyle = $"background:{sc};padding:8px 12px 7px;border-radius:12px 12px 0 0;display:flex;align-items:center;gap:7px;cursor:grab;";
+            // Small "state" type indicator in top-right
+            var typeIndicator = status.IsTerminal ? "⏹" : "⬤";
+
+            var portActive = !status.IsTerminal;
+            var portStyle = portActive
+                ? $"position:absolute;right:-10px;top:50%;transform:translateY(-50%);width:20px;height:20px;background:white;border:2.5px solid {sc};border-radius:50%;cursor:crosshair;z-index:20;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.2);"
+                : "position:absolute;right:-10px;top:50%;transform:translateY(-50%);width:20px;height:20px;background:#f3f4f6;border:2px solid #d1d5db;border-radius:50%;cursor:not-allowed;z-index:20;display:flex;align-items:center;justify-content:center;opacity:.5;";
+            var portIconStyle = portActive
+                ? $"font-size:0.65rem;color:{sc};line-height:1;pointer-events:none;font-weight:700;"
+                : "font-size:0.6rem;color:#9ca3af;line-height:1;pointer-events:none;";
+
+            <div id="@nodeId" data-status-id="@statusId" style="@nodeWrapperStyle"
+                 @oncontextmenu="@(e => ShowNodeMenu(e, statusId))"
+                 @oncontextmenu:preventDefault="true">
+                <div style="@cardStyle">
+
+                    <!-- Full-color header (state = "where you are") -->
+                    <div class="tc-node-header" style="@headerStyle">
+                        <span style="@($"font-size:0.75rem;font-weight:800;color:{scFg};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.01em;")" title="@status.Name">@status.Name</span>
+                        <span style="@($"font-size:0.7rem;color:{scFg};opacity:.75;flex-shrink:0;")" title="@(status.IsTerminal ? "Конечный статус" : "Статус")">@typeIndicator</span>
+                    </div>
+
+                    <!-- Body: tags row -->
+                    <div style="padding:6px 10px 6px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;min-height:30px;background:white;">
+                        @if (status.IsTerminal)
+                        {
+                            <span style="background:#fee2e2;color:#b91c1c;border-radius:20px;padding:2px 8px;font-size:0.63rem;font-weight:700;letter-spacing:.02em;">КОНЕЧНЫЙ</span>
+                        }
+                        @if (status.IsInternal)
+                        {
+                            <span style="background:#e0f2fe;color:#0369a1;border-radius:20px;padding:2px 8px;font-size:0.63rem;font-weight:700;letter-spacing:.02em;">ВНУТРЕННИЙ</span>
+                        }
+                        @if (!status.IsTerminal && !status.IsInternal)
+                        {
+                            <span style="@($"background:{scSoft};color:{sc};border-radius:20px;padding:2px 8px;font-size:0.63rem;font-weight:600;")">СТАТУС</span>
+                        }
+                        @if (txIn > 0 || txOut > 0)
+                        {
+                            <span style="color:#9ca3af;font-size:0.62rem;margin-left:auto;" title="Входящих / Исходящих">↑@txIn&thinsp;↓@txOut</span>
+                        }
+                    </div>
+
+                    <!-- Port -->
+                    @if (portActive)
+                    {
+                        <div class="tc-port" style="@portStyle"
+                             @onmousedown="@(e => StartConnect(statusId))"
+                             @onmousedown:stopPropagation="true"
+                             title="Потяните для создания транзакции">
+                            <span style="@portIconStyle">→</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="@portStyle" title="Конечный статус — исходящие транзакции запрещены">
+                            <i class="rzi" style="@portIconStyle">lock</i>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        </div> @* end #tc-canvas (inner) *@
+    </div> @* end #tc-canvas-outer *@
+</div>
+
+@code {
+    [Parameter] public EventCallback OnTransactionsChanged { get; set; }
+
+    private TenantDbContext? _db;
+    private DotNetObjectReference<TransactionFlowCanvas>? _ref;
+    private bool _loading = true;
+
+    private List<OrderStatus> _allStatuses = [];
+    private List<OrderTransaction> _transactions = [];
+
+    private Dictionary<Guid, Pos> _nodes = new();
+    private HashSet<Guid> _jsInited = new();
+    private int _svgVersion;
+
+    // ──────────────────────── zoom / pan ────────────────────────
+    private double _zoom = 1.0;
+    private double _panX;
+    private double _panY;
+    private const double ZoomMin = 0.2;
+    private const double ZoomMax = 3.0;
+    private const double ZoomStep = 0.15;
+
+    [JSInvokable]
+    public async Task OnCanvasWheel(double mouseX, double mouseY, double deltaY)
+    {
+        var oldZoom = _zoom;
+        var factor = deltaY < 0 ? 1.15 : 1.0 / 1.15;
+        _zoom = Math.Clamp(_zoom * factor, ZoomMin, ZoomMax);
+        // Keep the point under the mouse cursor fixed
+        _panX = mouseX - (mouseX - _panX) * (_zoom / oldZoom);
+        _panY = mouseY - (mouseY - _panY) * (_zoom / oldZoom);
+        await JS.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnPanEnd(double panX, double panY)
+    {
+        _panX = panX;
+        _panY = panY;
+        // Blazor re-renders with the already-correct transform — no flicker
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ZoomIn()
+    {
+        _zoom = Math.Min(_zoom + ZoomStep, ZoomMax);
+        await JS.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
+        StateHasChanged();
+    }
+
+    private async Task ZoomOut()
+    {
+        _zoom = Math.Max(_zoom - ZoomStep, ZoomMin);
+        await JS.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
+        StateHasChanged();
+    }
+
+    private async Task ZoomReset()
+    {
+        _zoom = 1.0; _panX = 0.0; _panY = 0.0;
+        await JS.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
+        StateHasChanged();
+    }
+
+    // true = collapsed (only header visible), false/missing = expanded
+    private HashSet<Guid> _collapsed = new();
+
+    private void ToggleCollapse(Guid txId)
+    {
+        if (!_collapsed.Add(txId))
+            _collapsed.Remove(txId);
+    }
+
+    private void ToggleCollapseAll()
+    {
+        // If all are collapsed — expand all; otherwise collapse all
+        if (_collapsed.Count == _transactions.Count && _transactions.Count > 0)
+            _collapsed.Clear();
+        else
+            foreach (var tx in _transactions)
+                _collapsed.Add(tx.Id);
+    }
+
+    private sealed class Pos { public double X; public double Y; public Pos() { } public Pos(double x, double y) { X = x; Y = y; } }
+
+    // ──────────────────────── lifecycle ────────────────────────
+
+    protected override async Task OnInitializedAsync()
+    {
+        _ref = DotNetObjectReference.Create(this);
+        _db = Factory.CreateDbContext();
+        await LoadDataAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadPositionsAsync();
+            _loading = false;
+            StateHasChanged();
+            await Task.Delay(60);
+            await JS.InvokeVoidAsync("transactionCanvas.initWheelZoom", "tc-canvas-outer", _ref);
+            await JS.InvokeVoidAsync("transactionCanvas.initPan", "tc-canvas-outer", "tc-canvas", _ref);
+            await JS.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
+        }
+        await InitPendingNodesAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _allStatuses = await _db!.OrderStatuses
+            .Where(s => !s.IsDeleted)
+            .OrderBy(s => s.Name)
+            .AsNoTracking()
+            .ToListAsync();
+
+        _transactions = await _db.OrderTransactions
+            .Include(t => t.Rules).ThenInclude(r => r.PriceType)
+            .Include(t => t.FieldRules)
+            .Where(t => !t.IsDeleted)
+            .AsNoTracking()
+            .ToListAsync();
+    }
+
+    private async Task LoadPositionsAsync()
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string>("transactionCanvas.loadPositions", StorageKey);
+            if (!string.IsNullOrWhiteSpace(json) && json != "{}")
+            {
+                var raw = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, System.Text.Json.JsonElement>>(json);
+                if (raw != null)
+                {
+                    _nodes = new Dictionary<Guid, Pos>();
+                    foreach (var kv in raw)
+                    {
+                        if (!Guid.TryParse(kv.Key, out var id)) continue;
+                        var x = kv.Value.TryGetProperty("X", out var xp) ? xp.GetDouble() : 0;
+                        var y = kv.Value.TryGetProperty("Y", out var yp) ? yp.GetDouble() : 0;
+                        _nodes[id] = new Pos(x, y);
+                    }
+                }
+            }
+        }
+        catch { /* ignore */ }
+
+        // First launch: if nothing is saved yet but transactions exist in DB —
+        // automatically place all involved statuses on the canvas in a grid layout.
+        if (_nodes.Count == 0 && _transactions.Count > 0)
+            await AutoPopulateFromTransactions();
+    }
+
+    /// <summary>
+    /// Collects every status that participates in at least one transaction and
+    /// arranges them automatically.  Called only on first launch (empty localStorage).
+    /// </summary>
+    private async Task AutoPopulateFromTransactions()
+    {
+        // Collect all status IDs involved in existing transactions
+        var ids = _transactions
+            .SelectMany(t => new[] { t.FromSystemStatusId, t.ToSystemStatusId })
+            .Distinct()
+            .ToList();
+
+        foreach (var (id, pos) in ComputeTopologicalLayout(ids))
+            _nodes[id] = pos;
+
+        await SavePositionsAsync();
+    }
+
+    private async Task InitPendingNodesAsync()
+    {
+        foreach (var id in _nodes.Keys.Except(_jsInited).ToList())
+        {
+            var pos = _nodes[id];
+            try
+            {
+                await JS.InvokeVoidAsync("transactionCanvas.initNodeDrag",
+                    $"tc-node-{id:N}", id.ToString(), pos.X, pos.Y, _ref);
+                _jsInited.Add(id);
+            }
+            catch { /* element may not be in DOM yet */ }
+        }
+    }
+
+    // ──────────────────────── JS-invokable ────────────────────────
+
+    [JSInvokable]
+    public async Task OnNodeMoved(string idStr, double x, double y)
+    {
+        if (!Guid.TryParse(idStr, out var id)) return;
+        _nodes[id] = new Pos(Math.Max(0, x), Math.Max(0, y));
+        _svgVersion++;
+        await SavePositionsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnConnectionMade(string fromStr, string toStr)
+    {
+        if (!Guid.TryParse(fromStr, out var fromId) || !Guid.TryParse(toStr, out var toId)) return;
+        await InvokeAsync(async () =>
+        {
+            // Terminal statuses cannot be the source of a transaction
+            var fromStatus = _allStatuses.FirstOrDefault(s => s.Id == fromId);
+            if (fromStatus?.IsTerminal == true)
+            {
+                NotificationService.Notify(NotificationSeverity.Warning,
+                    "Запрещено",
+                    $"Статус «{fromStatus.Name}» является конечным — исходящие транзакции из него недопустимы.");
+                return;
+            }
+            var existing = _transactions.FirstOrDefault(t =>
+                t.FromSystemStatusId == fromId && t.ToSystemStatusId == toId);
+            if (existing != null)
+            {
+                await EditTxAsync(existing);
+                return;
+            }
+            var result = await DialogService.OpenAsync<OrderTransactionDialog>(
+                "Новый документ",
+                new Dictionary<string, object?>
+                {
+                    ["InitialFromStatusId"] = fromId,
+                    ["InitialToStatusId"] = toId
+                },
+                new DialogOptions { Width = "min(900px, 95vw)", Resizable = true });
+            if (result is bool b && b)
+            {
+                await ReloadTxAsync();
+                await OnTransactionsChanged.InvokeAsync();
+            }
+        });
+    }
+
+    // ──────────────────────── actions ────────────────────────
+
+    private async Task StartConnect(Guid statusId)
+        => await JS.InvokeVoidAsync("transactionCanvas.startConnect",
+            statusId.ToString(), $"tc-node-{statusId:N}", "tc-canvas-outer", "tc-svg", _ref);
+
+    private async Task OpenAddStatusDialog()
+    {
+        var available = _allStatuses
+            .Where(s => !_nodes.ContainsKey(s.Id))
+            .OrderBy(s => s.Name)
+            .ToList();
+
+        if (available.Count == 0)
+        {
+            NotificationService.Notify(NotificationSeverity.Info, "Все статусы уже на холсте");
+            return;
+        }
+
+        var result = await DialogService.OpenAsync<AddStatusToCanvasDialog>(
+            "Добавить статусы на холст",
+            new Dictionary<string, object?> { ["Statuses"] = available },
+            new DialogOptions { Width = "440px" });
+
+        if (result is List<Guid> ids && ids.Count > 0)
+            await PlaceNodesAsync(ids);
+    }
+
+    private async Task PlaceNodesAsync(IList<Guid> newIds)
+    {
+        // Add new nodes below existing ones first, then re-layout everything
+        var baseY = _nodes.Count > 0 ? _nodes.Values.Max(p => p.Y) + 200 : 40.0;
+        var col = 0; var row = 0;
+        foreach (var id in newIds.Where(id => !_nodes.ContainsKey(id)))
+        {
+            _nodes[id] = new Pos(40 + col * 500, baseY + row * 200);
+            col++;
+            if (col >= 3) { col = 0; row++; }
+        }
+        await SavePositionsAsync();
+        StateHasChanged();
+        await Task.Delay(80);
+        await InitPendingNodesAsync();
+    }
+
+    private async Task AutoLayout()
+    {
+        var layout = ComputeTopologicalLayout(_nodes.Keys.ToList());
+        foreach (var (id, pos) in layout)
+            _nodes[id] = pos;
+
+        _panX = 0; _panY = 0;
+        await SavePositionsAsync();
+        StateHasChanged();
+        await Task.Delay(50);
+        await JS.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
+        foreach (var (id, p) in _nodes)
+            try { await JS.InvokeVoidAsync("transactionCanvas.setNodePosition", $"tc-node-{id:N}", p.X, p.Y); }
+            catch { /* ignore */ }
+    }
+
+    /// <summary>
+    /// Assigns positions using a layered topological layout.
+    /// Sources (no incoming edges) go to column 0; each edge increases the target's column.
+    /// Horizontal gap = 500 px (fits 210-px transaction cards between nodes).
+    /// Vertical gap   = 200 px (fits expanded transaction card height).
+    /// </summary>
+    private Dictionary<Guid, Pos> ComputeTopologicalLayout(IList<Guid> ids)
+    {
+        const double hGap = 500;   // left-edge to left-edge of next column
+        const double vGap = 200;   // top-edge to top-edge of next row within a column
+        const double startX = 60;
+        const double startY = 60;
+
+        var nodeSet = ids.ToHashSet();
+
+        // Build adjacency and in-degree from current transactions
+        var adj = ids.ToDictionary(id => id, _ => new List<Guid>());
+        var inDeg = ids.ToDictionary(id => id, _ => 0);
+
+        foreach (var tx in _transactions)
+        {
+            var f = tx.FromSystemStatusId;
+            var t = tx.ToSystemStatusId;
+            if (nodeSet.Contains(f) && nodeSet.Contains(t) && f != t)
+            {
+                adj[f].Add(t);
+                inDeg[t]++;
+            }
+        }
+
+        // Kahn's BFS topological sort
+        var queue = new Queue<Guid>(ids.Where(id => inDeg[id] == 0).OrderBy(id => StatusName(id)));
+        var topoOrder = new List<Guid>();
+        while (queue.Count > 0)
+        {
+            var curr = queue.Dequeue();
+            topoOrder.Add(curr);
+            foreach (var next in adj[curr].OrderBy(id => StatusName(id)))
+                if (--inDeg[next] == 0)
+                    queue.Enqueue(next);
+        }
+        // Nodes in cycles (still have inDeg > 0) appended alphabetically
+        topoOrder.AddRange(ids.Where(id => !topoOrder.Contains(id)).OrderBy(id => StatusName(id)));
+
+        // Assign column = longest distance from any root
+        var col = ids.ToDictionary(id => id, _ => 0);
+        foreach (var id in topoOrder)
+            foreach (var next in adj[id])
+                col[next] = Math.Max(col[next], col[id] + 1);
+
+        // Group by column, sort within column alphabetically
+        var byCol = ids
+            .GroupBy(id => col[id])
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        var result = new Dictionary<Guid, Pos>();
+        foreach (var group in byCol)
+        {
+            var colIdx = group.Key;
+            var rows = group.OrderBy(id => StatusName(id)).ToList();
+            for (var rowIdx = 0; rowIdx < rows.Count; rowIdx++)
+                result[rows[rowIdx]] = new Pos(startX + colIdx * hGap, startY + rowIdx * vGap);
+        }
+        return result;
+    }
+
+    private string StatusName(Guid id)
+        => _allStatuses.FirstOrDefault(s => s.Id == id)?.Name ?? string.Empty;
+
+    private async Task ClearCanvas()
+    {
+        var ok = await DialogService.Confirm("Убрать все статусы с холста?", "Очистить холст",
+            new ConfirmOptions { OkButtonText = "Очистить", CancelButtonText = "Отмена" });
+        if (ok != true) return;
+        _nodes.Clear();
+        _jsInited.Clear();
+        await SavePositionsAsync();
+        StateHasChanged();
+    }
+
+    private async Task EditTxAsync(OrderTransaction tx)
+    {
+        var result = await DialogService.OpenAsync<OrderTransactionDialog>(
+            "Редактировать документ",
+            new Dictionary<string, object?> { ["TransactionId"] = tx.Id },
+            new DialogOptions { Width = "min(900px, 95vw)", Resizable = true });
+        if (result is bool b && b)
+        {
+            await ReloadTxAsync();
+            await OnTransactionsChanged.InvokeAsync();
+        }
+    }
+
+    private async Task DeleteTxAsync(OrderTransaction tx)
+    {
+        var confirmed = await DialogService.Confirm(
+            $"Удалить транзакцию «{tx.Name}»? Это действие необратимо.",
+            "Подтверждение удаления",
+            new ConfirmOptions { OkButtonText = "Удалить", CancelButtonText = "Отмена" });
+
+        if (confirmed != true) return;
+
+        try
+        {
+            _db?.Dispose();
+            _db = Factory.CreateDbContext();
+            var entity = await _db.OrderTransactions.FindAsync(tx.Id);
+            if (entity != null)
+            {
+                entity.IsDeleted = true;
+                await _db.SaveChangesAsync();
+                NotificationService.Notify(NotificationSeverity.Success, "Транзакция удалена", tx.Name);
+            }
+            await ReloadTxAsync();
+            await OnTransactionsChanged.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка удаления", ex.Message);
+        }
+    }
+
+    private void ShowNodeMenu(MouseEventArgs e, Guid statusId)
+    {
+        var name = _allStatuses.FirstOrDefault(s => s.Id == statusId)?.Name ?? "";
+        ContextMenuService.Open(e,
+        [
+            new ContextMenuItem { Text = $"Убрать «{name}» с холста", Icon = "remove_circle", Value = "remove" }
+        ],
+        async ev =>
+        {
+            ContextMenuService.Close();
+            if (ev.Value?.ToString() == "remove")
+            {
+                _nodes.Remove(statusId);
+                _jsInited.Remove(statusId);
+                await SavePositionsAsync();
+                StateHasChanged();
+            }
+        });
+    }
+
+    public async Task ReloadAsync()
+    {
+        await ReloadTxAsync();
+        await LoadDataAsync();
+        StateHasChanged();
+    }
+
+    private async Task ReloadTxAsync()
+    {
+        _db?.Dispose();
+        _db = Factory.CreateDbContext();
+        _transactions = await _db.OrderTransactions
+            .Include(t => t.Rules).ThenInclude(r => r.PriceType)
+            .Include(t => t.FieldRules)
+            .Where(t => !t.IsDeleted)
+            .AsNoTracking()
+            .ToListAsync();
+        StateHasChanged();
+    }
+
+    private async Task SavePositionsAsync()
+    {
+        try
+        {
+            var d = System.Text.Json.JsonSerializer.Serialize(
+                _nodes.ToDictionary(kv => kv.Key.ToString(), kv => new { kv.Value.X, kv.Value.Y }));
+            await JS.InvokeVoidAsync("transactionCanvas.savePositions", StorageKey, d);
+        }
+        catch { /* ignore */ }
+    }
+
+    // ──────────────────────── geometry ────────────────────────
+
+    private const double NodeWidth = 190;   // status node card width
+    private const double NodeHeight = 68;   // status node card height (header + body)
+
+    private static (double x1, double y1, double x2, double y2) GetPorts(Pos f, Pos t)
+        => (f.X + NodeWidth, f.Y + NodeHeight / 2, t.X, t.Y + NodeHeight / 2);
+
+    private static string Bezier(double x1, double y1, double x2, double y2)
+    {
+        var cx = Math.Max(60, Math.Abs(x2 - x1) / 2);
+        // InvariantCulture is mandatory — server may use comma as decimal separator (e.g. ru-RU)
+        return string.Format(
+            System.Globalization.CultureInfo.InvariantCulture,
+            "M{0},{1} C{2},{3} {4},{5} {6},{7}",
+            x1, y1, x1 + cx, y1, x2 - cx, y2, x2, y2);
+    }
+
+    /// <summary>Format a double with InvariantCulture for use inside SVG/CSS attribute values.</summary>
+    private static string F(double v)
+        => v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string TruncateFormula(string formula)
+        => formula.Length <= 16 ? formula : formula[..14] + "…";
+
+    private string GetCanvasHeightStyle()
+    {
+        if (_nodes.Count == 0) return "";
+        var h = _nodes.Values.Max(p => p.Y) + NodeHeight + 100;
+        return h > 600 ? $"height:{F(h)}px;" : "";
+    }
+
+    private IEnumerable<string> GetDistinctTxColors()
+        => _transactions.Select(t => NormColor(t.Color)).Distinct();
+
+    // ──────────────────────── colour helpers ────────────────────────
+
+    private static string GetStatusColor(OrderStatus s)
+    {
+        if (!string.IsNullOrEmpty(s.Color)) return s.Color;
+        if (s.Colors.Count > 0) return s.Colors[0].Hash;
+        return "#6366f1";
+    }
+
+    private static string NormColor(string? c) => string.IsNullOrEmpty(c) ? "#6366f1" : c;
+
+    private static string SoftBg(string? color)
+    {
+        if (string.IsNullOrEmpty(color)) return "#ececff";
+        var h = color.TrimStart('#');
+        if (h.Length < 6) return "#ececff";
+        try
+        {
+            var r = (int)(Convert.ToInt32(h[..2], 16) * 0.3 + 255 * 0.7);
+            var g = (int)(Convert.ToInt32(h[2..4], 16) * 0.3 + 255 * 0.7);
+            var b = (int)(Convert.ToInt32(h[4..6], 16) * 0.3 + 255 * 0.7);
+            return $"#{r:X2}{g:X2}{b:X2}";
+        }
+        catch { return "#ececff"; }
+    }
+
+    private static bool IsLight(string hex)
+    {
+        try
+        {
+            hex = hex.TrimStart('#');
+            if (hex.Length < 6) return true;
+            var r = Convert.ToInt32(hex[..2], 16);
+            var g = Convert.ToInt32(hex[2..4], 16);
+            var b = Convert.ToInt32(hex[4..6], 16);
+            return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+        }
+        catch { return true; }
+    }
+
+    private string StorageKey =>
+        TenantProvider.TenantId.HasValue
+            ? $"tc-canvas-{TenantProvider.TenantId:N}"
+            : "tc-canvas";
+
+    public async ValueTask DisposeAsync()
+    {
+        _ref?.Dispose();
+        if (_db != null) await _db.DisposeAsync();
+    }
+}
+

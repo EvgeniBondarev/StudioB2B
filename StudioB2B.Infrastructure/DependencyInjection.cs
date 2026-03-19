@@ -1,26 +1,24 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
-using StudioB2B.Infrastructure.Features.Marketplace;
-using StudioB2B.Infrastructure.Features.Orders;
-using StudioB2B.Infrastructure.Features.Roles;
-using StudioB2B.Infrastructure.Features.Users;
-using StudioB2B.Infrastructure.Http.Handlers;
-using StudioB2B.Infrastructure.Integrations.Ozon;
-using StudioB2B.Infrastructure.MultiTenancy;
-using StudioB2B.Infrastructure.MultiTenancy.CircuitHandlers;
-using StudioB2B.Infrastructure.MultiTenancy.Initialization;
-using StudioB2B.Infrastructure.MultiTenancy.Resolution;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
 using System.Text;
-using StudioB2B.Infrastructure.Features.Master;
+using StudioB2B.Domain.Options;
+using StudioB2B.Infrastructure.Features;
+using StudioB2B.Infrastructure.Helpers.Http.Handlers;
+using StudioB2B.Infrastructure.Authorization;
 using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Infrastructure.MultiTenancy.Services;
+using StudioB2B.Infrastructure.Services.MultiTenancy;
+using StudioB2B.Infrastructure.Services.Modules;
+using StudioB2B.Infrastructure.Services.Order;
+using StudioB2B.Infrastructure.Services.Ozon;
+using TenantService = StudioB2B.Infrastructure.Services.MultiTenancy.TenantService;
 
 namespace StudioB2B.Infrastructure;
 
@@ -45,7 +43,6 @@ public static class DependencyInjection
 
         services.AddSingleton<IKeyEncryptionService, KeyEncryptionService>();
 
-        // ── HTTP pipeline for marketplace APIs (Ozon, etc.) ──
         services.AddTransient<LoggingHandler>();
         services.AddTransient<RetryHandler>();
         services.AddTransient<RateLimitHandler>();
@@ -67,18 +64,19 @@ public static class DependencyInjection
         services.AddScoped<IOrderAdapter, OzonFbsOrderAdapter>();
         services.AddScoped<IOrderSyncService, OrderSyncService>();
         services.AddScoped<IOzonChatService, OzonChatService>();
+        services.AddScoped<IOzonQuestionsService, OzonQuestionsService>();
 
         services.AddScoped<TenantProvider>();
         services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<TenantProvider>());
 
         services.AddSingleton<ISubdomainResolver, SubdomainResolver>();
         services.AddScoped<ITenantDatabaseInitializer, TenantDatabaseInitializer>();
+        services.AddScoped<UserContext>();
         services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
         services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
         services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<CircuitHandler, TenantCircuitHandler>();
 
-        // ── Master auth ────────────────────────────────────────────────────────
         services.AddScoped<MasterAuthService>();
 
         // Tenant DbContext (Scoped, dynamic connection)
@@ -100,9 +98,8 @@ public static class DependencyInjection
 
         // Factory — для сервисов, которым нужно создавать независимые контексты
         // (например OrderSyncJobService, вызываемый параллельно из polling + UI)
-        services.AddScoped<Features.Orders.ITenantDbContextCreator, TenantDbContextCreator>();
+        services.AddScoped<ITenantDbContextCreator, TenantDbContextCreator>();
 
-        // ── JWT Authentication ─────────────────────────────────────────────────
         var jwtSection = configuration.GetSection("Jwt");
         var secret = jwtSection["Secret"] ?? throw new InvalidOperationException("Jwt:Secret is not configured");
         var issuer = jwtSection["Issuer"] ?? "StudioB2B";
@@ -115,27 +112,20 @@ public static class DependencyInjection
             {
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    ValidateIssuer           = true,
-                    ValidateAudience         = true,
-                    ValidateLifetime         = true,
-                    ValidateIssuerSigningKey  = true,
-                    ValidIssuer              = issuer,
-                    ValidAudience            = audience,
-                    IssuerSigningKey         = key,
-                    ClockSkew                = TimeSpan.Zero
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = issuer,
+                    ValidAudience = audience,
+                    IssuerSigningKey = key,
+                    ClockSkew = TimeSpan.Zero
                 };
             });
 
         services.AddAuthorization();
+        services.AddSingleton<IAuthorizationHandler, AdminSatisfiesAllRolesHandler>();
 
-        // ── Role Feature Classes ────────────────────────────────────────────────
-        services.AddScoped<GetRoles>();
-        services.AddScoped<GetRoleById>();
-        services.AddScoped<CreateRole>();
-        services.AddScoped<UpdateRole>();
-        services.AddScoped<DeleteRole>();
-
-        // ── User Feature Classes ───────────────────────────────────────────────
         services.AddScoped<GetUsers>();
         services.AddScoped<GetUserById>();
         services.AddScoped<GetAvailableRoles>();
@@ -143,16 +133,16 @@ public static class DependencyInjection
         services.AddScoped<UpdateUser>();
         services.AddScoped<DeleteUser>();
 
-        // ── Hangfire per-tenant manager ────────────────────────────────────────
         services.AddSingleton<TenantHangfireManager>();
         services.AddHostedService(sp => sp.GetRequiredService<TenantHangfireManager>());
 
-        // ── Background job services ────────────────────────────────────────────
         services.AddScoped<IOrderSyncJobService, OrderSyncJobService>();
 
-        // ── Transaction services ───────────────────────────────────────────────
         services.AddScoped<CalculationEngine>();
         services.AddScoped<IOrderTransactionService, OrderTransactionService>();
+
+        services.AddScoped<IModuleService, ModuleService>();
+        services.AddScoped<IModuleActivator, ManufacturerModuleActivator>();
 
         return services;
     }

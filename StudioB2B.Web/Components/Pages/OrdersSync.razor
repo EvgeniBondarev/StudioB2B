@@ -1,9 +1,12 @@
 @page "/orders-sync"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "SyncView")]
 @using System.Text.Json
 @using Microsoft.AspNetCore.SignalR.Client
+@using StudioB2B.Domain.Entities
+@using SyncJobStatus = StudioB2B.Domain.Constants.SyncJobStatusEnum
+@using SyncJobType = StudioB2B.Domain.Constants.SyncJobTypeEnum
 @using StudioB2B.Domain.Entities.Orders
-@using StudioB2B.Infrastructure.Features.Orders
+@using StudioB2B.Infrastructure.Helpers
 @using StudioB2B.Infrastructure.Interfaces
 @inject ITenantProvider TenantProvider
 @inject IOrderSyncJobService JobService
@@ -28,10 +31,13 @@ else
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
         <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Фоновые задачи</RadzenText>
         <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
-            <RadzenButton Text="Запустить задачу" Icon="play_arrow"
-                          ButtonStyle="ButtonStyle.Primary"
-                          Size="ButtonSize.Small"
-                          Click="@OpenEnqueueDialogAsync" />
+            @if (_canRunAny)
+            {
+                <RadzenButton Text="Запустить задачу" Icon="play_arrow"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Size="ButtonSize.Small"
+                              Click="@OpenEnqueueDialogAsync" />
+            }
             <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ToggleDensity" Title="@GetDensityTitle()" />
         </RadzenStack>
@@ -41,9 +47,12 @@ else
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                      JustifyContent="JustifyContent.SpaceBetween">
             <RadzenText TextStyle="TextStyle.Subtitle1" Style="font-weight:600; margin:0;">Расписания</RadzenText>
-            <RadzenButton Text="Добавить расписание" Icon="add_alarm"
-                          ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
-                          Click="@OpenCreateScheduleDialogAsync" />
+            @if (_canManageSchedules)
+            {
+                <RadzenButton Text="Добавить расписание" Icon="add_alarm"
+                              ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                              Click="@OpenCreateScheduleDialogAsync" />
+            }
         </RadzenStack>
 
         @if (_schedules.Count == 0)
@@ -61,15 +70,18 @@ else
                         <RadzenStack Gap="0.4rem">
                             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                                          JustifyContent="JustifyContent.SpaceBetween">
-                                <RadzenBadge BadgeStyle="@(s.JobType == SyncJobType.Sync ? BadgeStyle.Primary : BadgeStyle.Secondary)"
-                                             Text="@(s.JobType == SyncJobType.Sync ? "Загрузка заказов" : "Обновление статусов")" />
-                                <RadzenToggleButton Value="@s.IsEnabled"
-                                                    ButtonStyle="ButtonStyle.Light"
-                                                    ToggleButtonStyle="ButtonStyle.Success"
-                                                    Icon="@(s.IsEnabled ? "toggle_on" : "toggle_off")"
-                                                    Size="ButtonSize.ExtraSmall"
-                                                    title="@(s.IsEnabled ? "Отключить" : "Включить")"
-                                                    Click="@(() => ToggleScheduleAsync(s))" />
+                                <RadzenBadge BadgeStyle="@JobTypeBadgeStyle(s.JobType)"
+                                             Text="@JobTypeLabel(s.JobType)" />
+                                @if (_canManageSchedules)
+                                {
+                                    <RadzenToggleButton Value="@s.IsEnabled"
+                                                        ButtonStyle="ButtonStyle.Light"
+                                                        ToggleButtonStyle="ButtonStyle.Success"
+                                                        Icon="@(s.IsEnabled ? "toggle_on" : "toggle_off")"
+                                                        Size="ButtonSize.ExtraSmall"
+                                                        title="@(s.IsEnabled ? "Отключить" : "Включить")"
+                                                        Click="@(() => ToggleScheduleAsync(s))" />
+                                }
                             </RadzenStack>
                             <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600;">
                                 @ScheduleCronBuilder.Describe(s)
@@ -85,20 +97,99 @@ else
                                 Создал: @(s.CreatedByEmail ?? "—")
                             </RadzenText>
                             <RadzenStack Orientation="Orientation.Horizontal" Gap="0.4rem" JustifyContent="JustifyContent.End">
-                                <RadzenButton Icon="edit" Size="ButtonSize.ExtraSmall"
-                                              ButtonStyle="ButtonStyle.Light" title="Редактировать"
-                                              Click="@(() => OpenEditScheduleDialogAsync(s))" />
-                                <RadzenButton Icon="delete" Size="ButtonSize.ExtraSmall"
-                                              ButtonStyle="ButtonStyle.Light" title="Удалить"
-                                              IsBusy="@_deletingScheduleIds.Contains(s.Id)"
-                                              Disabled="@_deletingScheduleIds.Contains(s.Id)"
-                                              Click="@(() => DeleteScheduleAsync(s))" />
+                                @if (CanRunJobType(s.JobType))
+                                {
+                                    <RadzenButton Icon="play_arrow" Size="ButtonSize.ExtraSmall"
+                                                  ButtonStyle="ButtonStyle.Success" title="Запустить сейчас"
+                                                  IsBusy="@_runningScheduleIds.Contains(s.Id)"
+                                                  Disabled="@_runningScheduleIds.Contains(s.Id)"
+                                                  Click="@(() => RunScheduleNowAsync(s))" />
+                                }
+                                @if (_canManageSchedules)
+                                {
+                                    <RadzenButton Icon="edit" Size="ButtonSize.ExtraSmall"
+                                                  ButtonStyle="ButtonStyle.Light" title="Редактировать"
+                                                  Click="@(() => OpenEditScheduleDialogAsync(s))" />
+                                    <RadzenButton Icon="delete" Size="ButtonSize.ExtraSmall"
+                                                  ButtonStyle="ButtonStyle.Light" title="Удалить"
+                                                  IsBusy="@_deletingScheduleIds.Contains(s.Id)"
+                                                  Disabled="@_deletingScheduleIds.Contains(s.Id)"
+                                                  Click="@(() => DeleteScheduleAsync(s))" />
+                                }
                             </RadzenStack>
                         </RadzenStack>
                     </RadzenCard>
                 }
             </RadzenStack>
         }
+    </RadzenStack>
+
+    <!-- Тип + Статус: пилюли -->
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                 Style="padding: 0 0 0.6rem 0; flex-wrap: wrap;">
+        @{ var allTypeActive = _filterType == null; }
+        <span class="q-pill @(allTypeActive ? "active" : "")"
+              style="background:@(allTypeActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allTypeActive ? "#fff" : "var(--rz-text-color)");"
+              @onclick="@(() => { _filterType = null; ApplyFilters(); })">
+            Все типы
+        </span>
+        <span class="q-pill @(_filterType == SyncJobType.Sync ? "active" : "")"
+              style="background:@(_filterType == SyncJobType.Sync ? "#3b82f6" : "#dbeafe"); color:@(_filterType == SyncJobType.Sync ? "#fff" : "#1e3a5f");"
+              @onclick="@(() => { _filterType = _filterType == SyncJobType.Sync ? null : SyncJobType.Sync; ApplyFilters(); })">
+            Загрузка заказов
+            @if (_typeCountSync > 0) { <span class="q-pill-count">@_typeCountSync</span> }
+        </span>
+        <span class="q-pill @(_filterType == SyncJobType.Update ? "active" : "")"
+              style="background:@(_filterType == SyncJobType.Update ? "#8b5cf6" : "#ede9fe"); color:@(_filterType == SyncJobType.Update ? "#fff" : "#4c1d95");"
+              @onclick="@(() => { _filterType = _filterType == SyncJobType.Update ? null : SyncJobType.Update; ApplyFilters(); })">
+            Обновление статусов
+            @if (_typeCountUpdate > 0) { <span class="q-pill-count">@_typeCountUpdate</span> }
+        </span>
+        <span class="q-pill @(_filterType == SyncJobType.Returns ? "active" : "")"
+              style="background:@(_filterType == SyncJobType.Returns ? "#06b6d4" : "#cffafe"); color:@(_filterType == SyncJobType.Returns ? "#fff" : "#164e63");"
+              @onclick="@(() => { _filterType = _filterType == SyncJobType.Returns ? null : SyncJobType.Returns; ApplyFilters(); })">
+            Загрузка возвратов
+            @if (_typeCountReturns > 0) { <span class="q-pill-count">@_typeCountReturns</span> }
+        </span>
+
+        <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 6px;"></span>
+
+        @{ var allStatusActive = _filterStatus == null; }
+        <span class="q-pill @(allStatusActive ? "active" : "")"
+              style="background:@(allStatusActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allStatusActive ? "#fff" : "var(--rz-text-color)");"
+              @onclick="@(() => { _filterStatus = null; ApplyFilters(); })">
+            Все статусы
+        </span>
+        <span class="q-pill @(_filterStatus == SyncJobStatus.Enqueued ? "active" : "")"
+              style="background:@(_filterStatus == SyncJobStatus.Enqueued ? "#f59e0b" : "#fef3c7"); color:@(_filterStatus == SyncJobStatus.Enqueued ? "#fff" : "#78350f");"
+              @onclick="@(() => { _filterStatus = _filterStatus == SyncJobStatus.Enqueued ? null : SyncJobStatus.Enqueued; ApplyFilters(); })">
+            В очереди
+            @if (_statusCountEnqueued > 0) { <span class="q-pill-count">@_statusCountEnqueued</span> }
+        </span>
+        <span class="q-pill @(_filterStatus == SyncJobStatus.Processing ? "active" : "")"
+              style="background:@(_filterStatus == SyncJobStatus.Processing ? "#3b82f6" : "#dbeafe"); color:@(_filterStatus == SyncJobStatus.Processing ? "#fff" : "#1e3a5f");"
+              @onclick="@(() => { _filterStatus = _filterStatus == SyncJobStatus.Processing ? null : SyncJobStatus.Processing; ApplyFilters(); })">
+            Выполняется
+            @if (_statusCountProcessing > 0) { <span class="q-pill-count">@_statusCountProcessing</span> }
+        </span>
+        <span class="q-pill @(_filterStatus == SyncJobStatus.Succeeded ? "active" : "")"
+              style="background:@(_filterStatus == SyncJobStatus.Succeeded ? "#10b981" : "#d1fae5"); color:@(_filterStatus == SyncJobStatus.Succeeded ? "#fff" : "#065f46");"
+              @onclick="@(() => { _filterStatus = _filterStatus == SyncJobStatus.Succeeded ? null : SyncJobStatus.Succeeded; ApplyFilters(); })">
+            Завершена
+            @if (_statusCountSucceeded > 0) { <span class="q-pill-count">@_statusCountSucceeded</span> }
+        </span>
+        <span class="q-pill @(_filterStatus == SyncJobStatus.Failed ? "active" : "")"
+              style="background:@(_filterStatus == SyncJobStatus.Failed ? "#ef4444" : "#fee2e2"); color:@(_filterStatus == SyncJobStatus.Failed ? "#fff" : "#7f1d1d");"
+              @onclick="@(() => { _filterStatus = _filterStatus == SyncJobStatus.Failed ? null : SyncJobStatus.Failed; ApplyFilters(); })">
+            Ошибка
+            @if (_statusCountFailed > 0) { <span class="q-pill-count">@_statusCountFailed</span> }
+        </span>
+        <span class="q-pill @(_filterStatus == SyncJobStatus.Cancelled ? "active" : "")"
+              style="background:@(_filterStatus == SyncJobStatus.Cancelled ? "#6b7280" : "#f3f4f6"); color:@(_filterStatus == SyncJobStatus.Cancelled ? "#fff" : "#374151");"
+              @onclick="@(() => { _filterStatus = _filterStatus == SyncJobStatus.Cancelled ? null : SyncJobStatus.Cancelled; ApplyFilters(); })">
+            Отменена
+            @if (_statusCountCancelled > 0) { <span class="q-pill-count">@_statusCountCancelled</span> }
+        </span>
     </RadzenStack>
 
     @if (_hasActiveJobs)
@@ -145,10 +236,10 @@ else
                     Style="width: 100%;">
         <Columns>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="JobType" Title="Тип" Width="210px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColType")">
                 <Template Context="h">
-                    <RadzenBadge BadgeStyle="@(h.JobType == SyncJobType.Sync ? BadgeStyle.Primary : BadgeStyle.Secondary)"
-                                 Text="@(h.JobType == SyncJobType.Sync ? "Загрузка заказов" : "Обновление статусов")" />
+                    <RadzenBadge BadgeStyle="@JobTypeBadgeStyle(h.JobType)"
+                                 Text="@JobTypeLabel(h.JobType)" />
                 </Template>
                 <FilterTemplate Context="col">
                     <div class="filter-all-item @(_filterType == null ? "active" : "")"
@@ -159,10 +250,16 @@ else
                                    Change="@(_ => ApplyFilters())" />
                 </FilterTemplate>
             </RadzenDataGridColumn>
-            <RadzenDataGridColumn TItem="SyncJobHistory" Property="Status" Title="Статус" Width="160px"
-                                  HeaderCssClass="half-painted-header">
+            <RadzenDataGridColumn TItem="SyncJobHistory" Property="Status" Title="Статус" Width="200px"
+                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColStatus")">
                 <Template Context="h">
-                    <RadzenBadge BadgeStyle="@StatusBadgeStyle(h.Status)" Text="@StatusLabel(h.Status)" />
+                    <div style="display:flex;flex-direction:column;gap:2px;">
+                        <RadzenBadge BadgeStyle="@StatusBadgeStyle(h.Status)" Text="@StatusLabel(h.Status)" />
+                        @if (_progressMessages.TryGetValue(h.Id, out var prog))
+                        {
+                            <span style="font-size:0.72rem;color:var(--rz-text-secondary-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;" title="@prog">@prog</span>
+                        }
+                    </div>
                 </Template>
                 <FilterTemplate Context="col">
                     <div class="filter-all-item @(_filterStatus == null ? "active" : "")"
@@ -174,7 +271,7 @@ else
                 </FilterTemplate>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Title="Параметры" Width="260px"
-                                  Filterable="false" HeaderCssClass="half-painted-header">
+                                  Filterable="false" HeaderCssClass="half-painted-header" Visible="@Col("SyncColParams")">
                 <Template Context="h">
                     <RadzenText TextStyle="TextStyle.Body2" Class="rz-text-truncate" title="@FormatParameters(h)">
                         @FormatParameters(h)
@@ -182,13 +279,13 @@ else
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="StartedAtUtc" Title="Запуск" Width="160px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColStartedAt")">
                 <Template Context="h">
                     <RadzenText TextStyle="TextStyle.Body2">@($"{h.StartedAtUtc.ToLocalTime():g}")</RadzenText>
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="FinishedAtUtc" Title="Завершено" Width="160px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColFinishedAt")">
                 <Template Context="h">
                     @if (h.FinishedAtUtc.HasValue)
                     { <RadzenText TextStyle="TextStyle.Body2">@($"{h.FinishedAtUtc.Value.ToLocalTime():g}")</RadzenText> }
@@ -197,13 +294,13 @@ else
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Title="Продолжительность" Width="240px"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColDuration")">
                 <Template Context="h">
                     <RadzenText TextStyle="TextStyle.Body2">@FormatDuration(h)</RadzenText>
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="InitiatedByEmail" Title="Запустил"
-                                  HeaderCssClass="half-painted-header">
+                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColInitiatedBy")">
                 <Template Context="h">
                     @if (!string.IsNullOrEmpty(h.InitiatedByEmail))
                     { <RadzenText TextStyle="TextStyle.Body2" Class="rz-text-truncate" title="@h.InitiatedByEmail">@h.InitiatedByEmail</RadzenText> }
@@ -252,54 +349,79 @@ else
 }
 
 @code {
-    // ── History ───────────────────────────────────────────────────────────────
-    private List<SyncJobHistory> _historyItems  = new();
+    [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
+
+    private List<SyncJobHistory> _historyItems = new();
     private List<SyncJobHistory> _filteredItems = new();
     private bool _hasActiveJobs;
     private bool _isLoading;
     private Density _density = Density.Default;
 
-    // ── Filters ───────────────────────────────────────────────────────────────
-    private SyncJobType?   _filterType;
+    private bool _canRunOrders;
+    private bool _canRunStatusUpdate;
+    private bool _canRunReturns;
+    private bool _canRunAny;
+    private bool _canManageSchedules;
+    private System.Security.Claims.ClaimsPrincipal? _syncUser;
+
+    private bool Col(string role) => _syncUser?.IsInRole("Admin") == true || _syncUser?.IsInRole(role) == true;
+
+    private SyncJobType? _filterType;
     private SyncJobStatus? _filterStatus;
+
+    // Pill counts (computed from full history, not filtered)
+    private int _typeCountSync;
+    private int _typeCountUpdate;
+    private int _typeCountReturns;
+    private int _statusCountEnqueued;
+    private int _statusCountProcessing;
+    private int _statusCountSucceeded;
+    private int _statusCountFailed;
+    private int _statusCountCancelled;
 
     private record FilterOption<T>(string Label, T? Value);
 
     private readonly List<FilterOption<SyncJobType>> _filterTypeOptions = new()
     {
-        new("Загрузка заказов",    SyncJobType.Sync),
+        new("Загрузка заказов", SyncJobType.Sync),
         new("Обновление статусов", SyncJobType.Update),
+        new("Загрузка возвратов", SyncJobType.Returns),
     };
 
     private readonly List<FilterOption<SyncJobStatus>> _filterStatusOptions = new()
     {
-        new("В очереди",   SyncJobStatus.Enqueued),
+        new("В очереди", SyncJobStatus.Enqueued),
         new("Выполняется", SyncJobStatus.Processing),
-        new("Завершена",   SyncJobStatus.Succeeded),
-        new("Ошибка",      SyncJobStatus.Failed),
-        new("Отменена",    SyncJobStatus.Cancelled),
+        new("Завершена", SyncJobStatus.Succeeded),
+        new("Ошибка", SyncJobStatus.Failed),
+        new("Отменена", SyncJobStatus.Cancelled),
     };
 
-    // ── Tracking ──────────────────────────────────────────────────────────────
     private readonly HashSet<Guid> _cancellingIds = new();
-    private readonly HashSet<Guid> _deletingIds   = new();
+    private readonly HashSet<Guid> _deletingIds = new();
+    private readonly Dictionary<Guid, string> _progressMessages = new();
 
-    // ── Schedules ─────────────────────────────────────────────────────────────
-    private List<SyncJobSchedule>  _schedules            = new();
-    private readonly HashSet<Guid> _deletingScheduleIds  = new();
-    private readonly HashSet<Guid> _togglingScheduleIds  = new();
+    private List<SyncJobSchedule>  _schedules = new();
+    private readonly HashSet<Guid> _deletingScheduleIds = new();
+    private readonly HashSet<Guid> _togglingScheduleIds = new();
+    private readonly HashSet<Guid> _runningScheduleIds = new();
 
-    // ── Polling ───────────────────────────────────────────────────────────────
-    private PeriodicTimer?          _pollTimer;
+    private PeriodicTimer? _pollTimer;
     private CancellationTokenSource _pollCts = new();
 
-    // ── SignalR ───────────────────────────────────────────────────────────────
     private HubConnection? _hubConnection;
-
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     protected override async Task OnInitializedAsync()
     {
+        var state = await AuthState;
+        var user = state.User;
+        _syncUser = user;
+        _canRunOrders = user.IsInRole("Admin") || user.IsInRole("SyncRunOrders");
+        _canRunStatusUpdate = user.IsInRole("Admin") || user.IsInRole("SyncRunStatusUpdate");
+        _canRunReturns = user.IsInRole("Admin") || user.IsInRole("SyncRunReturns");
+        _canRunAny = _canRunOrders || _canRunStatusUpdate || _canRunReturns;
+        _canManageSchedules = user.IsInRole("Admin") || user.IsInRole("SyncManageSchedules");
+
         if (!TenantProvider.IsResolved) return;
 
         await LoadHistoryAsync();
@@ -332,14 +454,24 @@ else
             });
         });
 
+        _hubConnection.On<JobProgressPayload>("JobProgress", payload =>
+        {
+            InvokeAsync(() =>
+            {
+                _progressMessages[payload.HistoryId] = payload.Message;
+                StateHasChanged();
+            });
+        });
+
         _hubConnection.On<JobCompletedPayload>("JobCompleted", async payload =>
         {
             await InvokeAsync(async () =>
             {
+                _progressMessages.Remove(payload.HistoryId);
                 await LoadHistoryAsync();
                 var h = _historyItems.FirstOrDefault(x => x.Id == payload.HistoryId);
                 if (h is not null)
-                    NotifyJobResult(h, h.JobType == SyncJobType.Sync ? "Загрузка заказов" : "Обновление статусов");
+                    NotifyJobResult(h, JobTypeLabel(h.JobType));
                 StateHasChanged();
             });
         });
@@ -355,14 +487,18 @@ else
         }
     }
 
-    // ── Enqueue dialog ────────────────────────────────────────────────────────
-
     private async Task OpenEnqueueDialogAsync()
     {
+        var allowed = new List<SyncJobType>();
+        if (_canRunOrders) allowed.Add(SyncJobType.Sync);
+        if (_canRunStatusUpdate) allowed.Add(SyncJobType.Update);
+        if (_canRunReturns) allowed.Add(SyncJobType.Returns);
+
         var result = await DialogService.OpenAsync(
             "Запустить фоновую задачу",
             ds => @<EnqueueJobDialog JobService="@JobService"
                                      DialogService="@ds"
+                                     AllowedTypes="@allowed"
                                      NotificationService="@NotificationService" />,
             new DialogOptions { Width = "700px", Resizable = true, Draggable = true });
 
@@ -374,8 +510,6 @@ else
             StartPollingIfNeeded();
         }
     }
-
-    // ── Cancel ────────────────────────────────────────────────────────────────
 
     private async Task CancelJobAsync(SyncJobHistory h)
     {
@@ -395,8 +529,6 @@ else
             _cancellingIds.Remove(h.Id);
         }
     }
-
-    // ── Delete ────────────────────────────────────────────────────────────────
 
     private async Task DeleteJobAsync(SyncJobHistory h)
     {
@@ -423,13 +555,11 @@ else
         }
     }
 
-    // ── Polling ───────────────────────────────────────────────────────────────
-
     private void StartPollingIfNeeded()
     {
         if (_pollTimer is not null) return; // уже запущен
 
-        _pollCts   = new CancellationTokenSource();
+        _pollCts = new CancellationTokenSource();
         _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
 
         _ = Task.Run(async () =>
@@ -461,8 +591,6 @@ else
         _pollTimer?.Dispose();
         _pollTimer = null;
     }
-
-    // ── Schedules ─────────────────────────────────────────────────────────────
 
     private async Task LoadSchedulesAsync()
     {
@@ -535,14 +663,12 @@ else
         }
     }
 
-    // ── History & filters ─────────────────────────────────────────────────────
-
     private async Task LoadHistoryAsync()
     {
         _isLoading = true;
         try
         {
-            _historyItems  = await JobService.GetHistoryAsync(200);
+            _historyItems = await JobService.GetHistoryAsync(200);
             _hasActiveJobs = _historyItems.Any(h => h.Status is SyncJobStatus.Enqueued or SyncJobStatus.Processing);
             ApplyFilters();
         }
@@ -563,6 +689,16 @@ else
             q = q.Where(h => h.Status == _filterStatus.Value);
 
         _filteredItems = q.OrderByDescending(h => h.StartedAtUtc).ToList();
+
+        // Recompute counts from full history
+        _typeCountSync      = _historyItems.Count(h => h.JobType == SyncJobType.Sync);
+        _typeCountUpdate    = _historyItems.Count(h => h.JobType == SyncJobType.Update);
+        _typeCountReturns   = _historyItems.Count(h => h.JobType == SyncJobType.Returns);
+        _statusCountEnqueued  = _historyItems.Count(h => h.Status == SyncJobStatus.Enqueued);
+        _statusCountProcessing = _historyItems.Count(h => h.Status == SyncJobStatus.Processing);
+        _statusCountSucceeded  = _historyItems.Count(h => h.Status == SyncJobStatus.Succeeded);
+        _statusCountFailed     = _historyItems.Count(h => h.Status == SyncJobStatus.Failed);
+        _statusCountCancelled  = _historyItems.Count(h => h.Status == SyncJobStatus.Cancelled);
     }
 
     private void ToggleDensity() =>
@@ -571,22 +707,33 @@ else
     private string GetDensityTitle() => _density switch
     {
         Density.Compact => "Компактный режим строк",
-        _               => "Обычный режим строк"
+        _ => "Обычный режим строк"
     };
-
-    // ── Dialogs ───────────────────────────────────────────────────────────────
 
     private async Task ShowResultDialogAsync(SyncJobHistory history)
     {
         if (string.IsNullOrEmpty(history.ResultJson)) return;
 
-        var summary = JsonSerializer.Deserialize<OrderSyncSummary>(history.ResultJson);
-        if (summary is null) return;
+        if (history.JobType == SyncJobType.Returns)
+        {
+            var returnsSummary = JsonSerializer.Deserialize<ReturnsSyncResultDto>(history.ResultJson);
+            if (returnsSummary is null) return;
 
-        await DialogService.OpenAsync(
-            history.JobType == SyncJobType.Sync ? "Результат синхронизации" : "Результат обновления",
-            ds => @<SyncResultDialogContent Summary="@summary" JobType="@history.JobType" />,
-            new DialogOptions { Width = "900px", Resizable = true, Draggable = true });
+            await DialogService.OpenAsync(
+                "Результат загрузки возвратов",
+                ds => @<SyncResultDialogContent ReturnsSummary="@returnsSummary" JobType="@history.JobType" />,
+                new DialogOptions { Width = "600px", Resizable = true, Draggable = true });
+        }
+        else
+        {
+            var summary = JsonSerializer.Deserialize<OrderSyncSummaryDto>(history.ResultJson);
+            if (summary is null) return;
+
+            await DialogService.OpenAsync(
+                history.JobType == SyncJobType.Sync ? "Результат синхронизации" : "Результат обновления",
+                ds => @<SyncResultDialogContent Summary="@summary" JobType="@history.JobType" />,
+                new DialogOptions { Width = "900px", Resizable = true, Draggable = true });
+        }
     }
 
     private async Task ShowErrorDialogAsync(SyncJobHistory history)
@@ -594,8 +741,6 @@ else
         await DialogService.Alert(history.ErrorMessage ?? "Неизвестная ошибка", "Ошибка задачи",
             new AlertOptions { OkButtonText = "Закрыть" });
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void NotifyJobResult(SyncJobHistory? h, string jobName)
     {
@@ -615,6 +760,30 @@ else
         }
     }
 
+    private bool CanRunJobType(SyncJobType t) => t switch
+    {
+        SyncJobType.Sync => _canRunOrders,
+        SyncJobType.Update => _canRunStatusUpdate,
+        SyncJobType.Returns => _canRunReturns,
+        _ => false
+    };
+
+    private static BadgeStyle JobTypeBadgeStyle(SyncJobType t) => t switch
+    {
+        SyncJobType.Sync => BadgeStyle.Primary,
+        SyncJobType.Update => BadgeStyle.Secondary,
+        SyncJobType.Returns => BadgeStyle.Info,
+        _ => BadgeStyle.Light
+    };
+
+    private static string JobTypeLabel(SyncJobType t) => t switch
+    {
+        SyncJobType.Sync => "Загрузка заказов",
+        SyncJobType.Update => "Обновление статусов",
+        SyncJobType.Returns => "Загрузка возвратов",
+        _ => t.ToString()
+    };
+
     private static string FormatParameters(SyncJobHistory h)
     {
         if (string.IsNullOrEmpty(h.ParametersJson)) return "—";
@@ -625,7 +794,7 @@ else
             if (root.TryGetProperty("From", out var fromEl) && root.TryGetProperty("To", out var toEl))
             {
                 var from = fromEl.GetDateTime().ToLocalTime();
-                var to   = toEl.GetDateTime().ToLocalTime();
+                var to = toEl.GetDateTime().ToLocalTime();
                 return $"{from:dd.MM.yyyy} – {to:dd.MM.yyyy}";
             }
             return h.ParametersJson;
@@ -645,22 +814,22 @@ else
 
     private static BadgeStyle StatusBadgeStyle(SyncJobStatus s) => s switch
     {
-        SyncJobStatus.Enqueued   => BadgeStyle.Warning,
+        SyncJobStatus.Enqueued => BadgeStyle.Warning,
         SyncJobStatus.Processing => BadgeStyle.Info,
-        SyncJobStatus.Succeeded  => BadgeStyle.Success,
-        SyncJobStatus.Failed     => BadgeStyle.Danger,
-        SyncJobStatus.Cancelled  => BadgeStyle.Secondary,
-        _                        => BadgeStyle.Light
+        SyncJobStatus.Succeeded => BadgeStyle.Success,
+        SyncJobStatus.Failed => BadgeStyle.Danger,
+        SyncJobStatus.Cancelled => BadgeStyle.Secondary,
+        _ => BadgeStyle.Light
     };
 
     private static string StatusLabel(SyncJobStatus s) => s switch
     {
-        SyncJobStatus.Enqueued   => "В очереди",
+        SyncJobStatus.Enqueued => "В очереди",
         SyncJobStatus.Processing => "Выполняется",
-        SyncJobStatus.Succeeded  => "Завершена",
-        SyncJobStatus.Failed     => "Ошибка",
-        SyncJobStatus.Cancelled  => "Отменена",
-        _                        => s.ToString()
+        SyncJobStatus.Succeeded => "Завершена",
+        SyncJobStatus.Failed => "Ошибка",
+        SyncJobStatus.Cancelled => "Отменена",
+        _ => s.ToString()
     };
 
     private static int ParseDaysBack(string? syncParams)
@@ -676,8 +845,6 @@ else
         return 7;
     }
 
-    // ── IAsyncDisposable ──────────────────────────────────────────────────────
-
     public async ValueTask DisposeAsync()
     {
         StopPolling();
@@ -685,7 +852,39 @@ else
             await _hubConnection.DisposeAsync();
     }
 
-    // ── SignalR payload ───────────────────────────────────────────────────────
-
     private record JobCompletedPayload(Guid HistoryId, string Status, string JobType);
+    private record JobProgressPayload(Guid HistoryId, string Message);
+
+    private async Task RunScheduleNowAsync(SyncJobSchedule s)
+    {
+        if (_runningScheduleIds.Contains(s.Id)) return;
+        _runningScheduleIds.Add(s.Id);
+        try
+        {
+            var daysBack = ParseDaysBack(s.SyncParams);
+            var from = DateTime.Now.Date.AddDays(-daysBack);
+            var to = DateTime.Now.Date.AddDays(1).AddTicks(-1);
+            var jobTypeLabel = JobTypeLabel(s.JobType);
+
+            if (s.JobType == SyncJobType.Sync)
+                await JobService.EnqueueSyncAsync(from, to);
+            else if (s.JobType == SyncJobType.Returns)
+                await JobService.EnqueueReturnsSyncAsync(from, to);
+            else
+                await JobService.EnqueueUpdateAsync(from, to);
+
+            NotificationService.Notify(NotificationSeverity.Info, $"{jobTypeLabel} запущена",
+                "Следите за прогрессом в таблице ниже.");
+            await LoadHistoryAsync();
+            StartPollingIfNeeded();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка запуска", ex.Message);
+        }
+        finally
+        {
+            _runningScheduleIds.Remove(s.Id);
+        }
+    }
 }
