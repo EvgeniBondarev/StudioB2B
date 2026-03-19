@@ -1,0 +1,476 @@
+/* ── Page root ──────────────────────────────────────────────────────────────── */
+.reviews-page-root {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.reviews-top {
+    flex-shrink: 0;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────────── */
+.reviews-layout {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ── Left panel ─────────────────────────────────────────────────────────────── */
+.review-list-panel {
+    width: 380px;
+    min-width: 280px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--rz-border-color);
+    overflow: hidden;
+    min-height: 0;
+}
+
+.review-list-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0.5rem 0.5rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+/* ── Review list card ───────────────────────────────────────────────────────── */
+.review-item-card {
+    cursor: pointer;
+    padding: 0.65rem 0.8rem !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--rz-border-color) !important;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    background: var(--rz-base-background-color) !important;
+}
+
+.review-item-card:hover {
+    background: var(--rz-base-100) !important;
+    border-color: var(--rz-primary-light) !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,.06) !important;
+}
+
+.review-item-card.selected {
+    background: var(--rz-primary-lighter) !important;
+    border-color: var(--rz-primary) !important;
+    box-shadow: 0 0 0 2px var(--rz-primary-lighter) !important;
+}
+
+.review-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+}
+
+.review-item-title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.review-item-client {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--rz-text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.review-item-sku {
+    font-size: 0.7rem;
+    color: var(--rz-text-secondary-color);
+}
+
+.review-item-date {
+    font-size: 0.65rem;
+    color: var(--rz-text-secondary-color);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Stars */
+.review-stars {
+    display: inline-flex;
+    gap: 1px;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.review-stars .star-filled {
+    color: #f59e0b;
+}
+
+.review-stars .star-empty {
+    color: var(--rz-base-300);
+}
+
+.review-item-text {
+    font-size: 0.8rem;
+    color: var(--rz-text-color);
+    max-height: 2.8em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    margin: 0.2rem 0;
+}
+
+.review-item-footer {
+    margin-top: 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+/* Load-more area */
+.reviews-load-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0.5rem;
+    font-size: 0.8rem;
+    color: var(--rz-text-secondary-color);
+    border-top: 1px solid var(--rz-border-color);
+    margin-top: 0.25rem;
+}
+
+/* ── Right panel ────────────────────────────────────────────────────────────── */
+.review-detail-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+    min-height: 0;
+    background: var(--rz-base-background-color);
+}
+
+.review-empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    color: var(--rz-text-secondary-color);
+}
+
+.review-detail-header {
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid var(--rz-border-color);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+.review-detail-body {
+    flex: 1;
+    padding: 1rem 1.25rem;
+    overflow-y: auto;
+}
+
+/* ── Review text block ──────────────────────────────────────────────────────── */
+.review-text-block {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--rz-text-color);
+    white-space: pre-line;
+    margin-bottom: 0.75rem;
+}
+
+/* ── Photo gallery ──────────────────────────────────────────────────────────── */
+.review-photos-section {
+    margin-top: 0.75rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--rz-border-color);
+}
+
+.review-photos-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+
+.review-photo-thumb {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 2px solid var(--rz-border-color);
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.15s, opacity 0.15s;
+}
+
+.review-photo-thumb:hover {
+    border-color: var(--rz-primary);
+    opacity: 0.9;
+}
+
+.review-photo-thumb.active {
+    border-color: var(--rz-primary);
+    box-shadow: 0 0 0 2px var(--rz-primary-light);
+}
+
+/* ── Video thumbnails ───────────────────────────────────────────────────────── */
+.review-videos-section {
+    margin-top: 0.75rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--rz-border-color);
+}
+
+.review-videos-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+
+.review-video-thumb {
+    position: relative;
+    width: 120px;
+    height: 80px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 2px solid var(--rz-border-color);
+    background: #000;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: border-color 0.15s, opacity 0.15s;
+}
+
+.review-video-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.8;
+    transition: opacity 0.15s;
+}
+
+.review-video-thumb:hover {
+    border-color: var(--rz-primary);
+    opacity: 0.9;
+}
+
+.review-video-thumb:hover img {
+    opacity: 1;
+}
+
+.review-video-thumb.active {
+    border-color: var(--rz-primary);
+    box-shadow: 0 0 0 2px var(--rz-primary-light);
+}
+
+.review-video-play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.review-video-play .material-icons,
+.review-video-play .rzi {
+    font-size: 2rem;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 4px rgba(0,0,0,.5);
+}
+
+/* ── Video lightbox player ───────────────────────────────────────────────── */
+.review-video-lightbox-inner {
+    max-width: 90vw;
+    max-height: 85vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+}
+
+.review-video-player {
+    max-width: 90vw;
+    max-height: 82vh;
+    width: auto;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    background: #000;
+    outline: none;
+}
+
+/* ── Lightbox ───────────────────────────────────────────────────────────────── */
+.review-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+}
+
+.review-lightbox img {
+    max-width: 90vw;
+    max-height: 88vh;
+    object-fit: contain;
+    border-radius: 8px;
+    cursor: default;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+
+.review-lightbox-close {
+    position: absolute;
+    top: 1rem;
+    right: 1.25rem;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: #fff;
+    font-size: 1.4rem;
+    line-height: 1;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.review-lightbox-close:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+/* ── Meta stats row ─────────────────────────────────────────────────────────── */
+.review-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.82rem;
+    color: var(--rz-text-secondary-color);
+    margin-bottom: 0.75rem;
+}
+
+.review-meta-row span strong {
+    color: var(--rz-text-color);
+    font-weight: 500;
+}
+
+/* ── Comments section ───────────────────────────────────────────────────────── */
+.review-comments-section {
+    margin-top: 0.75rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--rz-border-color);
+}
+
+.review-comment-item {
+    padding: 0.5rem 0.6rem;
+    border-radius: 6px;
+    background: var(--rz-base-100);
+    margin-bottom: 0.4rem;
+    border-left: 3px solid transparent;
+}
+
+.review-comment-item.is-official {
+    border-left-color: var(--rz-primary);
+    background: var(--rz-primary-lighter);
+}
+
+.review-comment-item:last-child {
+    margin-bottom: 0;
+}
+
+.review-comment-meta {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    margin-bottom: 0.25rem;
+    font-size: 0.78rem;
+    color: var(--rz-text-secondary-color);
+}
+
+.review-comment-author {
+    font-weight: 600;
+    color: var(--rz-text-color);
+}
+
+.review-comment-text {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-line;
+}
+
+/* ── Comment composer ───────────────────────────────────────────────────────── */
+.review-comment-composer {
+    border-top: 2px solid var(--rz-border-color);
+    padding: 0.65rem 0 0;
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: var(--rz-base-background-color);
+}
+
+/* Quick reply chips */
+.review-quick-replies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.review-quick-reply-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.22rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--rz-primary-light);
+    background: var(--rz-primary-lighter);
+    color: var(--rz-primary-dark);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.review-quick-reply-chip:hover {
+    background: var(--rz-primary-light);
+    border-color: var(--rz-primary);
+    color: var(--rz-base);
+    transform: translateY(-1px);
+}
+
+.review-comment-input-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+
+.review-comment-char-counter {
+    font-size: 0.68rem;
+    color: var(--rz-text-secondary-color);
+    text-align: right;
+}
+
+.review-comment-char-counter.over-limit {
+    color: var(--rz-danger);
+    font-weight: 600;
+}
+

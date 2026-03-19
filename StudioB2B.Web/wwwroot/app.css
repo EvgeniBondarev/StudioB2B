@@ -527,3 +527,34 @@ h1:focus {
   z-index: -1;
 }
 
+/* ── Shared status pill filters (q-pill) ─────────────────────────────────────
+   Используются на страницах Questions, Reviews, TenantUsers и других.
+   Определены здесь глобально, чтобы работали без подключения конкретного css.
+   ─────────────────────────────────────────────────────────────────────────── */
+.q-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 12px 3px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 500;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+}
+
+.q-pill:hover {
+    opacity: 0.85;
+}
+
+.q-pill.active {
+    border-color: currentColor;
+}
+
+.q-pill-count {
+    font-size: 0.74rem;
+    opacity: 0.6;
+    font-weight: 400;
+}

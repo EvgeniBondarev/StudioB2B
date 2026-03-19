@@ -691,14 +691,14 @@ else
         _filteredItems = q.OrderByDescending(h => h.StartedAtUtc).ToList();
 
         // Recompute counts from full history
-        _typeCountSync      = _historyItems.Count(h => h.JobType == SyncJobType.Sync);
-        _typeCountUpdate    = _historyItems.Count(h => h.JobType == SyncJobType.Update);
-        _typeCountReturns   = _historyItems.Count(h => h.JobType == SyncJobType.Returns);
-        _statusCountEnqueued  = _historyItems.Count(h => h.Status == SyncJobStatus.Enqueued);
+        _typeCountSync = _historyItems.Count(h => h.JobType == SyncJobType.Sync);
+        _typeCountUpdate = _historyItems.Count(h => h.JobType == SyncJobType.Update);
+        _typeCountReturns = _historyItems.Count(h => h.JobType == SyncJobType.Returns);
+        _statusCountEnqueued = _historyItems.Count(h => h.Status == SyncJobStatus.Enqueued);
         _statusCountProcessing = _historyItems.Count(h => h.Status == SyncJobStatus.Processing);
-        _statusCountSucceeded  = _historyItems.Count(h => h.Status == SyncJobStatus.Succeeded);
-        _statusCountFailed     = _historyItems.Count(h => h.Status == SyncJobStatus.Failed);
-        _statusCountCancelled  = _historyItems.Count(h => h.Status == SyncJobStatus.Cancelled);
+        _statusCountSucceeded = _historyItems.Count(h => h.Status == SyncJobStatus.Succeeded);
+        _statusCountFailed = _historyItems.Count(h => h.Status == SyncJobStatus.Failed);
+        _statusCountCancelled = _historyItems.Count(h => h.Status == SyncJobStatus.Cancelled);
     }
 
     private void ToggleDensity() =>

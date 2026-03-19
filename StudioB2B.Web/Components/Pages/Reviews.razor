@@ -1,0 +1,883 @@
+@page "/reviews"
+@attribute [Authorize(Roles = "ReviewsView")]
+@using Microsoft.EntityFrameworkCore
+@using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Shared.DTOs
+
+@inject ITenantProvider TenantProvider
+@inject ITenantDbContextFactory Factory
+@inject IOzonReviewsService ReviewsService
+@inject NotificationService NotificationService
+@inject NavigationManager Navigation
+
+<link rel="stylesheet" href="css/reviews.css" />
+<link rel="stylesheet" href="css/questions.css" />
+
+<PageTitle>Отзывы покупателей</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+{
+    <div class="reviews-page-root">
+
+        <!-- Заголовок -->
+        <div class="reviews-top">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                         JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 0.5rem; margin-top:0.35rem">
+                <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Отзывы покупателей</RadzenText>
+                <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Primary" Shade="Shade.Light" Size="ButtonSize.Small"
+                              Click="@ReloadAsync" IsBusy="@_loading" Text="Обновить" />
+            </RadzenStack>
+
+            <!-- Статус-пилюли -->
+            @if (_counts is not null)
+            {
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                             Style="padding: 0 0 0.75rem 0; flex-wrap: wrap;">
+                    @{ var allActive = string.IsNullOrEmpty(_filterStatus); }
+                    <span class="q-pill @(allActive ? "active" : "")"
+                          style="background:@(allActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allActive ? "#fff" : "var(--rz-text-color)");"
+                          @onclick="@(async () => { _filterStatus = null; await OnStatusPillClick(); })">
+                        Все
+                        @if (_counts.Total > 0)
+                        {
+                            <span class="q-pill-count">@_counts.Total</span>
+                        }
+                    </span>
+                    <span class="q-pill @(_filterStatus == "UNPROCESSED" ? "active" : "")"
+                          style="background:@(_filterStatus == "UNPROCESSED" ? "#f59e0b" : "#fef3c7"); color:@(_filterStatus == "UNPROCESSED" ? "#fff" : "#78350f");"
+                          @onclick="@(async () => { _filterStatus = _filterStatus == "UNPROCESSED" ? null : "UNPROCESSED"; await OnStatusPillClick(); })">
+                        Необработанные
+                        @if (_counts.Unprocessed > 0)
+                        {
+                            <span class="q-pill-count">@_counts.Unprocessed</span>
+                        }
+                    </span>
+                    <span class="q-pill @(_filterStatus == "PROCESSED" ? "active" : "")"
+                          style="background:@(_filterStatus == "PROCESSED" ? "#10b981" : "#d1fae5"); color:@(_filterStatus == "PROCESSED" ? "#fff" : "#064e3b");"
+                          @onclick="@(async () => { _filterStatus = _filterStatus == "PROCESSED" ? null : "PROCESSED"; await OnStatusPillClick(); })">
+                        Обработанные
+                        @if (_counts.Processed > 0)
+                        {
+                            <span class="q-pill-count">@_counts.Processed</span>
+                        }
+                    </span>
+                </RadzenStack>
+            }
+
+            <!-- Фильтр по маркетплейс-клиенту -->
+            <RadzenCard Style="margin-bottom: 0.6rem; padding: 0.5rem 0.75rem;">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                             Gap="0.75rem" Wrap="FlexWrap.Wrap">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                        <RadzenLabel Text="Маркетплейс:" Style="white-space: nowrap;" />
+                        <RadzenDropDown TValue="Guid?" @bind-Value="_filterClientId"
+                                        Data="@_clientOptions"
+                                        TextProperty="Name" ValueProperty="Id"
+                                        Placeholder="Все"
+                                        AllowClear="true"
+                                        Style="width: 200px;"
+                                        Change="@OnFilterChanged" />
+                    </RadzenStack>
+                </RadzenStack>
+            </RadzenCard>
+        </div>
+
+        <!-- Двухколоночный layout -->
+        <div class="reviews-layout">
+
+            <!-- Левая панель: список отзывов -->
+            <div class="review-list-panel">
+                @if (_loading && !_reviews.Any())
+                {
+                    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
+                                 Style="flex: 1; padding: 2rem;">
+                        <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate"
+                                                  Size="ProgressBarCircularSize.Medium" />
+                    </RadzenStack>
+                }
+                else if (!_reviews.Any())
+                {
+                    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
+                                 Style="flex: 1; padding: 2rem; gap: 0.5rem;">
+                        <RadzenIcon Icon="star_border"
+                                    Style="font-size: 2.5rem; color: var(--rz-text-secondary-color);" />
+                        <RadzenText TextStyle="TextStyle.Body2"
+                                    Style="color: var(--rz-text-secondary-color); text-align: center;">
+                            Отзывов не найдено
+                        </RadzenText>
+                    </RadzenStack>
+                }
+                else
+                {
+                    <div class="review-list-scroll">
+                        @foreach (var r in _reviews)
+                        {
+                            var isSelected = _selectedReview?.Id == r.Id &&
+                                             _selectedReview?.MarketplaceClientId == r.MarketplaceClientId;
+                            var cardClass = isSelected ? "review-item-card selected" : "review-item-card";
+                            <RadzenCard @key="@(r.MarketplaceClientId + "_" + r.Id)"
+                                        Class="@cardClass"
+                                        @onclick="@(() => SelectReview(r))">
+                                <div class="review-item-header">
+                                    <div class="review-item-title">
+                                        <span class="review-item-client" title="@r.MarketplaceClientName">
+                                            @r.MarketplaceClientName
+                                        </span>
+                                        <span class="review-item-sku">SKU: @r.Sku</span>
+                                    </div>
+                                    <span class="review-item-date">@FormatTimeAgo(r.PublishedAt)</span>
+                                </div>
+                                <div class="review-stars">
+                                    @for (var i = 1; i <= 5; i++)
+                                    {
+                                        var starIdx = i;
+                                        <span class="@(starIdx <= r.Rating ? "star-filled" : "star-empty")">★</span>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(r.Text))
+                                {
+                                    <div class="review-item-text" title="@r.Text">@r.Text</div>
+                                }
+                                <div class="review-item-footer">
+                                    <RadzenBadge Text="@GetStatusLabel(r.Status)"
+                                                 BadgeStyle="@GetStatusBadgeStyle(r.Status)" />
+                                    @if (r.CommentsAmount > 0)
+                                    {
+                                        <RadzenBadge Text="@($"💬 {r.CommentsAmount}")" BadgeStyle="BadgeStyle.Secondary" />
+                                    }
+                                    @if (r.PhotosAmount > 0)
+                                    {
+                                        <RadzenBadge Text="@($"📷 {r.PhotosAmount}")" BadgeStyle="BadgeStyle.Info" />
+                                    }
+                                </div>
+                            </RadzenCard>
+                        }
+
+                        @if (_hasMore)
+                        {
+                            <div class="reviews-load-more">
+                                @if (_loadingMore)
+                                {
+                                    <RadzenProgressBarCircular ShowValue="false" Size="ProgressBarCircularSize.Small" />
+                                    <span>Загрузка...</span>
+                                }
+                                else
+                                {
+                                    <RadzenButton Text="Загрузить ещё"
+                                                  ButtonStyle="ButtonStyle.Primary"
+                                                  Shade="Shade.Lighter"
+                                                  Variant="Variant.Filled"
+                                                  Size="ButtonSize.Small"
+                                                  Icon="expand_more"
+                                                  Click="@LoadMoreAsync" />
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- Правая панель: детали отзыва -->
+            <div class="review-detail-panel">
+                @if (_selectedReview is null)
+                {
+                    <div class="review-empty-state">
+                        <RadzenIcon Icon="star_border" Style="font-size: 3rem;" />
+                        <RadzenText TextStyle="TextStyle.H6"
+                                    Style="color: var(--rz-text-secondary-color);">
+                            Выберите отзыв из списка
+                        </RadzenText>
+                    </div>
+                }
+                else if (_detailLoading)
+                {
+                    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
+                                 Style="flex: 1; padding: 2rem;">
+                        <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate"
+                                                  Size="ProgressBarCircularSize.Medium" />
+                        <RadzenText TextStyle="TextStyle.Body2"
+                                    Style="color: var(--rz-text-secondary-color); margin-top: 0.5rem;">
+                            Загрузка информации...
+                        </RadzenText>
+                    </RadzenStack>
+                }
+                else
+                {
+                    <!-- Header -->
+                    <div class="review-detail-header">
+                        <RadzenStack Orientation="Orientation.Vertical" Gap="0.25rem">
+                            <div class="review-stars" style="font-size: 1.1rem;">
+                                @for (var i = 1; i <= 5; i++)
+                                {
+                                    var starIdx = i;
+                                    <span class="@(starIdx <= _selectedReview.Rating ? "star-filled" : "star-empty")">★</span>
+                                }
+                            </div>
+                            <RadzenText TextStyle="TextStyle.Caption" Style="margin:0; color: var(--rz-text-secondary-color);">
+                                @_selectedReview.MarketplaceClientName • SKU: @_selectedReview.Sku •
+                                @_selectedReview.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                            </RadzenText>
+                        </RadzenStack>
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                            <RadzenBadge Text="@GetStatusLabel(_selectedReview.Status)"
+                                         BadgeStyle="@GetStatusBadgeStyle(_selectedReview.Status)" />
+                            @if (_selectedReview.Status == "UNPROCESSED")
+                            {
+                                <RadzenButton Text="Отметить обработанным"
+                                              Icon="check_circle"
+                                              ButtonStyle="ButtonStyle.Success"
+                                              Shade="Shade.Lighter"
+                                              Size="ButtonSize.Small"
+                                              IsBusy="@_changingStatus"
+                                              Click="@(() => ChangeStatusAsync("PROCESSED"))" />
+                            }
+                            else
+                            {
+                                <RadzenButton Text="Снять обработку"
+                                              Icon="unpublished"
+                                              ButtonStyle="ButtonStyle.Warning"
+                                              Shade="Shade.Lighter"
+                                              Size="ButtonSize.Small"
+                                              IsBusy="@_changingStatus"
+                                              Click="@(() => ChangeStatusAsync("UNPROCESSED"))" />
+                            }
+                        </RadzenStack>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="review-detail-body">
+
+                        <!-- Meta stats -->
+                        <div class="review-meta-row">
+                            @if (_detail is not null && (_detail.LikesAmount > 0 || _detail.DislikesAmount > 0))
+                            {
+                                <span><strong>👍</strong> @_detail.LikesAmount</span>
+                                <span><strong>👎</strong> @_detail.DislikesAmount</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(_selectedReview.OrderStatus))
+                            {
+                                <span><strong>Заказ:</strong> @GetOrderStatusLabel(_selectedReview.OrderStatus)</span>
+                            }
+                            @if (_selectedReview.IsRatingParticipant)
+                            {
+                                <span style="color: #10b981;"><strong>✓</strong> Учитывается в рейтинге</span>
+                            }
+                        </div>
+
+                        <!-- Review text -->
+                        @if (!string.IsNullOrWhiteSpace(_selectedReview.Text))
+                        {
+                            <div class="review-text-block">@_selectedReview.Text</div>
+                        }
+                        else
+                        {
+                            <RadzenText TextStyle="TextStyle.Body2"
+                                        Style="color: var(--rz-text-secondary-color); margin-bottom: 0.75rem;">
+                                Без текста
+                            </RadzenText>
+                        }
+
+                        <!-- Product card (reuse question-product-* classes) -->
+                        @if (_detail?.Product is not null)
+                        {
+                            <div class="question-product-card">
+                                <RadzenText TextStyle="TextStyle.Subtitle2"
+                                            Style="font-weight: 600; margin-bottom: 0.5rem; color: var(--rz-text-secondary-color);">
+                                    Товар
+                                </RadzenText>
+                                <div class="question-product-layout">
+                                    @if (!string.IsNullOrWhiteSpace(_detail.Product.PrimaryImage))
+                                    {
+                                        <img src="@_detail.Product.PrimaryImage"
+                                             alt="@_detail.Product.Name"
+                                             class="question-product-image"
+                                             @onclick="@(() => _lightboxSrc = _detail.Product.PrimaryImage)"
+                                             title="Нажмите для просмотра" />
+                                    }
+                                    <div class="question-product-info">
+                                        <RadzenText TextStyle="TextStyle.Body1" Style="font-weight: 600; margin: 0;">
+                                            @_detail.Product.Name
+                                        </RadzenText>
+                                        <div class="question-product-props">
+                                            <span><strong>SKU:</strong> @_detail.Product.Sku</span>
+                                            @if (!string.IsNullOrWhiteSpace(_detail.Product.OfferId))
+                                            {
+                                                <span><strong>Артикул:</strong> @_detail.Product.OfferId</span>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(_detail.Product.Barcode))
+                                            {
+                                                <span><strong>Штрихкод:</strong> @_detail.Product.Barcode</span>
+                                            }
+                                            @if (_detail.Product.Weight > 0)
+                                            {
+                                                <span><strong>Вес:</strong> @_detail.Product.Weight @(_detail.Product.WeightUnit ?? "г")</span>
+                                            }
+                                            @if (_detail.Product.Height > 0 || _detail.Product.Width > 0 || _detail.Product.Depth > 0)
+                                            {
+                                                <span><strong>Габариты:</strong> @_detail.Product.Height × @_detail.Product.Width × @_detail.Product.Depth @(_detail.Product.DimensionUnit ?? "мм")</span>
+                                            }
+                                        </div>
+                                        <RadzenButton Text="Заказы с этим товаром"
+                                                      Icon="receipt_long"
+                                                      ButtonStyle="ButtonStyle.Primary"
+                                                      Shade="Shade.Lighter"
+                                                      Size="ButtonSize.Small"
+                                                      Style="margin-top: 0.5rem;"
+                                                      Click="@(() => Navigation.NavigateTo($"/orders?search={_detail.Product.Sku}"))" />
+                                    </div>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(_detail.Product.Description))
+                                {
+                                    <div class="question-product-description">
+                                        <RadzenText TextStyle="TextStyle.Subtitle2"
+                                                    Style="font-weight: 600; margin-bottom: 0.35rem; color: var(--rz-text-secondary-color);">
+                                            Описание
+                                        </RadzenText>
+                                        <div class="question-product-description-text @(_descriptionExpanded ? "expanded" : "")">
+                                            @_detail.Product.Description
+                                        </div>
+                                        @if (_detail.Product.Description.Length > 300)
+                                        {
+                                            <button class="question-description-toggle"
+                                                    @onclick="@(() => _descriptionExpanded = !_descriptionExpanded)">
+                                                @(_descriptionExpanded ? "Свернуть" : "Показать полностью")
+                                            </button>
+                                        }
+                                    </div>
+                                }
+
+                                @if (_detail.Product.Images.Count > 1)
+                                {
+                                    <div class="question-product-images">
+                                        <RadzenText TextStyle="TextStyle.Subtitle2"
+                                                    Style="font-weight: 600; margin-bottom: 0.35rem; color: var(--rz-text-secondary-color);">
+                                            Фотографии товара (@_detail.Product.Images.Count)
+                                        </RadzenText>
+                                        <div class="question-product-images-grid">
+                                            @foreach (var img in _detail.Product.Images)
+                                            {
+                                                <img src="@img"
+                                                     alt="Фото товара"
+                                                     class="question-product-thumb @(_lightboxSrc == img ? "active" : "")"
+                                                     loading="lazy"
+                                                     @onclick="@(() => _lightboxSrc = img)"
+                                                     title="Нажмите для просмотра" />
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <!-- Photos gallery -->
+                        @if (_detail?.Photos.Count > 0)
+                        {
+                            <div class="review-photos-section">
+                                <RadzenText TextStyle="TextStyle.Subtitle2"
+                                            Style="font-weight: 600; margin-bottom: 0.35rem; color: var(--rz-text-secondary-color);">
+                                    Фотографии (@_detail.Photos.Count)
+                                </RadzenText>
+                                <div class="review-photos-grid">
+                                    @foreach (var photo in _detail.Photos)
+                                    {
+                                        <img src="@photo.Url"
+                                             alt="Фото отзыва"
+                                             class="review-photo-thumb @(_lightboxSrc == photo.Url ? "active" : "")"
+                                             loading="lazy"
+                                             @onclick="@(() => _lightboxSrc = photo.Url)"
+                                             title="Нажмите для просмотра" />
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Videos -->
+                        @if (_detail?.Videos.Count > 0)
+                        {
+                            <div class="review-videos-section">
+                                <RadzenText TextStyle="TextStyle.Subtitle2"
+                                            Style="font-weight: 600; margin-bottom: 0.35rem; color: var(--rz-text-secondary-color);">
+                                    Видео (@_detail.Videos.Count)
+                                </RadzenText>
+                                <div class="review-videos-grid">
+                                    @foreach (var video in _detail.Videos)
+                                    {
+                                        var videoUrl = video.Url;
+                                        <div class="review-video-thumb @(_lightboxVideoSrc == videoUrl ? "active" : "")"
+                                             title="Нажмите для просмотра"
+                                             @onclick="@(() => _lightboxVideoSrc = videoUrl)">
+                                            @if (!string.IsNullOrWhiteSpace(video.PreviewUrl))
+                                            {
+                                                <img src="@video.PreviewUrl" alt="Видео" loading="lazy" />
+                                            }
+                                            else
+                                            {
+                                                <div style="width:100%;height:100%;background:#1a1a2e;"></div>
+                                            }
+                                            <div class="review-video-play">
+                                                <RadzenIcon Icon="play_circle_filled" />
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Comments -->
+                        @if (_detail?.Comments.Count > 0)
+                        {
+                            <div class="review-comments-section">
+                                <RadzenText TextStyle="TextStyle.Subtitle2"
+                                            Style="font-weight: 600; margin-bottom: 0.5rem; color: var(--rz-text-secondary-color);">
+                                    Комментарии (@_detail.Comments.Count)
+                                </RadzenText>
+                                @foreach (var comment in _detail.Comments)
+                                {
+                                    <div class="review-comment-item @(comment.IsOfficial ? "is-official" : "")">
+                                        <div class="review-comment-meta">
+                                            <span class="review-comment-author">
+                                                @if (comment.IsOfficial)
+                                                {
+                                                    <text>Продавец (официальный)</text>
+                                                }
+                                                else if (comment.IsOwner)
+                                                {
+                                                    <text>Вы</text>
+                                                }
+                                                else
+                                                {
+                                                    <text>Покупатель</text>
+                                                }
+                                            </span>
+                                            <span>@comment.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                            @if (comment.IsOwner || comment.IsOfficial)
+                                            {
+                                                <RadzenButton Icon="delete"
+                                                              ButtonStyle="ButtonStyle.Danger"
+                                                              Shade="Shade.Lighter"
+                                                              Variant="Variant.Text"
+                                                              Size="ButtonSize.ExtraSmall"
+                                                              Style="margin-left: auto; padding: 0 4px;"
+                                                              Title="Удалить комментарий"
+                                                              IsBusy="@(_deletingCommentId == comment.Id)"
+                                                              Click="@(() => DeleteCommentAsync(comment))" />
+                                            }
+                                        </div>
+                                        <div class="review-comment-text">@comment.Text</div>
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <!-- Comment composer -->
+                        <div class="review-comment-composer">
+                            <!-- Шаблонные ответы -->
+                            <div class="review-quick-replies">
+                                @foreach (var tpl in QuickReplies)
+                                {
+                                    <button class="review-quick-reply-chip" @onclick="@(() => ApplyTemplate(tpl))">@tpl</button>
+                                }
+                            </div>
+
+                            <div class="review-comment-input-row">
+                                <RadzenTextArea @bind-Value="_commentText"
+                                                Rows="1"
+                                                Placeholder="Напишите комментарий к отзыву…"
+                                                Style="flex: 1; resize: none; padding: 2px 10px; max-height: 140px;"
+                                                Disabled="@_sendingComment"
+                                                oninput="this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,200)+'px';" />
+                                <RadzenButton Icon="send"
+                                              ButtonStyle="ButtonStyle.Primary"
+                                              Size="ButtonSize.Small"
+                                              IsBusy="@_sendingComment"
+                                              Disabled="@(string.IsNullOrWhiteSpace(_commentText) || (_commentText?.Length ?? 0) < 2 || (_commentText?.Length ?? 0) > 3000)"
+                                              Click="@SendCommentAsync"
+                                              Title="Отправить комментарий" />
+                            </div>
+                            <div class="review-comment-char-counter @((_commentText?.Length ?? 0) > 3000 ? "over-limit" : "")">
+                                @(_commentText?.Length ?? 0) / 3000
+                            </div>
+                        </div>
+
+                        <!-- Photo lightbox -->
+                        @if (_lightboxSrc is not null)
+                        {
+                            <div class="review-lightbox" @onclick="@(() => _lightboxSrc = null)">
+                                <img src="@_lightboxSrc" alt="Просмотр фото" @onclick:stopPropagation="true" />
+                                <button class="review-lightbox-close" @onclick="@(() => _lightboxSrc = null)" title="Закрыть">✕</button>
+                            </div>
+                        }
+
+                        <!-- Video lightbox -->
+                        @if (_lightboxVideoSrc is not null)
+                        {
+                            <div class="review-lightbox" @onclick="@(() => _lightboxVideoSrc = null)">
+                                <div class="review-video-lightbox-inner" @onclick:stopPropagation="true">
+                                    <video src="@_lightboxVideoSrc"
+                                           controls
+                                           autoplay
+                                           class="review-video-player"
+                                           preload="metadata">
+                                        Ваш браузер не поддерживает воспроизведение видео.
+                                    </video>
+                                </div>
+                                <button class="review-lightbox-close" @onclick="@(() => _lightboxVideoSrc = null)" title="Закрыть">✕</button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ClientOptionDto> _clientOptions = new();
+    private OzonReviewCountAggregateDto? _counts;
+
+    private List<OzonReviewViewModelDto> _reviews = new();
+    private OzonReviewViewModelDto? _selectedReview;
+    private OzonReviewDetailDto? _detail;
+
+    private bool _loading;
+    private bool _loadingMore;
+    private bool _detailLoading;
+    private bool _changingStatus;
+    private bool _sendingComment;
+
+    private string? _cursor;
+    private bool _hasMore;
+
+    private Guid? _filterClientId;
+    private string? _filterStatus;
+
+    private string? _commentText;
+    private string? _deletingCommentId;
+    private string? _lightboxSrc;
+    private string? _lightboxVideoSrc;
+    private bool _descriptionExpanded;
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!TenantProvider.IsResolved) return;
+
+        await LoadClientOptionsAsync();
+        _ = LoadReviewCountsAsync();
+        await ReloadAsync();
+    }
+
+    // ── Data loading ──────────────────────────────────────────────────────────
+
+    private async Task LoadClientOptionsAsync()
+    {
+        try
+        {
+            await using var db = Factory.CreateDbContext();
+            _clientOptions = await db.MarketplaceClients!
+                .AsNoTracking()
+                .Where(c => !c.IsDeleted)
+                .OrderBy(c => c.Name)
+                .Select(c => new ClientOptionDto { Id = c.Id, Name = c.Name })
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 4000);
+        }
+    }
+
+    private async Task LoadReviewCountsAsync()
+    {
+        try
+        {
+            _counts = await ReviewsService.GetReviewCountsAsync(_filterClientId);
+            StateHasChanged();
+        }
+        catch
+        {
+            // non-critical
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        _cursor = null;
+        _reviews.Clear();
+        _selectedReview = null;
+        _detail = null;
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        if (_loading) return;
+        _loading = true;
+        StateHasChanged();
+
+        try
+        {
+            var page = await ReviewsService.GetReviewsPageAsync(
+                pageSize: 20,
+                cursor: _cursor,
+                status: _filterStatus,
+                marketplaceClientId: _filterClientId);
+
+            if (string.IsNullOrEmpty(_cursor))
+                _reviews = page.Reviews;
+            else
+                _reviews.AddRange(page.Reviews);
+
+            _cursor = page.NextCursor;
+            _hasMore = page.HasNext;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка загрузки отзывов", ex.Message, 5000);
+        }
+        finally
+        {
+            _loading = false;
+            _loadingMore = false;
+            StateHasChanged();
+        }
+    }
+
+    private Task LoadMoreAsync()
+    {
+        if (!_hasMore || _loadingMore || _cursor is null) return Task.CompletedTask;
+        _loadingMore = true;
+        return LoadPageAsync();
+    }
+
+    private async Task OnStatusPillClick()
+    {
+        StateHasChanged();
+        await ReloadAsync();
+    }
+
+    private Task OnFilterChanged(object? _)
+    {
+        _ = LoadReviewCountsAsync();
+        return ReloadAsync();
+    }
+
+    // ── Review selection & detail ─────────────────────────────────────────────
+
+    private void SelectReview(OzonReviewViewModelDto r)
+    {
+        _selectedReview = r;
+        _detail = null;
+        _detailLoading = true;
+        _lightboxSrc = null;
+        _lightboxVideoSrc = null;
+        _descriptionExpanded = false;
+        _commentText = null;
+        StateHasChanged();
+        _ = LoadDetailAsync(r);
+    }
+
+    private async Task LoadDetailAsync(OzonReviewViewModelDto r)
+    {
+        try
+        {
+            _detail = await ReviewsService.GetReviewDetailAsync(r);
+            _selectedReview = _detail.Review;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка загрузки деталей", ex.Message, 4000);
+        }
+        finally
+        {
+            _detailLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // ── Status change ─────────────────────────────────────────────────────────
+
+    private async Task ChangeStatusAsync(string newStatus)
+    {
+        if (_selectedReview is null) return;
+        _changingStatus = true;
+        try
+        {
+            var ok = await ReviewsService.ChangeReviewStatusAsync(_selectedReview, newStatus);
+            if (ok)
+            {
+                _selectedReview.Status = newStatus;
+
+                var idx = _reviews.FindIndex(r => r.Id == _selectedReview.Id &&
+                                                  r.MarketplaceClientId == _selectedReview.MarketplaceClientId);
+                if (idx >= 0) _reviews[idx].Status = newStatus;
+
+                NotificationService.Notify(NotificationSeverity.Success,
+                    newStatus == "PROCESSED" ? "Отзыв отмечен обработанным" : "Статус снят", duration: 3000);
+
+                _ = LoadReviewCountsAsync();
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Не удалось изменить статус", duration: 4000);
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 4000);
+        }
+        finally
+        {
+            _changingStatus = false;
+            StateHasChanged();
+        }
+    }
+
+    // ── Comments ──────────────────────────────────────────────────────────────
+
+    private async Task SendCommentAsync()
+    {
+        if (_selectedReview is null || string.IsNullOrWhiteSpace(_commentText)) return;
+
+        _sendingComment = true;
+        try
+        {
+            var commentId = await ReviewsService.CreateReviewCommentAsync(
+                _selectedReview, _commentText.Trim(), markAsProcessed: true);
+
+            if (commentId is not null)
+            {
+                _detail ??= new OzonReviewDetailDto { Review = _selectedReview };
+                _detail.Comments.Add(new OzonReviewCommentDto
+                {
+                    Id = commentId,
+                    Text = _commentText.Trim(),
+                    IsOfficial = true,
+                    IsOwner = true,
+                    PublishedAt = DateTime.UtcNow
+                });
+                _selectedReview.CommentsAmount = _detail.Comments.Count;
+
+                // Update list card count
+                var idx = _reviews.FindIndex(r => r.Id == _selectedReview.Id &&
+                                                  r.MarketplaceClientId == _selectedReview.MarketplaceClientId);
+                if (idx >= 0) _reviews[idx].CommentsAmount = _detail.Comments.Count;
+
+                // Mark as processed
+                if (_selectedReview.Status == "UNPROCESSED")
+                {
+                    _selectedReview.Status = "PROCESSED";
+                    if (idx >= 0) _reviews[idx].Status = "PROCESSED";
+                    _ = LoadReviewCountsAsync();
+                }
+
+                _commentText = null;
+                NotificationService.Notify(NotificationSeverity.Success, "Комментарий опубликован", duration: 3000);
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Не удалось отправить комментарий", duration: 4000);
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 4000);
+        }
+        finally
+        {
+            _sendingComment = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteCommentAsync(OzonReviewCommentDto comment)
+    {
+        if (_selectedReview is null || _detail is null) return;
+        _deletingCommentId = comment.Id;
+        try
+        {
+            var ok = await ReviewsService.DeleteReviewCommentAsync(_selectedReview, comment.Id);
+            if (ok)
+            {
+                _detail.Comments.Remove(comment);
+                _selectedReview.CommentsAmount = _detail.Comments.Count;
+
+                var idx = _reviews.FindIndex(r => r.Id == _selectedReview.Id &&
+                                                  r.MarketplaceClientId == _selectedReview.MarketplaceClientId);
+                if (idx >= 0) _reviews[idx].CommentsAmount = _detail.Comments.Count;
+
+                NotificationService.Notify(NotificationSeverity.Success, "Комментарий удалён", duration: 3000);
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Не удалось удалить комментарий", duration: 4000);
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 4000);
+        }
+        finally
+        {
+            _deletingCommentId = null;
+            StateHasChanged();
+        }
+    }
+
+    // ── Quick replies ─────────────────────────────────────────────────────────
+
+    private static readonly string[] QuickReplies =
+    [
+        "Здравствуйте!",
+        "Здравствуйте! Спасибо за ваш отзыв.",
+        "Здравствуйте! Приносим извинения за доставленные неудобства.",
+        "Спасибо за обратную связь, мы обязательно учтём ваше мнение.",
+        "Пожалуйста, напишите нам в личные сообщения, мы поможем решить вопрос.",
+        "Мы рады, что вам понравился товар!"
+    ];
+
+    private void ApplyTemplate(string text) => _commentText = text;
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private static string FormatTimeAgo(DateTime utcTime)
+    {
+        var diff = DateTime.UtcNow - utcTime;
+        if (diff.TotalSeconds < 60) return "только что";
+        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} мин. назад";
+        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} ч. назад";
+        if (diff.TotalDays < 2) return "вчера";
+        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} дн. назад";
+        return utcTime.ToLocalTime().ToString("dd.MM.yyyy");
+    }
+
+    private static string GetStatusLabel(string? status) => status switch
+    {
+        "PROCESSED" => "Обработан",
+        "UNPROCESSED" => "Необработан",
+        _ => status ?? "—"
+    };
+
+    private static BadgeStyle GetStatusBadgeStyle(string? status) => status switch
+    {
+        "PROCESSED" => BadgeStyle.Success,
+        "UNPROCESSED" => BadgeStyle.Warning,
+        _ => BadgeStyle.Secondary
+    };
+
+    private static string GetOrderStatusLabel(string? status) => status switch
+    {
+        "DELIVERED" => "Доставлен",
+        "CANCELLED" => "Отменён",
+        _ => status ?? "—"
+    };
+}
+
