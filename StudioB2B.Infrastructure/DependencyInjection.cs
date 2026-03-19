@@ -31,7 +31,7 @@ public static class DependencyInjection
         services.Configure<MultiTenancyOptions>(
             configuration.GetSection(MultiTenancyOptions.SectionName));
 
-        services.AddAutoMapper(typeof(DependencyInjection).Assembly);
+        services.AddAutoMapper(cfg => cfg.AddMaps(typeof(DependencyInjection).Assembly));
 
         services.AddDbContext<MasterDbContext>(options =>
         {
