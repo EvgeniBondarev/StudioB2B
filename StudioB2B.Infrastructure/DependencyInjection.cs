@@ -31,7 +31,7 @@ public static class DependencyInjection
         services.Configure<MultiTenancyOptions>(
             configuration.GetSection(MultiTenancyOptions.SectionName));
 
-        services.AddAutoMapper(typeof(DependencyInjection).Assembly);
+        services.AddAutoMapper(cfg => cfg.AddMaps(typeof(DependencyInjection).Assembly));
 
         services.AddDbContext<MasterDbContext>(options =>
         {
@@ -64,6 +64,7 @@ public static class DependencyInjection
         services.AddScoped<IOrderAdapter, OzonFbsOrderAdapter>();
         services.AddScoped<IOrderSyncService, OrderSyncService>();
         services.AddScoped<IOzonChatService, OzonChatService>();
+        services.AddScoped<IOzonQuestionsService, OzonQuestionsService>();
 
         services.AddScoped<TenantProvider>();
         services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<TenantProvider>());

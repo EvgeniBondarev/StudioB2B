@@ -8,7 +8,6 @@ using StudioB2B.Web.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using Radzen;
 using StudioB2B.Infrastructure;
-using Microsoft.AspNetCore.Components;
 using StudioB2B.Infrastructure.Interfaces;
 
 namespace StudioB2B.Web.Extensions;
@@ -17,11 +16,9 @@ public static class ServiceExtensions
 {
     public static IServiceCollection AddApplicationServices(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IWebHostEnvironment environment)
     {
-        var serviceProvider = services.BuildServiceProvider();
-        var environment = serviceProvider.GetRequiredService<IWebHostEnvironment>();
-
         StaticWebAssetsLoader.UseStaticWebAssets(environment, configuration);
 
         services.AddHttpContextAccessor();

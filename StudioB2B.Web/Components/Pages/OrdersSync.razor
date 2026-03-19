@@ -124,6 +124,74 @@ else
         }
     </RadzenStack>
 
+    <!-- Тип + Статус: пилюли -->
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                 Style="padding: 0 0 0.6rem 0; flex-wrap: wrap;">
+        @{ var allTypeActive = _filterType == null; }
+        <span class="q-pill @(allTypeActive ? "active" : "")"
+              style="background:@(allTypeActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allTypeActive ? "#fff" : "var(--rz-text-color)");"
+              @onclick="@(() => { _filterType = null; ApplyFilters(); })">
+            Все типы
+        </span>
+        <span class="q-pill @(_filterType == SyncJobType.Sync ? "active" : "")"
+              style="background:@(_filterType == SyncJobType.Sync ? "#3b82f6" : "#dbeafe"); color:@(_filterType == SyncJobType.Sync ? "#fff" : "#1e3a5f");"
+              @onclick="@(() => { _filterType = _filterType == SyncJobType.Sync ? null : SyncJobType.Sync; ApplyFilters(); })">
+            Загрузка заказов
+            @if (_typeCountSync > 0) { <span class="q-pill-count">@_typeCountSync</span> }
+        </span>
+        <span class="q-pill @(_filterType == SyncJobType.Update ? "active" : "")"
+              style="background:@(_filterType == SyncJobType.Update ? "#8b5cf6" : "#ede9fe"); color:@(_filterType == SyncJobType.Update ? "#fff" : "#4c1d95");"
+              @onclick="@(() => { _filterType = _filterType == SyncJobType.Update ? null : SyncJobType.Update; ApplyFilters(); })">
+            Обновление статусов
+            @if (_typeCountUpdate > 0) { <span class="q-pill-count">@_typeCountUpdate</span> }
+        </span>
+        <span class="q-pill @(_filterType == SyncJobType.Returns ? "active" : "")"
+              style="background:@(_filterType == SyncJobType.Returns ? "#06b6d4" : "#cffafe"); color:@(_filterType == SyncJobType.Returns ? "#fff" : "#164e63");"
+              @onclick="@(() => { _filterType = _filterType == SyncJobType.Returns ? null : SyncJobType.Returns; ApplyFilters(); })">
+            Загрузка возвратов
+            @if (_typeCountReturns > 0) { <span class="q-pill-count">@_typeCountReturns</span> }
+        </span>
+
+        <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 6px;"></span>
+
+        @{ var allStatusActive = _filterStatus == null; }
+        <span class="q-pill @(allStatusActive ? "active" : "")"
+              style="background:@(allStatusActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allStatusActive ? "#fff" : "var(--rz-text-color)");"
+              @onclick="@(() => { _filterStatus = null; ApplyFilters(); })">
+            Все статусы
+        </span>
+        <span class="q-pill @(_filterStatus == SyncJobStatus.Enqueued ? "active" : "")"
+              style="background:@(_filterStatus == SyncJobStatus.Enqueued ? "#f59e0b" : "#fef3c7"); color:@(_filterStatus == SyncJobStatus.Enqueued ? "#fff" : "#78350f");"
+              @onclick="@(() => { _filterStatus = _filterStatus == SyncJobStatus.Enqueued ? null : SyncJobStatus.Enqueued; ApplyFilters(); })">
+            В очереди
+            @if (_statusCountEnqueued > 0) { <span class="q-pill-count">@_statusCountEnqueued</span> }
+        </span>
+        <span class="q-pill @(_filterStatus == SyncJobStatus.Processing ? "active" : "")"
+              style="background:@(_filterStatus == SyncJobStatus.Processing ? "#3b82f6" : "#dbeafe"); color:@(_filterStatus == SyncJobStatus.Processing ? "#fff" : "#1e3a5f");"
+              @onclick="@(() => { _filterStatus = _filterStatus == SyncJobStatus.Processing ? null : SyncJobStatus.Processing; ApplyFilters(); })">
+            Выполняется
+            @if (_statusCountProcessing > 0) { <span class="q-pill-count">@_statusCountProcessing</span> }
+        </span>
+        <span class="q-pill @(_filterStatus == SyncJobStatus.Succeeded ? "active" : "")"
+              style="background:@(_filterStatus == SyncJobStatus.Succeeded ? "#10b981" : "#d1fae5"); color:@(_filterStatus == SyncJobStatus.Succeeded ? "#fff" : "#065f46");"
+              @onclick="@(() => { _filterStatus = _filterStatus == SyncJobStatus.Succeeded ? null : SyncJobStatus.Succeeded; ApplyFilters(); })">
+            Завершена
+            @if (_statusCountSucceeded > 0) { <span class="q-pill-count">@_statusCountSucceeded</span> }
+        </span>
+        <span class="q-pill @(_filterStatus == SyncJobStatus.Failed ? "active" : "")"
+              style="background:@(_filterStatus == SyncJobStatus.Failed ? "#ef4444" : "#fee2e2"); color:@(_filterStatus == SyncJobStatus.Failed ? "#fff" : "#7f1d1d");"
+              @onclick="@(() => { _filterStatus = _filterStatus == SyncJobStatus.Failed ? null : SyncJobStatus.Failed; ApplyFilters(); })">
+            Ошибка
+            @if (_statusCountFailed > 0) { <span class="q-pill-count">@_statusCountFailed</span> }
+        </span>
+        <span class="q-pill @(_filterStatus == SyncJobStatus.Cancelled ? "active" : "")"
+              style="background:@(_filterStatus == SyncJobStatus.Cancelled ? "#6b7280" : "#f3f4f6"); color:@(_filterStatus == SyncJobStatus.Cancelled ? "#fff" : "#374151");"
+              @onclick="@(() => { _filterStatus = _filterStatus == SyncJobStatus.Cancelled ? null : SyncJobStatus.Cancelled; ApplyFilters(); })">
+            Отменена
+            @if (_statusCountCancelled > 0) { <span class="q-pill-count">@_statusCountCancelled</span> }
+        </span>
+    </RadzenStack>
+
     @if (_hasActiveJobs)
     {
         <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false"
@@ -300,6 +368,16 @@ else
 
     private SyncJobType? _filterType;
     private SyncJobStatus? _filterStatus;
+
+    // Pill counts (computed from full history, not filtered)
+    private int _typeCountSync;
+    private int _typeCountUpdate;
+    private int _typeCountReturns;
+    private int _statusCountEnqueued;
+    private int _statusCountProcessing;
+    private int _statusCountSucceeded;
+    private int _statusCountFailed;
+    private int _statusCountCancelled;
 
     private record FilterOption<T>(string Label, T? Value);
 
@@ -611,6 +689,16 @@ else
             q = q.Where(h => h.Status == _filterStatus.Value);
 
         _filteredItems = q.OrderByDescending(h => h.StartedAtUtc).ToList();
+
+        // Recompute counts from full history
+        _typeCountSync      = _historyItems.Count(h => h.JobType == SyncJobType.Sync);
+        _typeCountUpdate    = _historyItems.Count(h => h.JobType == SyncJobType.Update);
+        _typeCountReturns   = _historyItems.Count(h => h.JobType == SyncJobType.Returns);
+        _statusCountEnqueued  = _historyItems.Count(h => h.Status == SyncJobStatus.Enqueued);
+        _statusCountProcessing = _historyItems.Count(h => h.Status == SyncJobStatus.Processing);
+        _statusCountSucceeded  = _historyItems.Count(h => h.Status == SyncJobStatus.Succeeded);
+        _statusCountFailed     = _historyItems.Count(h => h.Status == SyncJobStatus.Failed);
+        _statusCountCancelled  = _historyItems.Count(h => h.Status == SyncJobStatus.Cancelled);
     }
 
     private void ToggleDensity() =>
