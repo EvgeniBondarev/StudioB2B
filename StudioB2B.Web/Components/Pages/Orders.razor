@@ -778,6 +778,9 @@ window.gridResize = {
     [SupplyParameterFromQuery(Name = "openReturn")]
     public string? OpenReturnId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? SearchParam { get; set; }
+
     private RadzenDataGrid<OrderEntity>? _grid;
 
     private TenantDbContext? _db;
@@ -1032,6 +1035,12 @@ window.gridResize = {
 
             if (TenantProvider.IsResolved)
                 _manufacturerModuleEnabled = await ModuleService.IsEnabledAsync(ModuleCodes.Manufacturers);
+
+            if (!string.IsNullOrEmpty(SearchParam))
+            {
+                _searchText = SearchParam;
+                SearchParam = null;
+            }
 
             await LoadGridSettingsAsync();
             await LoadFiltersAsync();

@@ -349,6 +349,13 @@ public enum TenantRoleEnum
 
     [Description("Загрузка: колонка «Запустил»")]
     SyncColInitiatedBy = 106,
+
+    // Вопросы покупателей
+    [Description("Вопросы: просмотр")]
+    QuestionsView = 107,
+
+    [Description("Вопросы: управление")]
+    QuestionsManage = 108,
 }
 
 public static class TenantRoleHelper
