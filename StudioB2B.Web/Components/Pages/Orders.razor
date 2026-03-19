@@ -3,6 +3,7 @@
 @using Microsoft.EntityFrameworkCore
 @using Radzen
 @using Radzen.Blazor.Rendering
+
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Persistence.Tenant
@@ -317,10 +318,11 @@ else
         <Columns>
             <RadzenDataGridColumn TItem="OrderEntity" Title="" Width="44px" Frozen="true" Sortable="false" Filterable="false">
                 <HeaderTemplate>
-                    <RadzenCheckBox TValue="bool" Value="@IsAllSelected" ValueChanged="@OnSelectAllChanged" />
+                    <RadzenCheckBox TValue="bool" Value="@IsAllSelected" ValueChanged="@OnSelectAllChanged"  Style="margin-left: 6px;"/>
                 </HeaderTemplate>
                 <Template Context="o">
                     <RadzenCheckBox TValue="bool" Value="@_selectedOrderIds.Contains(o.Id)"
+                                    Style="margin-left: 10px;"
                                    ValueChanged="@(v => ToggleOrderSelection(o.Id, v))" />
                 </Template>
             </RadzenDataGridColumn>
@@ -778,6 +780,9 @@ window.gridResize = {
     [SupplyParameterFromQuery(Name = "openReturn")]
     public string? OpenReturnId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? SearchParam { get; set; }
+
     private RadzenDataGrid<OrderEntity>? _grid;
 
     private TenantDbContext? _db;
@@ -857,7 +862,8 @@ window.gridResize = {
 
     private record OrderFilters(Guid? ClientId, Guid? StatusId, Guid? SystemStatusId, Guid? WarehouseId);
 
-    [Inject] private IJSRuntime Js { get; set; } = default!;
+    [Inject]
+    private IJSRuntime Js { get; set; } = default!;
 
     private DotNetObjectReference<Orders>? _resizeRef;
 
@@ -941,16 +947,6 @@ window.gridResize = {
         new() { Key = OrderGridColumns.Manufacturer, Title = "Произв.", Width = "5%", Priority = 15 }
     };
 
-    void UpdateSelectedColumns()
-    {
-        foreach (var col in Columns)
-        {
-            col.UserVisible = _selectedColumns.Contains(col.Key);
-        }
-
-        StateHasChanged();
-    }
-
     // высчитываем, сколько колонок показывать
     void UpdateColumnsForWidth(int width)
     {
@@ -1032,6 +1028,12 @@ window.gridResize = {
 
             if (TenantProvider.IsResolved)
                 _manufacturerModuleEnabled = await ModuleService.IsEnabledAsync(ModuleCodes.Manufacturers);
+
+            if (!string.IsNullOrEmpty(SearchParam))
+            {
+                _searchText = SearchParam;
+                SearchParam = null;
+            }
 
             await LoadGridSettingsAsync();
             await LoadFiltersAsync();

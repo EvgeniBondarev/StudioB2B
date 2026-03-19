@@ -16,6 +16,7 @@
 
 @implements IDisposable
 
+<link rel="stylesheet" href="css/orders.css" />
 <PageTitle>Статусы заказов</PageTitle>
 
 @if (!TenantProvider.IsResolved)
@@ -39,6 +40,61 @@ else
                 </Authorized>
             </AuthorizeView>
         </RadzenStack>
+    </RadzenStack>
+
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                 Style="padding: 0 0 0.6rem 0; flex-wrap: wrap;">
+        @{ var noOsFilter = string.IsNullOrEmpty(_filterType) && _filterMarketplaceTypeId == null && !_filterTerminal.HasValue; }
+        <span class="q-pill @(noOsFilter ? "active" : "")"
+              style="background:@(noOsFilter ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(noOsFilter ? "#fff" : "var(--rz-text-color)");"
+              @onclick="@(async () => { _filterType = null; _filterMarketplaceTypeId = null; _filterTerminal = null; await OnFilterChange(); })">
+            Все
+        </span>
+        <span class="q-pill @(_filterType == "internal" ? "active" : "")"
+              style="background:@(_filterType == "internal" ? "#3b82f6" : "#dbeafe"); color:@(_filterType == "internal" ? "#fff" : "#1e3a5f");"
+              @onclick="@(async () => { _filterType = _filterType == "internal" ? null : "internal"; await OnFilterChange(); })">
+            Системные
+            @if (_countInternal > 0) { <span class="q-pill-count">@_countInternal</span> }
+        </span>
+        <span class="q-pill @(_filterType == "marketplace" ? "active" : "")"
+              style="background:@(_filterType == "marketplace" ? "#8b5cf6" : "#ede9fe"); color:@(_filterType == "marketplace" ? "#fff" : "#4c1d95");"
+              @onclick="@(async () => { _filterType = _filterType == "marketplace" ? null : "marketplace"; await OnFilterChange(); })">
+            Маркетплейсовые
+            @if (_countMarketplace > 0) { <span class="q-pill-count">@_countMarketplace</span> }
+        </span>
+
+        @if (_clientTypes.Any())
+        {
+            <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 6px;"></span>
+            @foreach (var ct in _clientTypes)
+            {
+                var ctId = ct.Id;
+                var ctName = ct.Name;
+                var isCtActive = _filterMarketplaceTypeId == ctId;
+                var ctCnt = _countByClientTypeId.GetValueOrDefault(ctId);
+                <span class="q-pill @(isCtActive ? "active" : "")"
+                      style="background:@(isCtActive ? "var(--rz-primary)" : "#ececff"); color:@(isCtActive ? "#fff" : "#1f2937");"
+                      @onclick="@(async () => { _filterMarketplaceTypeId = isCtActive ? null : ctId; await OnFilterChange(); })">
+                    @ctName
+                    @if (ctCnt > 0) { <span class="q-pill-count">@ctCnt</span> }
+                </span>
+            }
+        }
+
+        <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 6px;"></span>
+
+        <span class="q-pill @(_filterTerminal == true ? "active" : "")"
+              style="background:@(_filterTerminal == true ? "#10b981" : "#d1fae5"); color:@(_filterTerminal == true ? "#fff" : "#065f46");"
+              @onclick="@(async () => { _filterTerminal = _filterTerminal == true ? null : (bool?)true; await OnFilterChange(); })">
+            Конечные
+            @if (_countTerminal > 0) { <span class="q-pill-count">@_countTerminal</span> }
+        </span>
+        <span class="q-pill @(_filterTerminal == false ? "active" : "")"
+              style="background:@(_filterTerminal == false ? "#6b7280" : "#f3f4f6"); color:@(_filterTerminal == false ? "#fff" : "#374151");"
+              @onclick="@(async () => { _filterTerminal = _filterTerminal == false ? null : (bool?)false; await OnFilterChange(); })">
+            Не конечные
+            @if (_countNonTerminal > 0) { <span class="q-pill-count">@_countNonTerminal</span> }
+        </span>
     </RadzenStack>
 
     <RadzenDataGrid @ref="_grid"
@@ -275,6 +331,13 @@ else
 
     private string? _filterType;
     private Guid? _filterMarketplaceTypeId;
+    private bool? _filterTerminal;
+
+    private int _countInternal;
+    private int _countMarketplace;
+    private int _countTerminal;
+    private int _countNonTerminal;
+    private Dictionary<Guid, int> _countByClientTypeId = new();
 
     private record FilterOption(string Label, string Value);
     private readonly List<FilterOption> _typeFilterOptions =
@@ -287,7 +350,7 @@ else
     private const string GridSettingsKey = "order-statuses-grid-settings";
     private const string FiltersKey = "order-statuses-filters";
 
-    private record StatusFilters(string? FilterType, Guid? MarketplaceTypeId);
+    private record StatusFilters(string? FilterType, Guid? MarketplaceTypeId, bool? FilterTerminal = null);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -345,6 +408,7 @@ else
                 {
                     _filterType = f.FilterType;
                     _filterMarketplaceTypeId = f.MarketplaceTypeId;
+                    _filterTerminal = f.FilterTerminal;
                     StateHasChanged();
                 }
             }
@@ -356,7 +420,7 @@ else
     {
         try
         {
-            var json = System.Text.Json.JsonSerializer.Serialize(new StatusFilters(_filterType, _filterMarketplaceTypeId));
+            var json = System.Text.Json.JsonSerializer.Serialize(new StatusFilters(_filterType, _filterMarketplaceTypeId, _filterTerminal));
             await JsRuntime.InvokeVoidAsync("localStorage.setItem", FiltersKey, json);
         }
         catch { }
@@ -381,6 +445,9 @@ else
         if (_filterMarketplaceTypeId.HasValue)
             query = query.Where(s => s.MarketplaceClientTypeId == _filterMarketplaceTypeId.Value);
 
+        if (_filterTerminal.HasValue)
+            query = query.Where(s => s.IsTerminal == _filterTerminal.Value);
+
         if (!string.IsNullOrEmpty(args.Filter))
             query = query.Where(args.Filter);
 
@@ -404,6 +471,20 @@ else
 
         _clientTypes = await _db.MarketplaceClientTypes!
             .AsNoTracking().OrderBy(t => t.Name).ToListAsync();
+
+        var statusData = await _db.OrderStatuses
+            .Active()
+            .AsNoTracking()
+            .Select(s => new { s.IsInternal, s.IsTerminal, s.MarketplaceClientTypeId })
+            .ToListAsync();
+        _countInternal = statusData.Count(s => s.IsInternal);
+        _countMarketplace = statusData.Count(s => !s.IsInternal);
+        _countTerminal = statusData.Count(s => s.IsTerminal);
+        _countNonTerminal = statusData.Count(s => !s.IsTerminal);
+        _countByClientTypeId = statusData
+            .Where(s => s.MarketplaceClientTypeId.HasValue)
+            .GroupBy(s => s.MarketplaceClientTypeId!.Value)
+            .ToDictionary(g => g.Key, g => g.Count());
     }
 
     private async Task OnFilterChange()

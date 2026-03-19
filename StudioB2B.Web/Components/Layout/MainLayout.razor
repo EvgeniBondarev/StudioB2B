@@ -68,6 +68,9 @@
                     <AuthorizeView Roles="ChatsView">
                         <Authorized><RadzenPanelMenuItem Text="Чаты" Path="/chats" Icon="chat" /></Authorized>
                     </AuthorizeView>
+                    <AuthorizeView Roles="QuestionsView">
+                        <Authorized><RadzenPanelMenuItem Text="Вопросы" Path="/questions" Icon="help" /></Authorized>
+                    </AuthorizeView>
                     <AuthorizeView Roles="AuditView">
                         <Authorized><RadzenPanelMenuItem Text="Журнал" Path="/audit" Icon="history" /></Authorized>
                     </AuthorizeView>
@@ -160,7 +163,7 @@
         ? "padding: 1rem 1.5rem;"
         : "padding: 0.5rem 0;";
 
-    private static readonly HashSet<string> FullHeightPages = ["/chats"];
+    private static readonly HashSet<string> FullHeightPages = ["/chats", "/questions"];
 
     private bool _isFullHeight => FullHeightPages.Contains(new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant());
 

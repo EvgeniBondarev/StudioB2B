@@ -147,6 +147,144 @@ public class OzonApiClient : IOzonApiClient
         return SendPostAsync<OzonReturnsListResponseDto>(OzonEndpoints.ReturnsList, clientId, plainApiKey, request, ct);
     }
 
+    public Task<OzonApiResultDto<OzonQuestionListResponseDto>> GetQuestionListAsync(string clientId, string apiKey,
+                                                                                 OzonQuestionListRequestDto request,
+                                                                                 CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonQuestionListResponseDto>(OzonEndpoints.QuestionList, clientId, plainApiKey, request, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonQuestionItemDto>> GetQuestionInfoAsync(string clientId, string apiKey,
+                                                                            string questionId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        var body = new OzonQuestionInfoRequestDto { QuestionId = questionId };
+        return SendPostAsync<OzonQuestionItemDto>(OzonEndpoints.QuestionInfo, clientId, plainApiKey, body, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonQuestionAnswerListResponseDto>> GetQuestionAnswersAsync(
+        string clientId, string apiKey, string questionId, long sku, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        var body = new OzonQuestionAnswerListRequestDto { QuestionId = questionId, Sku = sku };
+        return SendPostAsync<OzonQuestionAnswerListResponseDto>(
+            OzonEndpoints.QuestionAnswerList, clientId, plainApiKey, body, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonQuestionAnswerDeleteResponseDto>> DeleteQuestionAnswerAsync(
+        string clientId, string apiKey, string answerId, long sku, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        var body = new OzonQuestionAnswerDeleteRequestDto { AnswerId = answerId, Sku = sku };
+        return SendPostAsync<OzonQuestionAnswerDeleteResponseDto>(
+            OzonEndpoints.QuestionAnswerDelete, clientId, plainApiKey, body, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonQuestionAnswerCreateResponseDto>> CreateQuestionAnswerAsync(
+        string clientId, string apiKey, string questionId, long sku, string text, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        var body = new OzonQuestionAnswerCreateRequestDto { QuestionId = questionId, Sku = sku, Text = text };
+        return SendPostAsync<OzonQuestionAnswerCreateResponseDto>(
+            OzonEndpoints.QuestionAnswerCreate, clientId, plainApiKey, body, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonQuestionChangeStatusResponseDto>> ChangeQuestionStatusAsync(
+        string clientId, string apiKey,
+        IReadOnlyCollection<string> questionIds, string status,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        var body = new OzonQuestionChangeStatusRequestDto
+        {
+            QuestionIds = questionIds.ToList(),
+            Status = status
+        };
+        return SendPostAsync<OzonQuestionChangeStatusResponseDto>(
+            OzonEndpoints.QuestionChangeStatus, clientId, plainApiKey, body, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonQuestionCountResponseDto>> GetQuestionCountAsync(
+        string clientId, string apiKey, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonQuestionCountResponseDto>(
+            OzonEndpoints.QuestionCount, clientId, plainApiKey, new { }, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonQuestionTopSkuResponseDto>> GetQuestionTopSkuAsync(
+        string clientId, string apiKey, int limit = 100, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        var body = new OzonQuestionTopSkuRequestDto { Limit = limit };
+        return SendPostAsync<OzonQuestionTopSkuResponseDto>(
+            OzonEndpoints.QuestionTopSku, clientId, plainApiKey, body, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonProductAttributesResponseDto>> GetProductAttributesBySkuAsync(
+        string clientId, string apiKey,
+        IReadOnlyCollection<long> skus,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        var body = new OzonProductAttributesRequestDto
+        {
+            Filter = new OzonProductAttributesFilterDto
+            {
+                Sku = skus.Select(s => s.ToString()).ToList(),
+                Visibility = "ALL"
+            },
+            Limit = 100
+        };
+        return SendPostAsync<OzonProductAttributesResponseDto>(OzonEndpoints.ProductInfoAttributes, clientId, plainApiKey, body, ct);
+    }
+
     public Task<OzonApiResultDto<OzonChatListResponseDto>> GetChatListAsync(string clientId, string apiKey, OzonChatListRequestDto request,
                                                                          CancellationToken ct = default)
     {

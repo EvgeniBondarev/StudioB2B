@@ -17,6 +17,7 @@
 
 @implements IDisposable
 
+<link rel="stylesheet" href="css/orders.css" />
 <PageTitle>Клиенты маркетплейсов</PageTitle>
 
 @if (!TenantProvider.IsResolved)
@@ -40,6 +41,51 @@ else
                 </Authorized>
             </AuthorizeView>
         </RadzenStack>
+    </RadzenStack>
+
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                 Style="padding: 0 0 0.6rem 0; flex-wrap: wrap;">
+        @{ var allTypesActive = _filterClientTypeId == null; }
+        <span class="q-pill @(allTypesActive ? "active" : "")"
+              style="background:@(allTypesActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allTypesActive ? "#fff" : "var(--rz-text-color)");"
+              @onclick="@(async () => { _filterClientTypeId = null; await OnPillFilter(); })">
+            Все типы
+        </span>
+        @foreach (var t in _types)
+        {
+            var tid = t.Id;
+            var tname = t.Name;
+            var isTypeActive = _filterClientTypeId == tid;
+            var typeCnt = _typeCountsByTypeId.GetValueOrDefault(tid);
+            <span class="q-pill @(isTypeActive ? "active" : "")"
+                  style="background:@(isTypeActive ? "var(--rz-primary)" : "#ececff"); color:@(isTypeActive ? "#fff" : "#1f2937");"
+                  @onclick="@(async () => { _filterClientTypeId = isTypeActive ? null : tid; await OnPillFilter(); })">
+                @tname
+                @if (typeCnt > 0) { <span class="q-pill-count">@typeCnt</span> }
+            </span>
+        }
+
+        <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 6px;"></span>
+
+        @{ var allModesActive = _filterModeId == null; }
+        <span class="q-pill @(allModesActive ? "active" : "")"
+              style="background:@(allModesActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allModesActive ? "#fff" : "var(--rz-text-color)");"
+              @onclick="@(async () => { _filterModeId = null; await OnPillFilter(); })">
+            Все режимы
+        </span>
+        @foreach (var m in _modes)
+        {
+            var mid = m.Id;
+            var mname = m.Name;
+            var isModeActive = _filterModeId == mid;
+            var modeCnt = _modeCountsByModeId.GetValueOrDefault(mid);
+            <span class="q-pill @(isModeActive ? "active" : "")"
+                  style="background:@(isModeActive ? "#10b981" : "#d1fae5"); color:@(isModeActive ? "#fff" : "#065f46");"
+                  @onclick="@(async () => { _filterModeId = isModeActive ? null : mid; await OnPillFilter(); })">
+                @mname
+                @if (modeCnt > 0) { <span class="q-pill-count">@modeCnt</span> }
+            </span>
+        }
     </RadzenStack>
 
     <RadzenDataGrid @ref="_grid"
@@ -199,6 +245,11 @@ else
     private System.Security.Claims.ClaimsPrincipal? _user;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
 
+    private Guid? _filterClientTypeId;
+    private Guid? _filterModeId;
+    private Dictionary<Guid, int> _typeCountsByTypeId = new();
+    private Dictionary<Guid, int> _modeCountsByModeId = new();
+
     private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
 
     // tracks which rows have their key revealed
@@ -260,6 +311,11 @@ else
             .AsNoTracking()
             .AsQueryable();
 
+        if (_filterClientTypeId.HasValue)
+            query = query.Where(c => c.ClientTypeId == _filterClientTypeId.Value);
+        if (_filterModeId.HasValue)
+            query = query.Where(c => c.ModeId == _filterModeId.Value);
+
         if (!string.IsNullOrEmpty(args.Filter))
             query = query.Where(args.Filter);
 
@@ -287,6 +343,26 @@ else
 
         _modes = await _db.MarketplaceClientModes!
             .AsNoTracking().OrderBy(m => m.Name).ToListAsync();
+
+        var clientData = await _db.MarketplaceClients!
+            .AsNoTracking()
+            .Where(c => !c.IsDeleted)
+            .Select(c => new { c.ClientTypeId, c.ModeId })
+            .ToListAsync();
+        _typeCountsByTypeId = clientData
+            .Where(c => c.ClientTypeId.HasValue)
+            .GroupBy(c => c.ClientTypeId!.Value)
+            .ToDictionary(g => g.Key, g => g.Count());
+        _modeCountsByModeId = clientData
+            .Where(c => c.ModeId.HasValue)
+            .GroupBy(c => c.ModeId!.Value)
+            .ToDictionary(g => g.Key, g => g.Count());
+    }
+
+    private async Task OnPillFilter()
+    {
+        if (_grid != null)
+            await _grid.Reload();
     }
 
     private async Task OpenCreateWizard()

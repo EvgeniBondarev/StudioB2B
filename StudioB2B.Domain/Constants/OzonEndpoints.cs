@@ -10,6 +10,15 @@ public class OzonEndpoints
 
     public const string ReturnsList = "v1/returns/list";
 
+    public const string QuestionList = "v1/question/list";
+    public const string QuestionInfo = "v1/question/info";
+    public const string QuestionAnswerList = "v1/question/answer/list";
+    public const string QuestionAnswerDelete = "v1/question/answer/delete";
+    public const string QuestionAnswerCreate = "v1/question/answer/create";
+    public const string QuestionChangeStatus = "v1/question/change-status";
+    public const string QuestionCount = "v1/question/count";
+    public const string QuestionTopSku = "v1/question/top-sku";
+
     public const string ChatList = "v3/chat/list";
     public const string ChatHistory = "v3/chat/history";
     public const string ChatSendMessage = "v1/chat/send/message";

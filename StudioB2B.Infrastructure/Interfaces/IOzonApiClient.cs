@@ -68,4 +68,57 @@ public interface IOzonApiClient
     /// <summary>Gets a page of returns via /v1/returns/list.</summary>
     Task<OzonApiResultDto<OzonReturnsListResponseDto>> GetReturnsListAsync(string clientId, string apiKey, OzonReturnsListRequestDto request,
                                                                         CancellationToken ct = default);
+
+    /// <summary>Gets a page of product questions via /v1/question/list.</summary>
+    Task<OzonApiResultDto<OzonQuestionListResponseDto>> GetQuestionListAsync(string clientId, string apiKey,
+                                                                             OzonQuestionListRequestDto request,
+                                                                             CancellationToken ct = default);
+
+    /// <summary>Gets detailed info for a single question via /v1/question/info (Premium Plus).</summary>
+    Task<OzonApiResultDto<OzonQuestionItemDto>> GetQuestionInfoAsync(string clientId, string apiKey,
+                                                                     string questionId, CancellationToken ct = default);
+
+    /// <summary>Gets answers for a question via /v1/question/answer/list (Premium Plus).</summary>
+    Task<OzonApiResultDto<OzonQuestionAnswerListResponseDto>> GetQuestionAnswersAsync(
+        string clientId, string apiKey,
+        string questionId, long sku,
+        CancellationToken ct = default);
+
+    /// <summary>Deletes an answer via /v1/question/answer/delete (Premium Plus).</summary>
+    Task<OzonApiResultDto<OzonQuestionAnswerDeleteResponseDto>> DeleteQuestionAnswerAsync(
+        string clientId, string apiKey,
+        string answerId, long sku,
+        CancellationToken ct = default);
+
+    /// <summary>Creates an answer on a question via /v1/question/answer/create (Premium Plus).</summary>
+    Task<OzonApiResultDto<OzonQuestionAnswerCreateResponseDto>> CreateQuestionAnswerAsync(
+        string clientId, string apiKey,
+        string questionId, long sku, string text,
+        CancellationToken ct = default);
+
+    /// <summary>Changes status of questions via /v1/question/change-status (Premium Plus).</summary>
+    Task<OzonApiResultDto<OzonQuestionChangeStatusResponseDto>> ChangeQuestionStatusAsync(
+        string clientId, string apiKey,
+        IReadOnlyCollection<string> questionIds, string status,
+        CancellationToken ct = default);
+
+    /// <summary>Gets question counts by status via /v1/question/count (Premium Plus).</summary>
+    Task<OzonApiResultDto<OzonQuestionCountResponseDto>> GetQuestionCountAsync(
+        string clientId, string apiKey,
+        CancellationToken ct = default);
+
+    /// <summary>Gets top SKUs by question count via /v1/question/top-sku (Premium Plus).</summary>
+    Task<OzonApiResultDto<OzonQuestionTopSkuResponseDto>> GetQuestionTopSkuAsync(
+        string clientId, string apiKey,
+        int limit = 100,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets product attributes filtered by Ozon SKU list via /v4/product/info/attributes.
+    /// Use when offer_id (article) is unknown but Ozon SKU is available.
+    /// </summary>
+    Task<OzonApiResultDto<OzonProductAttributesResponseDto>> GetProductAttributesBySkuAsync(
+        string clientId, string apiKey,
+        IReadOnlyCollection<long> skus,
+        CancellationToken ct = default);
 }
