@@ -71,6 +71,9 @@
                     <AuthorizeView Roles="QuestionsView">
                         <Authorized><RadzenPanelMenuItem Text="Вопросы" Path="/questions" Icon="help" /></Authorized>
                     </AuthorizeView>
+                    <AuthorizeView Roles="ReviewsView">
+                        <Authorized><RadzenPanelMenuItem Text="Отзывы" Path="/reviews" Icon="star" /></Authorized>
+                    </AuthorizeView>
                     <AuthorizeView Roles="AuditView">
                         <Authorized><RadzenPanelMenuItem Text="Журнал" Path="/audit" Icon="history" /></Authorized>
                     </AuthorizeView>

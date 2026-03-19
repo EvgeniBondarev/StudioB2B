@@ -350,8 +350,96 @@ public class OzonApiClient : IOzonApiClient
         return SendPostAsync<OzonReadChatResponseDto>(OzonEndpoints.ChatRead, clientId, plainApiKey, body, ct);
     }
 
-    public async Task<(Stream? Content, string ContentType, bool Success)> DownloadChatFileAsync(string clientId, string apiKey,
-                                                                                                 string fileUrl, CancellationToken ct = default)
+    // ── Reviews ──────────────────────────────────────────────────────────────
+
+    public Task<OzonApiResultDto<OzonReviewListResponseDto>> GetReviewListAsync(
+        string clientId, string apiKey, OzonReviewListRequestDto request, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonReviewListResponseDto>(OzonEndpoints.ReviewList, clientId, plainApiKey, request, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonReviewInfoResponseDto>> GetReviewInfoAsync(
+        string clientId, string apiKey, string reviewId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonReviewInfoResponseDto>(OzonEndpoints.ReviewInfo, clientId, plainApiKey,
+            new OzonReviewInfoRequestDto { ReviewId = reviewId }, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonReviewCountResponseDto>> GetReviewCountAsync(
+        string clientId, string apiKey, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonReviewCountResponseDto>(OzonEndpoints.ReviewCount, clientId, plainApiKey, new { }, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonReviewChangeStatusResponseDto>> ChangeReviewStatusAsync(
+        string clientId, string apiKey, IReadOnlyCollection<string> reviewIds, string status, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonReviewChangeStatusResponseDto>(OzonEndpoints.ReviewChangeStatus, clientId, plainApiKey,
+            new OzonReviewChangeStatusRequestDto { ReviewIds = reviewIds.ToList(), Status = status }, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonReviewCommentListResponseDto>> GetReviewCommentListAsync(
+        string clientId, string apiKey, OzonReviewCommentListRequestDto request, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonReviewCommentListResponseDto>(OzonEndpoints.ReviewCommentList, clientId, plainApiKey, request, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonReviewCommentCreateResponseDto>> CreateReviewCommentAsync(
+        string clientId, string apiKey, OzonReviewCommentCreateRequestDto request, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonReviewCommentCreateResponseDto>(OzonEndpoints.ReviewCommentCreate, clientId, plainApiKey, request, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonReviewCommentDeleteResponseDto>> DeleteReviewCommentAsync(
+        string clientId, string apiKey, string commentId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        return SendPostAsync<OzonReviewCommentDeleteResponseDto>(OzonEndpoints.ReviewCommentDelete, clientId, plainApiKey,
+            new OzonReviewCommentDeleteRequestDto { CommentId = commentId }, ct);
+    }
+
+    public async Task<(Stream? Content, string ContentType, bool Success)> DownloadChatFileAsync(string clientId, string apiKey,                                                                                                 string fileUrl, CancellationToken ct = default)
     {
         try
         {
