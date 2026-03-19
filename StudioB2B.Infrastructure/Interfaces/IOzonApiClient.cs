@@ -121,4 +121,45 @@ public interface IOzonApiClient
         string clientId, string apiKey,
         IReadOnlyCollection<long> skus,
         CancellationToken ct = default);
+
+    /// <summary>Gets paginated list of reviews via /v1/review/list.</summary>
+    Task<OzonApiResultDto<OzonReviewListResponseDto>> GetReviewListAsync(
+        string clientId, string apiKey,
+        OzonReviewListRequestDto request,
+        CancellationToken ct = default);
+
+    /// <summary>Gets full info for a single review via /v1/review/info.</summary>
+    Task<OzonApiResultDto<OzonReviewInfoResponseDto>> GetReviewInfoAsync(
+        string clientId, string apiKey,
+        string reviewId,
+        CancellationToken ct = default);
+
+    /// <summary>Gets review counts by status via /v1/review/count.</summary>
+    Task<OzonApiResultDto<OzonReviewCountResponseDto>> GetReviewCountAsync(
+        string clientId, string apiKey,
+        CancellationToken ct = default);
+
+    /// <summary>Changes status of reviews via /v1/review/change-status.</summary>
+    Task<OzonApiResultDto<OzonReviewChangeStatusResponseDto>> ChangeReviewStatusAsync(
+        string clientId, string apiKey,
+        IReadOnlyCollection<string> reviewIds, string status,
+        CancellationToken ct = default);
+
+    /// <summary>Gets comments for a review via /v1/review/comment/list.</summary>
+    Task<OzonApiResultDto<OzonReviewCommentListResponseDto>> GetReviewCommentListAsync(
+        string clientId, string apiKey,
+        OzonReviewCommentListRequestDto request,
+        CancellationToken ct = default);
+
+    /// <summary>Creates a comment on a review via /v1/review/comment/create.</summary>
+    Task<OzonApiResultDto<OzonReviewCommentCreateResponseDto>> CreateReviewCommentAsync(
+        string clientId, string apiKey,
+        OzonReviewCommentCreateRequestDto request,
+        CancellationToken ct = default);
+
+    /// <summary>Deletes a comment on a review via /v1/review/comment/delete.</summary>
+    Task<OzonApiResultDto<OzonReviewCommentDeleteResponseDto>> DeleteReviewCommentAsync(
+        string clientId, string apiKey,
+        string commentId,
+        CancellationToken ct = default);
 }
