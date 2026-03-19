@@ -632,7 +632,7 @@ else
             if (string.IsNullOrEmpty(_filterStatus) && string.IsNullOrEmpty(_filterType))
             {
                 _chatStatusCounts = _chats.GroupBy(c => c.ChatStatus).ToDictionary(g => g.Key, g => g.Count());
-                _chatTypeCounts   = _chats.GroupBy(c => c.ChatType).ToDictionary(g => g.Key, g => g.Count());
+                _chatTypeCounts = _chats.GroupBy(c => c.ChatType).ToDictionary(g => g.Key, g => g.Count());
             }
         }
         catch (Exception ex)
