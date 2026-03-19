@@ -11,6 +11,7 @@
 @inject DialogService DialogService
 @inject IJSRuntime JSRuntime
 
+<link rel="stylesheet" href="css/orders.css" />
 <PageTitle>Пользователи</PageTitle>
 
 @if (!TenantProvider.IsResolved)
@@ -36,9 +37,32 @@ else
         </RadzenStack>
     </RadzenStack>
 
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                 Style="padding: 0 0 0.6rem 0; flex-wrap: wrap;">
+        @{ var allActiveFilter = !_filterActive.HasValue; }
+        <span class="q-pill @(allActiveFilter ? "active" : "")"
+              style="background:@(allActiveFilter ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allActiveFilter ? "#fff" : "var(--rz-text-color)");"
+              @onclick="@(() => { _filterActive = null; StateHasChanged(); })">
+            Все
+            @if (_users.Count > 0) { <span class="q-pill-count">@_users.Count</span> }
+        </span>
+        <span class="q-pill @(_filterActive == true ? "active" : "")"
+              style="background:@(_filterActive == true ? "#10b981" : "#d1fae5"); color:@(_filterActive == true ? "#fff" : "#065f46");"
+              @onclick="@(() => { _filterActive = _filterActive == true ? null : (bool?)true; StateHasChanged(); })">
+            Активные
+            @if (_users.Count(u => u.IsActive) > 0) { <span class="q-pill-count">@_users.Count(u => u.IsActive)</span> }
+        </span>
+        <span class="q-pill @(_filterActive == false ? "active" : "")"
+              style="background:@(_filterActive == false ? "#ef4444" : "#fee2e2"); color:@(_filterActive == false ? "#fff" : "#7f1d1d");"
+              @onclick="@(() => { _filterActive = _filterActive == false ? null : (bool?)false; StateHasChanged(); })">
+            Неактивные
+            @if (_users.Count(u => !u.IsActive) > 0) { <span class="q-pill-count">@_users.Count(u => !u.IsActive)</span> }
+        </span>
+    </RadzenStack>
+
     <RadzenDataGrid @ref="_grid"
                     TItem="UserListDto"
-                    Data="@_users"
+                    Data="@FilteredUsers"
                     Density="@_density"
                     Settings="@_gridSettings"
                     SettingsChanged="@OnGridSettingsChanged"
@@ -114,6 +138,10 @@ else
     private System.Security.Claims.ClaimsPrincipal? _user;
     private Density _density = Density.Default;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
+
+    private bool? _filterActive;
+    private IEnumerable<UserListDto> FilteredUsers =>
+        _filterActive.HasValue ? _users.Where(u => u.IsActive == _filterActive.Value) : _users;
 
     private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
 
