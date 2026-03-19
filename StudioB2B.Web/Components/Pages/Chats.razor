@@ -43,6 +43,71 @@ else
                 </RadzenStack>
             </RadzenStack>
 
+            <!-- Статус + Тип чата: пилюли на одной строке -->
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
+                         Style="padding: 0 0 0.6rem 0; flex-wrap: wrap;">
+                @{ var allStatusActive = string.IsNullOrEmpty(_filterStatus); }
+                <span class="q-pill @(allStatusActive ? "active" : "")"
+                      style="background:@(allStatusActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allStatusActive ? "#fff" : "var(--rz-text-color)");"
+                      @onclick="@(async () => { _filterStatus = null; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Все
+                </span>
+                <span class="q-pill @(_filterStatus == "OPENED" ? "active" : "")"
+                      style="background:@(_filterStatus == "OPENED" ? "#10b981" : "#d1fae5"); color:@(_filterStatus == "OPENED" ? "#fff" : "#065f46");"
+                      @onclick="@(async () => { _filterStatus = _filterStatus == "OPENED" ? null : "OPENED"; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Открыт
+                    @if (_chatStatusCounts.GetValueOrDefault("OPENED") > 0)
+                    {
+                        <span class="q-pill-count">@_chatStatusCounts.GetValueOrDefault("OPENED")</span>
+                    }
+                </span>
+                <span class="q-pill @(_filterStatus == "CLOSED" ? "active" : "")"
+                      style="background:@(_filterStatus == "CLOSED" ? "#6b7280" : "#f3f4f6"); color:@(_filterStatus == "CLOSED" ? "#fff" : "#374151");"
+                      @onclick="@(async () => { _filterStatus = _filterStatus == "CLOSED" ? null : "CLOSED"; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Закрыт
+                    @if (_chatStatusCounts.GetValueOrDefault("CLOSED") > 0)
+                    {
+                        <span class="q-pill-count">@_chatStatusCounts.GetValueOrDefault("CLOSED")</span>
+                    }
+                </span>
+
+                <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 6px;"></span>
+
+                @{ var allTypeActive = string.IsNullOrEmpty(_filterType); }
+                <span class="q-pill @(allTypeActive ? "active" : "")"
+                      style="background:@(allTypeActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allTypeActive ? "#fff" : "var(--rz-text-color)");"
+                      @onclick="@(async () => { _filterType = null; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Все типы
+                </span>
+                <span class="q-pill @(_filterType == "BUYER_SELLER" ? "active" : "")"
+                      style="background:@(_filterType == "BUYER_SELLER" ? "#f59e0b" : "#fef3c7"); color:@(_filterType == "BUYER_SELLER" ? "#fff" : "#78350f");"
+                      @onclick="@(async () => { _filterType = _filterType == "BUYER_SELLER" ? null : "BUYER_SELLER"; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Покупатель — Продавец
+                    @if (_chatTypeCounts.GetValueOrDefault("BUYER_SELLER") > 0)
+                    {
+                        <span class="q-pill-count">@_chatTypeCounts.GetValueOrDefault("BUYER_SELLER")</span>
+                    }
+                </span>
+                <span class="q-pill @(_filterType == "SELLER_SUPPORT" ? "active" : "")"
+                      style="background:@(_filterType == "SELLER_SUPPORT" ? "#3b82f6" : "#dbeafe"); color:@(_filterType == "SELLER_SUPPORT" ? "#fff" : "#1e3a5f");"
+                      @onclick="@(async () => { _filterType = _filterType == "SELLER_SUPPORT" ? null : "SELLER_SUPPORT"; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Продавец — Поддержка
+                    @if (_chatTypeCounts.GetValueOrDefault("SELLER_SUPPORT") > 0)
+                    {
+                        <span class="q-pill-count">@_chatTypeCounts.GetValueOrDefault("SELLER_SUPPORT")</span>
+                    }
+                </span>
+                <span class="q-pill @(_filterType == "UNSPECIFIED" ? "active" : "")"
+                      style="background:@(_filterType == "UNSPECIFIED" ? "#6b7280" : "#f3f4f6"); color:@(_filterType == "UNSPECIFIED" ? "#fff" : "#374151");"
+                      @onclick="@(async () => { _filterType = _filterType == "UNSPECIFIED" ? null : "UNSPECIFIED"; _selectedChat = null; _messages.Clear(); await LoadChatsAsync(); })">
+                    Не определён
+                    @if (_chatTypeCounts.GetValueOrDefault("UNSPECIFIED") > 0)
+                    {
+                        <span class="q-pill-count">@_chatTypeCounts.GetValueOrDefault("UNSPECIFIED")</span>
+                    }
+                </span>
+            </RadzenStack>
+
             <!-- Фильтры -->
             <RadzenCard Style="margin-bottom: 0.6rem; padding: 0.5rem 0.75rem;">
                 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
@@ -55,28 +120,6 @@ else
                                         Placeholder="Все"
                                         AllowClear="true"
                                         Style="width: 180px;"
-                                        Change="@OnFilterChanged" />
-                    </RadzenStack>
-
-                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
-                        <RadzenLabel Text="Статус:" Style="white-space: nowrap;" />
-                        <RadzenDropDown TValue="string?" @bind-Value="_filterStatus"
-                                        Data="@StatusOptions"
-                                        TextProperty="Label" ValueProperty="Value"
-                                        Placeholder="Все"
-                                        AllowClear="true"
-                                        Style="width: 130px;"
-                                        Change="@OnFilterChanged" />
-                    </RadzenStack>
-
-                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
-                        <RadzenLabel Text="Тип:" Style="white-space: nowrap;" />
-                        <RadzenDropDown TValue="string?" @bind-Value="_filterType"
-                                        Data="@TypeOptions"
-                                        TextProperty="Label" ValueProperty="Value"
-                                        Placeholder="Все"
-                                        AllowClear="true"
-                                        Style="width: 200px;"
                                         Change="@OnFilterChanged" />
                     </RadzenStack>
 
@@ -481,6 +524,9 @@ else
     private string? _filterType;
     private bool _filterUnreadOnly;
 
+    private Dictionary<string, int> _chatStatusCounts = new();
+    private Dictionary<string, int> _chatTypeCounts = new();
+
     private List<ClientOptionDto> _clientOptions = new();
 
     private static readonly List<LabelValueDto> StatusOptions =
@@ -581,6 +627,13 @@ else
             _nextCursor = page.NextCursor;
             _hasMoreChats = page.HasMore;
             _totalUnread = _chats.Sum(c => c.UnreadCount);
+
+            // Save pill counts only from unfiltered load so they stay stable when a filter is active
+            if (string.IsNullOrEmpty(_filterStatus) && string.IsNullOrEmpty(_filterType))
+            {
+                _chatStatusCounts = _chats.GroupBy(c => c.ChatStatus).ToDictionary(g => g.Key, g => g.Count());
+                _chatTypeCounts   = _chats.GroupBy(c => c.ChatType).ToDictionary(g => g.Key, g => g.Count());
+            }
         }
         catch (Exception ex)
         {
