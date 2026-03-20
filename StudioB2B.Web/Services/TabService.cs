@@ -22,7 +22,8 @@ public class TabService
             ["/audit"] = ("Журнал", "history"),
             ["/roles"] = ("Роли", "security"),
             ["/chats"] = ("Чаты", "chat"),
-            ["/questions"] = ("Вопросы", "help")
+            ["/questions"] = ("Вопросы", "help"),
+            ["/reviews"] = ("Отзывы", "star")
         };
 
     private readonly List<TabEntry> _tabs = [];
