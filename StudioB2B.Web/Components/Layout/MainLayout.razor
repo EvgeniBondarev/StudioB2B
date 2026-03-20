@@ -9,6 +9,8 @@
 @inject MasterAuthStateService MasterAuthState
 @inject IJSRuntime JsRuntime
 @inject UserContext UserContext
+@inject NavService NavService
+
 @implements IDisposable
 
 <RadzenLayout Style="min-height: 100vh;">
@@ -26,72 +28,72 @@
             </div>
 
 
-            <RadzenPanelMenu>
-                <RadzenPanelMenuItem Text="Главная" Path="/" Icon="home" />
+           <RadzenPanelMenu>
+    @if (TenantProvider.IsResolved)
+    {
+        @foreach (var group in NavService.Groups)
+        {
+            @* Если в группе только 1 элемент *@
+            @if (group.Items.Count == 1)
+            {
+                var item = group.Items.First();
 
-                @if (TenantProvider.IsResolved)
+                if (string.IsNullOrEmpty(item.Role))
                 {
-                    <AuthorizeView Roles="UsersView">
-                        <Authorized><RadzenPanelMenuItem Text="Пользователи" Path="/users" Icon="people" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="MarketplaceClientsView">
-                        <Authorized><RadzenPanelMenuItem Text="Маркетплейс" Path="/marketplace-clients" Icon="store" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="OrdersView">
-                        <Authorized>
-                            <RadzenPanelMenuItem Text="Заказы" Path="/orders" Icon="receipt_long" />
-                        </Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="SyncView">
-                        <Authorized>
-                            <RadzenPanelMenuItem Text="Загрузка" Path="/orders-sync" Icon="cloud_sync" />
-                        </Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="ReturnsView">
-                        <Authorized><RadzenPanelMenuItem Text="Возвраты" Path="/returns" Icon="assignment_return" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="OrderStatusesView">
-                        <Authorized><RadzenPanelMenuItem Text="Статусы" Path="/order-statuses" Icon="label" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="PriceTypesView">
-                        <Authorized><RadzenPanelMenuItem Text="Типы цен" Path="/price-types" Icon="payments" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="TransactionsView">
-                        <Authorized>
-                            <RadzenPanelMenuItem Text="Документы" Path="/transactions" Icon="swap_horiz" />
-                            <RadzenPanelMenuItem Text="История проведений" Path="/transactions-history" Icon="schedule" />
-                        </Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="CalculationRulesView">
-                        <Authorized><RadzenPanelMenuItem Text="Расчёты" Path="/calculation-rules" Icon="calculate" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="ChatsView">
-                        <Authorized><RadzenPanelMenuItem Text="Чаты" Path="/chats" Icon="chat" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="QuestionsView">
-                        <Authorized><RadzenPanelMenuItem Text="Вопросы" Path="/questions" Icon="help" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="ReviewsView">
-                        <Authorized><RadzenPanelMenuItem Text="Отзывы" Path="/reviews" Icon="star" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="AuditView">
-                        <Authorized><RadzenPanelMenuItem Text="Журнал" Path="/audit" Icon="history" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="ModulesView">
-                        <Authorized><RadzenPanelMenuItem Text="Модули" Path="/modules" Icon="extension" /></Authorized>
-                    </AuthorizeView>
+                    <RadzenPanelMenuItem Text="@group.Title"
+                                         Path="@item.Path"
+                                         Icon="@group.Icon" />
 
-                    <RadzenPanelMenuItem Text="@TenantProvider.Subdomain" Icon="apartment" Disabled="true" />
                 }
-                else if (MasterAuthState.IsAuthenticated)
+                else
                 {
-                    <RadzenPanelMenuItem Text="Рабочие пространства" Path="/my-tenants" Icon="domain" />
-                    @if (MasterAuthState.UserInfo?.IsAdmin == true)
+                    <AuthorizeView Roles="@item.Role">
+                        <Authorized>
+                            <RadzenPanelMenuItem Text="@group.Title"
+                                                 Path="@item.Path"
+                                                 Icon="@group.Icon" />
+                        </Authorized>
+                    </AuthorizeView>
+                }
+            }
+            else
+            {
+                @* Группа с подпунктами *@
+                <RadzenPanelMenuItem Text="@group.Title" Icon="@group.Icon">
+                    @foreach (var item in group.Items)
                     {
-                        <RadzenPanelMenuItem Text="Пользователи" Path="/master-users" Icon="manage_accounts" />
+                        if (string.IsNullOrEmpty(item.Role))
+                        {
+                            <RadzenPanelMenuItem Text="@TabService.KnownPages[item.Path].Title"
+                                                 Path="@item.Path"
+                                                 Icon="@TabService.KnownPages[item.Path].Icon" />
+                        }
+                        else
+                        {
+                            <AuthorizeView Roles="@item.Role">
+                                <Authorized>
+                                    <RadzenPanelMenuItem Text="@TabService.KnownPages[item.Path].Title"
+                                                         Path="@item.Path"
+                                                         Icon="@TabService.KnownPages[item.Path].Icon" />
+                                </Authorized>
+                            </AuthorizeView>
+                        }
                     }
-                }
-            </RadzenPanelMenu>
+                </RadzenPanelMenuItem>
+            }
+        }
+
+        <RadzenPanelMenuItem Text="@TenantProvider.Subdomain" Icon="apartment" Disabled="true" />
+    }
+    else if (MasterAuthState.IsAuthenticated)
+    {
+        <RadzenPanelMenuItem Text="Рабочие пространства" Path="/my-tenants" Icon="domain" />
+        @if (MasterAuthState.UserInfo?.IsAdmin == true)
+        {
+            <RadzenPanelMenuItem Text="Пользователи" Path="/master-users" Icon="manage_accounts" />
+        }
+    }
+</RadzenPanelMenu>
 
         </div>
     </RadzenSidebar>
@@ -150,7 +152,6 @@
             </div>
         }
     </RadzenBody>
-
 </RadzenLayout>
 
 <RadzenNotification />
