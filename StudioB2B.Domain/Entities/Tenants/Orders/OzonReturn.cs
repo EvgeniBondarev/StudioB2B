@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace StudioB2B.Domain.Entities.Orders;
+namespace StudioB2B.Domain.Entities;
 
 /// <summary>
 /// Возврат/отмена заказа из Ozon API (/v1/returns/list).

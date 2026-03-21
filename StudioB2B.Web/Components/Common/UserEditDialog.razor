@@ -3,16 +3,14 @@
 @inject CreateUser CreateUserService
 @inject UpdateUser UpdateUserService
 @inject GetUserById GetUserByIdService
-@inject GetAvailableRoles GetAvailableRolesService
+@inject GetAvailablePermissions GetAvailablePermissionsService
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject JwtAuthenticationStateProvider AuthStateProvider
 
 @if (_loading)
 {
-    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 180px;">
-        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
-    </RadzenStack>
+    <div class="dlg-loading"><div class="dlg-spinner"></div></div>
 }
 else
 {
@@ -74,99 +72,44 @@ else
                 </RadzenRow>
             }
 
-            <!-- ── Role picker ─────────────────────────────────────────── -->
+            <!-- ── Permission picker ──────────────────────────────────── -->
             <div>
-                <div style="font-size: 0.8rem; color: var(--rz-text-secondary-color); margin-bottom: 0.4rem; font-weight: 500;">Роли</div>
+                <div style="font-size: 0.8rem; color: var(--rz-text-secondary-color); margin-bottom: 0.5rem; font-weight: 500;">
+                    Права доступа
+                </div>
 
-                <!-- Search + Select all / Clear all -->
-                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
-                             Gap="0.4rem" Style="margin-bottom: 0.4rem;">
-                    <div style="position:relative;flex:1;">
-                        <i class="rzi" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);
-                                              color:var(--rz-text-secondary-color);font-size:1rem;pointer-events:none;">search</i>
-                        <input type="text"
-                               value="@_roleSearch"
-                               @oninput="@(e => _roleSearch = e.Value?.ToString() ?? "")"
-                               placeholder="Поиск роли..."
-                               style="width:100%;padding:5px 8px 5px 30px;
-                                      border:1px solid var(--rz-border-color);border-radius:4px;
-                                      outline:none;background:var(--rz-base-background-color);
-                                      color:var(--rz-text-color);font-size:0.85rem;box-sizing:border-box;" />
-                    </div>
-                    <RadzenButton Text="Все" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light"
-                                  Click="@SelectAllRoles" Title="Выбрать все роли" />
-                    <RadzenButton Text="Снять" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light"
-                                  Click="@ClearAllRoles" Title="Снять все роли" />
-                </RadzenStack>
-
-                <!-- Selected chips (hidden when searching) -->
-                @if (_model.Roles.Count > 0 && string.IsNullOrEmpty(_roleSearch))
+                @if (_availablePermissions.Count == 0)
                 {
-                    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:0.4rem;
-                                max-height:68px;overflow-y:auto;padding:4px;
-                                background:var(--rz-base-100);border-radius:4px;">
-                        @foreach (var rv in _model.Roles)
-                        {
-                            var chip = _availableRoles.FirstOrDefault(x => x.Value == rv)?.Label ?? rv;
-                            <span style="display:inline-flex;align-items:center;gap:3px;
-                                         padding:2px 5px 2px 8px;border-radius:10px;
-                                         background:var(--rz-primary-lighter);color:var(--rz-primary-dark);
-                                         font-size:0.72rem;max-width:210px;">
-                                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-                                      title="@chip">@GetRoleShortLabel(chip)</span>
-                                <span @onclick="@(() => RemoveRole(rv))" @onclick:stopPropagation="true"
-                                      style="cursor:pointer;opacity:0.55;padding:0 2px;flex-shrink:0;font-size:0.65rem;">✕</span>
-                            </span>
-                        }
+                    <div style="padding: 0.75rem; color: var(--rz-text-secondary-color); font-size: 0.85rem;
+                                border: 1px solid var(--rz-border-color); border-radius: 4px; text-align: center;">
+                        Права доступа не созданы. Сначала создайте права на странице «Права доступа».
                     </div>
                 }
-
-                <!-- Grouped list -->
-                <div style="border:1px solid var(--rz-border-color);border-radius:4px;
-                             max-height:280px;overflow-y:auto;">
-                    @{
-                        var groups = GetFilteredGroups(_roleSearch.Trim());
-                    }
-                    @if (!groups.Any())
-                    {
-                        <div style="padding:1rem;text-align:center;
-                                    color:var(--rz-text-secondary-color);font-size:0.82rem;">
-                            Ничего не найдено
-                        </div>
-                    }
-                    @foreach (var g in groups)
-                    {
-                        var groupSelected = g.Roles.Count(r => _model.Roles.Contains(r.Value));
-                        <div style="padding:3px 10px;background:var(--rz-base-200);font-weight:600;
-                                    font-size:0.75rem;color:var(--rz-text-secondary-color);
-                                    position:sticky;top:0;z-index:1;
-                                    border-bottom:1px solid var(--rz-border-color);
-                                    display:flex;justify-content:space-between;align-items:center;">
-                            <span>@g.Name</span>
-                            <span style="font-weight:400;opacity:0.7;">@groupSelected / @g.Roles.Count</span>
-                        </div>
-                        @foreach (var role in g.Roles)
+                else
+                {
+                    <div style="border: 1px solid var(--rz-border-color); border-radius: 4px; max-height: 240px; overflow-y: auto;">
+                        @foreach (var perm in _availablePermissions)
                         {
-                            var sel = _model.Roles.Contains(role.Value);
-                            <div @onclick="@(() => ToggleRole(role.Value))"
-                                 style="display:flex;align-items:center;gap:8px;padding:4px 10px;
-                                        cursor:pointer;user-select:none;
-                                        @(sel ? "background:color-mix(in srgb,var(--rz-primary) 8%,transparent);" : "")">
-                                <i class="rzi" style="font-size:1.1rem;flex-shrink:0;
-                                                      color:@(sel ? "var(--rz-primary)" : "var(--rz-base-400)");">
-                                    @(sel ? "check_box" : "check_box_outline_blank")
+                            var permId = Guid.Parse(perm.Value);
+                            var selected = _model.Permissions.Contains(permId);
+                            <div @onclick="@(() => TogglePermission(permId))"
+                                 style="display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+                                        cursor: pointer; user-select: none;
+                                        @(selected ? "background: color-mix(in srgb,var(--rz-primary) 8%,transparent);" : "")">
+                                <i class="rzi" style="font-size: 1.1rem; flex-shrink: 0;
+                                                      color: @(selected ? "var(--rz-primary)" : "var(--rz-base-400)");">
+                                    @(selected ? "check_box" : "check_box_outline_blank")
                                 </i>
-                                <span style="font-size:0.82rem;line-height:1.3;">@GetRoleShortLabel(role.Label)</span>
+                                <span style="font-size: 0.85rem;">@perm.Label</span>
                             </div>
                         }
-                    }
-                </div>
-
-                <div style="font-size:0.74rem;color:var(--rz-text-secondary-color);margin-top:0.25rem;">
-                    Выбрано: <b>@_model.Roles.Count</b> из @_availableRoles.Count
-                </div>
+                    </div>
+                    <div style="font-size: 0.74rem; color: var(--rz-text-secondary-color); margin-top: 0.25rem;">
+                        Выбрано: <b>@_model.Permissions.Count</b> из @_availablePermissions.Count
+                    </div>
+                }
             </div>
-            <!-- ── / Role picker ───────────────────────────────────────── -->
+            <!-- ── / Permission picker ────────────────────────────────── -->
 
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
                 <RadzenCheckBox @bind-Value="_model.IsActive" Name="IsActive" />
@@ -190,119 +133,50 @@ else
 
 @code {
     [Parameter] public Guid UserId { get; set; }
-    [Parameter] public string Email { get; set; } = "";
-    [Parameter] public string FirstName { get; set; } = "";
-    [Parameter] public string LastName { get; set; } = "";
-    [Parameter] public string? MiddleName { get; set; }
-    [Parameter] public bool IsActive { get; set; } = true;
-    [Parameter] public List<string> Roles { get; set; } = [];
 
-    private List<LabelValueDto> _availableRoles = [];
-    private List<RoleGroup> _groupedRoles = [];
-    private string _roleSearch = "";
+    private List<LabelValueDto> _availablePermissions = [];
     private UserFormModel _model = new();
     private bool _loading = true;
     private bool _saving;
 
-    private record RoleGroup(string Name, List<LabelValueDto> Roles);
-
     protected override async Task OnInitializedAsync()
     {
-        _availableRoles = await GetAvailableRolesService.HandleAsync();
-
-        // Build grouped structure once
-        _groupedRoles = _availableRoles
-            .GroupBy(r => GetGroupName(r.Label))
-            .Select(g => new RoleGroup(g.Key, g.ToList()))
-            .OrderBy(g => g.Name == "Общее" ? 0 : 1)
-            .ThenBy(g => g.Name)
-            .ToList();
+        _availablePermissions = await GetAvailablePermissionsService.HandleAsync();
 
         if (UserId != Guid.Empty)
         {
-            // Always load fresh data from the DB — never rely on parameters
-            // which may be stale due to Blazor async event handler suspension points
             var fresh = await GetUserByIdService.HandleAsync(UserId);
-            _model = new UserFormModel
+            if (fresh is not null)
             {
-                Email = fresh?.Email ?? Email,
-                FirstName = fresh?.FirstName ?? FirstName,
-                LastName = fresh?.LastName ?? LastName,
-                MiddleName = fresh?.MiddleName ?? MiddleName,
-                IsActive = fresh?.IsActive ?? IsActive,
-                Roles = fresh?.Roles.ToList() ?? Roles.ToList()
-            };
-        }
-        else
-        {
-            _model = new UserFormModel
-            {
-                Email = Email,
-                FirstName = FirstName,
-                LastName = LastName,
-                MiddleName = MiddleName,
-                IsActive = IsActive,
-                Roles = Roles.ToList()
-            };
+                // Map permission names back to IDs
+                var nameToId = _availablePermissions
+                    .ToDictionary(p => p.Label, p => Guid.Parse(p.Value));
+
+                _model = new UserFormModel
+                {
+                    Email = fresh.Email,
+                    FirstName = fresh.FirstName,
+                    LastName = fresh.LastName,
+                    MiddleName = fresh.MiddleName,
+                    IsActive = fresh.IsActive,
+                    Permissions = fresh.Permissions
+                        .Where(name => nameToId.ContainsKey(name))
+                        .Select(name => nameToId[name])
+                        .ToList()
+                };
+            }
         }
 
         _loading = false;
     }
 
-    // ── Role picker helpers ────────────────────────────────────────────────
-
-    private static string GetGroupName(string label)
+    private void TogglePermission(Guid id)
     {
-        if (!label.Contains(':')) return "Общее";
-        var prefix = label.Split(':')[0].Trim();
-        return prefix switch
-        {
-            "Клиенты маркетплейсов" => "Маркетплейс",
-            "Статусы заказов" => "Статусы",
-            "Правила расчёта" => "Расчёты",
-            "Журнал аудита" => "Аудит",
-            "Документы заказов" => "Документы",
-            "История проведений" => "История",
-            _ => prefix
-        };
-    }
-
-    private static string GetRoleShortLabel(string label)
-    {
-        var idx = label.IndexOf(':');
-        return idx < 0 ? label : label[(idx + 1)..].Trim();
-    }
-
-    private IReadOnlyList<RoleGroup> GetFilteredGroups(string search)
-    {
-        if (string.IsNullOrEmpty(search)) return _groupedRoles;
-
-        return _groupedRoles
-            .Select(g => new RoleGroup(g.Name,
-                g.Roles.Where(r =>
-                    r.Label.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    r.Value.Contains(search, StringComparison.OrdinalIgnoreCase))
-                .ToList()))
-            .Where(g => g.Roles.Count > 0)
-            .ToList();
-    }
-
-    private void ToggleRole(string value)
-    {
-        if (_model.Roles.Contains(value))
-            _model.Roles.Remove(value);
+        if (_model.Permissions.Contains(id))
+            _model.Permissions.Remove(id);
         else
-            _model.Roles.Add(value);
+            _model.Permissions.Add(id);
     }
-
-    private void RemoveRole(string value) => _model.Roles.Remove(value);
-
-    private void SelectAllRoles() =>
-        _model.Roles = _availableRoles.Select(r => r.Value).ToList();
-
-    private void ClearAllRoles() => _model.Roles.Clear();
-
-    // ── Form submit ────────────────────────────────────────────────────────
 
     private async Task HandleSubmit(UserFormModel model)
     {
@@ -313,7 +187,7 @@ else
             {
                 var (ok, error) = await CreateUserService.HandleAsync(
                     new CreateUserDto(model.Email, model.FirstName, model.LastName,
-                                      model.MiddleName, model.Password ?? "P@ssw0rd", model.Roles));
+                                      model.MiddleName, model.Password ?? "P@ssw0rd", model.Permissions));
                 if (ok)
                 {
                     await AuthStateProvider.RefreshAsync();
@@ -321,15 +195,13 @@ else
                     DialogService.Close(true);
                 }
                 else
-                {
                     NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Ошибка создания");
-                }
             }
             else
             {
                 var (ok, error) = await UpdateUserService.HandleAsync(UserId,
                     new UpdateUserDto(model.FirstName, model.LastName, model.MiddleName,
-                                      model.IsActive, model.Roles));
+                                      model.IsActive, model.Permissions));
                 if (ok)
                 {
                     await AuthStateProvider.RefreshAsync();
@@ -337,15 +209,10 @@ else
                     DialogService.Close(true);
                 }
                 else
-                {
                     NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Ошибка обновления");
-                }
             }
         }
-        finally
-        {
-            _saving = false;
-        }
+        finally { _saving = false; }
     }
 
     private class UserFormModel
@@ -356,7 +223,7 @@ else
         public string? MiddleName { get; set; }
         public string? Password { get; set; }
         public bool IsActive { get; set; } = true;
-        public List<string> Roles { get; set; } = [];
+        public List<Guid> Permissions { get; set; } = [];
     }
 }
 
