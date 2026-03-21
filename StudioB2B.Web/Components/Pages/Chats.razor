@@ -1,6 +1,8 @@
 @page "/chats"
 @attribute [Authorize(Roles = "ChatsView")]
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
+@using StudioB2B.Domain.Constants
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Web.Helpers
@@ -10,6 +12,8 @@
 @inject IOzonChatService ChatService
 @inject NotificationService NotificationService
 @inject IJSRuntime JsRuntime
+@inject UserContext UserContext
+@inject IEntityFilterService EntityFilterSvc
 
 @implements IDisposable
 
@@ -139,11 +143,9 @@ else
         <div class="chat-list-panel">
             @if (_loadingList && !_chats.Any())
             {
-                <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
-                             Style="flex: 1; padding: 2rem;">
-                    <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate"
-                                              Size="ProgressBarCircularSize.Medium" />
-                </RadzenStack>
+                <div class="dlg-loading" style="flex: 1; padding: 2rem;">
+                    <div class="dlg-spinner"></div>
+                </div>
             }
             else if (!_chats.Any())
             {
@@ -203,7 +205,7 @@ else
                         <div class="chat-load-more">
                             @if (_loadingMore)
                             {
-                                <RadzenProgressBarCircular ShowValue="false" Size="ProgressBarCircularSize.Small" />
+                                <div class="dlg-spinner" style="width:24px;height:24px;border-width:2px;"></div>
                                 <span>Загрузка...</span>
                             }
                             else
@@ -262,12 +264,9 @@ else
                 <div class="chat-messages-area" id="chat-messages-container">
                     @if (_loadingHistory && !_messages.Any())
                     {
-                        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
-                                     Style="flex: 1;">
-                            <RadzenProgressBarCircular ShowValue="false"
-                                                       Mode="ProgressBarMode.Indeterminate"
-                                                       Size="ProgressBarCircularSize.Medium" />
-                        </RadzenStack>
+                        <div class="dlg-loading" style="flex: 1;">
+                            <div class="dlg-spinner"></div>
+                        </div>
                     }
                     else if (!_messages.Any())
                     {
@@ -545,10 +544,16 @@ else
     [Inject]
     private IJSRuntime Js { get; set; } = null!;
 
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = null!;
 
     protected override async Task OnInitializedAsync()
     {
         if (!TenantProvider.IsResolved) return;
+
+        // Ensure UserContext is populated before any service that uses EntityFilterService
+        var authState = await AuthState;
+        UserContext.SetUser(authState.User);
 
         await LoadClientOptionsAsync();
         await LoadChatsAsync();
@@ -594,12 +599,20 @@ else
         try
         {
             await using var db = Factory.CreateDbContext();
-            _clientOptions = await db.MarketplaceClients!
+            var allowedIds = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient);
+            var query = db.MarketplaceClients!
                 .AsNoTracking()
                 .Where(c => !c.IsDeleted)
-                .OrderBy(c => c.Name)
-                .Select(c => new ClientOptionDto { Id = c.Id, Name = c.Name })
-                .ToListAsync();
+                .OrderBy(c => c.Name);
+            if (allowedIds is not null)
+                _clientOptions = await query
+                    .Where(c => allowedIds.Contains(c.Id))
+                    .Select(c => new ClientOptionDto { Id = c.Id, Name = c.Name })
+                    .ToListAsync();
+            else
+                _clientOptions = await query
+                    .Select(c => new ClientOptionDto { Id = c.Id, Name = c.Name })
+                    .ToListAsync();
         }
         catch (Exception ex)
         {

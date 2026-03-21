@@ -558,3 +558,26 @@ h1:focus {
     opacity: 0.6;
     font-weight: 400;
 }
+
+/* ──────────────────────────────────────────────────────────────
+   CSS-only dialog loading spinner (avoids Radzen JS interop issues)
+   ────────────────────────────────────────────────────────────── */
+.dlg-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+}
+
+.dlg-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--rz-base-300, #e0e0e0);
+    border-top-color: var(--rz-primary, #3b82f6);
+    border-radius: 50%;
+    animation: dlg-spin 0.75s linear infinite;
+}
+
+@keyframes dlg-spin {
+    to { transform: rotate(360deg); }
+}

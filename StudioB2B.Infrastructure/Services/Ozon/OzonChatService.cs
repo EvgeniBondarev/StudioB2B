@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using StudioB2B.Domain.Constants;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Shared.DTOs;
 
@@ -10,12 +11,15 @@ public class OzonChatService : IOzonChatService
     private readonly ITenantDbContextFactory _dbFactory;
     private readonly IOzonApiClient _ozonApi;
     private readonly ILogger<OzonChatService> _logger;
+    private readonly IEntityFilterService _entityFilter;
 
-    public OzonChatService(ITenantDbContextFactory dbFactory, IOzonApiClient ozonApi, ILogger<OzonChatService> logger)
+    public OzonChatService(ITenantDbContextFactory dbFactory, IOzonApiClient ozonApi,
+        ILogger<OzonChatService> logger, IEntityFilterService entityFilter)
     {
         _dbFactory = dbFactory;
         _ozonApi = ozonApi;
         _logger = logger;
+        _entityFilter = entityFilter;
     }
 
     public async Task<OzonChatPageDto> GetChatsPageAsync(int pageSize = 20, string? cursor = null, string? chatStatus = null,
@@ -304,12 +308,24 @@ public class OzonChatService : IOzonChatService
     {
         await using var db = _dbFactory.CreateDbContext();
 
+        var allowedIds = await _entityFilter.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient, ct);
+
         var query = db.MarketplaceClients!
             .AsNoTracking()
             .Where(c => !c.IsDeleted);
 
         if (filterById.HasValue)
+        {
+            // Explicit filter: validate it's in the allowed set
+            if (allowedIds is not null && !allowedIds.Contains(filterById.Value))
+                return [];
             query = query.Where(c => c.Id == filterById.Value);
+        }
+        else if (allowedIds is not null)
+        {
+            // Apply permission whitelist
+            query = query.Where(c => allowedIds.Contains(c.Id));
+        }
 
         var clients = await query
             .Select(c => new OzonChatClientInfoDto { Id = c.Id, Name = c.Name, ApiId = c.ApiId, EncryptedApiKey = c.Key })

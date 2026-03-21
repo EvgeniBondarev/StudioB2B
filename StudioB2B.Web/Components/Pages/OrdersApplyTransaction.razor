@@ -45,9 +45,7 @@
 }
 else if (_loading)
 {
-    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 200px;">
-        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
-    </RadzenStack>
+    <div class="dlg-loading" style="min-height: 200px;"><div class="dlg-spinner"></div></div>
 }
 else if (_orderIds.Count == 0)
 {

@@ -1,7 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using StudioB2B.Domain.Constants;
-using StudioB2B.Domain.Entities.Orders;
 
 namespace StudioB2B.Domain.Entities;
 

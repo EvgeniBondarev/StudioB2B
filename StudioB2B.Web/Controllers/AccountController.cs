@@ -41,8 +41,7 @@ public class AccountController : ControllerBase
         await using var db = _dbContextFactory.CreateDbContext();
 
         var email = request.Email.Trim().ToLowerInvariant();
-        var user = await db.Users
-            .AsNoTracking()
+        var user = await db.Users.AsNoTracking()
             .FirstOrDefaultAsync(u => u.Email == email, ct);
 
         if (user is null)
@@ -63,22 +62,12 @@ public class AccountController : ControllerBase
             return Unauthorized(new { error = "Неверный email или пароль" });
         }
 
-        var roles = await db.UserRoles
-            .AsNoTracking()
-            .Where(ur => ur.UserId == user.Id)
-            .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name)
-            .ToListAsync(ct);
-
-        var token = GenerateJwtToken(user.Id, user.Email, roles);
+        var roleClaims = await BuildRoleClaimsAsync(db, user.Id, ct);
+        var token = GenerateJwtToken(user.Id, user.Email, roleClaims);
         var expiresMinutes = _configuration.GetSection("Jwt").GetValue<int?>("ExpiresMinutes") ?? 60;
 
         _logger.LogInformation("User {Email} logged in successfully", email);
-
-        return Ok(new
-        {
-            token,
-            expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes)
-        });
+        return Ok(new { token, expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes) });
     }
 
     /// <summary>
@@ -106,22 +95,51 @@ public class AccountController : ControllerBase
         if (user is null)
             return Unauthorized(new { error = "User not found or inactive" });
 
-        var roles = await db.UserRoles.AsNoTracking()
-            .Where(ur => ur.UserId == userId)
-            .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name)
-            .ToListAsync(ct);
-
-        var token = GenerateJwtToken(user.Id, user.Email, roles);
+        var roleClaims = await BuildRoleClaimsAsync(db, userId, ct);
+        var token = GenerateJwtToken(user.Id, user.Email, roleClaims);
         var expiresMinutes = _configuration.GetSection("Jwt").GetValue<int?>("ExpiresMinutes") ?? 60;
 
-        return Ok(new
-        {
-            token,
-            expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes)
-        });
+        return Ok(new { token, expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes) });
     }
 
-    private string GenerateJwtToken(Guid userId, string email, IEnumerable<string> roles)
+    /// <summary>
+    /// Формирует набор claims из Permission'ов пользователя.
+    /// При IsFullAccess добавляет «Admin» role claim (для IsInRole("Admin") в компонентах)
+    /// и «full_access = true» claim (для AdminSatisfiesAllRolesHandler).
+    /// Иначе добавляет имена страниц, функций и колонок как role claims.
+    /// </summary>
+    private static async Task<(bool isFullAccess, IEnumerable<string> roleNames)> BuildRoleClaimsAsync(
+        StudioB2B.Infrastructure.Persistence.Tenant.TenantDbContext db, Guid userId, CancellationToken ct)
+    {
+        var userPermissions = await db.UserPermissions
+            .AsNoTracking()
+            .Where(up => up.UserId == userId)
+            .Include(up => up.Permission)
+                .ThenInclude(p => p.Pages)
+                    .ThenInclude(pp => pp.Page)
+            .Include(up => up.Permission)
+                .ThenInclude(p => p.Functions)
+                    .ThenInclude(pf => pf.Function)
+            .Include(up => up.Permission)
+                .ThenInclude(p => p.PageColumns)
+                    .ThenInclude(pc => pc.PageColumn)
+            .ToListAsync(ct);
+
+        bool isFullAccess = userPermissions.Any(up => up.Permission.IsFullAccess);
+        if (isFullAccess)
+            return (true, ["Admin"]);
+
+        var roleNames = userPermissions
+            .SelectMany(up => up.Permission.Pages.Select(pp => pp.Page.Name))
+            .Concat(userPermissions.SelectMany(up => up.Permission.Functions.Select(pf => pf.Function.Name)))
+            .Concat(userPermissions.SelectMany(up => up.Permission.PageColumns.Select(pc => pc.PageColumn.Name)))
+            .Distinct()
+            .ToList();
+
+        return (false, roleNames);
+    }
+
+    private string GenerateJwtToken(Guid userId, string email, (bool isFullAccess, IEnumerable<string> roleNames) permData)
     {
         var jwtSection = _configuration.GetSection("Jwt");
         var secret = jwtSection["Secret"]!;
@@ -139,7 +157,10 @@ public class AccountController : ControllerBase
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        foreach (var role in roles)
+        if (permData.isFullAccess)
+            claims.Add(new Claim("full_access", "true"));
+
+        foreach (var role in permData.roleNames)
             claims.Add(new Claim(ClaimTypes.Role, role));
 
         var token = new JwtSecurityToken(
