@@ -24,13 +24,18 @@ public class OrderSyncService : IOrderSyncService
     }
 
     public async Task<OrderSyncSummaryDto> SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo,
-        CancellationToken ct = default, Func<string, Task>? onProgress = null)
+        CancellationToken ct = default, Func<string, Task>? onProgress = null,
+        HashSet<Guid>? allowedClientIds = null)
     {
-        var ozonClients = await _db.MarketplaceClients!
+        var query = _db.MarketplaceClients!
             .Include(c => c.ClientType)
             .Include(c => c.Mode)
-            .Where(c => c.ClientType!.Name == "Ozon" && c.Mode!.Name == "FBS")
-            .ToListAsync(ct);
+            .Where(c => c.ClientType!.Name == "Ozon" && c.Mode!.Name == "FBS");
+
+        if (allowedClientIds is not null)
+            query = query.Where(c => allowedClientIds.Contains(c.Id));
+
+        var ozonClients = await query.ToListAsync(ct);
 
         _logger.LogInformation(
             "Starting order sync for {Count} Ozon FBS client(s).", ozonClients.Count);
@@ -75,13 +80,17 @@ public class OrderSyncService : IOrderSyncService
     }
 
     public async Task<OrderSyncSummaryDto> UpdateAllAsync(DateTime from, DateTime to, CancellationToken ct = default,
-        Func<string, Task>? onProgress = null)
+        Func<string, Task>? onProgress = null, HashSet<Guid>? allowedClientIds = null)
     {
-        var ozonClients = await _db.MarketplaceClients!
+        var query = _db.MarketplaceClients!
             .Include(c => c.ClientType)
             .Include(c => c.Mode)
-            .Where(c => c.ClientType!.Name == "Ozon" && c.Mode!.Name == "FBS")
-            .ToListAsync(ct);
+            .Where(c => c.ClientType!.Name == "Ozon" && c.Mode!.Name == "FBS");
+
+        if (allowedClientIds is not null)
+            query = query.Where(c => allowedClientIds.Contains(c.Id));
+
+        var ozonClients = await query.ToListAsync(ct);
 
         _logger.LogInformation(
             "Starting status update for {Count} Ozon FBS client(s), period {From}\u2013{To}.",

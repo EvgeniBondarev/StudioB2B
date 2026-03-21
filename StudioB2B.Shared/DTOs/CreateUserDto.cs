@@ -6,5 +6,4 @@ public record CreateUserDto(
     string LastName,
     string? MiddleName,
     string Password,
-    List<string> Roles);
-
+    List<Guid> Permissions);

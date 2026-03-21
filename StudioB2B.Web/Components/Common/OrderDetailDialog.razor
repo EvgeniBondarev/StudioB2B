@@ -3,7 +3,6 @@
 @using StudioB2B.Infrastructure.Services
 @using System.Text.RegularExpressions
 @using StudioB2B.Domain.Entities
-@using StudioB2B.Domain.Entities.Orders
 @using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
 
@@ -14,9 +13,7 @@
 
 @if (_order == null)
 {
-    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 200px;">
-        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
-    </RadzenStack>
+    <div class="dlg-loading"><div class="dlg-spinner"></div></div>
 }
 else
 {

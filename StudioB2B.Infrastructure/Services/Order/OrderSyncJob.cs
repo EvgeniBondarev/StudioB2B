@@ -175,11 +175,12 @@ public class OrderSyncJob
                 "SyncJob: starting sync for tenant {TenantId}, period {From}–{To}.",
                 tenantId, from, to);
 
+            var allowedClientIds = await GetAllowedClientIdsAsync(db, history.InitiatedByUserId, cancellationToken);
             var syncService = BuildSyncService(db);
             var summary = await syncService.SyncAllAsync(from, to, cancellationToken, async msg =>
             {
                 await _notificationSender.SendJobProgressAsync(tenantId, history.Id, msg, CancellationToken.None);
-            });
+            }, allowedClientIds);
 
             history.Status = SyncJobStatusEnum.Succeeded;
             history.FinishedAtUtc = DateTime.UtcNow;
@@ -219,8 +220,9 @@ public class OrderSyncJob
             logger.LogInformation("ReturnsJob: starting returns sync for tenant {TenantId}, period {From}–{To}.",
                                   tenantId, from, to);
 
+            var allowedClientIds = await GetAllowedClientIdsAsync(db, history.InitiatedByUserId, cancellationToken);
             var syncService = BuildReturnsSyncService(db);
-            var summary = await syncService.SyncAllAsync(from, to, cancellationToken);
+            var summary = await syncService.SyncAllAsync(from, to, cancellationToken, allowedClientIds);
 
             history.Status = SyncJobStatusEnum.Succeeded;
             history.FinishedAtUtc = DateTime.UtcNow;
@@ -261,11 +263,12 @@ public class OrderSyncJob
                 "UpdateJob: starting status update for tenant {TenantId}, period {From}\u2013{To}.",
                 tenantId, from, to);
 
+            var allowedClientIds = await GetAllowedClientIdsAsync(db, history.InitiatedByUserId, cancellationToken);
             var syncService = BuildSyncService(db);
             var summary = await syncService.UpdateAllAsync(from, to, cancellationToken, async msg =>
             {
                 await _notificationSender.SendJobProgressAsync(tenantId, history.Id, msg, CancellationToken.None);
-            });
+            }, allowedClientIds);
 
             history.Status = SyncJobStatusEnum.Succeeded;
             history.FinishedAtUtc = DateTime.UtcNow;
@@ -341,5 +344,43 @@ public class OrderSyncJob
         var optionsBuilder = new DbContextOptionsBuilder<TenantDbContext>();
         optionsBuilder.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
         return new TenantDbContext(optionsBuilder.Options, currentUserProvider: null);
+    }
+
+    /// <summary>
+    /// Resolves the set of allowed MarketplaceClient IDs for the given user based on their permissions.
+    /// Returns <c>null</c> when there are no restrictions (full access or system job).
+    /// </summary>
+    private static async Task<HashSet<Guid>?> GetAllowedClientIdsAsync(
+        TenantDbContext db, Guid? userId, CancellationToken ct)
+    {
+        if (userId is null)
+            return null; // System/scheduled job — no restrictions
+
+        var permissionIds = await db.UserPermissions
+            .AsNoTracking()
+            .Where(up => up.UserId == userId)
+            .Select(up => up.PermissionId)
+            .ToListAsync(ct);
+
+        if (permissionIds.Count == 0)
+            return null; // No permissions assigned → no restrictions
+
+        // Full-access permission → no client restrictions
+        var hasFullAccess = await db.Permissions
+            .AsNoTracking()
+            .AnyAsync(p => permissionIds.Contains(p.Id) && p.IsFullAccess, ct);
+
+        if (hasFullAccess)
+            return null;
+
+        var allowedIds = await db.BlockedEntities
+            .AsNoTracking()
+            .Where(be => permissionIds.Contains(be.PermissionId)
+                         && be.EntityType == BlockedEntityTypeEnum.MarketplaceClient)
+            .Select(be => be.EntityId)
+            .ToHashSetAsync(ct);
+
+        // Empty whitelist = no MarketplaceClient restriction configured → unrestricted
+        return allowedIds.Count > 0 ? allowedIds : null;
     }
 }
