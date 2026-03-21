@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
-using StudioB2B.Domain.Entities.Orders;
 using StudioB2B.Infrastructure.Interfaces;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant;
@@ -43,9 +42,12 @@ public class TenantDbContext : DbContext
 
     public DbSet<TenantUser> Users { get; set; } = null!;
 
-    public DbSet<TenantRole> Roles { get; set; } = null!;
-
-    public DbSet<TenantUserRole> UserRoles { get; set; } = null!;
+    public DbSet<Permission> Permissions { get; set; } = null!;
+    public DbSet<TenantUserPermission> UserPermissions { get; set; } = null!;
+    public DbSet<Page> Pages { get; set; } = null!;
+    public DbSet<PageColumn> PageColumns { get; set; } = null!;
+    public DbSet<AppFunction> Functions { get; set; } = null!;
+    public DbSet<BlockedEntity> BlockedEntities { get; set; } = null!;
 
     public DbSet<MarketplaceClient>? MarketplaceClients { get; set; }
 

@@ -1,13 +1,4 @@
-namespace StudioB2B.Domain.Entities;
-
-public class TenantRole : IBaseEntity, ISoftDelete
+namespace StudioB2B.Domain.Entities
 {
-    public Guid Id { get; set; }
-
-    public string Name { get; set; } = null!;
-
-    public bool IsDeleted { get; set; }
-
-    public ICollection<TenantUserRole> UserRoles { get; set; } = new List<TenantUserRole>();
+    // Removed - replaced by Permission system
 }
-

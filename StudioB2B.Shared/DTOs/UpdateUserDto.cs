@@ -5,5 +5,4 @@ public record UpdateUserDto(
     string LastName,
     string? MiddleName,
     bool IsActive,
-    List<string> Roles);
-
+    List<Guid> Permissions);
