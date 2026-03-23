@@ -1,0 +1,192 @@
+@page "/permissions"
+@attribute [Authorize(Roles = "PermissionsView")]
+@using StudioB2B.Infrastructure.Features
+@using StudioB2B.Infrastructure.Interfaces
+
+@inject GetPermissions GetPermissionsService
+@inject DeletePermission DeletePermissionService
+@inject ITenantProvider TenantProvider
+@inject NotificationService NotificationService
+@inject ContextMenuService ContextMenuService
+@inject DialogService DialogService
+
+<link rel="stylesheet" href="css/orders.css" />
+<PageTitle>Права доступа</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+{
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                 JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
+        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Права доступа</RadzenText>
+        <AuthorizeView Roles="PermissionsManage">
+            <Authorized>
+                <RadzenButton Icon="add" Text="Создать право" Shade="Shade.Light"
+                              ButtonStyle="ButtonStyle.Primary" Click="@OpenCreateDialog" />
+            </Authorized>
+        </AuthorizeView>
+    </RadzenStack>
+
+    <RadzenDataGrid @ref="_grid"
+                    TItem="PermissionDto"
+                    Data="@_permissions"
+                    AllowFiltering="true"
+                    AllowColumnResize="true"
+                    AllowAlternatingRows="false"
+                    FilterMode="FilterMode.SimpleWithMenu"
+                    AllowSorting="true"
+                    AllowPaging="true"
+                    PageSize="20"
+                    PageSizeOptions="@_pageSizeOptions"
+                    ShowPagingSummary="true"
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    IsLoading="@_loading"
+                    CellContextMenu="@ShowContextMenu"
+                    EmptyText="Прав доступа пока нет">
+        <Columns>
+            <RadzenDataGridColumn TItem="PermissionDto" Property="Name" Title="Название" Width="220px" Frozen="true" />
+
+            <RadzenDataGridColumn TItem="PermissionDto" Property="IsFullAccess" Title="Полный доступ"
+                                  Width="140px" TextAlign="TextAlign.Center" Filterable="false">
+                <Template Context="p">
+                    @if (p.IsFullAccess)
+                    {
+                        <RadzenBadge Text="Администратор" BadgeStyle="BadgeStyle.Primary" />
+                    }
+                    else
+                    {
+                        <RadzenBadge Text="Ограниченный" BadgeStyle="BadgeStyle.Light" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="PermissionDto" Title="Страниц" Width="110px"
+                                  Sortable="false" Filterable="false" TextAlign="TextAlign.Center">
+                <Template Context="p">
+                    <span>@p.Pages.Count</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="PermissionDto" Title="Функций" Width="110px"
+                                  Sortable="false" Filterable="false" TextAlign="TextAlign.Center">
+                <Template Context="p">
+                    <span>@p.Functions.Count</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="PermissionDto" Title="Колонок" Width="110px"
+                                  Sortable="false" Filterable="false" TextAlign="TextAlign.Center">
+                <Template Context="p">
+                    <span>@p.PageColumns.Count</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="PermissionDto" Title="Ограничений сущностей" Width="200px"
+                                  Sortable="false" Filterable="false" TextAlign="TextAlign.Center">
+                <Template Context="p">
+                    @if (p.BlockedEntities.Count > 0)
+                    {
+                        <RadzenBadge Text="@($"{p.BlockedEntities.Count} ограничений")" BadgeStyle="BadgeStyle.Warning" />
+                    }
+                    else
+                    {
+                        <span style="color: var(--rz-text-secondary-color); font-size: 0.8rem;">—</span>
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
+
+    private RadzenDataGrid<PermissionDto>? _grid;
+    private List<PermissionDto> _permissions = [];
+    private bool _loading = true;
+    private bool _canManage;
+    private readonly int[] _pageSizeOptions = [10, 25, 50];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState;
+        _canManage = state.User.HasClaim("full_access", "true") || state.User.IsInRole("PermissionsManage");
+
+        if (TenantProvider.IsResolved)
+            await LoadAsync();
+        else
+            _loading = false;
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _permissions = await GetPermissionsService.HandleAsync();
+        _loading = false;
+    }
+
+    private async Task OpenCreateDialog()
+    {
+        var result = await DialogService.OpenAsync<PermissionEditDialog>(
+            "Новое право доступа",
+            new Dictionary<string, object?> { [nameof(PermissionEditDialog.PermissionId)] = Guid.Empty },
+            new DialogOptions { Width = "min(780px, 96vw)", CloseDialogOnOverlayClick = true });
+
+        if (result is true) await LoadAsync();
+    }
+
+    private async Task OpenEditDialog(PermissionDto perm)
+    {
+        var result = await DialogService.OpenAsync<PermissionEditDialog>(
+            $"Редактировать: {perm.Name}",
+            new Dictionary<string, object?> { [nameof(PermissionEditDialog.PermissionId)] = perm.Id },
+            new DialogOptions { Width = "min(780px, 96vw)", CloseDialogOnOverlayClick = true });
+
+        if (result is true) await LoadAsync();
+    }
+
+    private async Task DeletePerm(PermissionDto perm)
+    {
+        var confirmed = await DialogService.Confirm(
+            $"Удалить право «{perm.Name}»? Оно будет снято со всех пользователей.",
+            "Подтверждение удаления",
+            new ConfirmOptions { OkButtonText = "Удалить", CancelButtonText = "Отмена", CloseDialogOnOverlayClick = true });
+
+        if (confirmed != true) return;
+
+        var (ok, error) = await DeletePermissionService.HandleAsync(perm.Id);
+        if (ok)
+        {
+            NotificationService.Notify(NotificationSeverity.Success, "Право удалено");
+            await LoadAsync();
+        }
+        else
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Ошибка удаления");
+    }
+
+    private void ShowContextMenu(DataGridCellMouseEventArgs<PermissionDto> args)
+    {
+        var items = new List<ContextMenuItem>();
+        if (_canManage)
+        {
+            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" });
+            items.Add(new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" });
+        }
+        if (items.Count == 0) return;
+
+        ContextMenuService.Open(args, items, e =>
+        {
+            ContextMenuService.Close();
+            if (e.Value?.ToString() == "edit")
+                InvokeAsync(() => OpenEditDialog(args.Data!));
+            else if (e.Value?.ToString() == "delete")
+                InvokeAsync(() => DeletePerm(args.Data!));
+        });
+    }
+}
+

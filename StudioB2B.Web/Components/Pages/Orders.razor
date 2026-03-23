@@ -4,6 +4,7 @@
 @using Radzen
 @using Radzen.Blazor.Rendering
 
+@using StudioB2B.Domain.Constants
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Persistence.Tenant
@@ -20,6 +21,8 @@
 @inject TabService TabService
 @inject IJSRuntime JsRuntime
 @inject IModuleService ModuleService
+@inject IEntityFilterService EntityFilterSvc
+@inject UserContext UserContext
 
 @implements IDisposable
 
@@ -72,7 +75,7 @@ else
                 </RadzenText>
                 @if (_loadingTransactions)
                 {
-                    <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Small" />
+                    <div class="dlg-spinner" style="width:20px;height:20px;border-width:2px;"></div>
                 }
                 else if (_selectionStatusGroups > 1)
                 {
@@ -1005,6 +1008,9 @@ window.gridResize = {
             // Resolve role-based column visibility
             var state = await AuthState;
             var user = state.User;
+
+            // Set UserContext so EntityFilterService can resolve the user's entity restrictions
+            UserContext.SetUser(user);
             bool Col(string role) => user.IsInRole("Admin") || user.IsInRole(role);
 
             _canViewPrice = Col("OrdersViewPrice");
@@ -1218,6 +1224,22 @@ window.gridResize = {
 
         // Counts for pills — respect client/warehouse/search filters but NOT status/return filters
         var countBase = _db!.Orders.AsNoTracking().AsQueryable();
+
+        // Apply entity restriction filters to the base query
+        var _efClients = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient);
+        var _efWarehouses = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.Warehouse);
+        var _efStatuses = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.OrderStatus);
+        var _efDelivery = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.DeliveryMethod);
+
+        if (_efClients is not null)
+            countBase = countBase.Where(o => _efClients.Contains(o.Shipment.MarketplaceClientId));
+        if (_efWarehouses is not null)
+            countBase = countBase.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId.HasValue && _efWarehouses.Contains(o.WarehouseInfo.SenderWarehouseId.Value));
+        if (_efStatuses is not null)
+            countBase = countBase.Where(o => o.StatusId != null && _efStatuses.Contains(o.StatusId.Value));
+        if (_efDelivery is not null)
+            countBase = countBase.Where(o => o.Shipment.DeliveryMethodId != null && _efDelivery.Contains(o.Shipment.DeliveryMethodId.Value));
+
         if (_filterClientId.HasValue)
             countBase = countBase.Where(o => o.Shipment.MarketplaceClientId == _filterClientId.Value);
         if (_filterWarehouseId.HasValue)
@@ -1258,6 +1280,16 @@ window.gridResize = {
             .IncludeForGrid()
             .AsNoTracking()
             .AsQueryable();
+
+        // Apply entity restriction filters
+        if (_efClients is not null)
+            query = query.Where(o => _efClients.Contains(o.Shipment.MarketplaceClientId));
+        if (_efWarehouses is not null)
+            query = query.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId.HasValue && _efWarehouses.Contains(o.WarehouseInfo.SenderWarehouseId.Value));
+        if (_efStatuses is not null)
+            query = query.Where(o => o.StatusId != null && _efStatuses.Contains(o.StatusId.Value));
+        if (_efDelivery is not null)
+            query = query.Where(o => o.Shipment.DeliveryMethodId != null && _efDelivery.Contains(o.Shipment.DeliveryMethodId.Value));
 
         if (_filterClientId.HasValue)
             query = query.Where(o => o.Shipment.MarketplaceClientId == _filterClientId.Value);
@@ -1395,30 +1427,43 @@ window.gridResize = {
         if (_db != null) return;
         _db = Factory.CreateDbContext(); // set before first await — prevents re-entry
 
-        _clients = await _db.MarketplaceClients!
+        // Load entity restriction filters once
+        var allowedClients = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient);
+        var allowedWarehouses = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.Warehouse);
+        var allowedStatuses = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.OrderStatus);
+
+        var clientsQ = _db.MarketplaceClients!
             .Include(c => c.ClientType)
             .Include(c => c.Mode)
             .Where(c => c.ClientType!.Name == "Ozon" && c.Mode!.Name == "FBS")
             .OrderBy(c => c.Name)
-            .AsNoTracking()
-            .ToListAsync();
+            .AsNoTracking();
+        if (allowedClients is not null)
+            clientsQ = clientsQ.Where(c => allowedClients.Contains(c.Id));
+        _clients = await clientsQ.ToListAsync();
 
-        _marketplaceStatuses = await _db.OrderStatuses
+        var msStatusQ = _db.OrderStatuses
             .Where(s => !s.IsInternal && !s.IsDeleted)
             .OrderBy(s => s.Name)
-            .AsNoTracking()
-            .ToListAsync();
+            .AsNoTracking();
+        if (allowedStatuses is not null)
+            msStatusQ = msStatusQ.Where(s => allowedStatuses.Contains(s.Id));
+        _marketplaceStatuses = await msStatusQ.ToListAsync();
 
-        _systemStatuses = await _db.OrderStatuses
+        var sysStatusQ = _db.OrderStatuses
             .Where(s => s.IsInternal && !s.IsDeleted)
             .OrderBy(s => s.Name)
-            .AsNoTracking()
-            .ToListAsync();
+            .AsNoTracking();
+        if (allowedStatuses is not null)
+            sysStatusQ = sysStatusQ.Where(s => allowedStatuses.Contains(s.Id));
+        _systemStatuses = await sysStatusQ.ToListAsync();
 
-        _warehouses = await _db.Warehouses
+        var warehouseQ = _db.Warehouses
             .OrderBy(w => w.Name)
-            .AsNoTracking()
-            .ToListAsync();
+            .AsNoTracking();
+        if (allowedWarehouses is not null)
+            warehouseQ = warehouseQ.Where(w => allowedWarehouses.Contains(w.Id));
+        _warehouses = await warehouseQ.ToListAsync();
 
         _calcRules = await _db.GetActiveRulesAsync();
     }

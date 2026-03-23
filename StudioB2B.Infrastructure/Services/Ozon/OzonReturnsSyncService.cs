@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using StudioB2B.Domain.Entities.Orders;
+using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Shared.DTOs;
@@ -24,12 +24,17 @@ public class OzonReturnsSyncService
         _logger = logger;
     }
 
-    public async Task<ReturnsSyncResultDto> SyncAllAsync(DateTime from, DateTime to, CancellationToken ct = default)
+    public async Task<ReturnsSyncResultDto> SyncAllAsync(DateTime from, DateTime to, CancellationToken ct = default,
+        HashSet<Guid>? allowedClientIds = null)
     {
-        var clients = await _db.MarketplaceClients!
+        var query = _db.MarketplaceClients!
             .Include(c => c.ClientType)
-            .Where(c => c.ClientType!.Name == "Ozon")
-            .ToListAsync(ct);
+            .Where(c => c.ClientType!.Name == "Ozon");
+
+        if (allowedClientIds is not null)
+            query = query.Where(c => allowedClientIds.Contains(c.Id));
+
+        var clients = await query.ToListAsync(ct);
 
         _logger.LogInformation("Starting returns sync for {Count} Ozon client(s).", clients.Count);
 

@@ -13,9 +13,7 @@
 <div style="min-width: min(720px, 90vw);">
     @if (_loading)
     {
-        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center" Style="min-height: 180px;">
-            <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.Medium" />
-        </RadzenStack>
+        <div class="dlg-loading"><div class="dlg-spinner"></div></div>
     }
     else if (_logs.Count == 0)
     {

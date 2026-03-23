@@ -80,6 +80,9 @@
                     <AuthorizeView Roles="ModulesView">
                         <Authorized><RadzenPanelMenuItem Text="Модули" Path="/modules" Icon="extension" /></Authorized>
                     </AuthorizeView>
+                    <AuthorizeView Roles="PermissionsView">
+                        <Authorized><RadzenPanelMenuItem Text="Права доступа" Path="/permissions" Icon="shield" /></Authorized>
+                    </AuthorizeView>
 
                     <RadzenPanelMenuItem Text="@TenantProvider.Subdomain" Icon="apartment" Disabled="true" />
                 }
