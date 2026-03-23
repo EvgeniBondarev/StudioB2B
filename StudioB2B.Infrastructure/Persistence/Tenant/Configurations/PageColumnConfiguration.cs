@@ -12,6 +12,7 @@ public class PageColumnConfiguration : IEntityTypeConfiguration<PageColumn>
         builder.HasKey(c => c.Id);
         builder.Property(c => c.Id).ValueGeneratedNever();
         builder.Property(c => c.Name).IsRequired().HasMaxLength(100);
+        builder.Property(c => c.DisplayName).IsRequired().HasMaxLength(200).HasDefaultValue("");
         builder.HasIndex(c => c.Name).IsUnique();
 
         builder.HasOne(c => c.Page)
@@ -20,4 +21,3 @@ public class PageColumnConfiguration : IEntityTypeConfiguration<PageColumn>
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
-

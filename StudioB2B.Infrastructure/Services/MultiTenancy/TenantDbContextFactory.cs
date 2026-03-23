@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Infrastructure.Interfaces;
@@ -10,9 +11,6 @@ public class TenantDbContextFactory : ITenantDbContextFactory
 {
     // Cache ServerVersion per connection string — avoids a synchronous DB ping on every CreateDbContext() call.
     private static readonly ConcurrentDictionary<string, ServerVersion> _serverVersionCache = new();
-
-    // Track tenants whose migrations have already been checked — avoids hitting the DB on every CreateDbContext().
-    private static readonly ConcurrentDictionary<string, bool> _migrationsChecked = new();
 
     private readonly ITenantProvider _tenantProvider;
     private readonly ICurrentUserProvider _currentUserProvider;
@@ -46,39 +44,86 @@ public class TenantDbContextFactory : ITenantDbContextFactory
 
         var context = new TenantDbContext(optionsBuilder.Options, _currentUserProvider);
 
-        // Check & apply pending migrations only once per tenant per app lifetime.
-        var tenantId = _tenantProvider.TenantId.ToString();
-        if (tenantId != null && !_migrationsChecked.ContainsKey(tenantId))
+        // Always apply pending tenant migrations before the first query.
+        // Also, guard against "migration marked as applied but column missing"
+        // by checking for the expected column and repairing it.
+        try
         {
-            try
+            var pending = context.Database.GetPendingMigrations().ToList();
+            if (pending.Count > 0)
             {
-                var pending = context.Database.GetPendingMigrations().ToList();
-                if (pending.Count > 0)
-                {
-                    _logger.LogInformation(
-                        "Applying {Count} pending tenant migrations for {TenantId}: {Migrations}",
-                        pending.Count,
-                        _tenantProvider.TenantId,
-                        string.Join(", ", pending));
-
-                    context.Database.Migrate();
-
-                    _logger.LogInformation(
-                        "Tenant migrations applied successfully for {TenantId}",
-                        _tenantProvider.TenantId);
-                }
-
-                _migrationsChecked.TryAdd(tenantId, true);
+                _logger.LogInformation(
+                    "Applying {Count} pending tenant migrations for {TenantId}: {Migrations}",
+                    pending.Count,
+                    _tenantProvider.TenantId,
+                    string.Join(", ", pending));
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "Failed to apply tenant migrations for {TenantId}",
-                    _tenantProvider.TenantId);
-                throw;
-            }
+
+            context.Database.Migrate();
+
+            _logger.LogInformation(
+                "Tenant migrations executed for {TenantId} (pending={PendingCount}).",
+                _tenantProvider.TenantId,
+                pending.Count);
+
+            EnsureMarketplaceClientModeId2Column(context);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to apply tenant migrations for {TenantId}",
+                _tenantProvider.TenantId);
+            throw;
         }
 
         return context;
+    }
+
+    private static void EnsureMarketplaceClientModeId2Column(TenantDbContext context)
+    {
+        // If a tenant schema got into a bad state (e.g. migration history updated, but schema change not applied),
+        // the app should not crash on simple SELECTs.
+        var columnExists = ColumnExists(
+            context,
+            tableName: "MarketplaceClients",
+            columnName: "ModeId2");
+
+        if (columnExists)
+            return;
+
+        // Repair: add missing column (+ index). FK is handled by EF migrations later.
+        context.Database.ExecuteSqlRaw(
+            "ALTER TABLE MarketplaceClients ADD COLUMN ModeId2 char(36) NULL;");
+
+        context.Database.ExecuteSqlRaw(
+            "CREATE INDEX IX_MarketplaceClients_ModeId2 ON MarketplaceClients (ModeId2);");
+    }
+
+    private static bool ColumnExists(TenantDbContext context, string tableName, string columnName)
+    {
+        var conn = context.Database.GetDbConnection();
+        if (conn.State != ConnectionState.Open)
+            conn.Open();
+
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText =
+            @"SELECT COUNT(*)
+              FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = @tableName
+                AND COLUMN_NAME = @columnName;";
+
+        var p1 = cmd.CreateParameter();
+        p1.ParameterName = "@tableName";
+        p1.Value = tableName;
+        cmd.Parameters.Add(p1);
+
+        var p2 = cmd.CreateParameter();
+        p2.ParameterName = "@columnName";
+        p2.Value = columnName;
+        cmd.Parameters.Add(p2);
+
+        var result = cmd.ExecuteScalar();
+        return Convert.ToInt32(result) > 0;
     }
 }

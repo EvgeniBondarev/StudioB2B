@@ -9,6 +9,10 @@ namespace StudioB2B.Infrastructure.Interfaces;
 public interface IOrderAdapter
 {
     string MarketplaceName { get; }
+    /// <summary>
+    /// Mode name in DB (e.g. "FBS" / "FBO") that this adapter supports.
+    /// </summary>
+    string ClientModeName { get; }
 
     Task<OrderSyncResultDto> SyncAsync(MarketplaceClient client, DateTime cutoffFrom, DateTime cutoffTo, CancellationToken ct = default);
 

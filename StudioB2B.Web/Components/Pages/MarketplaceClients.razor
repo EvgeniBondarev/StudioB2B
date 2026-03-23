@@ -79,8 +79,9 @@ else
             var mname = m.Name;
             var isModeActive = _filterModeId == mid;
             var modeCnt = _modeCountsByModeId.GetValueOrDefault(mid);
-            <span class="q-pill @(isModeActive ? "active" : "")"
-                  style="background:@(isModeActive ? "#10b981" : "#d1fae5"); color:@(isModeActive ? "#fff" : "#065f46");"
+            var modeSchemeClass = mname?.Equals("fbs", StringComparison.OrdinalIgnoreCase) == true ? "scheme-fbs" :
+                                  mname?.Equals("fbo", StringComparison.OrdinalIgnoreCase) == true ? "scheme-fbo" : "";
+            <span class="q-pill @modeSchemeClass @(isModeActive ? "active" : "")"
                   @onclick="@(async () => { _filterModeId = isModeActive ? null : mid; await OnPillFilter(); })">
                 @mname
                 @if (modeCnt > 0) { <span class="q-pill-count">@modeCnt</span> }
@@ -188,14 +189,30 @@ else
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Mode.Name" Title="Режим" Width="180px"
+            <RadzenDataGridColumn TItem="MarketplaceClient" Title="Режим (моды)" Width="180px"
                                   Sortable="false" Filterable="false" Visible="@Col("MktClientsColMode")">
+                <Template Context="c">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                        @foreach (var modeName in new[] { c.Mode?.Name, c.Mode2?.Name }.Where(n => !string.IsNullOrWhiteSpace(n)))
+                        {
+                            var mc = modeName!.Equals("fbs", StringComparison.OrdinalIgnoreCase) ? "scheme-fbs" :
+                                     modeName.Equals("fbo", StringComparison.OrdinalIgnoreCase) ? "scheme-fbo" : "";
+                            <span class="shipment-scheme-icon @mc">@modeName!.ToUpperInvariant()</span>
+                        }
+                    </RadzenStack>
+                </Template>
                 <EditTemplate Context="c">
-                    <RadzenDropDown Data="@_modes"
-                                    TextProperty="@nameof(MarketplaceClientMode.Name)"
-                                    ValueProperty="@nameof(MarketplaceClientMode.Id)"
-                                    @bind-Value="c.ModeId"
-                                    Style="width: 100%;" />
+                    <RadzenStack Orientation="Orientation.Vertical" Gap="0.25rem">
+                        @foreach (var m in _modes)
+                        {
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
+                                <RadzenCheckBox TValue="bool"
+                                                 Value="@(c.ModeId == m.Id || c.ModeId2 == m.Id)"
+                                                 Change="@(value => OnClientModeChanged(c, m.Id, value))" />
+                                <RadzenText TextStyle="TextStyle.Body2">@m.Name</RadzenText>
+                            </RadzenStack>
+                        }
+                    </RadzenStack>
                 </EditTemplate>
             </RadzenDataGridColumn>
 
@@ -264,7 +281,7 @@ else
         {
             var state = await AuthState;
             _user = state.User;
-            _canManage = state.User.IsInRole("MarketplaceClientsManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("MarketplaceClientsManage");
             await LoadGridSettingsAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
                 await _grid.Reload();
@@ -314,7 +331,7 @@ else
         if (_filterClientTypeId.HasValue)
             query = query.Where(c => c.ClientTypeId == _filterClientTypeId.Value);
         if (_filterModeId.HasValue)
-            query = query.Where(c => c.ModeId == _filterModeId.Value);
+            query = query.Where(c => c.ModeId == _filterModeId.Value || c.ModeId2 == _filterModeId.Value);
 
         if (!string.IsNullOrEmpty(args.Filter))
             query = query.Where(args.Filter);
@@ -347,15 +364,16 @@ else
         var clientData = await _db.MarketplaceClients!
             .AsNoTracking()
             .Where(c => !c.IsDeleted)
-            .Select(c => new { c.ClientTypeId, c.ModeId })
+            .Select(c => new { c.ClientTypeId, c.ModeId, c.ModeId2 })
             .ToListAsync();
         _typeCountsByTypeId = clientData
             .Where(c => c.ClientTypeId.HasValue)
             .GroupBy(c => c.ClientTypeId!.Value)
             .ToDictionary(g => g.Key, g => g.Count());
         _modeCountsByModeId = clientData
-            .Where(c => c.ModeId.HasValue)
-            .GroupBy(c => c.ModeId!.Value)
+            .SelectMany(c => new[] { c.ModeId, c.ModeId2 })
+            .Where(id => id.HasValue)
+            .GroupBy(id => id!.Value)
             .ToDictionary(g => g.Key, g => g.Count());
     }
 
@@ -401,6 +419,36 @@ else
     private async Task SaveRow(MarketplaceClient client) => await _grid!.UpdateRow(client);
 
     private void CancelRow(MarketplaceClient client) => _grid!.CancelEditRow(client);
+
+    private void OnClientModeChanged(MarketplaceClient client, Guid modeId, bool isChecked)
+    {
+        var ids = new List<Guid>(2);
+        if (client.ModeId.HasValue) ids.Add(client.ModeId.Value);
+        if (client.ModeId2.HasValue) ids.Add(client.ModeId2.Value);
+
+        if (isChecked)
+        {
+            if (ids.Contains(modeId))
+                return;
+
+            if (ids.Count >= 2)
+            {
+                NotificationService.Notify(NotificationSeverity.Warning,
+                    "Ограничение",
+                    "В текущей версии можно выбрать максимум 2 режима на клиента.");
+                return;
+            }
+
+            ids.Add(modeId);
+        }
+        else
+        {
+            ids.Remove(modeId);
+        }
+
+        client.ModeId = ids.Count > 0 ? ids[0] : null;
+        client.ModeId2 = ids.Count > 1 ? ids[1] : null;
+    }
 
     private async Task OnUpdate(MarketplaceClient client)
     {

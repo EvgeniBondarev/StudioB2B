@@ -151,7 +151,7 @@ else
     {
         var state = await AuthState;
         _user = state.User;
-        _canManage = state.User.IsInRole("UsersManage");
+        _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("UsersManage");
 
         if (TenantProvider.IsResolved)
             await LoadAsync();
@@ -216,7 +216,7 @@ else
         {
             await LoadAsync();                              // data first
             var state = await AuthState;
-            _canManage = state.User.IsInRole("UsersManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("UsersManage");
         }
     }
 
@@ -236,7 +236,7 @@ else
         {
             await LoadAsync();                              // data first
             var state = await AuthState;
-            _canManage = state.User.IsInRole("UsersManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("UsersManage");
         }
     }
 

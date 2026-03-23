@@ -10,27 +10,27 @@ namespace StudioB2B.Infrastructure.Services.Order;
 public class OrderSyncService : IOrderSyncService
 {
     private readonly TenantDbContext _db;
-    private readonly IOrderAdapter _adapter;
+    private readonly Dictionary<string, IOrderAdapter> _adaptersByMode;
     private readonly ILogger<OrderSyncService> _logger;
 
-    public OrderSyncService(
-        TenantDbContext db,
-        IOrderAdapter adapter,
-        ILogger<OrderSyncService> logger)
+    public OrderSyncService(TenantDbContext db,
+                            IEnumerable<IOrderAdapter> adapters,
+                            ILogger<OrderSyncService> logger)
     {
         _db = db;
-        _adapter = adapter;
+        _adaptersByMode = adapters.ToDictionary(a => a.ClientModeName, a => a, StringComparer.OrdinalIgnoreCase);
         _logger = logger;
     }
 
     public async Task<OrderSyncSummaryDto> SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo,
-        CancellationToken ct = default, Func<string, Task>? onProgress = null,
-        HashSet<Guid>? allowedClientIds = null)
+                                                        CancellationToken ct = default, Func<string, Task>? onProgress = null,
+                                                        HashSet<Guid>? allowedClientIds = null)
     {
         var query = _db.MarketplaceClients!
             .Include(c => c.ClientType)
             .Include(c => c.Mode)
-            .Where(c => c.ClientType!.Name == "Ozon" && c.Mode!.Name == "FBS");
+            .Include(c => c.Mode2)
+            .Where(c => c.ClientType!.Name == "Ozon" && (c.Mode != null || c.Mode2 != null));
 
         if (allowedClientIds is not null)
             query = query.Where(c => allowedClientIds.Contains(c.Id));
@@ -38,7 +38,7 @@ public class OrderSyncService : IOrderSyncService
         var ozonClients = await query.ToListAsync(ct);
 
         _logger.LogInformation(
-            "Starting order sync for {Count} Ozon FBS client(s).", ozonClients.Count);
+            "Starting order sync for {Count} Ozon client(s) in FBS/FBO.", ozonClients.Count);
 
         var summary = new OrderSyncSummaryDto();
         var total = ozonClients.Count;
@@ -53,19 +53,40 @@ public class OrderSyncService : IOrderSyncService
                 _logger.LogInformation(
                     "Syncing orders for client {ClientId} ({ClientName}) in period {From}–{To}.",
                     client.ApiId, client.Name, cutoffFrom, cutoffTo);
-                var clientResult = await _adapter.SyncAsync(client, cutoffFrom, cutoffTo, ct);
-                summary.Total.Add(clientResult);
-                summary.PerClient.Add(new ClientSyncResultItemDto
+
+                if (client.Mode != null && _adaptersByMode.TryGetValue(client.Mode.Name, out var adapter))
                 {
-                    ClientName = client.Name,
-                    Mode = client.Mode?.Name ?? string.Empty,
-                    ShipmentsCreated = clientResult.ShipmentsCreated,
-                    ShipmentsUpdated = clientResult.ShipmentsUpdated,
-                    ShipmentsUntouched = clientResult.ShipmentsUntouched,
-                    OrdersCreated = clientResult.OrdersCreated,
-                    OrdersUpdated = clientResult.OrdersUpdated,
-                    OrdersUntouched = clientResult.OrdersUntouched
-                });
+                    var clientResult = await adapter.SyncAsync(client, cutoffFrom, cutoffTo, ct);
+                    summary.Total.Add(clientResult);
+                    summary.PerClient.Add(new ClientSyncResultItemDto
+                    {
+                        ClientName = client.Name,
+                        Mode = client.Mode?.Name ?? string.Empty,
+                        ShipmentsCreated = clientResult.ShipmentsCreated,
+                        ShipmentsUpdated = clientResult.ShipmentsUpdated,
+                        ShipmentsUntouched = clientResult.ShipmentsUntouched,
+                        OrdersCreated = clientResult.OrdersCreated,
+                        OrdersUpdated = clientResult.OrdersUpdated,
+                        OrdersUntouched = clientResult.OrdersUntouched
+                    });
+                }
+
+                if (client.Mode2 != null && _adaptersByMode.TryGetValue(client.Mode2.Name, out var adapter2))
+                {
+                    var clientResult = await adapter2.SyncAsync(client, cutoffFrom, cutoffTo, ct);
+                    summary.Total.Add(clientResult);
+                    summary.PerClient.Add(new ClientSyncResultItemDto
+                    {
+                        ClientName = client.Name,
+                        Mode = client.Mode2?.Name ?? string.Empty,
+                        ShipmentsCreated = clientResult.ShipmentsCreated,
+                        ShipmentsUpdated = clientResult.ShipmentsUpdated,
+                        ShipmentsUntouched = clientResult.ShipmentsUntouched,
+                        OrdersCreated = clientResult.OrdersCreated,
+                        OrdersUpdated = clientResult.OrdersUpdated,
+                        OrdersUntouched = clientResult.OrdersUntouched
+                    });
+                }
             }
             catch (Exception ex)
             {
@@ -85,7 +106,8 @@ public class OrderSyncService : IOrderSyncService
         var query = _db.MarketplaceClients!
             .Include(c => c.ClientType)
             .Include(c => c.Mode)
-            .Where(c => c.ClientType!.Name == "Ozon" && c.Mode!.Name == "FBS");
+            .Include(c => c.Mode2)
+            .Where(c => c.ClientType!.Name == "Ozon" && (c.Mode != null || c.Mode2 != null));
 
         if (allowedClientIds is not null)
             query = query.Where(c => allowedClientIds.Contains(c.Id));
@@ -93,7 +115,7 @@ public class OrderSyncService : IOrderSyncService
         var ozonClients = await query.ToListAsync(ct);
 
         _logger.LogInformation(
-            "Starting status update for {Count} Ozon FBS client(s), period {From}\u2013{To}.",
+            "Starting status update for {Count} Ozon clients (FBS/FBO), period {From}\u2013{To}.",
             ozonClients.Count, from, to);
 
         var summary = new OrderSyncSummaryDto();
@@ -111,23 +133,47 @@ public class OrderSyncService : IOrderSyncService
                     "Updating statuses for client {ClientId} ({ClientName}).",
                     client.ApiId, client.Name);
 
-                var clientResult = await _adapter.UpdateStatusesAsync(client, from, to, ct);
-                summary.Total.Add(clientResult);
-                summary.UpdatedShipments.AddRange(clientResult.UpdatedShipments);
-                summary.PerClient.Add(new ClientSyncResultItemDto
+                if (client.Mode != null && _adaptersByMode.TryGetValue(client.Mode.Name, out var adapter))
                 {
-                    ClientName = client.Name,
-                    Mode = client.Mode?.Name ?? string.Empty,
-                    ShipmentsCreated = clientResult.ShipmentsCreated,
-                    ShipmentsUpdated = clientResult.ShipmentsUpdated,
-                    ShipmentsUntouched = clientResult.ShipmentsUntouched,
-                    OrdersCreated = clientResult.OrdersCreated,
-                    OrdersUpdated = clientResult.OrdersUpdated,
-                    OrdersUntouched = clientResult.OrdersUntouched,
-                    OrdersSelectedForUpdate = clientResult.OrdersSelectedForUpdate,
-                    OrdersSkipped = clientResult.OrdersSkipped,
-                    UpdatedFieldsSummary = clientResult.UpdatedFieldsSummary
-                });
+                    var clientResult = await adapter.UpdateStatusesAsync(client, from, to, ct);
+                    summary.Total.Add(clientResult);
+                    summary.UpdatedShipments.AddRange(clientResult.UpdatedShipments);
+                    summary.PerClient.Add(new ClientSyncResultItemDto
+                    {
+                        ClientName = client.Name,
+                        Mode = client.Mode?.Name ?? string.Empty,
+                        ShipmentsCreated = clientResult.ShipmentsCreated,
+                        ShipmentsUpdated = clientResult.ShipmentsUpdated,
+                        ShipmentsUntouched = clientResult.ShipmentsUntouched,
+                        OrdersCreated = clientResult.OrdersCreated,
+                        OrdersUpdated = clientResult.OrdersUpdated,
+                        OrdersUntouched = clientResult.OrdersUntouched,
+                        OrdersSelectedForUpdate = clientResult.OrdersSelectedForUpdate,
+                        OrdersSkipped = clientResult.OrdersSkipped,
+                        UpdatedFieldsSummary = clientResult.UpdatedFieldsSummary
+                    });
+                }
+
+                if (client.Mode2 != null && _adaptersByMode.TryGetValue(client.Mode2.Name, out var adapter2))
+                {
+                    var clientResult = await adapter2.UpdateStatusesAsync(client, from, to, ct);
+                    summary.Total.Add(clientResult);
+                    summary.UpdatedShipments.AddRange(clientResult.UpdatedShipments);
+                    summary.PerClient.Add(new ClientSyncResultItemDto
+                    {
+                        ClientName = client.Name,
+                        Mode = client.Mode2?.Name ?? string.Empty,
+                        ShipmentsCreated = clientResult.ShipmentsCreated,
+                        ShipmentsUpdated = clientResult.ShipmentsUpdated,
+                        ShipmentsUntouched = clientResult.ShipmentsUntouched,
+                        OrdersCreated = clientResult.OrdersCreated,
+                        OrdersUpdated = clientResult.OrdersUpdated,
+                        OrdersUntouched = clientResult.OrdersUntouched,
+                        OrdersSelectedForUpdate = clientResult.OrdersSelectedForUpdate,
+                        OrdersSkipped = clientResult.OrdersSkipped,
+                        UpdatedFieldsSummary = clientResult.UpdatedFieldsSummary
+                    });
+                }
             }
             catch (Exception ex)
             {
@@ -147,8 +193,8 @@ public class OrderSyncService : IOrderSyncService
             .Include(s => s.Status)
             .Include(s => s.MarketplaceClient)
                 .ThenInclude(c => c.ClientType)
-            .Include(s => s.MarketplaceClient)
-                .ThenInclude(c => c.Mode)
+            .Include(s => s.DeliveryMethod)
+                .ThenInclude(dm => dm!.DeliveryType)
             .FirstOrDefaultAsync(s => s.Id == shipmentId, ct);
 
         if (shipment is null)
@@ -158,12 +204,19 @@ public class OrderSyncService : IOrderSyncService
         }
 
         var client = shipment.MarketplaceClient;
-        if (client.ClientType?.Name != "Ozon" || client.Mode?.Name != "FBS")
+        if (client.ClientType?.Name != "Ozon")
         {
             _logger.LogWarning("Shipment {ShipmentId} belongs to unsupported client type.", shipmentId);
             return null;
         }
 
-        return await _adapter.UpdateSingleShipmentStatusAsync(shipment, client, ct);
+        var schemeName = shipment.DeliveryMethod?.DeliveryType?.Name;
+        if (schemeName == null || !_adaptersByMode.TryGetValue(schemeName, out var adapter))
+        {
+            _logger.LogWarning("Shipment {ShipmentId} belongs to unsupported delivery mode.", shipmentId);
+            return null;
+        }
+
+        return await adapter.UpdateSingleShipmentStatusAsync(shipment, client, ct);
     }
 }
