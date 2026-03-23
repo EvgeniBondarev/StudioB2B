@@ -327,15 +327,22 @@ public class OrderSyncJob
             _moduleActivators,
             _loggerFactory.CreateLogger<ModuleService>());
 
-        var adapter = new OzonFbsOrderAdapter(
+        var fbsAdapter = new OzonFbsOrderAdapter(
             apiClient,
             db,
             _loggerFactory.CreateLogger<OzonFbsOrderAdapter>(),
             moduleService);
 
+        var fboAdapter = new OzonFboOrderAdapter(
+            apiClient,
+            db,
+            _loggerFactory.CreateLogger<OzonFboOrderAdapter>(),
+            _loggerFactory.CreateLogger<OzonFbsOrderAdapter>(),
+            moduleService);
+
         return new OrderSyncService(
             db,
-            adapter,
+            new IOrderAdapter[] { fbsAdapter, fboAdapter },
             _loggerFactory.CreateLogger<OrderSyncService>());
     }
 

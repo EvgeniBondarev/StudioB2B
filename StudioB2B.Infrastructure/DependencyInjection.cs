@@ -61,6 +61,7 @@ public static class DependencyInjection
 
         services.AddScoped<IOzonApiClient, OzonApiClient>();
         services.AddScoped<IOrderAdapter, OzonFbsOrderAdapter>();
+        services.AddScoped<IOrderAdapter, OzonFboOrderAdapter>();
         services.AddScoped<IOrderSyncService, OrderSyncService>();
         services.AddScoped<IOzonChatService, OzonChatService>();
         services.AddScoped<IOzonQuestionsService, OzonQuestionsService>();

@@ -12,7 +12,7 @@ public static class OrderExtensions
     {
         return q
             .Include(o => o.Shipment).ThenInclude(s => s.MarketplaceClient)
-            .Include(o => o.Shipment).ThenInclude(s => s.DeliveryMethod)
+            .Include(o => o.Shipment).ThenInclude(s => s.DeliveryMethod).ThenInclude(dm => dm!.DeliveryType)
             .Include(o => o.Status)
             .Include(o => o.SystemStatus)
             .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
