@@ -12,8 +12,8 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 {
     [DbContext(typeof(TenantDbContext))]
-    [Migration("20260320190318_AddPermissionSystem")]
-    partial class AddPermissionSystem
+    [Migration("20260323190510_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -61,6 +61,13 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 {
                     b.Property<int>("Id")
                         .HasColumnType("int");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasDefaultValue("");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -398,6 +405,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<Guid?>("ModeId")
                         .HasColumnType("char(36)");
 
+                    b.Property<Guid?>("ModeId2")
+                        .HasColumnType("char(36)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -416,6 +426,8 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.HasIndex("ClientTypeId");
 
                     b.HasIndex("ModeId");
+
+                    b.HasIndex("ModeId2");
 
                     b.ToTable("MarketplaceClients");
                 });
@@ -1023,6 +1035,13 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<int>("Id")
                         .HasColumnType("int");
 
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasDefaultValue("");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -1040,6 +1059,13 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 {
                     b.Property<int>("Id")
                         .HasColumnType("int");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasDefaultValue("");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1711,9 +1737,15 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .WithMany()
                         .HasForeignKey("ModeId");
 
+                    b.HasOne("StudioB2B.Domain.Entities.MarketplaceClientMode", "Mode2")
+                        .WithMany()
+                        .HasForeignKey("ModeId2");
+
                     b.Navigation("ClientType");
 
                     b.Navigation("Mode");
+
+                    b.Navigation("Mode2");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.MarketplaceClient1CSettings", b =>

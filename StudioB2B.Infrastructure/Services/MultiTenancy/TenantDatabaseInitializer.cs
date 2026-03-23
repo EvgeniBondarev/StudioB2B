@@ -5,6 +5,7 @@ using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using System.Reflection;
 
 namespace StudioB2B.Infrastructure.Services.MultiTenancy;
 
@@ -242,38 +243,94 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 
     /// <summary>
     /// Idempotently seeds Page, PageColumn, and Function rows from the three enums.
+    /// New rows get both Name (enum name, used as JWT role claim) and
+    /// DisplayName (from [Description] attribute, used in UI).
+    /// Existing rows are updated if their DisplayName is empty (after migration).
     /// </summary>
     private static async Task SeedPagesColumnsAndFunctionsAsync(TenantDbContext ctx, CancellationToken ct)
     {
         // ── Pages ──────────────────────────────────────────────────────────
-        var existingPageIds = await ctx.Pages.Select(p => p.Id).ToHashSetAsync(ct);
+        var existingPages = await ctx.Pages.ToListAsync(ct);
+        var existingPageIds = existingPages.Select(p => p.Id).ToHashSet();
         foreach (var page in Enum.GetValues<PageEnum>())
         {
             var id = (int)page;
+            var displayName = GetEnumDescription(page);
             if (!existingPageIds.Contains(id))
-                ctx.Pages.Add(new Page { Id = id, Name = page.ToString() });
+            {
+                ctx.Pages.Add(new Page { Id = id, Name = page.ToString(), DisplayName = displayName });
+            }
+            else
+            {
+                var existing = existingPages.First(p => p.Id == id);
+                if (string.IsNullOrEmpty(existing.DisplayName))
+                {
+                    existing.DisplayName = displayName;
+                    ctx.Pages.Update(existing);
+                }
+            }
         }
         await ctx.SaveChangesAsync(ct);
 
         // ── PageColumns ────────────────────────────────────────────────────
-        var existingColIds = await ctx.PageColumns.Select(c => c.Id).ToHashSetAsync(ct);
+        var existingCols = await ctx.PageColumns.ToListAsync(ct);
+        var existingColIds = existingCols.Select(c => c.Id).ToHashSet();
         foreach (var col in Enum.GetValues<PageColumnEnum>())
         {
             var id = (int)col;
+            var displayName = GetEnumDescription(col);
             if (!existingColIds.Contains(id) && ColumnPageMap.TryGetValue(col, out var parentPage))
-                ctx.PageColumns.Add(new PageColumn { Id = id, Name = col.ToString(), PageId = (int)parentPage });
+            {
+                ctx.PageColumns.Add(new PageColumn { Id = id, Name = col.ToString(), DisplayName = displayName, PageId = (int)parentPage });
+            }
+            else if (existingColIds.Contains(id))
+            {
+                var existing = existingCols.First(c => c.Id == id);
+                if (string.IsNullOrEmpty(existing.DisplayName))
+                {
+                    existing.DisplayName = displayName;
+                    ctx.PageColumns.Update(existing);
+                }
+            }
         }
         await ctx.SaveChangesAsync(ct);
 
         // ── Functions ──────────────────────────────────────────────────────
-        var existingFuncIds = await ctx.Functions.Select(f => f.Id).ToHashSetAsync(ct);
+        var existingFuncs = await ctx.Functions.ToListAsync(ct);
+        var existingFuncIds = existingFuncs.Select(f => f.Id).ToHashSet();
         foreach (var func in Enum.GetValues<FunctionEnum>())
         {
             var id = (int)func;
+            var displayName = GetEnumDescription(func);
             if (!existingFuncIds.Contains(id) && FunctionPageMap.TryGetValue(func, out var parentPage))
-                ctx.Functions.Add(new AppFunction { Id = id, Name = func.ToString(), PageId = (int)parentPage });
+            {
+                ctx.Functions.Add(new AppFunction { Id = id, Name = func.ToString(), DisplayName = displayName, PageId = (int)parentPage });
+            }
+            else if (existingFuncIds.Contains(id))
+            {
+                var existing = existingFuncs.First(f => f.Id == id);
+                if (string.IsNullOrEmpty(existing.DisplayName))
+                {
+                    existing.DisplayName = displayName;
+                    ctx.Functions.Update(existing);
+                }
+            }
         }
         await ctx.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Returns the [Description] attribute value for an enum member,
+    /// or the enum name itself if no description is defined.
+    /// </summary>
+    private static string GetEnumDescription<T>(T value) where T : Enum
+    {
+        var field = typeof(T).GetField(value.ToString()!);
+        if (field is null) return value.ToString()!;
+        var attr = field.GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
+            .OfType<System.ComponentModel.DescriptionAttribute>()
+            .FirstOrDefault();
+        return attr?.Description ?? value.ToString()!;
     }
 
     private static async Task CreateUserWithFullAccessPermissionAsync(

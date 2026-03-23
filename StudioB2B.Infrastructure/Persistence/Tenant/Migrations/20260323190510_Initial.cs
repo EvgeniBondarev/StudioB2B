@@ -8,10 +8,11 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
     /// <inheritdoc />
     public partial class Initial : Migration
     {
-        private static readonly string[] columns = new[] { "ProductId", "AttributeId" };
-        private static readonly string[] columnsArray = new[] { "OrderId", "OrderTransactionId" };
-        private static readonly string[] columnsArray0 = new[] { "WarehouseId", "ProductId" };
-        private static readonly string[] columnsArray1 = new[] { "EntityName", "EntityId" };
+        private static readonly string[] columns = new[] { "PermissionId", "EntityType", "EntityId" };
+        private static readonly string[] columnsArray = new[] { "EntityName", "EntityId" };
+        private static readonly string[] columnsArray0 = new[] { "OrderId", "OrderTransactionId" };
+        private static readonly string[] columnsArray1 = new[] { "ProductId", "AttributeId" };
+        private static readonly string[] columnsArray2 = new[] { "WarehouseId", "ProductId" };
 
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -168,11 +169,27 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Name = table.Column<string>(type: "longtext", nullable: false)
+                    Prefix = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Contact = table.Column<string>(type: "longtext", nullable: true)
+                    Name = table.Column<string>(type: "varchar(300)", maxLength: 300, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Description = table.Column<string>(type: "longtext", nullable: true)
+                    Contact = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Description = table.Column<string>(type: "varchar(2000)", maxLength: 2000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Address = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Website = table.Column<string>(type: "varchar(300)", maxLength: 300, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Rating = table.Column<int>(type: "int", nullable: false),
+                    ExternalId = table.Column<int>(type: "int", nullable: true),
+                    ExistName = table.Column<string>(type: "varchar(300)", maxLength: 300, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ExistId = table.Column<int>(type: "int", nullable: true),
+                    Domain = table.Column<string>(type: "varchar(300)", maxLength: 300, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TecdocSupplierId = table.Column<int>(type: "int", nullable: true),
+                    MarketPrefix = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
@@ -213,6 +230,38 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "Pages",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DisplayName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false, defaultValue: "")
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Pages", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Permissions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsFullAccess = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Permissions", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "PriceTypes",
                 columns: table => new
                 {
@@ -246,21 +295,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ProductAttributes", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "Roles",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Name = table.Column<string>(type: "varchar(256)", maxLength: 256, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Roles", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -333,6 +367,27 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_SyncJobSchedules", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "TenantModules",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Code = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Name = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Description = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsEnabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    EnabledAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    DisabledAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TenantModules", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -475,6 +530,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     ClientTypeId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     ModeId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    ModeId2 = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
                     Company = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Country = table.Column<string>(type: "longtext", nullable: true)
@@ -499,6 +555,11 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     table.ForeignKey(
                         name: "FK_MarketplaceClients_MarketplaceClientModes_ModeId",
                         column: x => x.ModeId,
+                        principalTable: "MarketplaceClientModes",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_MarketplaceClients_MarketplaceClientModes_ModeId2",
+                        column: x => x.ModeId2,
                         principalTable: "MarketplaceClientModes",
                         principalColumn: "Id");
                     table.ForeignKey(
@@ -537,23 +598,115 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "UserRoles",
+                name: "Functions",
                 columns: table => new
                 {
-                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    RoleId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci")
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DisplayName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false, defaultValue: "")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PageId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_UserRoles", x => new { x.UserId, x.RoleId });
+                    table.PrimaryKey("PK_Functions", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_UserRoles_Roles_RoleId",
-                        column: x => x.RoleId,
-                        principalTable: "Roles",
+                        name: "FK_Functions_Pages_PageId",
+                        column: x => x.PageId,
+                        principalTable: "Pages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "PageColumns",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DisplayName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: false, defaultValue: "")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PageId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PageColumns", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PageColumns_Pages_PageId",
+                        column: x => x.PageId,
+                        principalTable: "Pages",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "BlockedEntities",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    EntityType = table.Column<int>(type: "int", nullable: false),
+                    EntityId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    PermissionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BlockedEntities", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BlockedEntities_Permissions_PermissionId",
+                        column: x => x.PermissionId,
+                        principalTable: "Permissions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "PermissionPages",
+                columns: table => new
+                {
+                    PermissionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    PageId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PermissionPages", x => new { x.PermissionId, x.PageId });
+                    table.ForeignKey(
+                        name: "FK_PermissionPages_Pages_PageId",
+                        column: x => x.PageId,
+                        principalTable: "Pages",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_UserRoles_Users_UserId",
+                        name: "FK_PermissionPages_Permissions_PermissionId",
+                        column: x => x.PermissionId,
+                        principalTable: "Permissions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "UserPermissions",
+                columns: table => new
+                {
+                    UserId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    PermissionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserPermissions", x => new { x.UserId, x.PermissionId });
+                    table.ForeignKey(
+                        name: "FK_UserPermissions_Permissions_PermissionId",
+                        column: x => x.PermissionId,
+                        principalTable: "Permissions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_UserPermissions_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
@@ -714,6 +867,8 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     IsEnabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Color = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    Icon = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
                     IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
@@ -751,7 +906,8 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     ShipmentDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
                     InProcessAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    HasReturn = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -793,6 +949,56 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         name: "FK_StatusColors_OrderStatuses_OrderStatusId",
                         column: x => x.OrderStatusId,
                         principalTable: "OrderStatuses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "PermissionFunctions",
+                columns: table => new
+                {
+                    PermissionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    FunctionId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PermissionFunctions", x => new { x.PermissionId, x.FunctionId });
+                    table.ForeignKey(
+                        name: "FK_PermissionFunctions_Functions_FunctionId",
+                        column: x => x.FunctionId,
+                        principalTable: "Functions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PermissionFunctions_Permissions_PermissionId",
+                        column: x => x.PermissionId,
+                        principalTable: "Permissions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "PermissionPageColumns",
+                columns: table => new
+                {
+                    PermissionId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    PageColumnId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PermissionPageColumns", x => new { x.PermissionId, x.PageColumnId });
+                    table.ForeignKey(
+                        name: "FK_PermissionPageColumns_PageColumns_PageColumnId",
+                        column: x => x.PageColumnId,
+                        principalTable: "PageColumns",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PermissionPageColumns_Permissions_PermissionId",
+                        column: x => x.PermissionId,
+                        principalTable: "Permissions",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -1014,6 +1220,90 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "OrderReturns",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    OrderId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    ShipmentId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci"),
+                    OzonReturnId = table.Column<long>(type: "bigint", nullable: false),
+                    OzonOrderId = table.Column<long>(type: "bigint", nullable: true),
+                    OrderNumber = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PostingNumber = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    SourceId = table.Column<long>(type: "bigint", nullable: true),
+                    ClearingId = table.Column<long>(type: "bigint", nullable: true),
+                    ReturnClearingId = table.Column<long>(type: "bigint", nullable: true),
+                    ReturnReasonName = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Schema = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ProductSku = table.Column<long>(type: "bigint", nullable: true),
+                    OfferId = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ProductName = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ProductPrice = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: true),
+                    ProductPriceCurrencyCode = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ProductPriceWithoutCommission = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: true),
+                    CommissionPercent = table.Column<decimal>(type: "decimal(10,4)", precision: 10, scale: 4, nullable: true),
+                    Commission = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: true),
+                    ProductQuantity = table.Column<int>(type: "int", nullable: false),
+                    VisualStatusId = table.Column<int>(type: "int", nullable: true),
+                    VisualStatusDisplayName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    VisualStatusSysName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    VisualStatusChangeMoment = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    ReturnDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    TechnicalReturnMoment = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    FinalMoment = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    CancelledWithCompensationMoment = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    LogisticBarcode = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    StorageSum = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: true),
+                    StorageCurrencyCode = table.Column<string>(type: "varchar(10)", maxLength: 10, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    StorageTariffStartDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    StorageArrivedMoment = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    StorageDays = table.Column<long>(type: "bigint", nullable: true),
+                    UtilizationSum = table.Column<decimal>(type: "decimal(18,4)", precision: 18, scale: 4, nullable: true),
+                    UtilizationForecastDate = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    PlaceName = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PlaceAddress = table.Column<string>(type: "varchar(1000)", maxLength: 1000, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CompensationStatusId = table.Column<int>(type: "int", nullable: true),
+                    CompensationStatusDisplayName = table.Column<string>(type: "varchar(200)", maxLength: 200, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CompensationStatusChangeMoment = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    IsOpened = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsSuperEconom = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    SyncedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OrderReturns", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OrderReturns_Orders_OrderId",
+                        column: x => x.OrderId,
+                        principalTable: "Orders",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_OrderReturns_Shipments_ShipmentId",
+                        column: x => x.ShipmentId,
+                        principalTable: "Shipments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "OrderTransactionHistories",
                 columns: table => new
                 {
@@ -1055,6 +1345,12 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateIndex(
+                name: "IX_BlockedEntities_PermissionId_EntityType_EntityId",
+                table: "BlockedEntities",
+                columns: columns,
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Categories_ParentId",
                 table: "Categories",
                 column: "ParentId");
@@ -1072,7 +1368,24 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_FieldAuditLogs_EntityName_EntityId",
                 table: "FieldAuditLogs",
-                columns: columnsArray1);
+                columns: columnsArray);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Functions_Name",
+                table: "Functions",
+                column: "Name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Functions_PageId",
+                table: "Functions",
+                column: "PageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Manufacturers_Prefix",
+                table: "Manufacturers",
+                column: "Prefix",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_MarketplaceClient1CSettings_MarketplaceClientId",
@@ -1089,6 +1402,11 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 name: "IX_MarketplaceClients_ModeId",
                 table: "MarketplaceClients",
                 column: "ModeId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MarketplaceClients_ModeId2",
+                table: "MarketplaceClients",
+                column: "ModeId2");
 
             migrationBuilder.CreateIndex(
                 name: "IX_MarketplaceClientSettings_MarketplaceClientId",
@@ -1125,6 +1443,37 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 name: "IX_OrderProductInfos_SupplierId",
                 table: "OrderProductInfos",
                 column: "SupplierId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderReturns_OrderId",
+                table: "OrderReturns",
+                column: "OrderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderReturns_OzonOrderId",
+                table: "OrderReturns",
+                column: "OzonOrderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderReturns_OzonReturnId",
+                table: "OrderReturns",
+                column: "OzonReturnId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderReturns_PostingNumber",
+                table: "OrderReturns",
+                column: "PostingNumber");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderReturns_ShipmentId",
+                table: "OrderReturns",
+                column: "ShipmentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderReturns_VisualStatusSysName",
+                table: "OrderReturns",
+                column: "VisualStatusSysName");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Orders_RecipientId",
@@ -1164,7 +1513,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_OrderTransactionHistories_OrderId_OrderTransactionId",
                 table: "OrderTransactionHistories",
-                columns: columnsArray);
+                columns: columnsArray0);
 
             migrationBuilder.CreateIndex(
                 name: "IX_OrderTransactionHistories_OrderTransactionId",
@@ -1212,6 +1561,38 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 column: "ToSystemStatusId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_PageColumns_Name",
+                table: "PageColumns",
+                column: "Name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PageColumns_PageId",
+                table: "PageColumns",
+                column: "PageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Pages_Name",
+                table: "Pages",
+                column: "Name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PermissionFunctions_FunctionId",
+                table: "PermissionFunctions",
+                column: "FunctionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PermissionPageColumns_PageColumnId",
+                table: "PermissionPageColumns",
+                column: "PageColumnId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PermissionPages_PageId",
+                table: "PermissionPages",
+                column: "PageId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ProductAttributeValues_AttributeId",
                 table: "ProductAttributeValues",
                 column: "AttributeId");
@@ -1219,7 +1600,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_ProductAttributeValues_ProductId_AttributeId",
                 table: "ProductAttributeValues",
-                columns: columns,
+                columns: columnsArray1,
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -1236,12 +1617,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 name: "IX_Recipients_AddressId",
                 table: "Recipients",
                 column: "AddressId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Roles_Name",
-                table: "Roles",
-                column: "Name",
-                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_ShipmentDates_DateTypeId",
@@ -1292,9 +1667,15 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 filter: "HangfireRecurringJobId IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_UserRoles_RoleId",
-                table: "UserRoles",
-                column: "RoleId");
+                name: "IX_TenantModules_Code",
+                table: "TenantModules",
+                column: "Code",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserPermissions_PermissionId",
+                table: "UserPermissions",
+                column: "PermissionId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_Email",
@@ -1320,13 +1701,16 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_WarehouseStocks_WarehouseId_ProductId",
                 table: "WarehouseStocks",
-                columns: columnsArray0,
+                columns: columnsArray2,
                 unique: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "BlockedEntities");
+
             migrationBuilder.DropTable(
                 name: "CalculationRules");
 
@@ -1346,6 +1730,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 name: "OrderProductInfos");
 
             migrationBuilder.DropTable(
+                name: "OrderReturns");
+
+            migrationBuilder.DropTable(
                 name: "OrderTransactionFieldRules");
 
             migrationBuilder.DropTable(
@@ -1353,6 +1740,15 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
             migrationBuilder.DropTable(
                 name: "OrderTransactionRules");
+
+            migrationBuilder.DropTable(
+                name: "PermissionFunctions");
+
+            migrationBuilder.DropTable(
+                name: "PermissionPageColumns");
+
+            migrationBuilder.DropTable(
+                name: "PermissionPages");
 
             migrationBuilder.DropTable(
                 name: "ProductAttributeValues");
@@ -1370,7 +1766,10 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 name: "SyncJobSchedules");
 
             migrationBuilder.DropTable(
-                name: "UserRoles");
+                name: "TenantModules");
+
+            migrationBuilder.DropTable(
+                name: "UserPermissions");
 
             migrationBuilder.DropTable(
                 name: "WarehouseStocks");
@@ -1391,13 +1790,19 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 name: "PriceTypes");
 
             migrationBuilder.DropTable(
+                name: "Functions");
+
+            migrationBuilder.DropTable(
+                name: "PageColumns");
+
+            migrationBuilder.DropTable(
                 name: "ProductAttributes");
 
             migrationBuilder.DropTable(
                 name: "DateTypes");
 
             migrationBuilder.DropTable(
-                name: "Roles");
+                name: "Permissions");
 
             migrationBuilder.DropTable(
                 name: "Users");
@@ -1413,6 +1818,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
             migrationBuilder.DropTable(
                 name: "WarehouseInfos");
+
+            migrationBuilder.DropTable(
+                name: "Pages");
 
             migrationBuilder.DropTable(
                 name: "Categories");

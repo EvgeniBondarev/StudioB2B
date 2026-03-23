@@ -305,7 +305,7 @@ else
         {
             var state = await AuthState;
             _user = state.User;
-            _canManage = state.User.IsInRole("TransactionsManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("TransactionsManage");
             await LoadGridSettingsAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
                 await _grid.Reload();
