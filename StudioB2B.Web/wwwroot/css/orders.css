@@ -26,3 +26,24 @@
     opacity: 0.6;
     font-weight: 400;
 }
+
+/* Compact inline FBS/FBO badge next to posting number */
+.shipment-scheme-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 18px;
+    padding: 0 8px;
+    border-radius: 20px;
+    font-size: 0.68rem;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+/* Scheme color tokens — reused on Orders, MarketplaceClients, and filter pills */
+.scheme-fbs { background: rgba(59, 130, 246, 0.16); color: #1d4ed8; }
+.scheme-fbo { background: rgba(245, 158, 11, 0.16); color: #92400e; }
+.q-pill.scheme-fbs.active { border-color: #1d4ed8; }
+.q-pill.scheme-fbo.active { border-color: #92400e; }

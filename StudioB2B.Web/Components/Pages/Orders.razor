@@ -28,6 +28,8 @@
 
 <PageTitle>Заказы</PageTitle>
 
+<link rel="stylesheet" href="css/orders.css" />
+
 <Popup @ref="columnsPopup" Lazy="true" class="my-popup">
     <RadzenStack Gap="8px">
         @foreach (var col in Columns.Where(c => c.RoleVisible))
@@ -128,10 +130,10 @@ else
         </div>
     </RadzenStack>
 
-    @if (_filterClientId.HasValue || _filterWarehouseId.HasValue || _filterStatusId.HasValue || _filterSystemStatusId.HasValue || _filterHasReturn || GetActiveSorts().Any())
+    @if (_filterClientId.HasValue || _filterWarehouseId.HasValue || _filterStatusId.HasValue || _filterSystemStatusId.HasValue || _filterHasReturn || !string.IsNullOrEmpty(_filterSchemeType) || GetActiveSorts().Any())
     {
         var activeSorts = GetActiveSorts().ToList();
-        var hasFilters = _filterClientId.HasValue || _filterWarehouseId.HasValue || _filterStatusId.HasValue || _filterSystemStatusId.HasValue || _filterHasReturn;
+        var hasFilters = _filterClientId.HasValue || _filterWarehouseId.HasValue || _filterStatusId.HasValue || _filterSystemStatusId.HasValue || _filterHasReturn || !string.IsNullOrEmpty(_filterSchemeType);
         var hasSorts = activeSorts.Any();
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
                      Style="padding: 0 0 0.5rem 0; flex-wrap: wrap;">
@@ -183,6 +185,17 @@ else
                     <span style="font-size:0.7rem;opacity:0.7;">✕</span>
                 </span>
             }
+            @if (!string.IsNullOrEmpty(_filterSchemeType))
+            {
+                var schemeLabel = _filterSchemeType!.Equals("fbs", StringComparison.OrdinalIgnoreCase) ? "FBS" : "FBO";
+                var schemeChipClass = _filterSchemeType.Equals("fbs", StringComparison.OrdinalIgnoreCase) ? "scheme-fbs" : "scheme-fbo";
+                <span @onclick="@(async () => { _filterSchemeType = null; await OnFilterChange(); })"
+                      class="shipment-scheme-icon @schemeChipClass"
+                      style="height:auto;padding:2px 10px 2px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+                    @schemeLabel
+                    <span style="font-size:0.7rem;opacity:0.7;">✕</span>
+                </span>
+            }
             @if (hasSorts)
             {
                 @if (hasFilters)
@@ -207,7 +220,7 @@ else
             }
             @if (hasFilters)
             {
-                <span @onclick="@(async () => { _filterClientId = null; _filterWarehouseId = null; _filterStatusId = null; _filterSystemStatusId = null; _filterHasReturn = false; await OnFilterChange(); })"
+                <span @onclick="@(async () => { _filterClientId = null; _filterWarehouseId = null; _filterStatusId = null; _filterSystemStatusId = null; _filterHasReturn = false; _filterSchemeType = null; await OnFilterChange(); })"
                       style="font-size:0.74rem;color:var(--rz-danger);cursor:pointer;text-decoration:underline;margin-left:4px;">Сбросить все</span>
             }
         </RadzenStack>
@@ -268,6 +281,33 @@ else
                       style="@($"display:inline-flex;align-items:center;gap:5px;padding:3px 12px 3px 10px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;background:{(_filterHasReturn ? "#fee2e2" : "#f9fafb")};color:{(_filterHasReturn ? "#991b1b" : "#6b7280")};border:2px solid {(_filterHasReturn ? "#f87171" : "transparent")};")">
                     Возвраты
                     <span style="font-size:0.74rem;opacity:0.6;font-weight:400;">@_returnCount</span>
+                </span>
+            }
+
+            @{
+                var fbsCnt = _schemeTypeCounts.GetValueOrDefault("fbs");
+                var fboCnt = _schemeTypeCounts.GetValueOrDefault("fbo");
+            }
+            @if (fbsCnt > 0 || fboCnt > 0)
+            {
+                <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 6px;"></span>
+            }
+            @if (fbsCnt > 0)
+            {
+                var isFbsActive = string.Equals(_filterSchemeType, "fbs", StringComparison.OrdinalIgnoreCase);
+                <span class="q-pill scheme-fbs @(isFbsActive ? "active" : "")"
+                      @onclick="@(async () => { _filterSchemeType = isFbsActive ? null : "fbs"; await OnFilterChange(); })">
+                    FBS
+                    <span class="q-pill-count">@fbsCnt</span>
+                </span>
+            }
+            @if (fboCnt > 0)
+            {
+                var isFboActive = string.Equals(_filterSchemeType, "fbo", StringComparison.OrdinalIgnoreCase);
+                <span class="q-pill scheme-fbo @(isFboActive ? "active" : "")"
+                      @onclick="@(async () => { _filterSchemeType = isFboActive ? null : "fbo"; await OnFilterChange(); })">
+                    FBO
+                    <span class="q-pill-count">@fboCnt</span>
                 </span>
             }
 
@@ -338,14 +378,28 @@ else
                 <Template Context="o">
                     <CopyableText Text="@(o.Shipment?.PostingNumber ?? string.Empty)"
                                   Class="rz-monospace rz-text-sm"
+                                  Style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap;"
                                   Tooltip="Нажмите, чтобы скопировать номер отправления">
+
+                        @{
+                            var scheme = o.Shipment?.DeliveryMethod?.DeliveryType?.Name;
+                            var isFbo = scheme?.Equals("fbo", StringComparison.OrdinalIgnoreCase) == true;
+                            var isFbs = scheme?.Equals("fbs", StringComparison.OrdinalIgnoreCase) == true;
+                            var badgeText = isFbo ? "FBO" : isFbs ? "FBS" : null;
+                            var schemeClass = isFbo ? "scheme-fbo" : isFbs ? "scheme-fbs" : "";
+                        }
 
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Class="rz-text-truncate rz-monospace"
-                                    Style="margin-left: 10px;"
+                                    Style="flex: 1 1 auto; min-width: 0; margin: 0;"
                                     title="@o.Shipment?.PostingNumber">
                             @o.Shipment?.PostingNumber
                         </RadzenText>
+
+                        @if (badgeText is not null)
+                        {
+                            <span class="shipment-scheme-icon @schemeClass">@badgeText</span>
+                        }
                     </CopyableText>
                 </Template>
             </RadzenDataGridColumn>
@@ -807,6 +861,7 @@ window.gridResize = {
     private Guid? _filterSystemStatusId;
     private Guid? _filterWarehouseId;
     private bool _filterHasReturn;
+    private string? _filterSchemeType;
     private List<MarketplaceClient> _clients = new();
     private List<OrderStatus> _marketplaceStatuses = new();
     private List<OrderStatus> _systemStatuses = new();
@@ -814,6 +869,7 @@ window.gridResize = {
     private Dictionary<Guid, int> _statusCounts = new();
     private Dictionary<Guid, int> _systemStatusCounts = new();
     private int _returnCount;
+    private Dictionary<string, int> _schemeTypeCounts = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly CalculationEngine _calcEngine = new();
     private List<CalculationRule> _calcRules = new();
@@ -863,7 +919,7 @@ window.gridResize = {
             await _grid.Reload();
     }
 
-    private record OrderFilters(Guid? ClientId, Guid? StatusId, Guid? SystemStatusId, Guid? WarehouseId);
+    private record OrderFilters(Guid? ClientId, Guid? StatusId, Guid? SystemStatusId, Guid? WarehouseId, string? SchemeType);
 
     [Inject]
     private IJSRuntime Js { get; set; } = default!;
@@ -1190,6 +1246,7 @@ window.gridResize = {
                     _filterStatusId = f.StatusId;
                     _filterSystemStatusId = f.SystemStatusId;
                     _filterWarehouseId = f.WarehouseId;
+                    _filterSchemeType = f.SchemeType;
                     StateHasChanged();
                 }
             }
@@ -1204,7 +1261,7 @@ window.gridResize = {
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(
-                new OrderFilters(_filterClientId, _filterStatusId, _filterSystemStatusId, _filterWarehouseId));
+                new OrderFilters(_filterClientId, _filterStatusId, _filterSystemStatusId, _filterWarehouseId, _filterSchemeType));
             await JsRuntime.InvokeVoidAsync("localStorage.setItem", FiltersKey, json);
         }
         catch
@@ -1276,6 +1333,23 @@ window.gridResize = {
             .Distinct()
             .CountAsync();
 
+        // Counts for FBS/FBO pills.
+        // - учитывают client/warehouse/search (+ restrictions)
+        // - НЕ учитывают статус/возвраты (как и остальные pills)
+        var fbsCount = await countBase
+            .Where(o => o.Shipment.DeliveryMethod!.DeliveryType != null &&
+                        o.Shipment.DeliveryMethod.DeliveryType!.Name == "fbs")
+            .CountAsync();
+        var fboCount = await countBase
+            .Where(o => o.Shipment.DeliveryMethod!.DeliveryType != null &&
+                        o.Shipment.DeliveryMethod.DeliveryType!.Name == "fbo")
+            .CountAsync();
+        _schemeTypeCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["fbs"] = fbsCount,
+            ["fbo"] = fboCount
+        };
+
         var query = _db!.Orders
             .IncludeForGrid()
             .AsNoTracking()
@@ -1299,6 +1373,9 @@ window.gridResize = {
             query = query.Where(o => o.SystemStatusId == _filterSystemStatusId.Value);
         if (_filterWarehouseId.HasValue)
             query = query.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId == _filterWarehouseId.Value);
+        if (!string.IsNullOrWhiteSpace(_filterSchemeType))
+            query = query.Where(o => o.Shipment.DeliveryMethod!.DeliveryType != null &&
+                                       o.Shipment.DeliveryMethod.DeliveryType!.Name == _filterSchemeType);
         if (_filterHasReturn)
             query = query.Where(o => _db!.OrderReturns.Any(r => r.ShipmentId == o.ShipmentId));
         if (!string.IsNullOrWhiteSpace(_searchText))
@@ -1435,7 +1512,10 @@ window.gridResize = {
         var clientsQ = _db.MarketplaceClients!
             .Include(c => c.ClientType)
             .Include(c => c.Mode)
-            .Where(c => c.ClientType!.Name == "Ozon" && c.Mode!.Name == "FBS")
+            .Include(c => c.Mode2)
+            .Where(c => c.ClientType!.Name == "Ozon"
+                        && ((c.Mode != null && (c.Mode.Name == "FBS" || c.Mode.Name == "FBO"))
+                            || (c.Mode2 != null && (c.Mode2.Name == "FBS" || c.Mode2.Name == "FBO"))))
             .OrderBy(c => c.Name)
             .AsNoTracking();
         if (allowedClients is not null)

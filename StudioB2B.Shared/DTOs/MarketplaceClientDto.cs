@@ -8,8 +8,8 @@ public class MarketplaceClientDto
     public string Key { get; set; } = string.Empty;
     public Guid? ClientTypeId { get; set; }
     public string? ClientTypeName { get; set; }
-    public Guid? ModeId { get; set; }
-    public string? ModeName { get; set; }
+    public List<Guid> ModeIds { get; set; } = new();
+    public List<string> ModeNames { get; set; } = new();
     public List<MarketplaceClientSettingDto>? Settings { get; set; }
     public MarketplaceClient1CSettingsDto? Settings1C { get; set; }
     public string? Company { get; set; }
