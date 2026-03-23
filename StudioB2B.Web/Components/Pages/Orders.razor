@@ -1337,11 +1337,11 @@ window.gridResize = {
         // - учитывают client/warehouse/search (+ restrictions)
         // - НЕ учитывают статус/возвраты (как и остальные pills)
         var fbsCount = await countBase
-            .Where(o => o.Shipment.DeliveryMethod.DeliveryType != null &&
+            .Where(o => o.Shipment.DeliveryMethod!.DeliveryType != null &&
                         o.Shipment.DeliveryMethod.DeliveryType!.Name == "fbs")
             .CountAsync();
         var fboCount = await countBase
-            .Where(o => o.Shipment.DeliveryMethod.DeliveryType != null &&
+            .Where(o => o.Shipment.DeliveryMethod!.DeliveryType != null &&
                         o.Shipment.DeliveryMethod.DeliveryType!.Name == "fbo")
             .CountAsync();
         _schemeTypeCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
@@ -1374,7 +1374,7 @@ window.gridResize = {
         if (_filterWarehouseId.HasValue)
             query = query.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId == _filterWarehouseId.Value);
         if (!string.IsNullOrWhiteSpace(_filterSchemeType))
-            query = query.Where(o => o.Shipment.DeliveryMethod.DeliveryType != null &&
+            query = query.Where(o => o.Shipment.DeliveryMethod!.DeliveryType != null &&
                                        o.Shipment.DeliveryMethod.DeliveryType!.Name == _filterSchemeType);
         if (_filterHasReturn)
             query = query.Where(o => _db!.OrderReturns.Any(r => r.ShipmentId == o.ShipmentId));

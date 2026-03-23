@@ -10,13 +10,12 @@ namespace StudioB2B.Infrastructure.Services.Order;
 public class OrderSyncService : IOrderSyncService
 {
     private readonly TenantDbContext _db;
-    private readonly IReadOnlyDictionary<string, IOrderAdapter> _adaptersByMode;
+    private readonly Dictionary<string, IOrderAdapter> _adaptersByMode;
     private readonly ILogger<OrderSyncService> _logger;
 
-    public OrderSyncService(
-        TenantDbContext db,
-        IEnumerable<IOrderAdapter> adapters,
-        ILogger<OrderSyncService> logger)
+    public OrderSyncService(TenantDbContext db,
+                            IEnumerable<IOrderAdapter> adapters,
+                            ILogger<OrderSyncService> logger)
     {
         _db = db;
         _adaptersByMode = adapters.ToDictionary(a => a.ClientModeName, a => a, StringComparer.OrdinalIgnoreCase);
@@ -24,8 +23,8 @@ public class OrderSyncService : IOrderSyncService
     }
 
     public async Task<OrderSyncSummaryDto> SyncAllAsync(DateTime cutoffFrom, DateTime cutoffTo,
-        CancellationToken ct = default, Func<string, Task>? onProgress = null,
-        HashSet<Guid>? allowedClientIds = null)
+                                                        CancellationToken ct = default, Func<string, Task>? onProgress = null,
+                                                        HashSet<Guid>? allowedClientIds = null)
     {
         var query = _db.MarketplaceClients!
             .Include(c => c.ClientType)
