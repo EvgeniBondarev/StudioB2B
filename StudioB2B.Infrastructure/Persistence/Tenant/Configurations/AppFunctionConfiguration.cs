@@ -12,6 +12,7 @@ public class AppFunctionConfiguration : IEntityTypeConfiguration<AppFunction>
         builder.HasKey(f => f.Id);
         builder.Property(f => f.Id).ValueGeneratedNever();
         builder.Property(f => f.Name).IsRequired().HasMaxLength(100);
+        builder.Property(f => f.DisplayName).IsRequired().HasMaxLength(200).HasDefaultValue("");
         builder.HasIndex(f => f.Name).IsUnique();
 
         builder.HasOne(f => f.Page)
@@ -20,4 +21,3 @@ public class AppFunctionConfiguration : IEntityTypeConfiguration<AppFunction>
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
-

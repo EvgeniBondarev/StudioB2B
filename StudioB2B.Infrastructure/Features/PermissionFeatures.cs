@@ -62,13 +62,14 @@ public class GetPagesWithDetails(ITenantDbContextFactory factory)
         return pages.Select(p => new PageWithDetailsDto(
             p.Id,
             p.Name,
-            p.Columns.Select(c => new LabelValueDto(c.Name, c.Name)).ToList(),
-            p.Functions.Select(f => new LabelValueDto(f.Name, f.Name)).ToList()
+            p.DisplayName,
+            p.Columns.Select(c => new LabelValueDto(string.IsNullOrEmpty(c.DisplayName) ? c.Name : c.DisplayName, c.Name)).ToList(),
+            p.Functions.Select(f => new LabelValueDto(string.IsNullOrEmpty(f.DisplayName) ? f.Name : f.DisplayName, f.Name)).ToList()
         )).ToList();
     }
 }
 
-public record PageWithDetailsDto(int Id, string Name, List<LabelValueDto> Columns, List<LabelValueDto> Functions);
+public record PageWithDetailsDto(int Id, string Name, string DisplayName, List<LabelValueDto> Columns, List<LabelValueDto> Functions);
 
 public record EntityOptionDto(Guid Id, string Name);
 
