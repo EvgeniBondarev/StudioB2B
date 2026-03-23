@@ -54,6 +54,52 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Addresses");
                 });
 
+            modelBuilder.Entity("StudioB2B.Domain.Entities.AppFunction", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("PageId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.HasIndex("PageId");
+
+                    b.ToTable("Functions", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.BlockedEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("EntityType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("PermissionId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PermissionId", "EntityType", "EntityId")
+                        .IsUnique();
+
+                    b.ToTable("BlockedEntities", (string)null);
+                });
+
             modelBuilder.Entity("StudioB2B.Domain.Entities.CalculationRule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -308,45 +354,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.HasIndex("Prefix")
                         .IsUnique();
 
-                    b.ToTable("Manufacturers");
-                });
-
-            // ── TenantModule ──
-            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantModule", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<DateTime?>("DisabledAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("EnabledAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("TenantModules");
+                    b.ToTable("Manufacturers", (string)null);
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.MarketplaceClient", b =>
@@ -513,7 +521,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("MarketplaceClientTypes");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Order", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderEntity", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -621,6 +629,186 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.HasIndex("SupplierId");
 
                     b.ToTable("OrderProductInfos");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderReturn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("CancelledWithCompensationMoment")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("ClearingId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal?>("Commission")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("CommissionPercent")
+                        .HasPrecision(10, 4)
+                        .HasColumnType("decimal(10,4)");
+
+                    b.Property<DateTime?>("CompensationStatusChangeMoment")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("CompensationStatusDisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int?>("CompensationStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("FinalMoment")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsOpened")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsSuperEconom")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("LogisticBarcode")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("OfferId")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("OrderNumber")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<long?>("OzonOrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OzonReturnId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PlaceAddress")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("PlaceName")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("PostingNumber")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("ProductName")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<decimal?>("ProductPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("ProductPriceCurrencyCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<decimal?>("ProductPriceWithoutCommission")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("ProductQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("ProductSku")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ReturnClearingId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("ReturnDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ReturnReasonName")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Schema")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<Guid?>("ShipmentId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<long?>("SourceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("StorageArrivedMoment")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("StorageCurrencyCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<long?>("StorageDays")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal?>("StorageSum")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime?>("StorageTariffStartDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("SyncedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("TechnicalReturnMoment")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime?>("UtilizationForecastDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal?>("UtilizationSum")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime?>("VisualStatusChangeMoment")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("VisualStatusDisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int?>("VisualStatusId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VisualStatusSysName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("OzonOrderId");
+
+                    b.HasIndex("OzonReturnId")
+                        .IsUnique();
+
+                    b.HasIndex("PostingNumber");
+
+                    b.HasIndex("ShipmentId");
+
+                    b.HasIndex("VisualStatusSysName");
+
+                    b.ToTable("OrderReturns", (string)null);
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.OrderStatus", b =>
@@ -827,184 +1015,112 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("OrderTransactionRules", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderReturn", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Page", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime?>("CancelledWithCompensationMoment")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<long?>("ClearingId")
-                        .HasColumnType("bigint");
-
-                    b.Property<decimal?>("Commission")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<decimal?>("CommissionPercent")
-                        .HasPrecision(10, 4)
-                        .HasColumnType("decimal(10,4)");
-
-                    b.Property<DateTime?>("CompensationStatusChangeMoment")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("CompensationStatusDisplayName")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<int?>("CompensationStatusId")
+                    b.Property<int>("Id")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("FinalMoment")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsOpened")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<bool>("IsSuperEconom")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("LogisticBarcode")
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("OfferId")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<Guid?>("OrderId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("OrderNumber")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<long?>("OzonOrderId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("OzonReturnId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("PlaceAddress")
-                        .HasMaxLength(1000)
-                        .HasColumnType("varchar(1000)");
-
-                    b.Property<string>("PlaceName")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<string>("PostingNumber")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<string>("ProductName")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<decimal?>("ProductPrice")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<string>("ProductPriceCurrencyCode")
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)");
-
-                    b.Property<decimal?>("ProductPriceWithoutCommission")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<int>("ProductQuantity")
-                        .HasColumnType("int");
-
-                    b.Property<long?>("ProductSku")
-                        .HasColumnType("bigint");
-
-                    b.Property<long?>("ReturnClearingId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("ReturnDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("ReturnReasonName")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<string>("Schema")
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)");
-
-                    b.Property<Guid?>("ShipmentId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<long?>("SourceId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("StorageArrivedMoment")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("StorageCurrencyCode")
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)");
-
-                    b.Property<long?>("StorageDays")
-                        .HasColumnType("bigint");
-
-                    b.Property<decimal?>("StorageSum")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<DateTime?>("StorageTariffStartDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime>("SyncedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("TechnicalReturnMoment")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Type")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<DateTime?>("UtilizationForecastDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<decimal?>("UtilizationSum")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<DateTime?>("VisualStatusChangeMoment")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("VisualStatusDisplayName")
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<int?>("VisualStatusId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("VisualStatusSysName")
+                    b.Property<string>("Name")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrderId");
-
-                    b.HasIndex("OzonOrderId");
-
-                    b.HasIndex("OzonReturnId")
+                    b.HasIndex("Name")
                         .IsUnique();
 
-                    b.HasIndex("PostingNumber");
+                    b.ToTable("Pages", (string)null);
+                });
 
-                    b.HasIndex("ShipmentId");
+            modelBuilder.Entity("StudioB2B.Domain.Entities.PageColumn", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
 
-                    b.HasIndex("VisualStatusSysName");
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
-                    b.ToTable("OrderReturns", (string)null);
+                    b.Property<int>("PageId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.HasIndex("PageId");
+
+                    b.ToTable("PageColumns", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Permission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsFullAccess")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Permissions", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.PermissionFunction", b =>
+                {
+                    b.Property<Guid>("PermissionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("FunctionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("PermissionId", "FunctionId");
+
+                    b.HasIndex("FunctionId");
+
+                    b.ToTable("PermissionFunctions", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.PermissionPage", b =>
+                {
+                    b.Property<Guid>("PermissionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("PageId")
+                        .HasColumnType("int");
+
+                    b.HasKey("PermissionId", "PageId");
+
+                    b.HasIndex("PageId");
+
+                    b.ToTable("PermissionPages", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.PermissionPageColumn", b =>
+                {
+                    b.Property<Guid>("PermissionId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("PageColumnId")
+                        .HasColumnType("int");
+
+                    b.HasKey("PermissionId", "PageColumnId");
+
+                    b.HasIndex("PageColumnId");
+
+                    b.ToTable("PermissionPageColumns", (string)null);
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.PriceType", b =>
@@ -1372,26 +1488,41 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("SyncJobSchedules");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantModule", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<bool>("IsDeleted")
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<DateTime?>("DisabledAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("EnabledAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsEnabled")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("Roles", (string)null);
+                    b.ToTable("TenantModules", (string)null);
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUser", b =>
@@ -1438,19 +1569,19 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserPermission", b =>
                 {
                     b.Property<Guid>("UserId")
                         .HasColumnType("char(36)");
 
-                    b.Property<Guid>("RoleId")
+                    b.Property<Guid>("PermissionId")
                         .HasColumnType("char(36)");
 
-                    b.HasKey("UserId", "RoleId");
+                    b.HasKey("UserId", "PermissionId");
 
-                    b.HasIndex("RoleId");
+                    b.HasIndex("PermissionId");
 
-                    b.ToTable("UserRoles", (string)null);
+                    b.ToTable("UserPermissions", (string)null);
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouse", b =>
@@ -1526,6 +1657,28 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("WarehouseStocks", (string)null);
                 });
 
+            modelBuilder.Entity("StudioB2B.Domain.Entities.AppFunction", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Page", "Page")
+                        .WithMany("Functions")
+                        .HasForeignKey("PageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Page");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.BlockedEntity", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Permission", "Permission")
+                        .WithMany("BlockedEntities")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+                });
+
             modelBuilder.Entity("StudioB2B.Domain.Entities.Category", b =>
                 {
                     b.HasOne("StudioB2B.Domain.Entities.Category", "Parent")
@@ -1582,7 +1735,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("MarketplaceClient");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Order", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderEntity", b =>
                 {
                     b.HasOne("StudioB2B.Domain.Entities.Recipient", "Recipient")
                         .WithMany()
@@ -1627,7 +1780,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .WithMany()
                         .HasForeignKey("CurrencyId");
 
-                    b.HasOne("StudioB2B.Domain.Entities.Order", "Order")
+                    b.HasOne("StudioB2B.Domain.Entities.OrderEntity", "OrderEntity")
                         .WithMany("Prices")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1639,14 +1792,14 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
                     b.Navigation("Currency");
 
-                    b.Navigation("Order");
+                    b.Navigation("OrderEntity");
 
                     b.Navigation("PriceType");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.OrderProductInfo", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Order", "Order")
+                    b.HasOne("StudioB2B.Domain.Entities.OrderEntity", "OrderEntity")
                         .WithOne("ProductInfo")
                         .HasForeignKey("StudioB2B.Domain.Entities.OrderProductInfo", "OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -1660,11 +1813,28 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .WithMany()
                         .HasForeignKey("SupplierId");
 
-                    b.Navigation("Order");
+                    b.Navigation("OrderEntity");
 
                     b.Navigation("Product");
 
                     b.Navigation("Supplier");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderReturn", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.OrderEntity", "Order")
+                        .WithMany("Returns")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StudioB2B.Domain.Entities.Shipment", "Shipment")
+                        .WithMany("Returns")
+                        .HasForeignKey("ShipmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Order");
+
+                    b.Navigation("Shipment");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.OrderStatus", b =>
@@ -1708,7 +1878,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.OrderTransactionHistory", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Order", "Order")
+                    b.HasOne("StudioB2B.Domain.Entities.OrderEntity", "Order")
                         .WithMany()
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -1763,21 +1933,72 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Orders.OrderReturn", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.PageColumn", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.Order", "Order")
-                        .WithMany("Returns")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                    b.HasOne("StudioB2B.Domain.Entities.Page", "Page")
+                        .WithMany("Columns")
+                        .HasForeignKey("PageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.HasOne("StudioB2B.Domain.Entities.Shipment", "Shipment")
-                        .WithMany("Returns")
-                        .HasForeignKey("ShipmentId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                    b.Navigation("Page");
+                });
 
-                    b.Navigation("Order");
+            modelBuilder.Entity("StudioB2B.Domain.Entities.PermissionFunction", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.AppFunction", "Function")
+                        .WithMany("PermissionFunctions")
+                        .HasForeignKey("FunctionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Navigation("Shipment");
+                    b.HasOne("StudioB2B.Domain.Entities.Permission", "Permission")
+                        .WithMany("Functions")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Function");
+
+                    b.Navigation("Permission");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.PermissionPage", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.Page", "Page")
+                        .WithMany("PermissionPages")
+                        .HasForeignKey("PageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Domain.Entities.Permission", "Permission")
+                        .WithMany("Pages")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Page");
+
+                    b.Navigation("Permission");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.PermissionPageColumn", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.PageColumn", "PageColumn")
+                        .WithMany("PermissionPageColumns")
+                        .HasForeignKey("PageColumnId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudioB2B.Domain.Entities.Permission", "Permission")
+                        .WithMany("PageColumns")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PageColumn");
+
+                    b.Navigation("Permission");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Product", b =>
@@ -1878,21 +2099,21 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("OrderStatus");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserRole", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserPermission", b =>
                 {
-                    b.HasOne("StudioB2B.Domain.Entities.TenantRole", "Role")
-                        .WithMany("UserRoles")
-                        .HasForeignKey("RoleId")
+                    b.HasOne("StudioB2B.Domain.Entities.Permission", "Permission")
+                        .WithMany("UserPermissions")
+                        .HasForeignKey("PermissionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("StudioB2B.Domain.Entities.TenantUser", "User")
-                        .WithMany("UserRoles")
+                        .WithMany("UserPermissions")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Role");
+                    b.Navigation("Permission");
 
                     b.Navigation("User");
                 });
@@ -1933,6 +2154,11 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Warehouse");
                 });
 
+            modelBuilder.Entity("StudioB2B.Domain.Entities.AppFunction", b =>
+                {
+                    b.Navigation("PermissionFunctions");
+                });
+
             modelBuilder.Entity("StudioB2B.Domain.Entities.Category", b =>
                 {
                     b.Navigation("Children");
@@ -1945,7 +2171,7 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Settings1C");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.Order", b =>
+            modelBuilder.Entity("StudioB2B.Domain.Entities.OrderEntity", b =>
                 {
                     b.Navigation("Prices");
 
@@ -1966,6 +2192,33 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Rules");
                 });
 
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Page", b =>
+                {
+                    b.Navigation("Columns");
+
+                    b.Navigation("Functions");
+
+                    b.Navigation("PermissionPages");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.PageColumn", b =>
+                {
+                    b.Navigation("PermissionPageColumns");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.Permission", b =>
+                {
+                    b.Navigation("BlockedEntities");
+
+                    b.Navigation("Functions");
+
+                    b.Navigation("PageColumns");
+
+                    b.Navigation("Pages");
+
+                    b.Navigation("UserPermissions");
+                });
+
             modelBuilder.Entity("StudioB2B.Domain.Entities.Product", b =>
                 {
                     b.Navigation("Attributes");
@@ -1980,14 +2233,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Navigation("Returns");
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantRole", b =>
-                {
-                    b.Navigation("UserRoles");
-                });
-
             modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUser", b =>
                 {
-                    b.Navigation("UserRoles");
+                    b.Navigation("UserPermissions");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.Warehouse", b =>

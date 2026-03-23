@@ -17,8 +17,7 @@ using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services.MultiTenancy;
 using StudioB2B.Infrastructure.Services.Modules;
 using StudioB2B.Infrastructure.Services.Order;
-using StudioB2B.Infrastructure.Services.Ozon;
-using TenantService = StudioB2B.Infrastructure.Services.MultiTenancy.TenantService;
+using StudioB2B.Infrastructure.Services.Ozon;using TenantService = StudioB2B.Infrastructure.Services.MultiTenancy.TenantService;
 
 namespace StudioB2B.Infrastructure;
 
@@ -129,10 +128,20 @@ public static class DependencyInjection
 
         services.AddScoped<GetUsers>();
         services.AddScoped<GetUserById>();
-        services.AddScoped<GetAvailableRoles>();
+        services.AddScoped<GetAvailablePermissions>();
         services.AddScoped<CreateUser>();
         services.AddScoped<UpdateUser>();
         services.AddScoped<DeleteUser>();
+
+        services.AddScoped<GetPermissions>();
+        services.AddScoped<GetPermissionById>();
+        services.AddScoped<CreatePermission>();
+        services.AddScoped<UpdatePermission>();
+        services.AddScoped<DeletePermission>();
+        services.AddScoped<GetPagesWithDetails>();
+        services.AddScoped<GetEntityOptionsForPermission>();
+
+        services.AddScoped<IEntityFilterService, EntityFilterService>();
 
         services.AddSingleton<TenantHangfireManager>();
         services.AddHostedService(sp => sp.GetRequiredService<TenantHangfireManager>());

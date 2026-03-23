@@ -7,4 +7,4 @@ public record UserListDto(
     string LastName,
     string? MiddleName,
     bool IsActive,
-    List<string> Roles);
+    List<string> Permissions);

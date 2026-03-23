@@ -18,6 +18,5 @@ public class TenantUser : IBaseEntity, ISoftDelete
 
     public bool IsDeleted { get; set; }
 
-    public ICollection<TenantUserRole> UserRoles { get; set; } = new List<TenantUserRole>();
+    public ICollection<TenantUserPermission> UserPermissions { get; set; } = new List<TenantUserPermission>();
 }
-
