@@ -36,6 +36,26 @@
     </RadzenStack>
 </Popup>
 
+<span @ref="_formulaAnchorRef" style="position: fixed; width: 1px; height: 1px; pointer-events: none;" id="formula-anchor"></span>
+<Popup @ref="_formulaPopup" Lazy="true" Style="padding: 0;">
+    <RadzenCard Variant="Variant.Outlined" Style="padding: 0.75rem 1rem; max-width: 420px; font-size: 0.82rem;">
+        @if (!string.IsNullOrEmpty(_formulaPopupFormula))
+        {
+            <div style="margin-bottom: 0.25rem;">
+                <span style="color: var(--rz-text-secondary-color);">Формула:</span>
+                <code style="margin-left: 0.25rem;">@_formulaPopupFormula</code>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(_formulaPopupBreakdown))
+        {
+            <div>
+                <span style="color: var(--rz-text-secondary-color);">Подстановка:</span>
+                <code style="margin-left: 0.25rem;">@_formulaPopupBreakdown</code>
+            </div>
+        }
+    </RadzenCard>
+</Popup>
+
 
 @if (!TenantProvider.IsResolved)
 {
@@ -106,7 +126,14 @@ else if (_preview == null)
                 </RadzenDataGridColumn>
                 <RadzenDataGridColumn TItem="OrderTransaction" Title="Целевой статус" Width="180px">
                     <Template Context="t">
-                        @t.ToSystemStatus?.Name
+                        @if (t.ToSystemStatus != null)
+                        {
+                            var sBg = GetSoftBackground(t.ToSystemStatus.Color);
+                            var sFg = GetTextColor(sBg);
+                            <RadzenBadge Text="@t.ToSystemStatus.Name"
+                                         Style="@($"background:{sBg}; color:{sFg};")"
+                                         Class="status-badge"/>
+                        }
                     </Template>
                 </RadzenDataGridColumn>
                 <RadzenDataGridColumn TItem="OrderTransaction" Title="Правил цен" Width="90px" TextAlign="TextAlign.Center">
@@ -127,9 +154,39 @@ else
 {
     <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
         <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
-            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
-                @_preview.TransactionName → @_preview.ToStatusName
-            </RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem" Style="font-weight: 600;">
+                @{
+                    var fromStatus = _orders.FirstOrDefault()?.SystemStatus;
+                    var selectedTx = _transactions.FirstOrDefault(tx => tx.Id == _selectedTransactionId);
+                    var toStatus = selectedTx?.ToSystemStatus;
+                }
+                <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin: 0;">
+                    @_preview.TransactionName
+                </RadzenText>
+                @if (fromStatus != null)
+                {
+                    var fBg = GetSoftBackground(fromStatus.Color);
+                    var fFg = GetTextColor(fBg);
+                    <RadzenBadge Text="@fromStatus.Name"
+                                 Style="@($"background:{fBg}; color:{fFg};")"
+                                 Class="status-badge"/>
+                }
+                <span style="font-size: 1.1rem;">→</span>
+                @if (toStatus != null)
+                {
+                    var tBg = GetSoftBackground(toStatus.Color);
+                    var tFg = GetTextColor(tBg);
+                    <RadzenBadge Text="@toStatus.Name"
+                                 Style="@($"background:{tBg}; color:{tFg};")"
+                                 Class="status-badge"/>
+                }
+                else
+                {
+                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin: 0;">
+                        @_preview.ToStatusName
+                    </RadzenText>
+                }
+            </RadzenStack>
             <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
                 <RadzenButton @ref="columnsButton"
                               Icon="settings"
@@ -143,6 +200,23 @@ else
                               Disabled="@(_preview != null && GetValidationErrors().Count > 0)"/>
             </RadzenStack>
         </RadzenStack>
+
+        <RadzenCard Style="margin: 0.25rem 0 0.5rem 0; padding: 0.25rem 0.75rem;">
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="1.25rem" AlignItems="AlignItems.Center" Wrap="FlexWrap.Wrap">
+                <RadzenText TextStyle="TextStyle.Caption">
+                    Заказов к проведению: @_ordersToApply.Count из @_orders.Count
+                </RadzenText>
+                @if (_preview != null)
+                {
+                    <RadzenText TextStyle="TextStyle.Caption">
+                        Правил цен с вводом: @_preview.Rules.Count(r => r.RequiresUserInput)
+                    </RadzenText>
+                    <RadzenText TextStyle="TextStyle.Caption">
+                        Полей с вводом: @_preview.FieldRules.Count(r => r.RequiresUserInput)
+                    </RadzenText>
+                }
+            </RadzenStack>
+        </RadzenCard>
 
         @if (_preview.FieldRules.Any(x => x.RequiresUserInput))
         {
@@ -170,10 +244,18 @@ else
             </RadzenCard>
         }
 
-        <RadzenDataGrid TItem="OrderEntity" Data="@_orders" Density="Density.Compact"
+        <RadzenDataGrid @ref="_ordersGrid" TItem="OrderEntity" Data="@_orders" Density="Density.Compact"
                         AllowSorting="false" AllowFiltering="false" AllowPaging="false"
                         EmptyText="@RadzenRuStrings.EmptyText">
             <Columns>
+
+                <RadzenDataGridColumn TItem="OrderEntity" Width="40px">
+                    <Template Context="o">
+                        <RadzenCheckBox TValue="bool"
+                                        Value="@IsOrderSelected(o.Id)"
+                                        Change="@((bool v) => ToggleOrderSelection(o.Id, v))" />
+                    </Template>
+                </RadzenDataGridColumn>
 
                 <RadzenDataGridColumn TItem="OrderEntity"
                                       Title="@GetColumn(OrderGridColumns.ShipmentNumber).Title"
@@ -402,7 +484,13 @@ else
                                 </span>
                             </HeaderTemplate>
                             <Template Context="o">
-                                @if (_computed.TryGetValue(o.Id, out var fields) && fields.Count > 0)
+                                @if (_recomputingOrders.Contains(o.Id))
+                                {
+                                    <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate"
+                                                               Size="ProgressBarCircularSize.ExtraSmall"
+                                                               Style="width:16px;height:16px;"/>
+                                }
+                                else if (_computed.TryGetValue(o.Id, out var fields) && fields.Count > 0)
                                 {
                                     <RadzenStack Gap="0.15rem">
                                         @foreach (var rule in _calcRules)
@@ -410,11 +498,13 @@ else
                                             @if (fields.TryGetValue(rule.ResultKey, out var val) && val != decimal.MinValue)
                                             {
                                                 var bd = _computedBreakdown.TryGetValue(o.Id, out var bdDict) && bdDict.TryGetValue(rule.ResultKey, out var bdText) ? bdText : rule.Formula;
-                                                <span
-                                                    style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help;"
-                                                    title="@bd">
+                                                var bdFormula = rule.Formula ?? "";
+                                                var bdSubst = bd?.Replace("Формула: " + bdFormula + "\n", "").Replace("Подстановка: ", "") ?? "";
+                                                <span style="font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-flex; align-items: center; gap: 2px;">
                                                     <span style="color: var(--rz-text-secondary-color);">@rule.Name:</span>
                                                     <strong style="@GetPriceColor(val)">@val.ToString("N2")</strong>
+                                                    <i class="rzi" style="font-size: 13px; color: var(--rz-text-secondary-color); cursor: pointer; margin-left: 2px;"
+                                                       @onclick="@(async (MouseEventArgs e) => await ShowFormulaPopup(e, bdFormula, bdSubst))">info_outline</i>
                                                 </span>
                                             }
                                         }
@@ -435,12 +525,24 @@ else
                                                   Sortable="false"
                                                   TextAlign="TextAlign.Right">
                                 <Template Context="o">
-                                    @if (_computed.TryGetValue(o.Id, out var fields) &&
+                                    @if (_recomputingOrders.Contains(o.Id))
+                                    {
+                                        <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate"
+                                                                   Size="ProgressBarCircularSize.ExtraSmall"
+                                                                   Style="width:16px;height:16px;"/>
+                                    }
+                                    else if (_computed.TryGetValue(o.Id, out var fields) &&
                                          fields.TryGetValue(rule.ResultKey, out var val) &&
                                          val != decimal.MinValue)
                                     {
                                         var bd = _computedBreakdown.TryGetValue(o.Id, out var bdDict) && bdDict.TryGetValue(rule.ResultKey, out var bdText) ? bdText : rule.Formula;
-                                        <span title="@bd" style="cursor: help; @GetPriceColor(val)">@val.ToString("N2")</span>
+                                        var colFormula = rule.Formula ?? "";
+                                        var colSubst = bd?.Replace("Формула: " + colFormula + "\n", "").Replace("Подстановка: ", "") ?? "";
+                                        <span style="display: inline-flex; align-items: center; gap: 2px; @GetPriceColor(val)">
+                                            @val.ToString("N2")
+                                            <i class="rzi" style="font-size: 13px; color: var(--rz-text-secondary-color); cursor: pointer;"
+                                               @onclick="@(async (MouseEventArgs e) => await ShowFormulaPopup(e, colFormula, colSubst))">info_outline</i>
+                                        </span>
                                     }
                                 </Template>
                             </RadzenDataGridColumn>
@@ -458,9 +560,16 @@ else
                                               Width="@GetColumn(key).Width"
                                               Visible="@GetColumn(key).Visible"
                                               @key="fr.RuleId">
-                            <HeaderTemplate >
-                                <div class="header-bg-full">
-                                    @(fr.DisplayName + (fr.IsRequired ? " *" : ""))
+                            <HeaderTemplate>
+                                <div class="header-bg-full" style="display:flex;align-items:center;justify-content:space-between;gap:0.25rem;">
+                                    <span>@(fr.DisplayName + (fr.IsRequired ? " *" : ""))</span>
+                                    <RadzenButton Icon="content_copy"
+                                                  ButtonStyle="ButtonStyle.Light"
+                                                  Variant="Variant.Text"
+                                                  Size="ButtonSize.ExtraSmall"
+                                                  Click="@(() => CopyFieldFromFirst(fr.RuleId))"
+                                                  Style="padding:0;min-width:auto;"
+                                                  Title="Скопировать первую строку во все" />
                                 </div>
                             </HeaderTemplate>
 
@@ -488,30 +597,52 @@ else
                                 @{
                                     var orderPreview = _orderPreviews.GetValueOrDefault(o.Id);
                                     var rulePreview = orderPreview?.Rules.FirstOrDefault(r => r.RuleId == rule.RuleId);
+                                    var isRecomputing = _recomputingOrders.Contains(o.Id);
                                 }
                                 @if (rulePreview != null)
                                 {
                                     @if (rulePreview.RequiresUserInput)
                                     {
-
                                         var uv = GetUserValue(o.Id, rule.RuleId);
 
                                         <RadzenNumeric TValue="decimal" Value="@uv"
                                                        ValueChanged="@(v => OnUserValueChanged(o.Id, rule.RuleId, v))"
                                                        Style="@($"width: 100%; {GetPriceColor(uv)}")" Min="0" Format="N2"
                                                        Placeholder="Введите"/>
-
                                     }
                                     else
                                     {
                                         var cv = rulePreview.ComputedValue;
-                                        var breakdown = rulePreview.FormulaBreakdown ?? rulePreview.Formula ?? "";
+                                        var rFormula = rulePreview.Formula ?? "";
+                                        var rBreakdown = rulePreview.FormulaBreakdown ?? "";
+                                        var rSubst = rBreakdown.Replace("Формула: " + rFormula + "\n", "").Replace("Подстановка: ", "");
 
-                                        <RadzenText TextStyle="TextStyle.Body2" Style="@($"cursor: help; font-family: monospace; {GetPriceColor(cv)}")" title="@breakdown">
-                                            @(cv?.ToString("N2") ?? "—")
-                                        </RadzenText>
-
+                                        <span style="display: inline-flex; align-items: center; gap: 3px;">
+                                            @if (isRecomputing)
+                                            {
+                                                <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate"
+                                                                           Size="ProgressBarCircularSize.ExtraSmall"
+                                                                           Style="width:16px;height:16px;"/>
+                                            }
+                                            else
+                                            {
+                                                <RadzenText TextStyle="TextStyle.Body2" Style="@($"font-family: monospace; margin: 0; {GetPriceColor(cv)}")">
+                                                    @(cv?.ToString("N2") ?? "—")
+                                                </RadzenText>
+                                                @if (!string.IsNullOrEmpty(rFormula))
+                                                {
+                                                    <i class="rzi" style="font-size: 13px; color: var(--rz-text-secondary-color); cursor: pointer;"
+                                                       @onclick="@(async (MouseEventArgs e) => await ShowFormulaPopup(e, rFormula, rSubst))">info_outline</i>
+                                                }
+                                            }
+                                        </span>
                                     }
+                                }
+                                else if (isRecomputing)
+                                {
+                                    <RadzenProgressBarCircular Mode="ProgressBarMode.Indeterminate"
+                                                               Size="ProgressBarCircularSize.ExtraSmall"
+                                                               Style="width:16px;height:16px;"/>
                                 }
                         </Template>
                     </RadzenDataGridColumn>
@@ -560,6 +691,14 @@ else
     private Dictionary<Guid, Dictionary<string, decimal>> _computed = [];
     private Dictionary<Guid, Dictionary<string, string>> _computedBreakdown = [];
     private bool _computedSplitByColumns;
+    private RadzenDataGrid<OrderEntity> _ordersGrid = null!;
+    private readonly HashSet<Guid> _recomputingOrders = [];
+
+    private readonly HashSet<Guid> _ordersToApply = [];
+
+    private Popup _formulaPopup = null!;
+    private string _formulaPopupFormula = "";
+    private string _formulaPopupBreakdown = "";
 
     [Inject]
     private IJSRuntime Js { get; set; } = default!;
@@ -798,6 +937,10 @@ else
             _calcRules = await _db.GetActiveRulesAsync();
         }
 
+        _ordersToApply.Clear();
+        foreach (var order in _orders)
+            _ordersToApply.Add(order.Id);
+
         _loading = false;
 
         if (!string.IsNullOrEmpty(TransactionIdQuery) && Guid.TryParse(TransactionIdQuery, out var tid) && _transactions.Count > 0)
@@ -847,26 +990,32 @@ else
         _computed = [];
         _computedBreakdown = [];
         foreach (var order in _orders)
-        {
-            var ctx = await TransactionService.GetMergedContextAsync(order.Id, _selectedTransactionId.Value, _userValues.GetValueOrDefault(order.Id) ?? []);
-            if (ctx == null) continue;
+            await RecomputeForOrderAsync(order.Id);
+    }
 
-            var dict = new Dictionary<string, decimal>();
-            var breakdownDict = new Dictionary<string, string>();
-            foreach (var rule in _calcRules)
+    private async Task RecomputeForOrderAsync(Guid orderId)
+    {
+        if (!_selectedTransactionId.HasValue || _calcRules.Count == 0)
+            return;
+
+        var ctx = await TransactionService.GetMergedContextAsync(orderId, _selectedTransactionId.Value, _userValues.GetValueOrDefault(orderId) ?? []);
+        if (ctx == null) return;
+
+        var dict = new Dictionary<string, decimal>();
+        var breakdownDict = new Dictionary<string, string>();
+        foreach (var rule in _calcRules)
+        {
+            var key = CalculationEngine.SanitizeKey(rule.ResultKey);
+            if (!string.IsNullOrEmpty(key) && ctx.TryGetValue(key, out var val))
             {
-                var key = CalculationEngine.SanitizeKey(rule.ResultKey);
-                if (!string.IsNullOrEmpty(key) && ctx.TryGetValue(key, out var val))
-                {
-                    dict[rule.ResultKey] = val;
-                    var ctxForRule = new Dictionary<string, decimal>(ctx, StringComparer.OrdinalIgnoreCase);
-                    ctxForRule.Remove(key);
-                    breakdownDict[rule.ResultKey] = CalculationEngine.BuildFormulaBreakdown(rule.Formula ?? "", ctxForRule, val);
-                }
+                dict[rule.ResultKey] = val;
+                var ctxForRule = new Dictionary<string, decimal>(ctx, StringComparer.OrdinalIgnoreCase);
+                ctxForRule.Remove(key);
+                breakdownDict[rule.ResultKey] = CalculationEngine.BuildFormulaBreakdown(rule.Formula ?? "", ctxForRule, val);
             }
-            _computed[order.Id] = dict;
-            _computedBreakdown[order.Id] = breakdownDict;
         }
+        _computed[orderId] = dict;
+        _computedBreakdown[orderId] = breakdownDict;
     }
 
     private void OnTransactionRowRender(RowRenderEventArgs<OrderTransaction> args)
@@ -958,13 +1107,18 @@ else
 
         if (_selectedTransactionId.HasValue)
         {
+            _recomputingOrders.Add(orderId);
+
             var preview = await TransactionService.GetApplyPreviewWithUserValuesAsync(orderId, _selectedTransactionId.Value, _userValues[orderId]);
             if (preview != null)
                 _orderPreviews[orderId] = preview;
-            await RecomputeAllAsync();
+
+            await RecomputeForOrderAsync(orderId);
+
+            _recomputingOrders.Remove(orderId);
         }
 
-        await InvokeAsync(StateHasChanged);
+        await _ordersGrid.Reload();
     }
 
     private void BackToSelect()
@@ -1016,7 +1170,10 @@ else
     private RenderFragment RenderFieldControlMass(TransactionApplyFieldRulePreviewDto fr) => builder =>
     {
         var value = _fieldUserValues.GetValueOrDefault(fr.RuleId) ?? "";
-        RenderFieldControlInternal(builder, fr, value, v => { _fieldUserValues[fr.RuleId] = v; });
+        RenderFieldControlInternal(builder, fr, value, v =>
+        {
+            _ = InvokeAsync(() => OnFieldValueMassChanged(fr.RuleId, v ?? ""));
+        });
     };
 
     private RenderFragment RenderFieldControlPerOrder(Guid orderId, TransactionApplyFieldRulePreviewDto fr) => builder =>
@@ -1025,9 +1182,7 @@ else
         var value = dict != null && dict.TryGetValue(fr.RuleId, out var v) ? v : "";
         RenderFieldControlInternal(builder, fr, value, v =>
         {
-            if (!_fieldUserValuesPerOrder.ContainsKey(orderId))
-                _fieldUserValuesPerOrder[orderId] = [];
-            _fieldUserValuesPerOrder[orderId][fr.RuleId] = v;
+            _ = InvokeAsync(() => OnFieldValuePerOrderChanged(orderId, fr.RuleId, v ?? ""));
         });
     };
 
@@ -1167,6 +1322,75 @@ else
         };
     }
 
+    private bool IsOrderSelected(Guid orderId) => _ordersToApply.Contains(orderId);
+
+    private void ToggleOrderSelection(Guid orderId, bool value)
+    {
+        if (value)
+            _ordersToApply.Add(orderId);
+        else
+            _ordersToApply.Remove(orderId);
+    }
+
+    private void CopyFieldFromFirst(Guid fieldRuleId)
+    {
+        if (_orders.Count == 0) return;
+        var firstOrderId = _orders[0].Id;
+
+        if (!_fieldUserValuesPerOrder.TryGetValue(firstOrderId, out var firstDict))
+            return;
+        if (!firstDict.TryGetValue(fieldRuleId, out var value))
+            return;
+
+        foreach (var order in _orders)
+        {
+            if (!_fieldUserValuesPerOrder.ContainsKey(order.Id))
+                _fieldUserValuesPerOrder[order.Id] = [];
+            _fieldUserValuesPerOrder[order.Id][fieldRuleId] = value;
+        }
+    }
+
+    private async Task OnFieldValueMassChanged(Guid fieldRuleId, string value)
+    {
+        _fieldUserValues[fieldRuleId] = value;
+
+        // В массовом режиме значение применяется ко всем заказам
+        foreach (var order in _orders)
+        {
+            if (!_fieldUserValuesPerOrder.ContainsKey(order.Id))
+                _fieldUserValuesPerOrder[order.Id] = [];
+            _fieldUserValuesPerOrder[order.Id][fieldRuleId] = value;
+        }
+
+        if (_selectedTransactionId.HasValue && _calcRules.Count > 0)
+        {
+            foreach (var order in _orders)
+            {
+                _recomputingOrders.Add(order.Id);
+                await RecomputeForOrderAsync(order.Id);
+                _recomputingOrders.Remove(order.Id);
+            }
+        }
+
+        await _ordersGrid.Reload();
+    }
+
+    private async Task OnFieldValuePerOrderChanged(Guid orderId, Guid fieldRuleId, string value)
+    {
+        if (!_fieldUserValuesPerOrder.ContainsKey(orderId))
+            _fieldUserValuesPerOrder[orderId] = [];
+        _fieldUserValuesPerOrder[orderId][fieldRuleId] = value;
+
+        if (_selectedTransactionId.HasValue && _calcRules.Count > 0)
+        {
+            _recomputingOrders.Add(orderId);
+            await RecomputeForOrderAsync(orderId);
+            _recomputingOrders.Remove(orderId);
+        }
+
+        await _ordersGrid.Reload();
+    }
+
     private async Task ApplyAllAsync()
     {
         if (!_selectedTransactionId.HasValue) return;
@@ -1189,7 +1413,7 @@ else
         var errorCount = 0;
         var applyErrors = new List<string>();
 
-        foreach (var order in _orders)
+        foreach (var order in _orders.Where(o => _ordersToApply.Contains(o.Id)))
         {
             var ruleValues = _userValues.GetValueOrDefault(order.Id);
             var fieldValues = _fieldEditMode == "Mass"
@@ -1233,7 +1457,15 @@ else
     private void ToggleComputedLayout() =>
         _computedSplitByColumns = !_computedSplitByColumns;
 
+    private async Task ShowFormulaPopup(MouseEventArgs e, string formula, string breakdown)
+    {
+        _formulaPopupFormula = formula;
+        _formulaPopupBreakdown = breakdown;
+        await Js.InvokeVoidAsync("moveFormulaAnchor", (int)e.ClientX, (int)e.ClientY);
+        await _formulaPopup.ToggleAsync(_formulaAnchorRef);
+    }
 
+    private ElementReference _formulaAnchorRef;
 
     private static bool IsLightColor(string hex)
     {
