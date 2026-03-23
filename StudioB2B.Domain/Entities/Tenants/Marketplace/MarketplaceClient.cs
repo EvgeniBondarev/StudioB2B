@@ -1,4 +1,6 @@
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace StudioB2B.Domain.Entities;
 
@@ -22,10 +24,47 @@ public class MarketplaceClient : IBaseEntity, ISoftDelete
 
     public MarketplaceClientType? ClientType { get; set; }
 
-    [Display(Name = "Режим клиента")]
+    /// <summary>
+    /// Список активных режимов клиента.
+    /// В текущей версии БД поддерживается максимум 2 режима, поэтому в набор будет попадать до двух сущностей.
+    /// </summary>
+    [Display(Name = "Режимы клиента")]
+    [NotMapped]
+    public List<MarketplaceClientMode> Modes
+    {
+        get
+        {
+            var list = new List<MarketplaceClientMode>(capacity: 2);
+            if (Mode != null) list.Add(Mode);
+            if (Mode2 != null && (Mode is null || Mode2.Id != Mode.Id)) list.Add(Mode2);
+            return list;
+        }
+        set
+        {
+            var items = value ?? new List<MarketplaceClientMode>(capacity: 0);
+
+            Mode = items.Count > 0 ? items[0] : null;
+            ModeId = Mode?.Id;
+
+            Mode2 = items.Count > 1 ? items[1] : null;
+            ModeId2 = Mode2?.Id;
+        }
+    }
+
+    // Persisted fields (backing storage for Modes). Keep them hidden from IntelliSense.
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public Guid? ModeId { get; set; }
 
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public MarketplaceClientMode? Mode { get; set; }
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [ForeignKey(nameof(Mode2))]
+    public Guid? ModeId2 { get; set; }
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [ForeignKey(nameof(ModeId2))]
+    public MarketplaceClientMode? Mode2 { get; set; }
 
     public List<MarketplaceClientSettings> Settings { get; set; } = new();
 
