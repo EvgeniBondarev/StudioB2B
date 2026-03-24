@@ -1,7 +1,10 @@
 @page "/reviews"
 @attribute [Authorize(Roles = "ReviewsView")]
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.EntityFrameworkCore
+@using StudioB2B.Domain.Constants
 @using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Infrastructure.Services
 @using StudioB2B.Shared.DTOs
 
 @inject ITenantProvider TenantProvider
@@ -9,6 +12,8 @@
 @inject IOzonReviewsService ReviewsService
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
+@inject UserContext UserContext
+@inject IEntityFilterService EntityFilterSvc
 
 <link rel="stylesheet" href="css/reviews.css" />
 <link rel="stylesheet" href="css/questions.css" />
@@ -95,11 +100,9 @@ else
             <div class="review-list-panel">
                 @if (_loading && !_reviews.Any())
                 {
-                    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
-                                 Style="flex: 1; padding: 2rem;">
-                        <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate"
-                                                  Size="ProgressBarCircularSize.Medium" />
-                    </RadzenStack>
+                    <div class="dlg-loading" style="flex: 1; padding: 2rem;">
+                        <div class="dlg-spinner"></div>
+                    </div>
                 }
                 else if (!_reviews.Any())
                 {
@@ -164,7 +167,7 @@ else
                             <div class="reviews-load-more">
                                 @if (_loadingMore)
                                 {
-                                    <RadzenProgressBarCircular ShowValue="false" Size="ProgressBarCircularSize.Small" />
+                                    <div class="dlg-spinner" style="width:24px;height:24px;border-width:2px;"></div>
                                     <span>Загрузка...</span>
                                 }
                                 else
@@ -197,15 +200,10 @@ else
                 }
                 else if (_detailLoading)
                 {
-                    <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
-                                 Style="flex: 1; padding: 2rem;">
-                        <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate"
-                                                  Size="ProgressBarCircularSize.Medium" />
-                        <RadzenText TextStyle="TextStyle.Body2"
-                                    Style="color: var(--rz-text-secondary-color); margin-top: 0.5rem;">
-                            Загрузка информации...
-                        </RadzenText>
-                    </RadzenStack>
+                    <div class="dlg-loading" style="flex: 1; padding: 2rem; flex-direction: column; gap: 0.5rem;">
+                        <div class="dlg-spinner"></div>
+                        <span style="font-size:0.85rem;color:var(--rz-text-secondary-color);">Загрузка информации...</span>
+                    </div>
                 }
                 else
                 {
@@ -554,6 +552,9 @@ else
 }
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = null!;
+
     private List<ClientOptionDto> _clientOptions = new();
     private OzonReviewCountAggregateDto? _counts;
 
@@ -585,6 +586,9 @@ else
     {
         if (!TenantProvider.IsResolved) return;
 
+        var authState = await AuthState;
+        UserContext.SetUser(authState.User);
+
         await LoadClientOptionsAsync();
         _ = LoadReviewCountsAsync();
         await ReloadAsync();
@@ -597,12 +601,20 @@ else
         try
         {
             await using var db = Factory.CreateDbContext();
-            _clientOptions = await db.MarketplaceClients!
+            var allowedIds = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient);
+            var query = db.MarketplaceClients!
                 .AsNoTracking()
                 .Where(c => !c.IsDeleted)
-                .OrderBy(c => c.Name)
-                .Select(c => new ClientOptionDto { Id = c.Id, Name = c.Name })
-                .ToListAsync();
+                .OrderBy(c => c.Name);
+            if (allowedIds is not null)
+                _clientOptions = await query
+                    .Where(c => allowedIds.Contains(c.Id))
+                    .Select(c => new ClientOptionDto { Id = c.Id, Name = c.Name })
+                    .ToListAsync();
+            else
+                _clientOptions = await query
+                    .Select(c => new ClientOptionDto { Id = c.Id, Name = c.Name })
+                    .ToListAsync();
         }
         catch (Exception ex)
         {

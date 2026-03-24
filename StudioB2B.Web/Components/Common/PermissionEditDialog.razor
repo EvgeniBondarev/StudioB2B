@@ -1,0 +1,461 @@
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Infrastructure.Features
+
+@inject GetPermissionById GetPermissionByIdService
+@inject GetPagesWithDetails GetPagesWithDetailsService
+@inject GetEntityOptionsForPermission GetEntityOptionsService
+@inject CreatePermission CreatePermissionService
+@inject UpdatePermission UpdatePermissionService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+@if (_loading)
+{
+    <div class="dlg-loading"><div class="dlg-spinner"></div></div>
+}
+else
+{
+    <RadzenTemplateForm TItem="PermFormModel" Data="_model" Submit="@HandleSubmit">
+        <RadzenStack Gap="1.2rem" Style="padding: 0.25rem 0;">
+
+            <!-- ── Name + Full access ──────────────────────────────────── -->
+            <RadzenRow Gap="1rem">
+                <RadzenColumn Size="12" SizeMD="8">
+                    <RadzenFormField Text="Название права" Style="width: 100%;">
+                        <ChildContent>
+                            <RadzenTextBox @bind-Value="_model.Name" Name="Name" Style="width: 100%;" />
+                        </ChildContent>
+                        <Helper>
+                            <RadzenRequiredValidator Component="Name" Text="Обязательное поле" />
+                        </Helper>
+                    </RadzenFormField>
+                </RadzenColumn>
+                <RadzenColumn Size="12" SizeMD="4" Style="display:flex;align-items:flex-end;padding-bottom:0.3rem;">
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <RadzenCheckBox @bind-Value="_model.IsFullAccess" Name="IsFullAccess" />
+                        <RadzenLabel Text="Полный доступ (Admin)" Component="IsFullAccess" />
+                    </RadzenStack>
+                </RadzenColumn>
+            </RadzenRow>
+
+            @if (_model.IsFullAccess)
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false">
+                    Пользователь с этим правом получит полный доступ ко всем страницам и функциям системы.
+                </RadzenAlert>
+            }
+            else
+            {
+                <RadzenTabs>
+                    <Tabs>
+
+                        <!-- ── Pages ──────────────────────────────────────── -->
+                        <RadzenTabsItem Text="@($"Страницы ({_model.Pages.Count})")" Icon="web">
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                                         Gap="0.4rem" Style="margin-top:0.5rem;margin-bottom:0.3rem;">
+                                <span style="font-size:0.78rem;color:var(--rz-text-secondary-color);flex:1;">
+                                    @_model.Pages.Count из @_pages.Count
+                                </span>
+                                <RadzenButton Text="Все" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light"
+                                              Click="@SelectAllPages" />
+                                <RadzenButton Text="Снять" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light"
+                                              Click="@ClearAllPages" />
+                            </RadzenStack>
+                            <div style="border:1px solid var(--rz-border-color);border-radius:4px;max-height:260px;overflow-y:auto;">
+                                @foreach (var page in _pages)
+                                {
+                                    var pageName = page.Name;
+                                    var pageDisplayName = string.IsNullOrEmpty(page.DisplayName) ? page.Name : page.DisplayName;
+                                    var pageSelected = _model.Pages.Contains(pageName);
+                                    <div @key="@pageName"
+                                         @onclick="@(() => TogglePage(pageName))"
+                                         style="display:flex;align-items:center;gap:8px;padding:5px 12px;
+                                                cursor:pointer;user-select:none;
+                                                @(pageSelected ? "background:color-mix(in srgb,var(--rz-primary) 8%,transparent);" : "")">
+                                        <i class="rzi" style="font-size:1.1rem;flex-shrink:0;
+                                                              color:@(pageSelected ? "var(--rz-primary)" : "var(--rz-base-400)");">
+                                            @(pageSelected ? "check_box" : "check_box_outline_blank")
+                                        </i>
+                                        <span style="font-size:0.85rem;">@pageDisplayName</span>
+                                    </div>
+                                }
+                            </div>
+                        </RadzenTabsItem>
+
+                        <!-- ── Functions ──────────────────────────────────── -->
+                        <RadzenTabsItem Text="@($"Функции ({_model.Functions.Count})")" Icon="functions">
+                            @{
+                                var allFuncValues = _pages.SelectMany(p => p.Functions.Select(f => f.Value)).ToList();
+                            }
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                                         Gap="0.4rem" Style="margin-top:0.5rem;margin-bottom:0.3rem;">
+                                <span style="font-size:0.78rem;color:var(--rz-text-secondary-color);flex:1;">
+                                    @_model.Functions.Count из @allFuncValues.Count
+                                </span>
+                                <RadzenButton Text="Все" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light"
+                                              Click="@(() => SelectAll(_model.Functions, allFuncValues))" />
+                                <RadzenButton Text="Снять" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light"
+                                              Click="@(() => _model.Functions.Clear())" />
+                            </RadzenStack>
+                            <div style="border:1px solid var(--rz-border-color);border-radius:4px;max-height:260px;overflow-y:auto;">
+                                @foreach (var page in _pages.Where(p => p.Functions.Count > 0))
+                                {
+                                    var pageFuncCount = page.Functions.Count(f => _model.Functions.Contains(f.Value));
+                                    var pageFuncTotal = page.Functions.Count;
+                                    var groupFuncValues = page.Functions.Select(f => f.Value).ToList();
+                                    var pageFuncDisplayName = string.IsNullOrEmpty(page.DisplayName) ? page.Name : page.DisplayName;
+                                    <div style="padding:3px 10px;background:var(--rz-base-200);font-weight:600;
+                                                font-size:0.75rem;color:var(--rz-text-secondary-color);
+                                                position:sticky;top:0;z-index:1;
+                                                border-bottom:1px solid var(--rz-border-color);
+                                                display:flex;align-items:center;gap:6px;">
+                                        <span style="flex:1;">@pageFuncDisplayName</span>
+                                        <span style="font-weight:400;opacity:0.7;">@pageFuncCount / @pageFuncTotal</span>
+                                        <span @onclick="@(() => SelectAll(_model.Functions, groupFuncValues))"
+                                              @onclick:stopPropagation="true"
+                                              style="cursor:pointer;padding:1px 5px;border-radius:3px;
+                                                     background:var(--rz-base-300);font-size:0.7rem;font-weight:500;">
+                                            все
+                                        </span>
+                                        <span @onclick="@(() => ClearGroup(_model.Functions, groupFuncValues))"
+                                              @onclick:stopPropagation="true"
+                                              style="cursor:pointer;padding:1px 5px;border-radius:3px;
+                                                     background:var(--rz-base-300);font-size:0.7rem;font-weight:500;">
+                                            снять
+                                        </span>
+                                    </div>
+                                    @foreach (var func in page.Functions)
+                                    {
+                                        var sel = _model.Functions.Contains(func.Value);
+                                        var funcVal = func.Value;
+                                        <div @key="@funcVal"
+                                             @onclick="@(() => ToggleString(_model.Functions, funcVal))"
+                                             style="display:flex;align-items:center;gap:8px;padding:4px 12px;
+                                                    cursor:pointer;user-select:none;
+                                                    @(sel ? "background:color-mix(in srgb,var(--rz-primary) 8%,transparent);" : "")">
+                                            <i class="rzi" style="font-size:1.1rem;flex-shrink:0;
+                                                                  color:@(sel ? "var(--rz-primary)" : "var(--rz-base-400)");">
+                                                @(sel ? "check_box" : "check_box_outline_blank")
+                                            </i>
+                                            <span style="font-size:0.82rem;">@func.Label</span>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </RadzenTabsItem>
+
+                        <!-- ── Columns ─────────────────────────────────────── -->
+                        <RadzenTabsItem Text="@($"Колонки ({_model.PageColumns.Count})")" Icon="view_column">
+                            @{
+                                var allColValues = _pages.SelectMany(p => p.Columns.Select(c => c.Value)).ToList();
+                            }
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                                         Gap="0.4rem" Style="margin-top:0.5rem;margin-bottom:0.3rem;">
+                                <span style="font-size:0.78rem;color:var(--rz-text-secondary-color);flex:1;">
+                                    @_model.PageColumns.Count из @allColValues.Count
+                                </span>
+                                <RadzenButton Text="Все" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light"
+                                              Click="@(() => SelectAll(_model.PageColumns, allColValues))" />
+                                <RadzenButton Text="Снять" Size="ButtonSize.ExtraSmall" ButtonStyle="ButtonStyle.Light"
+                                              Click="@(() => _model.PageColumns.Clear())" />
+                            </RadzenStack>
+                            <div style="border:1px solid var(--rz-border-color);border-radius:4px;max-height:260px;overflow-y:auto;">
+                                @foreach (var page in _pages.Where(p => p.Columns.Count > 0))
+                                {
+                                    var pageColCount = page.Columns.Count(c => _model.PageColumns.Contains(c.Value));
+                                    var pageColTotal = page.Columns.Count;
+                                    var groupColValues = page.Columns.Select(c => c.Value).ToList();
+                                    var pageColDisplayName = string.IsNullOrEmpty(page.DisplayName) ? page.Name : page.DisplayName;
+                                    <div style="padding:3px 10px;background:var(--rz-base-200);font-weight:600;
+                                                font-size:0.75rem;color:var(--rz-text-secondary-color);
+                                                position:sticky;top:0;z-index:1;
+                                                border-bottom:1px solid var(--rz-border-color);
+                                                display:flex;align-items:center;gap:6px;">
+                                        <span style="flex:1;">@pageColDisplayName</span>
+                                        <span style="font-weight:400;opacity:0.7;">@pageColCount / @pageColTotal</span>
+                                        <span @onclick="@(() => SelectAll(_model.PageColumns, groupColValues))"
+                                              @onclick:stopPropagation="true"
+                                              style="cursor:pointer;padding:1px 5px;border-radius:3px;
+                                                     background:var(--rz-base-300);font-size:0.7rem;font-weight:500;">
+                                            все
+                                        </span>
+                                        <span @onclick="@(() => ClearGroup(_model.PageColumns, groupColValues))"
+                                              @onclick:stopPropagation="true"
+                                              style="cursor:pointer;padding:1px 5px;border-radius:3px;
+                                                     background:var(--rz-base-300);font-size:0.7rem;font-weight:500;">
+                                            снять
+                                        </span>
+                                    </div>
+                                    @foreach (var col in page.Columns)
+                                    {
+                                        var sel = _model.PageColumns.Contains(col.Value);
+                                        var colVal = col.Value;
+                                        <div @key="@colVal"
+                                             @onclick="@(() => ToggleString(_model.PageColumns, colVal))"
+                                             style="display:flex;align-items:center;gap:8px;padding:4px 12px;
+                                                    cursor:pointer;user-select:none;
+                                                    @(sel ? "background:color-mix(in srgb,var(--rz-primary) 8%,transparent);" : "")">
+                                            <i class="rzi" style="font-size:1.1rem;flex-shrink:0;
+                                                                  color:@(sel ? "var(--rz-primary)" : "var(--rz-base-400)");">
+                                                @(sel ? "check_box" : "check_box_outline_blank")
+                                            </i>
+                                            <span style="font-size:0.82rem;">@col.Label</span>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </RadzenTabsItem>
+
+                        <!-- ── Entity restrictions ─────────────────────────── -->
+                        <RadzenTabsItem Text="@($"Ограничения ({_model.BlockedEntities.Count})")" Icon="filter_alt">
+                            <div style="display:flex;flex-direction:column;gap:1rem;margin-top:0.5rem;">
+                                @foreach (var entityType in Enum.GetValues<BlockedEntityTypeEnum>())
+                                {
+                                    var typeKey = entityType.ToString();
+                                    var label = GetEntityTypeLabel(entityType);
+                                    var options = _entityOptions.TryGetValue(typeKey, out var opts) ? opts : [];
+                                    var selectedCount = _model.BlockedEntities.Count(b => b.EntityType == typeKey);
+                                    var allIds = options.Select(o => o.Id).ToList();
+
+                                    <div @key="@typeKey">
+                                        <!-- header row: label + count badge + bulk buttons -->
+                                        <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.3rem;">
+                                            <span style="font-size:0.8rem;font-weight:600;">@label</span>
+                                            @if (selectedCount > 0)
+                                            {
+                                                <span style="display:inline-block;padding:1px 8px;border-radius:10px;
+                                                             background:var(--rz-warning-lighter);color:var(--rz-warning-dark);
+                                                             font-size:0.7rem;font-weight:600;">только @selectedCount</span>
+                                            }
+                                            else
+                                            {
+                                                <span style="font-weight:400;font-size:0.75rem;
+                                                             color:var(--rz-text-secondary-color);">(все доступны)</span>
+                                            }
+                                            @if (options.Count > 0)
+                                            {
+                                                <span style="flex:1;"></span>
+                                                <span @onclick="@(() => SelectAllBlockedEntity(typeKey, allIds))"
+                                                      @onclick:stopPropagation="true"
+                                                      style="cursor:pointer;padding:2px 7px;border-radius:3px;
+                                                             background:var(--rz-base-300);font-size:0.72rem;
+                                                             font-weight:500;user-select:none;">
+                                                    все
+                                                </span>
+                                                <span @onclick="@(() => ClearBlockedEntityType(typeKey))"
+                                                      @onclick:stopPropagation="true"
+                                                      style="cursor:pointer;padding:2px 7px;border-radius:3px;
+                                                             background:var(--rz-base-300);font-size:0.72rem;
+                                                             font-weight:500;user-select:none;">
+                                                    снять
+                                                </span>
+                                            }
+                                        </div>
+
+                                        @if (options.Count == 0)
+                                        {
+                                            <div style="font-size:0.8rem;color:var(--rz-text-secondary-color);">Нет записей</div>
+                                        }
+                                        else
+                                        {
+                                            <div style="border:1px solid var(--rz-border-color);border-radius:4px;
+                                                        max-height:130px;overflow-y:auto;">
+                                                @foreach (var opt in options)
+                                                {
+                                                    var isSel = _model.BlockedEntities.Any(b => b.EntityType == typeKey && b.EntityId == opt.Id);
+                                                    var optId = opt.Id;
+                                                    var optTypeKey = typeKey;
+                                                    <div @key="@optId"
+                                                         @onclick="@(() => ToggleBlockedEntity(optTypeKey, optId))"
+                                                         style="display:flex;align-items:center;gap:8px;padding:4px 10px;
+                                                                cursor:pointer;user-select:none;
+                                                                @(isSel ? "background:color-mix(in srgb,var(--rz-warning) 12%,transparent);" : "")">
+                                                        <i class="rzi" style="font-size:1rem;flex-shrink:0;
+                                                                              color:@(isSel ? "var(--rz-warning-dark)" : "var(--rz-base-400)");">
+                                                            @(isSel ? "check_box" : "check_box_outline_blank")
+                                                        </i>
+                                                        <span style="font-size:0.82rem;">@opt.Name</span>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                <div style="font-size:0.8rem;color:var(--rz-text-secondary-color);padding:0.5rem;
+                                            border:1px solid var(--rz-border-color);border-radius:4px;
+                                            background:var(--rz-base-100);">
+                                    Если для типа выбраны конкретные записи — пользователь видит <b>только их</b>.
+                                    Пустой список = доступ ко всем.
+                                </div>
+                            </div>
+                        </RadzenTabsItem>
+
+                    </Tabs>
+                </RadzenTabs>
+            }
+
+            <!-- ── Footer ─────────────────────────────────────────────── -->
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" JustifyContent="JustifyContent.End"
+                         Style="margin-top:0.5rem;border-top:1px solid var(--rz-border-color);padding-top:1rem;">
+                <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Light"
+                              Click="@(() => DialogService.Close(false))" />
+                <RadzenButton ButtonType="ButtonType.Submit"
+                              Text="@(PermissionId == Guid.Empty ? "Создать" : "Сохранить")"
+                              ButtonStyle="ButtonStyle.Primary"
+                              Icon="@(PermissionId == Guid.Empty ? "add" : "save")"
+                              IsBusy="@_saving" />
+            </RadzenStack>
+
+        </RadzenStack>
+    </RadzenTemplateForm>
+}
+
+@code {
+    [Parameter] public Guid PermissionId { get; set; }
+
+    private PermFormModel _model = new();
+    private List<PageWithDetailsDto> _pages = [];
+    private Dictionary<string, List<EntityOptionDto>> _entityOptions = new();
+    private bool _loading = true;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _pages = await GetPagesWithDetailsService.HandleAsync();
+        _entityOptions = await GetEntityOptionsService.HandleAsync();
+
+        if (PermissionId != Guid.Empty)
+        {
+            var existing = await GetPermissionByIdService.HandleAsync(PermissionId);
+            if (existing is not null)
+            {
+                _model = new PermFormModel
+                {
+                    Name = existing.Name,
+                    IsFullAccess = existing.IsFullAccess,
+                    Pages = existing.Pages.ToList(),
+                    PageColumns = existing.PageColumns.ToList(),
+                    Functions = existing.Functions.ToList(),
+                    BlockedEntities = existing.BlockedEntities
+                        .Select(b => new BlockedItem(b.EntityType, b.EntityId))
+                        .ToList()
+                };
+            }
+        }
+
+        _loading = false;
+    }
+
+    // ── Label helpers ──────────────────────────────────────────────────────
+
+
+    private static string GetEntityTypeLabel(BlockedEntityTypeEnum type) => type switch
+    {
+        BlockedEntityTypeEnum.Warehouse => "Склады",
+        BlockedEntityTypeEnum.OrderStatus => "Статусы заказов",
+        BlockedEntityTypeEnum.MarketplaceClient => "Клиенты маркетплейсов",
+        BlockedEntityTypeEnum.Supplier => "Поставщики",
+        BlockedEntityTypeEnum.DeliveryMethod => "Методы доставки",
+        _ => type.ToString()
+    };
+
+
+    // ── Toggle helpers ─────────────────────────────────────────────────────
+
+    private void TogglePage(string name)
+    {
+        if (_model.Pages.Contains(name)) _model.Pages.Remove(name);
+        else _model.Pages.Add(name);
+    }
+
+    private static void ToggleString(List<string> list, string value)
+    {
+        if (list.Contains(value)) list.Remove(value);
+        else list.Add(value);
+    }
+
+    private void ToggleBlockedEntity(string typeKey, Guid entityId)
+    {
+        var existing = _model.BlockedEntities
+            .FirstOrDefault(b => b.EntityType == typeKey && b.EntityId == entityId);
+        if (existing is not null) _model.BlockedEntities.Remove(existing);
+        else _model.BlockedEntities.Add(new BlockedItem(typeKey, entityId));
+    }
+
+    // ── Bulk selection helpers ─────────────────────────────────────────────
+
+    private void SelectAllPages() =>
+        _model.Pages = _pages.Select(p => p.Name).ToList();
+
+    private void ClearAllPages() => _model.Pages.Clear();
+
+    /// Adds all values from <paramref name="values"/> to <paramref name="list"/> (no duplicates).
+    private static void SelectAll(List<string> list, List<string> values)
+    {
+        foreach (var v in values)
+            if (!list.Contains(v)) list.Add(v);
+    }
+
+    /// Removes all values belonging to a group from <paramref name="list"/>.
+    private static void ClearGroup(List<string> list, List<string> groupValues)
+    {
+        foreach (var v in groupValues) list.Remove(v);
+    }
+
+    /// Selects all entity IDs of the given type (adds them as BlockedEntity whitelist entries).
+    private void SelectAllBlockedEntity(string typeKey, List<Guid> allIds)
+    {
+        // Remove existing then add all
+        _model.BlockedEntities.RemoveAll(b => b.EntityType == typeKey);
+        foreach (var id in allIds)
+            _model.BlockedEntities.Add(new BlockedItem(typeKey, id));
+    }
+
+    /// Clears all BlockedEntity entries for the given type (= unrestricted access).
+    private void ClearBlockedEntityType(string typeKey) =>
+        _model.BlockedEntities.RemoveAll(b => b.EntityType == typeKey);
+
+    // ── Submit ─────────────────────────────────────────────────────────────
+
+    private async Task HandleSubmit(PermFormModel model)
+    {
+        _saving = true;
+        try
+        {
+            var blockedDtos = model.BlockedEntities
+                .Select(b => new SaveBlockedEntityDto(b.EntityType, b.EntityId))
+                .ToList();
+
+            if (PermissionId == Guid.Empty)
+            {
+                var (ok, error, _) = await CreatePermissionService.HandleAsync(
+                    new CreatePermissionDto(model.Name, model.IsFullAccess,
+                        model.Pages, model.PageColumns, model.Functions, blockedDtos));
+                if (ok) { NotificationService.Notify(NotificationSeverity.Success, "Право создано"); DialogService.Close(true); }
+                else NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Ошибка создания");
+            }
+            else
+            {
+                var (ok, error) = await UpdatePermissionService.HandleAsync(PermissionId,
+                    new UpdatePermissionDto(model.Name, model.IsFullAccess,
+                        model.Pages, model.PageColumns, model.Functions, blockedDtos));
+                if (ok) { NotificationService.Notify(NotificationSeverity.Success, "Право обновлено"); DialogService.Close(true); }
+                else NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Ошибка обновления");
+            }
+        }
+        finally { _saving = false; }
+    }
+
+    private record BlockedItem(string EntityType, Guid EntityId);
+
+    private class PermFormModel
+    {
+        public string Name { get; set; } = "";
+        public bool IsFullAccess { get; set; }
+        public List<string> Pages { get; set; } = [];
+        public List<string> PageColumns { get; set; } = [];
+        public List<string> Functions { get; set; } = [];
+        public List<BlockedItem> BlockedEntities { get; set; } = [];
+    }
+}
+

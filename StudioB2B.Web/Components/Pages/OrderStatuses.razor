@@ -358,7 +358,7 @@ else
         {
             var state = await AuthState;
             _user = state.User;
-            _canManage = state.User.IsInRole("OrderStatusesManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("OrderStatusesManage");
             await LoadGridSettingsAsync();
             await LoadFiltersAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)

@@ -6,7 +6,7 @@ public record UpdateMarketplaceClientDto(
     string ApiId,
     string Key,
     Guid? ClientTypeId,
-    Guid? ModeId,
+    List<Guid> ModeIds,
     List<MarketplaceClientSettingDto>? Settings = null,
     MarketplaceClient1CSettingsDto? Settings1C = null,
     string? Company = null,

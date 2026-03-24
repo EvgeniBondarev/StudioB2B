@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using StudioB2B.Domain.Entities;
-using StudioB2B.Domain.Entities.Orders;
 
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Configurations;
 

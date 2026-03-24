@@ -170,7 +170,16 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
                     ? new Claim(mapped, c.Value, c.ValueType, c.Issuer)
                     : c);
 
-            var identity = new ClaimsIdentity(mappedClaims, "jwt");
+            // If the token carries full_access=true, also inject a synthetic "Admin" role claim
+            // so that existing IsInRole("Admin") checks in Razor components work correctly.
+            var claimList = mappedClaims.ToList();
+            if (claimList.Any(c => c.Type == "full_access" && c.Value == "true")
+                && !claimList.Any(c => c.Type == ClaimTypes.Role && c.Value == "Admin"))
+            {
+                claimList.Add(new Claim(ClaimTypes.Role, "Admin"));
+            }
+
+            var identity = new ClaimsIdentity(claimList, "jwt");
             return new ClaimsPrincipal(identity);
         }
         catch

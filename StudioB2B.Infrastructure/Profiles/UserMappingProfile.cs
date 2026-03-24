@@ -11,7 +11,7 @@ public class UserMappingProfile : Profile
 {
     public UserMappingProfile()
     {
-        // TenantUser → UserListDto (Roles загружаются отдельно)
+        // TenantUser → UserListDto (Permissions загружаются отдельно в feature)
         CreateMap<TenantUser, UserListDto>()
             .ConstructUsing(src => new UserListDto(
                 src.Id,
@@ -32,7 +32,7 @@ public class UserMappingProfile : Profile
             .ForMember(dest => dest.IsActive, opt => opt.MapFrom(_ => true))
             .ForMember(dest => dest.HashPassword, opt => opt.Ignore())
             .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())
-            .ForMember(dest => dest.UserRoles, opt => opt.Ignore());
+            .ForMember(dest => dest.UserPermissions, opt => opt.Ignore());
 
         // UpdateUserDto → TenantUser (patch)
         CreateMap<UpdateUserDto, TenantUser>()
@@ -44,6 +44,6 @@ public class UserMappingProfile : Profile
             .ForMember(dest => dest.Email, opt => opt.Ignore())
             .ForMember(dest => dest.HashPassword, opt => opt.Ignore())
             .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())
-            .ForMember(dest => dest.UserRoles, opt => opt.Ignore());
+            .ForMember(dest => dest.UserPermissions, opt => opt.Ignore());
     }
 }

@@ -11,6 +11,8 @@
 @inject NotificationService NotificationService
 @inject DialogService DialogService
 
+<link rel="stylesheet" href="css/orders.css" />
+
 <div style="padding: 0.5rem 0;">
     <RadzenTimeline>
         <Items>
@@ -91,12 +93,46 @@
 else if (_step == 1)
 {
     <RadzenStack Gap="1rem" Style="padding: 0.5rem 0;">
-        <RadzenFormField Text="Режим клиента" Style="width:100%;">
-            <RadzenDropDown Data="@_modes"
-                            TextProperty="@nameof(MarketplaceClientMode.Name)"
-                            ValueProperty="@nameof(MarketplaceClientMode.Id)"
-                            @bind-Value="_model.ModeId"
-                            Style="width:100%;" />
+        <RadzenFormField Text="Режим клиента (Ozon)" Style="width:100%;">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem"
+                         Style="flex-wrap:nowrap;">
+                @{
+                    var fbsActive = _fbsModeId.HasValue && _model.ModeIds.Contains(_fbsModeId.Value);
+                    var fboActive = _fboModeId.HasValue && _model.ModeIds.Contains(_fboModeId.Value);
+                    var expressExists = _expressModeId.HasValue;
+                }
+
+                <span style="display:inline-flex;align-items:center;gap:8px;">
+                    @if (expressExists)
+                    {
+                        <span class="q-pill" style="background:var(--rz-base-200);color:var(--rz-text-color);opacity:0.55;cursor:not-allowed;pointer-events:none;">
+                            Express
+                        </span>
+                    }
+
+                    @if (_fboModeId.HasValue)
+                    {
+                        <span @onclick="@( () => ToggleMode(_fboModeId.Value, !fboActive) )"
+                              class="q-pill scheme-fbo @(fboActive ? "active" : "")"
+                              style="white-space:nowrap;">
+                            FBO
+                        </span>
+                    }
+
+                    @if (_fbsModeId.HasValue)
+                    {
+                        <span @onclick="@( () => ToggleMode(_fbsModeId.Value, !fbsActive) )"
+                              class="q-pill scheme-fbs @(fbsActive ? "active" : "")"
+                              style="white-space:nowrap;">
+                            FBS
+                        </span>
+                    }
+                </span>
+            </RadzenStack>
+
+            <RadzenText TextStyle="TextStyle.Caption" Style="display:block;margin-top:0.35rem;color:var(--rz-text-secondary-color);">
+                Для Ozon синк поддерживает одновременно FBS и FBO.
+            </RadzenText>
         </RadzenFormField>
 
         <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
@@ -104,7 +140,7 @@ else if (_step == 1)
                           Click="@(() => _step = 0)" />
             <RadzenButton Text="Далее"
                           ButtonStyle="ButtonStyle.Primary"
-                          Disabled="@(!_model.ModeId.HasValue)"
+                          Disabled="@(_model.ModeIds.Count == 0)"
                           Click="@(() => _step = 2)" />
         </RadzenStack>
     </RadzenStack>
@@ -184,6 +220,9 @@ else if (_step == 3)
     private List<MarketplaceClientType> _types = [];
     private List<MarketplaceClientType> _ozonTypes = [];
     private List<MarketplaceClientMode> _modes = [];
+    private Guid? _fbsModeId;
+    private Guid? _fboModeId;
+    private Guid? _expressModeId;
 
     private int _step;
     private bool _busy;
@@ -208,6 +247,20 @@ else if (_step == 3)
             .AsNoTracking()
             .OrderBy(m => m.Name)
             .ToListAsync();
+
+        _fbsModeId = _modes.FirstOrDefault(m => m.Name.Equals("FBS", StringComparison.OrdinalIgnoreCase))?.Id;
+        _fboModeId = _modes.FirstOrDefault(m => m.Name.Equals("FBO", StringComparison.OrdinalIgnoreCase))?.Id;
+        _expressModeId = _modes.FirstOrDefault(m => m.Name.Equals("Express", StringComparison.OrdinalIgnoreCase))?.Id;
+
+        // Изначально выбран FBS и FBO, чтобы синк мог загрузить всё сразу.
+        var modeIds = new List<Guid>(capacity: 2);
+        if (_fbsModeId is not null) modeIds.Add(_fbsModeId.Value);
+        if (_fboModeId is not null) modeIds.Add(_fboModeId.Value);
+
+        if (modeIds.Count == 0 && _modes.Count > 0)
+            modeIds.Add(_modes[0].Id);
+
+        _model.ModeIds = modeIds;
 
         _model.ClientTypeId = _ozonTypes.Count > 0
             ? _ozonTypes[0].Id
@@ -236,6 +289,35 @@ else if (_step == 3)
     // Actions
 
     private void Cancel() => DialogService.Close(false);
+
+    private void OnModeChanged(Guid modeId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            if (_model.ModeIds.Contains(modeId))
+                return;
+
+            // Сейчас в БД поддерживаются 2 режима (ModeId/ModeId2), поэтому ограничиваем UI.
+            if (_model.ModeIds.Count >= 2)
+            {
+                NotificationService.Notify(NotificationSeverity.Warning,
+                    "Ограничение",
+                    "В текущей версии можно выбрать максимум 2 режима на клиента.");
+                return;
+            }
+
+            _model.ModeIds.Add(modeId);
+        }
+        else
+        {
+            _model.ModeIds.Remove(modeId);
+        }
+    }
+
+    private void ToggleMode(Guid modeId, bool shouldSelect)
+    {
+        OnModeChanged(modeId, shouldSelect);
+    }
 
     private async Task LoadFromOzonAsync()
     {
@@ -281,10 +363,10 @@ else if (_step == 3)
             return;
         }
 
-        if (_model.ClientTypeId is null || _model.ModeId is null)
+        if (_model.ClientTypeId is null || _model.ModeIds.Count == 0)
         {
             NotificationService.Notify(NotificationSeverity.Warning,
-                "Не заполнены параметры", "Выберите тип и режим клиента.");
+                "Не заполнены параметры", "Выберите тип клиента и хотя бы один режим.");
             return;
         }
 
@@ -310,7 +392,7 @@ else if (_step == 3)
                 ApiId: _model.ApiId,
                 Key: Encryption.Encrypt(_model.Key), // store encrypted
                 ClientTypeId: _model.ClientTypeId,
-                ModeId: _model.ModeId,
+                ModeIds: _model.ModeIds,
                 Settings: null,
                 Settings1C: null,
                 Company: c.LegalName ?? c.Name,

@@ -14,6 +14,9 @@ public class OzonFbsOrderAdapter : IOrderAdapter
     private readonly TenantDbContext _db;
     private readonly ILogger<OzonFbsOrderAdapter> _logger;
     private readonly IModuleService _moduleService;
+    private readonly string _deliverySchemeCode;
+    private readonly Func<MarketplaceClient, DateTime, DateTime, CancellationToken, Task<List<OzonFbsPostingDto>>> _fetchAllPostingsAsync;
+    private readonly Func<MarketplaceClient, string, CancellationToken, Task<OzonFbsPostingDto?>> _fetchPostingForStatusAsync;
 
     public OzonFbsOrderAdapter(
         IOzonApiClient api,
@@ -25,19 +28,58 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         _db = db;
         _logger = logger;
         _moduleService = moduleService;
+        _deliverySchemeCode = "fbs";
+        _fetchAllPostingsAsync = FetchAllPostingsAsync;
+        _fetchPostingForStatusAsync = async (client, postingNumber, ct) =>
+        {
+            var apiResult = await _api.GetFbsPostingAsync(client.ApiId, client.Key, postingNumber, ct);
+            if (!apiResult.IsSuccess || apiResult.Data?.Result == null)
+            {
+                _logger.LogWarning(
+                    "Failed to fetch posting {PostingNumber} for client {ClientId}: {Error}",
+                    postingNumber, client.ApiId, apiResult.ErrorMessage);
+                return null;
+            }
+
+            return apiResult.Data.Result;
+        };
+    }
+
+    internal OzonFbsOrderAdapter(
+        IOzonApiClient api,
+        TenantDbContext db,
+        ILogger<OzonFbsOrderAdapter> logger,
+        IModuleService moduleService,
+        string deliverySchemeCode,
+        Func<MarketplaceClient, DateTime, DateTime, CancellationToken, Task<List<OzonFbsPostingDto>>> fetchAllPostingsAsync,
+        Func<MarketplaceClient, string, CancellationToken, Task<OzonFbsPostingDto?>> fetchPostingForStatusAsync)
+    {
+        _api = api;
+        _db = db;
+        _logger = logger;
+        _moduleService = moduleService;
+
+        _deliverySchemeCode = deliverySchemeCode;
+        _fetchAllPostingsAsync = fetchAllPostingsAsync;
+        _fetchPostingForStatusAsync = fetchPostingForStatusAsync;
     }
 
     public string MarketplaceName => "Ozon";
 
+    public string ClientModeName =>
+        string.Equals(_deliverySchemeCode, "fbo", StringComparison.OrdinalIgnoreCase)
+            ? "FBO"
+            : "FBS";
+
     public async Task<OrderSyncResultDto> SyncAsync(MarketplaceClient client, DateTime cutoffFrom, DateTime cutoffTo,
                                                     CancellationToken ct = default)
     {
-        var allPostings = await FetchAllPostingsAsync(client, cutoffFrom, cutoffTo, ct);
+        var allPostings = await _fetchAllPostingsAsync(client, cutoffFrom, cutoffTo, ct);
 
         if (allPostings.Count == 0)
         {
             _logger.LogInformation(
-                "No FBS postings found for client {ClientId} in the last 30 days.", client.ApiId);
+                "No {Mode} postings found for client {ClientId} in the last period.", ClientModeName, client.ApiId);
             return new OrderSyncResultDto();
         }
 
@@ -85,8 +127,13 @@ public class OzonFbsOrderAdapter : IOrderAdapter
     {
         var shipments = await _db.Shipments
             .Include(s => s.Status)
+            .Include(s => s.DeliveryMethod)
+                .ThenInclude(dm => dm!.DeliveryType)
             .Where(s => s.MarketplaceClientId == client.Id
                         && (s.StatusId == null || s.Status == null || !s.Status.IsTerminal)
+                        && s.DeliveryMethod != null
+                        && s.DeliveryMethod.DeliveryType != null
+                        && s.DeliveryMethod.DeliveryType.Name == _deliverySchemeCode
                         && ((s.InProcessAt != null && s.InProcessAt >= from && s.InProcessAt <= to)
                             || (s.InProcessAt == null && s.CreatedAt >= from && s.CreatedAt <= to)))
             .ToListAsync(ct);
@@ -104,17 +151,11 @@ public class OzonFbsOrderAdapter : IOrderAdapter
             {
                 try
                 {
-                    var apiResult = await _api.GetFbsPostingAsync(client.ApiId, client.Key, shipment.PostingNumber, ct);
-
-                    if (!apiResult.IsSuccess || apiResult.Data?.Result == null)
-                    {
-                        _logger.LogWarning(
-                            "Failed to fetch posting {PostingNumber} for client {ClientId}: {Error}",
-                            shipment.PostingNumber, client.ApiId, apiResult.ErrorMessage);
+                    var posting = await _fetchPostingForStatusAsync(client, shipment.PostingNumber, ct);
+                    if (posting == null)
                         continue;
-                    }
 
-                    await UpdateShipmentStatusAsync(shipment, client.Name, apiResult.Data.Result, result, ct);
+                    await UpdateShipmentStatusAsync(shipment, client.Name, posting, result, ct);
 
                     // Сбрасываем аудит после каждого отправления вне его транзакции
                     await _db.FlushDeferredAuditAsync(ct: ct);
@@ -135,8 +176,13 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         // Учитываем заказы в отправлениях с конечным статусом (мы их не обрабатываем, но они «пропущены»)
         var terminalShipmentIds = await _db.Shipments
             .Include(s => s.Status)
+            .Include(s => s.DeliveryMethod)
+                .ThenInclude(dm => dm!.DeliveryType)
             .Where(s => s.MarketplaceClientId == client.Id
                         && s.StatusId != null && s.Status != null && s.Status.IsTerminal
+                        && s.DeliveryMethod != null
+                        && s.DeliveryMethod.DeliveryType != null
+                        && s.DeliveryMethod.DeliveryType.Name == _deliverySchemeCode
                         && ((s.InProcessAt != null && s.InProcessAt >= from && s.InProcessAt <= to)
                             || (s.InProcessAt == null && s.CreatedAt >= from && s.CreatedAt <= to)))
             .Select(s => s.Id)
@@ -154,21 +200,19 @@ public class OzonFbsOrderAdapter : IOrderAdapter
     public async Task<ShipmentUpdateItemDto?> UpdateSingleShipmentStatusAsync(Shipment shipment, MarketplaceClient client,
                                                                               CancellationToken ct = default)
     {
-        var apiResult = await _api.GetFbsPostingAsync(client.ApiId, client.Key, shipment.PostingNumber, ct);
-
-        if (!apiResult.IsSuccess || apiResult.Data?.Result == null)
-        {
-            _logger.LogWarning(
-                "Failed to fetch posting {PostingNumber} for client {ClientId}: {Error}",
-                shipment.PostingNumber, client.ApiId, apiResult.ErrorMessage);
+        var schemeName = shipment.DeliveryMethod?.DeliveryType?.Name;
+        if (schemeName == null || !schemeName.Equals(_deliverySchemeCode, StringComparison.OrdinalIgnoreCase))
             return null;
-        }
+
+        var posting = await _fetchPostingForStatusAsync(client, shipment.PostingNumber, ct);
+        if (posting == null)
+            return null;
 
         var result = new OrderSyncResultDto();
         _db.DeferAudit = true;
         try
         {
-            await UpdateShipmentStatusAsync(shipment, client.Name, apiResult.Data.Result, result, ct);
+            await UpdateShipmentStatusAsync(shipment, client.Name, posting, result, ct);
             await _db.FlushDeferredAuditAsync(ct: ct);
         }
         finally
@@ -364,8 +408,8 @@ public class OzonFbsOrderAdapter : IOrderAdapter
 
         await EnsureShipmentDatesAsync(shipment, posting, ct);
 
-        var priceType = await EnsurePriceTypeAsync("Цена", "fbs", ct);
-        var oldPriceType = await EnsurePriceTypeAsync("Цена до скидки", "fbs", ct);
+        var priceType = await EnsurePriceTypeAsync("Цена", _deliverySchemeCode, ct);
+        var oldPriceType = await EnsurePriceTypeAsync("Цена до скидки", _deliverySchemeCode, ct);
 
         foreach (var product in posting.Products)
         {
@@ -392,7 +436,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         if (posting.DeliveryMethod == null)
             return null;
 
-        var deliveryType = await EnsureDeliveryTypeAsync("fbs", ct);
+        var deliveryType = await EnsureDeliveryTypeAsync(_deliverySchemeCode, ct);
 
         var dm = await _db.DeliveryMethods
             .FirstOrDefaultAsync(d => d.ExternalId == posting.DeliveryMethod.Id, ct);
@@ -809,28 +853,28 @@ public class OzonFbsOrderAdapter : IOrderAdapter
             // Минимальная цена
             if (priceDto.MinPrice.HasValue && priceDto.MinPrice.Value > 0)
             {
-                var t = await EnsurePriceTypeAsync("Минимальная цена", "fbs", ct);
+                var t = await EnsurePriceTypeAsync("Минимальная цена", _deliverySchemeCode, ct);
                 await UpsertSinglePriceAsync(order.Id, t.Id, currency?.Id, priceDto.MinPrice.Value, ct);
             }
 
             // Себестоимость
             if (priceDto.NetPrice.HasValue && priceDto.NetPrice.Value > 0)
             {
-                var t = await EnsurePriceTypeAsync("Себестоимость", "fbs", ct);
+                var t = await EnsurePriceTypeAsync("Себестоимость", _deliverySchemeCode, ct);
                 await UpsertSinglePriceAsync(order.Id, t.Id, currency?.Id, priceDto.NetPrice.Value, ct);
             }
 
             // Маркетинговая цена продавца
             if (priceDto.MarketingSellerPrice.HasValue && priceDto.MarketingSellerPrice.Value > 0)
             {
-                var t = await EnsurePriceTypeAsync("Маркетинговая цена продавца", "fbs", ct);
+                var t = await EnsurePriceTypeAsync("Маркетинговая цена продавца", _deliverySchemeCode, ct);
                 await UpsertSinglePriceAsync(order.Id, t.Id, currency?.Id, priceDto.MarketingSellerPrice.Value, ct);
             }
 
             // Розничная цена поставщика
             if (priceDto.RetailPrice.HasValue && priceDto.RetailPrice.Value > 0)
             {
-                var t = await EnsurePriceTypeAsync("Розничная цена поставщика", "fbs", ct);
+                var t = await EnsurePriceTypeAsync("Розничная цена поставщика", _deliverySchemeCode, ct);
                 await UpsertSinglePriceAsync(order.Id, t.Id, currency?.Id, priceDto.RetailPrice.Value, ct);
             }
         }
@@ -859,12 +903,12 @@ public class OzonFbsOrderAdapter : IOrderAdapter
 
             if (c.SalesPercentFbs.HasValue && c.SalesPercentFbs.Value > 0)
             {
-                var t = await EnsurePriceTypeAsync("% продаж FBS", "fbs", ct);
+                var t = await EnsurePriceTypeAsync("% продаж FBS", _deliverySchemeCode, ct);
                 await UpsertSinglePriceAsync(order.Id, t.Id, null, (decimal)c.SalesPercentFbs.Value, ct);
             }
             if (c.SalesPercentFbo.HasValue && c.SalesPercentFbo.Value > 0)
             {
-                var t = await EnsurePriceTypeAsync("% продаж FBO", "fbs", ct);
+                var t = await EnsurePriceTypeAsync("% продаж FBO", _deliverySchemeCode, ct);
                 await UpsertSinglePriceAsync(order.Id, t.Id, null, (decimal)c.SalesPercentFbo.Value, ct);
             }
         }
@@ -877,7 +921,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
                 var ozonCurrency = string.IsNullOrEmpty(idx.OzonIndexData.MinPriceCurrency)
                     ? currency
                     : await EnsureCurrencyAsync(idx.OzonIndexData.MinPriceCurrency, ct);
-                var t = await EnsurePriceTypeAsync("Мин. цена Ozon (индекс)", "fbs", ct);
+                var t = await EnsurePriceTypeAsync("Мин. цена Ozon (индекс)", _deliverySchemeCode, ct);
                 await UpsertSinglePriceAsync(order.Id, t.Id, ozonCurrency?.Id, ozonMin, ct);
             }
             if (idx.ExternalIndexData?.MinPrice is { } extMin && extMin > 0)
@@ -885,7 +929,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
                 var extCurrency = string.IsNullOrEmpty(idx.ExternalIndexData.MinPriceCurrency)
                     ? currency
                     : await EnsureCurrencyAsync(idx.ExternalIndexData.MinPriceCurrency, ct);
-                var t = await EnsurePriceTypeAsync("Мин. цена внешних МП (индекс)", "fbs", ct);
+                var t = await EnsurePriceTypeAsync("Мин. цена внешних МП (индекс)", _deliverySchemeCode, ct);
                 await UpsertSinglePriceAsync(order.Id, t.Id, extCurrency?.Id, extMin, ct);
             }
             if (idx.SelfMarketplacesIndexData?.MinPrice is { } selfMin && selfMin > 0)
@@ -893,7 +937,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
                 var selfCurrency = string.IsNullOrEmpty(idx.SelfMarketplacesIndexData.MinPriceCurrency)
                     ? currency
                     : await EnsureCurrencyAsync(idx.SelfMarketplacesIndexData.MinPriceCurrency, ct);
-                var t = await EnsurePriceTypeAsync("Мин. цена в соб. магазинах (индекс)", "fbs", ct);
+                var t = await EnsurePriceTypeAsync("Мин. цена в соб. магазинах (индекс)", _deliverySchemeCode, ct);
                 await UpsertSinglePriceAsync(order.Id, t.Id, selfCurrency?.Id, selfMin, ct);
             }
         }
@@ -905,7 +949,7 @@ public class OzonFbsOrderAdapter : IOrderAdapter
         if (!amount.HasValue || amount.Value <= 0)
             return;
 
-        var t = await EnsurePriceTypeAsync(name, "fbs", ct);
+        var t = await EnsurePriceTypeAsync(name, _deliverySchemeCode, ct);
         await UpsertSinglePriceAsync(orderId, t.Id, currencyId, amount.Value, ct);
     }
 
