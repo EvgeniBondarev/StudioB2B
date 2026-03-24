@@ -14,33 +14,41 @@
 @inject JwtAuthenticationStateProvider AuthStateProvider
 @inject MasterAuthStateService MasterAuthState
 @inject Microsoft.Extensions.Options.IOptions<MultiTenancyOptions> MultiTenancyOptions
+@inject NavService NavService
 
 <PageTitle>StudioB2B</PageTitle>
 
-<div style="display: flex; justify-content: center; padding-top: 4rem;">
-    <div style="width: 100%; max-width: 440px;">
 
-        @if (_initializing)
-        {
+
+@if (_initializing)
+{
+    <div style="display: flex; justify-content: center; padding-top: 4rem;">
+        <div style="width: 100%; max-width: 440px;">
             <div style="text-align: center; margin-bottom: 2rem;">
                 <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.75rem;">
                     StudioB2B
                 </RadzenText>
-                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color); display:block; margin-bottom: 1rem;">
+                <RadzenText TextStyle="TextStyle.Body2"
+                            Style="color: var(--rz-text-secondary-color); display:block; margin-bottom: 1rem;">
                     Загрузка рабочей области...
                 </RadzenText>
                 <RadzenProgressBar Mode="ProgressBarMode.Indeterminate"
                                    ShowValue="false"
-                                   Style="width: 100%; max-width: 260px; margin: 0 auto;" />
+                                   Style="width: 100%; max-width: 260px; margin: 0 auto;"/>
             </div>
-        }
-        else if (!TenantProvider.IsResolved)
-        {
+        </div>
+    </div>
+}
+else if (!TenantProvider.IsResolved)
+{
+    <div style="display: flex; justify-content: center; padding-top: 4rem;">
+        <div style="width: 100%; max-width: 440px;">
             @if (!_masterAuthenticated)
             {
                 <!-- Master-домен: требуется авторизация -->
                 <div style="text-align: center; margin-bottom: 2rem;">
-                    <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B
+                    </RadzenText>
                     <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
                         Войдите, чтобы управлять рабочими пространствами
                     </RadzenText>
@@ -48,36 +56,38 @@
 
                 @if (_masterLoginError != null)
                 {
-                    <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                    <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false"
+                                 Style="margin-bottom: 1rem;">
                         @_masterLoginError
                     </RadzenAlert>
                 }
 
                 <EditForm Model="@_masterLogin" OnValidSubmit="HandleMasterLogin" Context="masterForm">
-                    <DataAnnotationsValidator />
+                    <DataAnnotationsValidator/>
                     <RadzenStack Gap="1rem">
                         <RadzenFormField Text="Email" Style="width: 100%;">
-                            <RadzenTextBox @bind-Value="_masterLogin.Email" Style="width: 100%;" InputType="InputType.Email" />
+                            <RadzenTextBox @bind-Value="_masterLogin.Email" Style="width: 100%;"
+                                           InputType="InputType.Email"/>
                         </RadzenFormField>
 
                         <RadzenFormField Text="Пароль" Style="width: 100%;">
-                            <RadzenPassword @bind-Value="_masterLogin.Password" Style="width: 100%;" />
+                            <RadzenPassword @bind-Value="_masterLogin.Password" Style="width: 100%;"/>
                         </RadzenFormField>
 
-                        <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
+                        <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;"/>
 
                         <RadzenButton ButtonType="ButtonType.Submit" Text="Войти"
                                       ButtonStyle="ButtonStyle.Primary"
                                       Style="width: 100%; justify-content: center;"
-                                      IsBusy="@_masterLoginLoading" />
+                                      IsBusy="@_masterLoginLoading"/>
                     </RadzenStack>
                 </EditForm>
 
-                <hr style="margin-top: 1.5rem;" />
+                <hr style="margin-top: 1.5rem;"/>
                 <div style="text-align: center; margin-top: 0.75rem;">
                     <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
                         Нет аккаунта?
-                        <RadzenLink Text="Зарегистрироваться" Path="/register" Style="margin-left: 0.25rem;" />
+                        <RadzenLink Text="Зарегистрироваться" Path="/register" Style="margin-left: 0.25rem;"/>
                     </RadzenText>
                 </div>
             }
@@ -85,7 +95,8 @@
             {
                 <!-- Master-домен: авторизован — создание tenant -->
                 <div style="text-align: center; margin-bottom: 2rem;">
-                    <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
+                    <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B
+                    </RadzenText>
                     <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
                         Создайте рабочее пространство для компании
                     </RadzenText>
@@ -108,103 +119,139 @@
                 {
                     @if (_registerError != null)
                     {
-                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false"
+                                     Style="margin-bottom: 1rem;">
                             @_registerError
                         </RadzenAlert>
                     }
 
                     <EditForm Model="@_reg" OnValidSubmit="HandleRegister">
-                        <DataAnnotationsValidator />
+                        <DataAnnotationsValidator/>
                         <RadzenStack Gap="1rem">
                             <RadzenFormField Text="Название компании" Style="width: 100%;">
-                                <RadzenTextBox @bind-Value="_reg.CompanyName" Style="width: 100%;" />
+                                <RadzenTextBox @bind-Value="_reg.CompanyName" Style="width: 100%;"/>
                             </RadzenFormField>
 
                             <RadzenFormField Text="Субдомен" Style="width: 100%;">
                                 <ChildContent>
-                                    <RadzenTextBox @bind-Value="_reg.Subdomain" Style="width: 100%;" />
+                                    <RadzenTextBox @bind-Value="_reg.Subdomain" Style="width: 100%;"/>
                                 </ChildContent>
                                 <Helper>
-                                    <RadzenText TextStyle="TextStyle.Caption">Только a-z, 0-9, дефис (3–30 символов) — добавится .@DomainAdornment</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption">Только a-z, 0-9, дефис (3–30 символов) —
+                                        добавится .@DomainAdornment</RadzenText>
                                 </Helper>
                             </RadzenFormField>
 
-                            <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin-bottom: -0.5rem; color: var(--rz-text-secondary-color);">
+                            <RadzenText TextStyle="TextStyle.Subtitle2"
+                                        Style="margin-bottom: -0.5rem; color: var(--rz-text-secondary-color);">
                                 Данные администратора рабочего пространства
                             </RadzenText>
 
                             <RadzenFormField Text="Email администратора" Style="width: 100%;">
-                                <RadzenTextBox @bind-Value="_reg.AdminEmail" Style="width: 100%;" InputType="InputType.Email" />
+                                <RadzenTextBox @bind-Value="_reg.AdminEmail" Style="width: 100%;"
+                                               InputType="InputType.Email"/>
                             </RadzenFormField>
 
                             <RadzenFormField Text="Фамилия" Style="width: 100%;">
-                                <RadzenTextBox @bind-Value="_reg.LastName" Style="width: 100%;" />
+                                <RadzenTextBox @bind-Value="_reg.LastName" Style="width: 100%;"/>
                             </RadzenFormField>
 
                             <RadzenFormField Text="Имя" Style="width: 100%;">
-                                <RadzenTextBox @bind-Value="_reg.FirstName" Style="width: 100%;" />
+                                <RadzenTextBox @bind-Value="_reg.FirstName" Style="width: 100%;"/>
                             </RadzenFormField>
 
                             <RadzenFormField Text="Отчество" Style="width: 100%;">
-                                <RadzenTextBox @bind-Value="_reg.MiddleName" Style="width: 100%;" />
+                                <RadzenTextBox @bind-Value="_reg.MiddleName" Style="width: 100%;"/>
                             </RadzenFormField>
 
                             <RadzenFormField Text="Пароль администратора" Style="width: 100%;">
                                 <ChildContent>
-                                    <RadzenPassword @bind-Value="_reg.Password" Style="width: 100%;" />
+                                    <RadzenPassword @bind-Value="_reg.Password" Style="width: 100%;"/>
                                 </ChildContent>
                                 <Helper>
-                                    <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов. Можно использовать свой текущий пароль.</RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов. Можно использовать
+                                        свой текущий пароль.
+                                    </RadzenText>
                                 </Helper>
                             </RadzenFormField>
 
                             <RadzenFormField Text="Подтверждение пароля" Style="width: 100%;">
-                                <RadzenPassword @bind-Value="_reg.ConfirmPassword" Style="width: 100%;" />
+                                <RadzenPassword @bind-Value="_reg.ConfirmPassword" Style="width: 100%;"/>
                             </RadzenFormField>
 
-                            <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
+                            <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;"/>
 
                             <RadzenButton ButtonType="ButtonType.Submit" Text="Создать рабочее пространство"
                                           ButtonStyle="ButtonStyle.Primary" Style="width: 100%;"
-                                          IsBusy="@_regLoading" />
+                                          IsBusy="@_regLoading"/>
                         </RadzenStack>
                     </EditForm>
                 }
                 else
                 {
                     <RadzenStack Gap="1rem">
-                        <RadzenText TextStyle="TextStyle.Body1" Style="color: var(--rz-text-secondary-color); text-align: center;">
+                        <RadzenText TextStyle="TextStyle.Body1"
+                                    Style="color: var(--rz-text-secondary-color); text-align: center;">
                             Создаём рабочее пространство, это может занять немного времени...
                         </RadzenText>
                         <RadzenTimeline>
                             <Items>
                                 <RadzenTimelineItem PointStyle="@RegStepStyle(0)" PointSize="PointSize.Small">
-                                    <LabelContent><RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0" Style="@RegStepLabelStyle(0)">Ввод данных</RadzenText></LabelContent>
-                                    <ChildContent><RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(0)">Подготовка параметров.</RadzenText></ChildContent>
+                                    <LabelContent>
+                                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                                    Style="@RegStepLabelStyle(0)">Ввод данных
+                                        </RadzenText>
+                                    </LabelContent>
+                                    <ChildContent>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(0)">Подготовка
+                                            параметров.
+                                        </RadzenText>
+                                    </ChildContent>
                                 </RadzenTimelineItem>
                                 <RadzenTimelineItem PointStyle="@RegStepStyle(1)" PointSize="PointSize.Small">
-                                    <LabelContent><RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0" Style="@RegStepLabelStyle(1)">Создание базы</RadzenText></LabelContent>
-                                    <ChildContent><RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(1)">Создание БД и миграции.</RadzenText></ChildContent>
+                                    <LabelContent>
+                                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                                    Style="@RegStepLabelStyle(1)">Создание базы
+                                        </RadzenText>
+                                    </LabelContent>
+                                    <ChildContent>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(1)">Создание БД
+                                            и миграции.
+                                        </RadzenText>
+                                    </ChildContent>
                                 </RadzenTimelineItem>
                                 <RadzenTimelineItem PointStyle="@RegStepStyle(2)" PointSize="PointSize.Small">
-                                    <LabelContent><RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0" Style="@RegStepLabelStyle(2)">Готово</RadzenText></LabelContent>
-                                    <ChildContent><RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(2)">Настройка администратора.</RadzenText></ChildContent>
+                                    <LabelContent>
+                                        <RadzenText TextStyle="TextStyle.Subtitle2" class="rz-m-0"
+                                                    Style="@RegStepLabelStyle(2)">Готово
+                                        </RadzenText>
+                                    </LabelContent>
+                                    <ChildContent>
+                                        <RadzenText TextStyle="TextStyle.Body2" Style="@RegStepDescStyle(2)">Настройка
+                                            администратора.
+                                        </RadzenText>
+                                    </ChildContent>
                                 </RadzenTimelineItem>
                             </Items>
                         </RadzenTimeline>
-                        <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false" Style="width: 100%;" />
+                        <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false" Style="width: 100%;"/>
                     </RadzenStack>
                 }
-
             }
-        }
-        else
-        {
-            <AuthorizeView>
-                <NotAuthorized>
+        </div>
+    </div>
+}
+else
+{
+    <AuthorizeView>
+        <NotAuthorized>
+            <div style="display: flex; justify-content: center; padding-top: 4rem;">
+                <div style="width: 100%; max-width: 440px;">
                     <!-- Тенант-домен, не авторизован: форма входа -->
                     <div style="text-align: center; margin-bottom: 2rem;">
-                        <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
+                        <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">
+                            StudioB2B
+                        </RadzenText>
                         <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
                             Вход в <strong>@TenantProvider.Subdomain</strong>
                         </RadzenText>
@@ -212,99 +259,201 @@
 
                     @if (_loginError != null)
                     {
-                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                        <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false"
+                                     Style="margin-bottom: 1rem;">
                             @_loginError
                         </RadzenAlert>
                     }
 
                     <EditForm Model="@_login" OnValidSubmit="HandleLogin" Context="loginForm">
-                        <DataAnnotationsValidator />
+                        <DataAnnotationsValidator/>
                         <RadzenStack Gap="1rem">
                             <RadzenFormField Text="Email" Style="width: 100%;">
-                                <RadzenTextBox @bind-Value="_login.Email" Style="width: 100%;" InputType="InputType.Email" />
+                                <RadzenTextBox @bind-Value="_login.Email" Style="width: 100%;"
+                                               InputType="InputType.Email"/>
                             </RadzenFormField>
 
                             <RadzenFormField Text="Пароль" Style="width: 100%;">
-                                <RadzenPassword @bind-Value="_login.Password" Style="width: 100%;" />
+                                <RadzenPassword @bind-Value="_login.Password" Style="width: 100%;"/>
                             </RadzenFormField>
 
                             <RadzenButton ButtonType="ButtonType.Submit" Text="Войти"
                                           ButtonStyle="ButtonStyle.Primary"
                                           Style="width: 100%; justify-content: center;"
-                                          IsBusy="@_loginLoading" />
+                                          IsBusy="@_loginLoading"/>
                         </RadzenStack>
                     </EditForm>
-                </NotAuthorized>
+                </div>
+            </div>
+        </NotAuthorized>
 
-                <Authorized>
-                    <!-- Тенант-домен, авторизован: профиль -->
-                    <div style="text-align: center; margin-bottom: 1.5rem;">
-                        <div style="width: 64px; height: 64px; border-radius: 50%;
-                                    background: var(--rz-primary); color: white;
-                                    display: flex; align-items: center; justify-content: center;
-                                    font-size: 1.4rem; font-weight: 600; margin: 0 auto 1rem;">
+
+        <Authorized>
+            <div style="display:flex; gap:1.5rem; align-items:flex-start; flex-wrap:wrap;">
+                <!-- Тенант-домен, авторизован: профиль -->
+                @if (TenantProvider.IsResolved)
+                {
+                    <RadzenCard style=" flex:1; min-width:320px; border-radius:12px; box-shadow: var(--rz-shadow-3);padding:1rem;">
+
+                        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));gap: 0.5rem;">
+                            @foreach (var group in NavService.Groups.Where(g => g.Items.Count > 1))
+                            {
+                                <!-- Группа -->
+                                <RadzenStack Gap="0.5rem">
+
+                                    <!-- Заголовок группы -->
+                                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                                                 Gap="0.5rem">
+                                        <i class="notranslate rzi"
+                                           style="color: var(--rz-primary-light); font-size:1.2rem;">@group.Icon</i>
+                                        <RadzenText Text="@group.Title" TextStyle="TextStyle.H6"
+                                                    Style="color: var(--rz-primary-light); font-weight:600;"/>
+                                    </RadzenStack>
+
+                                    <!-- Список страниц -->
+                                    <RadzenStack Gap="0.25rem">
+                                        @foreach (var item in group.Items)
+                                        {
+                                            @if (string.IsNullOrEmpty(item.Role))
+                                            {
+                                                <RadzenStack Orientation="Orientation.Horizontal"
+                                                             AlignItems="AlignItems.Center"
+                                                             Gap="0.5rem"
+                                                             Style="cursor:pointer;"
+                                                             Click="@(() => Navigation.NavigateTo(item.Path))">
+
+                                                    <RadzenIcon Icon="@TabService.KnownPages[item.Path].Icon"
+                                                                Style="font-size:1rem;" />
+
+                                                    <RadzenText Text="@TabService.KnownPages[item.Path].Title"
+                                                                TextStyle="TextStyle.Body1" />
+
+                                                </RadzenStack>
+                                            }
+                                            else
+                                            {
+                                                <AuthorizeView Roles="@item.Role">
+                                                    <Authorized Context="authContext">
+                                                        <RadzenStack Orientation="Orientation.Horizontal"
+                                                                     AlignItems="AlignItems.Center"
+                                                                     Gap="0.5rem"
+                                                                     Style="cursor:pointer;"
+                                                                     Click="@(() => Navigation.NavigateTo(item.Path))">
+
+                                                            <RadzenIcon Icon="@TabService.KnownPages[item.Path].Icon"
+                                                                        Style="font-size:1rem;" />
+
+                                                            <RadzenText Text="@TabService.KnownPages[item.Path].Title"
+                                                                        TextStyle="TextStyle.Body1" />
+
+                                                        </RadzenStack>
+                                                    </Authorized>
+                                                </AuthorizeView>
+                                            }
+                                        }
+                                    </RadzenStack>
+                                </RadzenStack>
+                            }
+                        </div>
+                    </RadzenCard>
+                }
+
+                <RadzenCard Style="width: 320px; border-radius:12px; box-shadow: var(--rz-shadow-3);">
+
+                    <!-- 👤 Профиль -->
+                    <RadzenStack Gap="0.5rem" Orientation="Orientation.Horizontal"
+                                 JustifyContent="JustifyContent.SpaceBetween"
+                                 Style="align-items:center; text-align:center; margin-bottom:0.75rem;">
+
+                        <div style="width:56px; height:56px; border-radius:50%;
+                        background: var(--rz-primary-light); color:white;
+                        display:flex; align-items:center; justify-content:center;
+                        font-weight:600; font-size:1.2rem;">
                             @GetInitials(context.User.Identity?.Name)
                         </div>
-                        <RadzenText TextStyle="TextStyle.H6" Style="font-weight: 600; margin-bottom: 0.25rem;">
+
+                        <RadzenText TextStyle="TextStyle.Body1" Style="font-weight:600;">
                             @context.User.Identity?.Name
                         </RadzenText>
-                        <RadzenBadge Text="@(context.User.IsInRole("Admin") ? "Admin" : "User")"
-                                     BadgeStyle="@(context.User.IsInRole("Admin") ? BadgeStyle.Primary : BadgeStyle.Light)" />
-                    </div>
 
+                        <RadzenBadge
+                            Text="@(context.User.IsInRole("Admin") ? "Admin" : "User")"
+                            BadgeStyle="@(context.User.IsInRole("Admin") ? BadgeStyle.Primary : BadgeStyle.Light)"
+                            Shade="Shade.Light"
+                            Style="height: 20px"/>
+                    </RadzenStack>
+
+                    <!-- 🏢 Тенант -->
                     @if (_tenant != null)
                     {
-                        <RadzenStack Gap="0.5rem" Style="margin-bottom: 1.5rem;">
-                            <RadzenStack Orientation="Orientation.Horizontal"
-                                         JustifyContent="JustifyContent.SpaceBetween">
-                                <RadzenText TextStyle="TextStyle.Body2"
-                                            Style="color: var(--rz-text-secondary-color);">Компания</RadzenText>
-                                <RadzenText TextStyle="TextStyle.Body2">@_tenant.Name</RadzenText>
+                        <RadzenCard
+                            Style="background: var(--rz-base-100); border-radius:8px; padding:0.5rem; margin-bottom:0.75rem;">
+
+                            <RadzenStack Gap="0.25rem">
+
+                                <RadzenStack Orientation="Orientation.Horizontal"
+                                             JustifyContent="JustifyContent.SpaceBetween">
+                                    <RadzenText TextStyle="TextStyle.Caption"
+                                                Style="color: var(--rz-text-secondary-color);">
+                                        Компания
+                                    </RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption">
+                                        @_tenant.Name
+                                    </RadzenText>
+                                </RadzenStack>
+
+                                <RadzenStack Orientation="Orientation.Horizontal"
+                                             JustifyContent="JustifyContent.SpaceBetween">
+                                    <RadzenText TextStyle="TextStyle.Caption"
+                                                Style="color: var(--rz-text-secondary-color);">
+                                        Субдомен
+                                    </RadzenText>
+                                    <RadzenText TextStyle="TextStyle.Caption">
+                                        @TenantProvider.Subdomain
+                                    </RadzenText>
+                                </RadzenStack>
+
                             </RadzenStack>
-                            <hr style="margin: 0.25rem 0;" />
-                            <RadzenStack Orientation="Orientation.Horizontal"
-                                         JustifyContent="JustifyContent.SpaceBetween">
-                                <RadzenText TextStyle="TextStyle.Body2"
-                                            Style="color: var(--rz-text-secondary-color);">Субдомен</RadzenText>
-                                <RadzenText TextStyle="TextStyle.Body2">@TenantProvider.Subdomain</RadzenText>
-                            </RadzenStack>
-                        </RadzenStack>
+                        </RadzenCard>
                     }
 
+                    <!-- ⚠️ Alert -->
                     @if (context.User.IsInRole("Admin") && !_hasMarketplaceClients)
                     {
                         <RadzenAlert AlertStyle="AlertStyle.Info"
                                      ShowIcon="true"
                                      AllowClose="false"
-                                     Style="margin-bottom: 1.5rem; text-align: left;">
-                            <RadzenStack Gap="0.5rem">
-                                <RadzenText TextStyle="TextStyle.Body2">
-                                    В этом рабочем пространстве ещё нет ни одного клиента маркетплейса.
+                                     Style="margin-bottom:0.75rem;">
+
+                            <RadzenStack Gap="0.25rem">
+                                <RadzenText TextStyle="TextStyle.Caption">
+                                    Нет клиентов маркетплейса
                                 </RadzenText>
-                                <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
-                                    Добавьте, например, клиента Ozon на странице
-                                    <strong>«Клиенты маркетплейсов»</strong>, чтобы начать работу с заказами.
-                                </RadzenText>
-                                <RadzenButton Text="Перейти к клиентам маркетплейсов"
+
+                                <RadzenButton Text="Добавить"
                                               Icon="store"
-                                              ButtonStyle="ButtonStyle.Primary"
                                               Size="ButtonSize.Small"
-                                              Click="@(() => Navigation.NavigateTo("/marketplace-clients"))" />
+                                              Style="width:100%;"
+                                              Click="@(() => Navigation.NavigateTo("/marketplace-clients"))"/>
                             </RadzenStack>
+
                         </RadzenAlert>
                     }
 
-                    <hr style="margin-bottom: 1.5rem;" />
+                    <!-- 🚪 Logout -->
+                    <div style="display:flex; justify-content:flex-end;">
+                        <RadzenButton Text="Выйти"
+                                      Icon="logout"
+                                      ButtonStyle="ButtonStyle.Danger"
+                                      Size="ButtonSize.Small"
+                                      Click="@HandleLogout"/>
+                    </div>
 
-                    <RadzenButton Text="Выйти" Icon="logout" ButtonStyle="ButtonStyle.Danger"
-                                  Style="width: 100%; justify-content: center;"
-                                  Click="@HandleLogout" />
-                </Authorized>
-            </AuthorizeView>
-        }
-
-    </div>
-</div>
+                </RadzenCard>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+}
 
 @code {
     private Domain.Entities.TenantEntity? _tenant;
@@ -483,13 +632,16 @@
 
     private async Task RunRegTimelineAsync()
     {
-        _regStep = 0; StateHasChanged();
+        _regStep = 0;
+        StateHasChanged();
         await Task.Delay(800);
         if (!_showRegTimeline) return;
-        _regStep = 1; StateHasChanged();
+        _regStep = 1;
+        StateHasChanged();
         await Task.Delay(1200);
         if (!_showRegTimeline) return;
-        _regStep = 2; StateHasChanged();
+        _regStep = 2;
+        StateHasChanged();
     }
 
     private PointStyle RegStepStyle(int step) => step switch
@@ -501,7 +653,9 @@
 
     private string RegStepLabelStyle(int step) => step == _regStep
         ? "color: var(--rz-primary); font-weight: 700;"
-        : step < _regStep ? "color: var(--rz-success);" : "color: var(--rz-text-disabled-color);";
+        : step < _regStep
+            ? "color: var(--rz-success);"
+            : "color: var(--rz-text-disabled-color);";
 
     private string RegStepDescStyle(int step) =>
         step <= _regStep ? string.Empty : "color: var(--rz-text-disabled-color);";
@@ -563,4 +717,5 @@
         var local = name.Split('@')[0];
         return local.Length >= 2 ? local[..2].ToUpper() : local.ToUpper();
     }
+
 }

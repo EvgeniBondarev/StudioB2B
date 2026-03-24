@@ -336,26 +336,56 @@
 }
 
 .review-lightbox-close {
-    position: absolute;
-    top: 1rem;
-    right: 1.25rem;
-    background: rgba(255,255,255,0.15);
+    position: absolute !important;
+    top: 1rem !important;
+    right: 1.25rem !important;
+    background: rgba(255,255,255,0.15) !important;
     border: none;
-    color: #fff;
-    font-size: 1.4rem;
-    line-height: 1;
-    width: 2.2rem;
-    height: 2.2rem;
+    color: #fff !important;
+    font-size: 1.4rem !important;
+    line-height: 1 !important;
+    width: 2.2rem !important;
+    height: 2.2rem !important;
     border-radius: 50%;
-    cursor: pointer;
-    display: flex;
+    cursor: pointer !important;
+    display: flex !important;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s;
+    transition: background 0.15s !important;
 }
 
 .review-lightbox-close:hover {
-    background: rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.3) !important;
+}
+
+.lightbox-arrow {
+  position: absolute !important;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255,255,255,0.15) !important;
+  border: none !important;
+  color: #fff !important;
+  font-size: 3rem !important;
+  width: 3rem !important;
+  height: 3rem !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.lightbox-arrow:hover {
+  background: rgba(255,255,255,0.3) !important;
+}
+
+.lightbox-arrow.left {
+  left: 6rem !important;
+}
+
+.lightbox-arrow.right {
+  right: 6rem !important;
 }
 
 /* ── Meta stats row ─────────────────────────────────────────────────────────── */

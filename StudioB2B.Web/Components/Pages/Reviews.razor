@@ -351,21 +351,22 @@ else
                                     </div>
                                 }
 
-                                @if (_detail.Product.Images.Count > 1)
+                                @if (_detail?.Product.Images.Count > 0)
                                 {
                                     <div class="question-product-images">
                                         <RadzenText TextStyle="TextStyle.Subtitle2"
                                                     Style="font-weight: 600; margin-bottom: 0.35rem; color: var(--rz-text-secondary-color);">
                                             Фотографии товара (@_detail.Product.Images.Count)
                                         </RadzenText>
+
                                         <div class="question-product-images-grid">
-                                            @foreach (var img in _detail.Product.Images)
+                                            @foreach (var img in _detail.Product.Images.Select((url, index) => new { Url = url, Index = index }))
                                             {
-                                                <img src="@img"
+                                                <img src="@img.Url"
                                                      alt="Фото товара"
-                                                     class="question-product-thumb @(_lightboxSrc == img ? "active" : "")"
+                                                     class="question-product-thumb"
                                                      loading="lazy"
-                                                     @onclick="@(() => _lightboxSrc = img)"
+                                                     @onclick="@(() => OpenGallery(_detail.Product.Images, img.Index))"
                                                      title="Нажмите для просмотра" />
                                             }
                                         </div>
@@ -383,18 +384,21 @@ else
                                     Фотографии (@_detail.Photos.Count)
                                 </RadzenText>
                                 <div class="review-photos-grid">
-                                    @foreach (var photo in _detail.Photos)
+                                    @foreach (var item in _detail.Photos.Select((p, i) => new { Photo = p, Index = i }))
                                     {
-                                        <img src="@photo.Url"
+                                        <img src="@item.Photo.Url"
                                              alt="Фото отзыва"
-                                             class="review-photo-thumb @(_lightboxSrc == photo.Url ? "active" : "")"
+                                             class="review-photo-thumb"
                                              loading="lazy"
-                                             @onclick="@(() => _lightboxSrc = photo.Url)"
+                                             @onclick="@(() => OpenGallery(
+                                                           _detail.Photos.Select(x => x.Url).ToList(),
+                                                           item.Index))"
                                              title="Нажмите для просмотра" />
                                     }
                                 </div>
                             </div>
                         }
+
 
                         <!-- Videos -->
                         @if (_detail?.Videos.Count > 0)
@@ -404,21 +408,24 @@ else
                                             Style="font-weight: 600; margin-bottom: 0.35rem; color: var(--rz-text-secondary-color);">
                                     Видео (@_detail.Videos.Count)
                                 </RadzenText>
+
                                 <div class="review-videos-grid">
-                                    @foreach (var video in _detail.Videos)
+                                    @foreach (var item in _detail.Videos.Select((v, i) => new { Video = v, Index = i }))
                                     {
-                                        var videoUrl = video.Url;
-                                        <div class="review-video-thumb @(_lightboxVideoSrc == videoUrl ? "active" : "")"
-                                             title="Нажмите для просмотра"
-                                             @onclick="@(() => _lightboxVideoSrc = videoUrl)">
-                                            @if (!string.IsNullOrWhiteSpace(video.PreviewUrl))
+                                        var videoUrl = item.Video.Url;
+                                        <div class="review-video-thumb"
+                                             @onclick="@(() => OpenGallery(_detail.Videos.Select(v => v.Url).ToList(), item.Index, GalleryType.Video))"
+                                             title="Нажмите для просмотра">
+
+                                            @if (!string.IsNullOrWhiteSpace(item.Video.PreviewUrl))
                                             {
-                                                <img src="@video.PreviewUrl" alt="Видео" loading="lazy" />
+                                                <img src="@item.Video.PreviewUrl" alt="Видео" loading="lazy" />
                                             }
                                             else
                                             {
                                                 <div style="width:100%;height:100%;background:#1a1a2e;"></div>
                                             }
+
                                             <div class="review-video-play">
                                                 <RadzenIcon Icon="play_circle_filled" />
                                             </div>
@@ -503,32 +510,40 @@ else
                                 @(_commentText?.Length ?? 0) / 3000
                             </div>
                         </div>
+                    </div>
+                }
 
-                        <!-- Photo lightbox -->
-                        @if (_lightboxSrc is not null)
+                <!-- lightbox -->
+                @if (_currentIndex >= 0 && _galleryItems.Any())
+                {
+                    <div class="review-lightbox"  tabindex="0" @ref="_lightboxDiv"  @onkeydown="HandleKeyDown" @onclick="Close">
+
+                        <RadzenButton Icon="chevron_left"
+                                      ButtonStyle="ButtonStyle.Light"
+                                      @onclick:stopPropagation="true"
+                                      class="lightbox-arrow left"
+                                      Click="Prev" />
+
+                        @if (_galleryType ==  GalleryType.Photo)
                         {
-                            <div class="review-lightbox" @onclick="@(() => _lightboxSrc = null)">
-                                <img src="@_lightboxSrc" alt="Просмотр фото" @onclick:stopPropagation="true" />
-                                <button class="review-lightbox-close" @onclick="@(() => _lightboxSrc = null)" title="Закрыть">✕</button>
-                            </div>
+                            <img src="@_galleryItems[_currentIndex]" @onclick:stopPropagation="true" class="lightbox-media" />
+                        }
+                        else if (_galleryType == GalleryType.Video)
+                        {
+                            <video src="@_galleryItems[_currentIndex]" controls autoplay @onclick:stopPropagation="true" class="lightbox-media"></video>
                         }
 
-                        <!-- Video lightbox -->
-                        @if (_lightboxVideoSrc is not null)
-                        {
-                            <div class="review-lightbox" @onclick="@(() => _lightboxVideoSrc = null)">
-                                <div class="review-video-lightbox-inner" @onclick:stopPropagation="true">
-                                    <video src="@_lightboxVideoSrc"
-                                           controls
-                                           autoplay
-                                           class="review-video-player"
-                                           preload="metadata">
-                                        Ваш браузер не поддерживает воспроизведение видео.
-                                    </video>
-                                </div>
-                                <button class="review-lightbox-close" @onclick="@(() => _lightboxVideoSrc = null)" title="Закрыть">✕</button>
-                            </div>
-                        }
+                        <RadzenButton Icon="chevron_right"
+                                      ButtonStyle="ButtonStyle.Primary"
+                                      @onclick:stopPropagation="true"
+                                      class="lightbox-arrow right"
+                                      Click="Next" />
+
+                        <RadzenButton Icon="close"
+                                      ButtonStyle="ButtonStyle.Light"
+                                      class="review-lightbox-close"
+                                      @onclick:stopPropagation="true"
+                                      Click="Close" />
                     </div>
                 }
             </div>
@@ -891,5 +906,62 @@ else
         "CANCELLED" => "Отменён",
         _ => status ?? "—"
     };
+
+    // ── lightbox navigation ──────────────────────────────────────────────────────
+
+    List<string> _galleryItems = new();
+    int _currentIndex = -1;
+    private ElementReference _lightboxDiv;
+    enum GalleryType
+    {
+        Photo,
+        Video
+    }
+    private GalleryType _galleryType = GalleryType.Photo;
+
+    void OpenGallery(List<string> items, int startIndex, GalleryType type = GalleryType.Photo)
+    {
+        _galleryItems = items;
+        _currentIndex = startIndex;
+        _galleryType = type;
+
+        // Дождаться рендера и поставить фокус
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Yield(); // гарантируем, что элемент уже есть
+            await _lightboxDiv.FocusAsync();
+        });
+    }
+
+    void Next()
+    {
+        if (_galleryItems.Count == 0) return;
+        _currentIndex = (_currentIndex + 1) % _galleryItems.Count;
+    }
+
+    void Prev()
+    {
+        if (_galleryItems.Count == 0) return;
+        _currentIndex = (_currentIndex - 1 + _galleryItems.Count) % _galleryItems.Count;
+    }
+
+    void Close()
+    {
+        _currentIndex = -1;
+    }
+
+    void HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (_currentIndex < 0) return;
+
+        switch (e.Key)
+        {
+            case "ArrowLeft": Prev(); break;
+            case "ArrowRight": Next(); break;
+            case "Escape": Close(); break;
+        }
+
+        StateHasChanged();
+    }
 }
 
