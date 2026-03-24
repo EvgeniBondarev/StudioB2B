@@ -447,57 +447,15 @@
     white-space: pre-line;
 }
 
-.comment-textarea {
-  flex: 1;
-  padding: 4px 10px !important;
-  resize: none;
-  overflow: hidden;
-
-  height: 30px;
-  min-height: 30px !important;
-  max-height: 200px !important;
-
-  border: 1px solid var(--rz-base-600) !important;
-  border-radius: 6px;
-  background-color: var(--rz-input-background-color) !important;
-  color: var(--rz-text-color) !important;
-
-  font-family: inherit;
-  font-size: 14px;
-  line-height: 1.4;
-
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.comment-textarea:focus {
-  outline: none;
-  border-color: var(--rz-primary) !important;
-  box-shadow: 0 0 0 2px rgba(var(--rz-primary-rgb), 0.2) !important;
-}
-
-.comment-textarea::placeholder {
-  color: var(--rz-text-secondary-color) !important;
-}
-
-.comment-textarea:disabled {
-  background-color: var(--rz-base-200) !important;
-  cursor: not-allowed;
-}
-
 /* ── Comment composer ───────────────────────────────────────────────────────── */
 .review-comment-composer {
   border-top: 2px solid var(--rz-border-color);
   padding: 0.65rem 0 0;
   margin-top: 0.75rem;
-
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-
   background: var(--rz-base-background-color);
-
-  position: sticky;
-  bottom: 0;
 }
 
 /* Quick reply chips */
@@ -545,4 +503,3 @@
     color: var(--rz-danger);
     font-weight: 600;
 }
-

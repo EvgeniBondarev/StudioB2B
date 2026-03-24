@@ -398,19 +398,20 @@ else
 
                         <div class="chat-input-row">
                             <label title="Прикрепить файл (JPG, PNG, PDF, DOC, DOCX, TXT — до 10 МБ)"
-                                   style="cursor: pointer;">
+                                   style="cursor: pointer; height: 28px;">
                                 <RadzenButton Icon="attach_file" ButtonStyle="ButtonStyle.Light"
                                               Size="ButtonSize.Small"
                                               Click="@TriggerFilePicker" />
                             </label>
 
-                            <RadzenTextArea @bind-Value="_messageText"
-                                            Rows="1"
-                                            Placeholder="Введите сообщение…"
-                                            CharacterCounter="true"
-                                            MaxLength="1000"
-                                            Style="width: 100%; flex: 1; resize: none; padding: 2px 10px; max-height: 140px;"
-                                            oninput="this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,200)+'px';"/>
+                            <textarea @ref="_commentArea"
+                                          class="comment-textarea"
+                                          placeholder="Напишите комментарий…"
+                                          value="@_messageText"
+                                          @oninput="OnInput"
+                                          @onkeydown="HandleKeyDown2"
+                                          disabled="@_sending">
+                                </textarea>
 
                             <RadzenButton Icon="send" ButtonStyle="ButtonStyle.Primary"
                                           Size="ButtonSize.Small"
@@ -418,9 +419,6 @@ else
                                           IsBusy="@_sending"
                                           Disabled="@(!CanSend)"
                                           Title="Отправить"/>
-
-
-
                         </div>
 
                         <div class="char-counter @(_messageText.Length > 1000 ? "over-limit" : "")">
@@ -473,6 +471,31 @@ else
                 block: "center"
             });
         }
+    };
+
+    window.setupEnterSend = (textarea) => {
+        textarea.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                textarea.dispatchEvent(new CustomEvent("enterPressed"));
+            }
+        });
+    };
+
+    window.preventEnterDefault = (el) => {
+        if (!el) return;
+        el.addEventListener("keydown", function(e){
+            if(e.key === "Enter" && !e.shiftKey){
+                e.preventDefault();
+            }
+        });
+    };
+
+    window.resizeTextarea = (el) => {
+        if (!el) return;
+
+        el.style.height = "28px";
+        el.style.height = el.scrollHeight + "px";
     };
 </script>
 
@@ -865,6 +888,31 @@ else
         await LoadChatsAsync();
     }
 
+    private ElementReference _commentArea;
+
+    [Inject] private IJSRuntime JS { get; set; }
+
+    private bool IsSendDisabled => string.IsNullOrWhiteSpace(_messageText)
+                                   || (_messageText?.Length ?? 0) < 2
+                                   || (_messageText?.Length ?? 0) > 3000;
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        _messageText = e.Value?.ToString();
+
+        await JS.InvokeVoidAsync("resizeTextarea", _commentArea);
+    }
+
+
+    private async Task HandleKeyDown2(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey && !IsSendDisabled)
+        {
+            await JS.InvokeVoidAsync("preventEnterDefault", _commentArea);
+            await SendMessageAsync();
+        }
+    }
+
     private async Task SendMessageAsync()
     {
         if (_selectedChat is null) return;
@@ -900,7 +948,9 @@ else
         finally
         {
             _sending = false;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
+
+            await JS.InvokeVoidAsync("resizeTextarea", _commentArea);
         }
     }
 
