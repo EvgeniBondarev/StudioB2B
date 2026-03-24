@@ -63,6 +63,41 @@ public class OzonApiClient : IOzonApiClient
         return SendPostAsync<OzonFbsUnfulfilledListResponseDto>(OzonEndpoints.FbsUnfulfilledList, clientId, plainApiKey, body, ct);
     }
 
+    public Task<OzonApiResultDto<OzonFboPostingListResponseDto>> GetFboPostingListAsync(string clientId, string apiKey,
+                                                                                         DateTime cutoffFrom, DateTime cutoffTo,
+                                                                                         int limit = 100, int offset = 0,
+                                                                                         CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+
+        var body = new OzonFboPostingListRequestDto
+        {
+            Dir = "ASC",
+            Filter = new OzonFboPostingListFilterDto
+            {
+                Since = cutoffFrom,
+                Status = string.Empty,
+                To = cutoffTo
+            },
+            Limit = limit,
+            Offset = offset,
+            With = new OzonFboPostingListWithDto
+            {
+                AnalyticsData = true,
+                FinancialData = true,
+                LegalInfo = true
+            }
+        };
+
+        return SendPostAsync<OzonFboPostingListResponseDto>(OzonEndpoints.FboPostingList, clientId, plainApiKey, body, ct);
+    }
+
     public Task<OzonApiResultDto<OzonProductPricesResponseDto>> GetProductPricesAsync(string clientId, string apiKey,
                                                                                    IReadOnlyCollection<string> offerIds,
                                                                                    string cursor = "", int limit = 100,
@@ -132,6 +167,31 @@ public class OzonApiClient : IOzonApiClient
         };
 
         return SendPostAsync<OzonFbsGetPostingResponseDto>(OzonEndpoints.FbsPostingGet, clientId, plainApiKey, body, ct);
+    }
+
+    public Task<OzonApiResultDto<OzonFboPostingGetResponseDto>> GetFboPostingAsync(string clientId, string apiKey,
+                                                                                     string postingNumber,
+                                                                                     CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        var body = new OzonFboPostingGetRequestDto
+        {
+            PostingNumber = postingNumber,
+            With = new OzonFboPostingGetWithDto
+            {
+                AnalyticsData = true,
+                FinancialData = true,
+                LegalInfo = false
+            }
+        };
+
+        return SendPostAsync<OzonFboPostingGetResponseDto>(OzonEndpoints.FboPostingGet, clientId, plainApiKey, body, ct);
     }
 
     public Task<OzonApiResultDto<OzonReturnsListResponseDto>> GetReturnsListAsync(string clientId, string apiKey,

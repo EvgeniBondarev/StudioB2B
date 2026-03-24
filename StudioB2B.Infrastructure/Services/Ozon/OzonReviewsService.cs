@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using StudioB2B.Domain.Constants;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Shared.DTOs;
 
@@ -10,13 +11,15 @@ public class OzonReviewsService : IOzonReviewsService
     private readonly ITenantDbContextFactory _dbFactory;
     private readonly IOzonApiClient _ozonApi;
     private readonly ILogger<OzonReviewsService> _logger;
+    private readonly IEntityFilterService _entityFilter;
 
     public OzonReviewsService(ITenantDbContextFactory dbFactory, IOzonApiClient ozonApi,
-        ILogger<OzonReviewsService> logger)
+        ILogger<OzonReviewsService> logger, IEntityFilterService entityFilter)
     {
         _dbFactory = dbFactory;
         _ozonApi = ozonApi;
         _logger = logger;
+        _entityFilter = entityFilter;
     }
 
     // ── GetReviewsPageAsync ───────────────────────────────────────────────────
@@ -392,12 +395,22 @@ public class OzonReviewsService : IOzonReviewsService
     {
         await using var db = _dbFactory.CreateDbContext();
 
+        var allowedIds = await _entityFilter.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient, ct);
+
         var query = db.MarketplaceClients!
             .AsNoTracking()
             .Where(c => !c.IsDeleted);
 
         if (filterById.HasValue)
+        {
+            if (allowedIds is not null && !allowedIds.Contains(filterById.Value))
+                return [];
             query = query.Where(c => c.Id == filterById.Value);
+        }
+        else if (allowedIds is not null)
+        {
+            query = query.Where(c => allowedIds.Contains(c.Id));
+        }
 
         return await query
             .Select(c => new OzonChatClientInfoDto

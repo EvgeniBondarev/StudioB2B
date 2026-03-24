@@ -14,21 +14,25 @@ public static class MarketplaceClientExtensions
         return q
             .Include(c => c.ClientType)
             .Include(c => c.Mode)
+            .Include(c => c.Mode2)
             .Include(c => c.Settings)
             .Include(c => c.Settings1C);
     }
 
-    public static Task<List<MarketplaceClientDto>> GetAllAsync(
+    public static async Task<List<MarketplaceClientDto>> GetAllAsync(
         this IQueryable<MarketplaceClient> q,
         IMapper mapper,
         CancellationToken ct = default)
     {
-        // Legacy: fetch all
-        return q
-                 .AsNoTracking()
-                 .IncludeEverything()
-                 .ProjectTo<MarketplaceClientDto>(mapper.ConfigurationProvider)
-                 .ToListAsync(ct);
+        // We avoid ProjectTo here because ModeIds/ModeNames is projected as an in-memory list.
+        var entities = await q
+            .AsNoTracking()
+            .IncludeEverything()
+            .ToListAsync(ct);
+
+        return entities
+            .Select(e => mapper.Map<MarketplaceClientDto>(e))
+            .ToList();
     }
 
     // Paging logic moved to web project for MudBlazor dependency
@@ -42,18 +46,20 @@ public static class MarketplaceClientExtensions
             .ProjectTo<MarketplaceClientDto>(mapper.ConfigurationProvider);
     }
 
-    public static Task<MarketplaceClientDto?> GetByIdAsync(
+    public static async Task<MarketplaceClientDto?> GetByIdAsync(
         this IQueryable<MarketplaceClient> q,
         Guid id,
         IMapper mapper,
         CancellationToken ct = default)
     {
-        return q
-                 .AsNoTracking()
-                 .IncludeEverything()
-                 .Where(c => c.Id == id)
-                 .ProjectTo<MarketplaceClientDto>(mapper.ConfigurationProvider)
-                 .FirstOrDefaultAsync(ct);
+        var entity = await q
+            .AsNoTracking()
+            .IncludeEverything()
+            .Where(c => c.Id == id)
+            .FirstOrDefaultAsync(ct)
+            ;
+
+        return entity != null ? mapper.Map<MarketplaceClientDto>(entity) : null;
     }
 
 

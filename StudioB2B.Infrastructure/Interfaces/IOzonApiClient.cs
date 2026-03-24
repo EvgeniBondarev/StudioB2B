@@ -19,6 +19,15 @@ public interface IOzonApiClient
                                                                                       CancellationToken ct = default);
 
     /// <summary>
+    /// Gets FBO posting list for the given period with pagination.
+    /// Endpoint: POST /v2/posting/fbo/list
+    /// </summary>
+    Task<OzonApiResultDto<OzonFboPostingListResponseDto>> GetFboPostingListAsync(string clientId, string apiKey,
+                                                                                     DateTime cutoffFrom, DateTime cutoffTo,
+                                                                                     int limit = 100, int offset = 0,
+                                                                                     CancellationToken ct = default);
+
+    /// <summary>
     /// Gets product prices (including commissions and price indexes) for the given offer IDs.
     /// </summary>
     Task<OzonApiResultDto<OzonProductPricesResponseDto>> GetProductPricesAsync(string clientId, string apiKey,
@@ -38,6 +47,13 @@ public interface IOzonApiClient
     /// </summary>
     Task<OzonApiResultDto<OzonFbsGetPostingResponseDto>> GetFbsPostingAsync(string clientId, string apiKey, string postingNumber,
                                                                          CancellationToken ct = default);
+
+    /// <summary>
+    /// Gets a single FBO posting by posting number.
+    /// Endpoint: POST /v2/posting/fbo/get
+    /// </summary>
+    Task<OzonApiResultDto<OzonFboPostingGetResponseDto>> GetFboPostingAsync(string clientId, string apiKey, string postingNumber,
+                                                                                 CancellationToken ct = default);
 
     /// <summary>Gets paginated list of chats via /v3/chat/list.</summary>
     Task<OzonApiResultDto<OzonChatListResponseDto>> GetChatListAsync(string clientId, string apiKey, OzonChatListRequestDto request,

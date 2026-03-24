@@ -84,6 +84,12 @@
 <script src="copy.js"></script>
 <script src="transactionCanvas.js"></script>
 <script>
+    window.moveFormulaAnchor = function (x, y) {
+        var el = document.getElementById('formula-anchor');
+        if (el) { el.style.left = x + 'px'; el.style.top = y + 'px'; }
+    };
+</script>
+<script>
     window.__registerChatEscape = function (dotNetRef) {
         if (window.__chatEscapeHandler) {
             document.removeEventListener('keydown', window.__chatEscapeHandler);

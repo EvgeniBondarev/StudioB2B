@@ -5,6 +5,7 @@ using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using System.Reflection;
 
 namespace StudioB2B.Infrastructure.Services.MultiTenancy;
 
@@ -64,7 +65,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 
     private static async Task RunSeedAsync(TenantDbContext context, CancellationToken ct)
     {
-        await SeedRolesFromEnumAsync(context, ct);
+        await SeedPagesColumnsAndFunctionsAsync(context, ct);
         await SeedMarketplaceDataAsync(context, ct);
         await SeedBasePriceTypesAsync(context, ct);
         await SeedBaseCalculationRulesAsync(context, ct);
@@ -78,8 +79,8 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
     {
         await using var context = await CreateContextAsync(connectionString, ct);
 
-        await SeedRolesFromEnumAsync(context, ct);
-        await CreateUserWithAllRolesAsync(context, email, password, firstName, lastName, middleName, ct);
+        await SeedPagesColumnsAndFunctionsAsync(context, ct);
+        await CreateUserWithFullAccessPermissionAsync(context, email, password, firstName, lastName, middleName, ct);
 
         _logger.LogInformation("Tenant admin user created: {Email}", email);
     }
@@ -118,34 +119,243 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         await ctx.SaveChangesAsync(ct);
     }
 
+    // ── Page / PageColumn / Function seeding ─────────────────────────────
+
     /// <summary>
-    /// Idempotently seeds one TenantRole row per TenantRoleEnum value.
-    /// Only inserts missing rows — never deletes existing data.
+    /// Maps each PageColumnEnum value to its parent PageEnum.
     /// </summary>
-    private static async Task SeedRolesFromEnumAsync(TenantDbContext ctx, CancellationToken ct)
+    private static readonly Dictionary<PageColumnEnum, PageEnum> ColumnPageMap = new()
     {
-        var existingNames = await ctx.Roles
-            .Where(r => !r.IsDeleted)
-            .Select(r => r.Name)
-            .ToHashSetAsync(ct);
+        [PageColumnEnum.OrdersViewPrice] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersViewCalculations] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColShipmentNumber] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColClient] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColAcceptedDate] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColShippingDate] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColDeliveryTerm] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColArticle] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColProduct] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColManufacturer] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColQuantity] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColMarketplaceStatus] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColAppStatus] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColDeliveryMethod] = PageEnum.OrdersView,
+        [PageColumnEnum.OrdersColWarehouse] = PageEnum.OrdersView,
 
-        foreach (var role in TenantRoleHelper.AllRoles())
+        [PageColumnEnum.UsersColLastName] = PageEnum.UsersView,
+        [PageColumnEnum.UsersColFirstName] = PageEnum.UsersView,
+        [PageColumnEnum.UsersColMiddleName] = PageEnum.UsersView,
+        [PageColumnEnum.UsersColEmail] = PageEnum.UsersView,
+        [PageColumnEnum.UsersColIsActive] = PageEnum.UsersView,
+        [PageColumnEnum.UsersColPermissions] = PageEnum.UsersView,
+
+        [PageColumnEnum.MktClientsColName] = PageEnum.MarketplaceClientsView,
+        [PageColumnEnum.MktClientsColApiId] = PageEnum.MarketplaceClientsView,
+        [PageColumnEnum.MktClientsColApiKey] = PageEnum.MarketplaceClientsView,
+        [PageColumnEnum.MktClientsColType] = PageEnum.MarketplaceClientsView,
+        [PageColumnEnum.MktClientsColMode] = PageEnum.MarketplaceClientsView,
+        [PageColumnEnum.MktClientsColCompany] = PageEnum.MarketplaceClientsView,
+        [PageColumnEnum.MktClientsColINN] = PageEnum.MarketplaceClientsView,
+
+        [PageColumnEnum.OStatusColName] = PageEnum.OrderStatusesView,
+        [PageColumnEnum.OStatusColColor] = PageEnum.OrderStatusesView,
+        [PageColumnEnum.OStatusColIsTerminal] = PageEnum.OrderStatusesView,
+        [PageColumnEnum.OStatusColIsInternal] = PageEnum.OrderStatusesView,
+        [PageColumnEnum.OStatusColSynonym] = PageEnum.OrderStatusesView,
+        [PageColumnEnum.OStatusColClientType] = PageEnum.OrderStatusesView,
+
+        [PageColumnEnum.ReturnsColReturnId] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColPostingNumber] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColReturnDate] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColProduct] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColQuantity] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColType] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColSchema] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColVisualStatus] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColReason] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColPrice] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColCommission] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColCompensation] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColOrder] = PageEnum.ReturnsView,
+        [PageColumnEnum.ReturnsColSyncedAt] = PageEnum.ReturnsView,
+
+        [PageColumnEnum.CalcRulesColSortOrder] = PageEnum.CalculationRulesView,
+        [PageColumnEnum.CalcRulesColName] = PageEnum.CalculationRulesView,
+        [PageColumnEnum.CalcRulesColResultKey] = PageEnum.CalculationRulesView,
+        [PageColumnEnum.CalcRulesColFormula] = PageEnum.CalculationRulesView,
+        [PageColumnEnum.CalcRulesColIsActive] = PageEnum.CalculationRulesView,
+
+        [PageColumnEnum.TransColName] = PageEnum.TransactionsView,
+        [PageColumnEnum.TransColIcon] = PageEnum.TransactionsView,
+        [PageColumnEnum.TransColFromStatus] = PageEnum.TransactionsView,
+        [PageColumnEnum.TransColToStatus] = PageEnum.TransactionsView,
+        [PageColumnEnum.TransColRulesCount] = PageEnum.TransactionsView,
+        [PageColumnEnum.TransColIsEnabled] = PageEnum.TransactionsView,
+
+        [PageColumnEnum.TransHistColDocument] = PageEnum.TransactionsView,
+        [PageColumnEnum.TransHistColOrder] = PageEnum.TransactionsView,
+        [PageColumnEnum.TransHistColTime] = PageEnum.TransactionsView,
+        [PageColumnEnum.TransHistColResult] = PageEnum.TransactionsView,
+        [PageColumnEnum.TransHistColUser] = PageEnum.TransactionsView,
+
+        [PageColumnEnum.AuditColDate] = PageEnum.AuditView,
+        [PageColumnEnum.AuditColChangeType] = PageEnum.AuditView,
+        [PageColumnEnum.AuditColEntity] = PageEnum.AuditView,
+        [PageColumnEnum.AuditColEntityId] = PageEnum.AuditView,
+        [PageColumnEnum.AuditColField] = PageEnum.AuditView,
+        [PageColumnEnum.AuditColOldValue] = PageEnum.AuditView,
+        [PageColumnEnum.AuditColNewValue] = PageEnum.AuditView,
+        [PageColumnEnum.AuditColUser] = PageEnum.AuditView,
+
+        [PageColumnEnum.PriceTypesColName] = PageEnum.PriceTypesView,
+        [PageColumnEnum.PriceTypesColDeliveryScheme] = PageEnum.PriceTypesView,
+        [PageColumnEnum.PriceTypesColIsUserDefined] = PageEnum.PriceTypesView,
+
+        [PageColumnEnum.SyncColType] = PageEnum.SyncView,
+        [PageColumnEnum.SyncColStatus] = PageEnum.SyncView,
+        [PageColumnEnum.SyncColParams] = PageEnum.SyncView,
+        [PageColumnEnum.SyncColStartedAt] = PageEnum.SyncView,
+        [PageColumnEnum.SyncColFinishedAt] = PageEnum.SyncView,
+        [PageColumnEnum.SyncColDuration] = PageEnum.SyncView,
+        [PageColumnEnum.SyncColInitiatedBy] = PageEnum.SyncView,
+    };
+
+    /// <summary>
+    /// Maps each FunctionEnum value to its parent PageEnum.
+    /// </summary>
+    private static readonly Dictionary<FunctionEnum, PageEnum> FunctionPageMap = new()
+    {
+        [FunctionEnum.UsersManage] = PageEnum.UsersView,
+        [FunctionEnum.OrdersManage] = PageEnum.OrdersView,
+        [FunctionEnum.TransactionsManage] = PageEnum.TransactionsView,
+        [FunctionEnum.OrderStatusesManage] = PageEnum.OrderStatusesView,
+        [FunctionEnum.CalculationRulesManage] = PageEnum.CalculationRulesView,
+        [FunctionEnum.PriceTypesManage] = PageEnum.PriceTypesView,
+        [FunctionEnum.MarketplaceClientsManage] = PageEnum.MarketplaceClientsView,
+        [FunctionEnum.ModulesManage] = PageEnum.ModulesView,
+        [FunctionEnum.SyncRunOrders] = PageEnum.SyncView,
+        [FunctionEnum.SyncRunStatusUpdate] = PageEnum.SyncView,
+        [FunctionEnum.SyncRunReturns] = PageEnum.SyncView,
+        [FunctionEnum.SyncManageSchedules] = PageEnum.SyncView,
+        [FunctionEnum.QuestionsManage] = PageEnum.QuestionsView,
+        [FunctionEnum.PermissionsManage] = PageEnum.PermissionsView,
+    };
+
+    /// <summary>
+    /// Idempotently seeds Page, PageColumn, and Function rows from the three enums.
+    /// New rows get both Name (enum name, used as JWT role claim) and
+    /// DisplayName (from [Description] attribute, used in UI).
+    /// Existing rows are updated if their DisplayName is empty (after migration).
+    /// </summary>
+    private static async Task SeedPagesColumnsAndFunctionsAsync(TenantDbContext ctx, CancellationToken ct)
+    {
+        // ── Pages ──────────────────────────────────────────────────────────
+        var existingPages = await ctx.Pages.ToListAsync(ct);
+        var existingPageIds = existingPages.Select(p => p.Id).ToHashSet();
+        foreach (var page in Enum.GetValues<PageEnum>())
         {
-            var name = role.ToString();
-            if (!existingNames.Contains(name))
-                ctx.Roles.Add(new TenantRole { Id = Guid.NewGuid(), Name = name });
+            var id = (int)page;
+            var displayName = GetEnumDescription(page);
+            if (!existingPageIds.Contains(id))
+            {
+                ctx.Pages.Add(new Page { Id = id, Name = page.ToString(), DisplayName = displayName });
+            }
+            else
+            {
+                var existing = existingPages.First(p => p.Id == id);
+                if (string.IsNullOrEmpty(existing.DisplayName))
+                {
+                    existing.DisplayName = displayName;
+                    ctx.Pages.Update(existing);
+                }
+            }
         }
+        await ctx.SaveChangesAsync(ct);
 
+        // ── PageColumns ────────────────────────────────────────────────────
+        var existingCols = await ctx.PageColumns.ToListAsync(ct);
+        var existingColIds = existingCols.Select(c => c.Id).ToHashSet();
+        foreach (var col in Enum.GetValues<PageColumnEnum>())
+        {
+            var id = (int)col;
+            var displayName = GetEnumDescription(col);
+            if (!existingColIds.Contains(id) && ColumnPageMap.TryGetValue(col, out var parentPage))
+            {
+                ctx.PageColumns.Add(new PageColumn { Id = id, Name = col.ToString(), DisplayName = displayName, PageId = (int)parentPage });
+            }
+            else if (existingColIds.Contains(id))
+            {
+                var existing = existingCols.First(c => c.Id == id);
+                if (string.IsNullOrEmpty(existing.DisplayName))
+                {
+                    existing.DisplayName = displayName;
+                    ctx.PageColumns.Update(existing);
+                }
+            }
+        }
+        await ctx.SaveChangesAsync(ct);
+
+        // ── Functions ──────────────────────────────────────────────────────
+        var existingFuncs = await ctx.Functions.ToListAsync(ct);
+        var existingFuncIds = existingFuncs.Select(f => f.Id).ToHashSet();
+        foreach (var func in Enum.GetValues<FunctionEnum>())
+        {
+            var id = (int)func;
+            var displayName = GetEnumDescription(func);
+            if (!existingFuncIds.Contains(id) && FunctionPageMap.TryGetValue(func, out var parentPage))
+            {
+                ctx.Functions.Add(new AppFunction { Id = id, Name = func.ToString(), DisplayName = displayName, PageId = (int)parentPage });
+            }
+            else if (existingFuncIds.Contains(id))
+            {
+                var existing = existingFuncs.First(f => f.Id == id);
+                if (string.IsNullOrEmpty(existing.DisplayName))
+                {
+                    existing.DisplayName = displayName;
+                    ctx.Functions.Update(existing);
+                }
+            }
+        }
         await ctx.SaveChangesAsync(ct);
     }
 
-    private static async Task CreateUserWithAllRolesAsync(
+    /// <summary>
+    /// Returns the [Description] attribute value for an enum member,
+    /// or the enum name itself if no description is defined.
+    /// </summary>
+    private static string GetEnumDescription<T>(T value) where T : Enum
+    {
+        var field = typeof(T).GetField(value.ToString()!);
+        if (field is null) return value.ToString()!;
+        var attr = field.GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false)
+            .OfType<System.ComponentModel.DescriptionAttribute>()
+            .FirstOrDefault();
+        return attr?.Description ?? value.ToString()!;
+    }
+
+    private static async Task CreateUserWithFullAccessPermissionAsync(
         TenantDbContext ctx, string email, string password,
         string firstName, string lastName, string? middleName, CancellationToken ct)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         if (await ctx.Users.AnyAsync(u => u.Email == normalizedEmail, ct))
             return;
+
+        // Ensure a full-access permission exists
+        var fullAccessPerm = await ctx.Permissions
+            .FirstOrDefaultAsync(p => p.IsFullAccess && !p.IsDeleted, ct);
+
+        if (fullAccessPerm is null)
+        {
+            fullAccessPerm = new Permission
+            {
+                Id = Guid.NewGuid(),
+                Name = "Администратор",
+                IsFullAccess = true
+            };
+            ctx.Permissions.Add(fullAccessPerm);
+            await ctx.SaveChangesAsync(ct);
+        }
 
         var user = new TenantUser
         {
@@ -157,12 +367,8 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
             MiddleName = middleName,
             IsActive = true
         };
-
         ctx.Users.Add(user);
-
-        var allRoles = await ctx.Roles.Where(r => !r.IsDeleted).ToListAsync(ct);
-        foreach (var role in allRoles)
-            ctx.UserRoles.Add(new TenantUserRole { UserId = user.Id, RoleId = role.Id });
+        ctx.UserPermissions.Add(new TenantUserPermission { UserId = user.Id, PermissionId = fullAccessPerm.Id });
 
         await ctx.SaveChangesAsync(ct);
     }

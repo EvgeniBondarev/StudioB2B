@@ -114,14 +114,11 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="UserListDto" Title="Роли" Width="260px"
+            <RadzenDataGridColumn TItem="UserListDto" Title="Права" Width="260px"
                                   Sortable="false" Filterable="false"
-                                  Visible="@Col("UsersColRoles")">
+                                  Visible="@Col("UsersColPermissions")">
                 <Template Context="u">
-                    @string.Join(", ", u.Roles.Select(r =>
-                        Enum.TryParse<TenantRoleEnum>(r, out var role)
-                            ? TenantRoleHelper.GetDescription(role)
-                            : r))
+                    @string.Join(", ", u.Permissions)
                 </Template>
             </RadzenDataGridColumn>
         </Columns>
@@ -154,7 +151,7 @@ else
     {
         var state = await AuthState;
         _user = state.User;
-        _canManage = state.User.IsInRole("UsersManage");
+        _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("UsersManage");
 
         if (TenantProvider.IsResolved)
             await LoadAsync();
@@ -219,7 +216,7 @@ else
         {
             await LoadAsync();                              // data first
             var state = await AuthState;
-            _canManage = state.User.IsInRole("UsersManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("UsersManage");
         }
     }
 
@@ -239,7 +236,7 @@ else
         {
             await LoadAsync();                              // data first
             var state = await AuthState;
-            _canManage = state.User.IsInRole("UsersManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("UsersManage");
         }
     }
 

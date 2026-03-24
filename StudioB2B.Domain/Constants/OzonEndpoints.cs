@@ -7,6 +7,8 @@ public class OzonEndpoints
     public const string ProductInfoPrices = "v5/product/info/prices";
     public const string ProductInfoAttributes = "v4/product/info/attributes";
     public const string FbsPostingGet = "v3/posting/fbs/get";
+    public const string FboPostingList = "v2/posting/fbo/list";
+    public const string FboPostingGet = "v2/posting/fbo/get";
 
     public const string ReturnsList = "v1/returns/list";
 

@@ -1,6 +1,5 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
-using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
@@ -23,11 +22,11 @@ public class GetUsers(ITenantDbContextFactory factory, IMapper mapper)
         var result = new List<UserListDto>(users.Count);
         foreach (var u in users)
         {
-            var roles = await db.UserRoles.AsNoTracking()
-                .Where(ur => ur.UserId == u.Id)
-                .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name)
+            var permissions = await db.UserPermissions.AsNoTracking()
+                .Where(up => up.UserId == u.Id)
+                .Join(db.Permissions.AsNoTracking(), up => up.PermissionId, p => p.Id, (_, p) => p.Name)
                 .ToListAsync(ct);
-            result.Add(mapper.Map<UserListDto>(u) with { Roles = roles });
+            result.Add(mapper.Map<UserListDto>(u) with { Permissions = permissions });
         }
         return result;
     }
@@ -40,35 +39,11 @@ public class GetUserById(ITenantDbContextFactory factory, IMapper mapper)
         using var db = factory.CreateDbContext();
         var u = await db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (u is null) return null;
-        var roles = await db.UserRoles.AsNoTracking()
-            .Where(ur => ur.UserId == u.Id)
-            .Join(db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name)
+        var permissions = await db.UserPermissions.AsNoTracking()
+            .Where(up => up.UserId == u.Id)
+            .Join(db.Permissions.AsNoTracking(), up => up.PermissionId, p => p.Id, (_, p) => p.Name)
             .ToListAsync(ct);
-        return mapper.Map<UserListDto>(u) with { Roles = roles };
-    }
-}
-
-public class GetAvailableRoles(ITenantDbContextFactory factory)
-{
-    public async Task<List<LabelValueDto>> HandleAsync(CancellationToken ct = default)
-    {
-        using var db = factory.CreateDbContext();
-        var names = await db.Roles
-            .AsNoTracking()
-            .Where(r => !r.IsDeleted)
-            .Select(r => r.Name)
-            .ToListAsync(ct);
-
-        return names
-            .Select(name =>
-            {
-                var label = Enum.TryParse<TenantRoleEnum>(name, out var role)
-                    ? TenantRoleHelper.GetDescription(role)
-                    : name;
-                return new LabelValueDto(label, name);
-            })
-            .OrderBy(x => x.Label)
-            .ToList();
+        return mapper.Map<UserListDto>(u) with { Permissions = permissions };
     }
 }
 
@@ -89,11 +64,10 @@ public class CreateUser(ITenantDbContextFactory factory, IMapper mapper)
 
         db.Users.Add(user);
 
-        foreach (var roleName in request.Roles)
+        foreach (var permId in request.Permissions)
         {
-            var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == roleName, ct);
-            if (role is not null)
-                db.UserRoles.Add(new TenantUserRole { UserId = user.Id, RoleId = role.Id });
+            if (await db.Permissions.AnyAsync(p => p.Id == permId && !p.IsDeleted, ct))
+                db.UserPermissions.Add(new TenantUserPermission { UserId = user.Id, PermissionId = permId });
         }
 
         await db.SaveChangesAsync(ct);
@@ -112,15 +86,14 @@ public class UpdateUser(ITenantDbContextFactory factory, IMapper mapper)
 
         mapper.Map(request, user);
 
-        // Sync roles
-        var currentRoles = await db.UserRoles.Where(ur => ur.UserId == id).ToListAsync(ct);
-        db.UserRoles.RemoveRange(currentRoles);
+        // Sync permissions
+        var current = await db.UserPermissions.Where(up => up.UserId == id).ToListAsync(ct);
+        db.UserPermissions.RemoveRange(current);
 
-        foreach (var roleName in request.Roles)
+        foreach (var permId in request.Permissions)
         {
-            var role = await db.Roles.FirstOrDefaultAsync(r => r.Name == roleName, ct);
-            if (role is not null)
-                db.UserRoles.Add(new TenantUserRole { UserId = id, RoleId = role.Id });
+            if (await db.Permissions.AnyAsync(p => p.Id == permId && !p.IsDeleted, ct))
+                db.UserPermissions.Add(new TenantUserPermission { UserId = id, PermissionId = permId });
         }
 
         await db.SaveChangesAsync(ct);
