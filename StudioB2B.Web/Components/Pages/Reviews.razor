@@ -492,17 +492,21 @@ else
                             </div>
 
                             <div class="review-comment-input-row">
-                                <RadzenTextArea @bind-Value="_commentText"
-                                                Rows="1"
-                                                Placeholder="Напишите комментарий к отзыву…"
-                                                Style="flex: 1; resize: none; padding: 2px 10px; max-height: 140px;"
-                                                Disabled="@_sendingComment"
-                                                oninput="this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,200)+'px';" />
+
+                                <textarea @ref="_commentArea"
+                                          class="comment-textarea"
+                                          placeholder="Напишите комментарий…"
+                                          value="@_commentText"
+                                          @oninput="OnInput"
+                                          @onkeydown="HandleKeyDown2"
+                                          disabled="@_sendingComment"
+                                ></textarea>
+
                                 <RadzenButton Icon="send"
                                               ButtonStyle="ButtonStyle.Primary"
                                               Size="ButtonSize.Small"
                                               IsBusy="@_sendingComment"
-                                              Disabled="@(string.IsNullOrWhiteSpace(_commentText) || (_commentText?.Length ?? 0) < 2 || (_commentText?.Length ?? 0) > 3000)"
+                                              Disabled="@IsSendDisabled"
                                               Click="@SendCommentAsync"
                                               Title="Отправить комментарий" />
                             </div>
@@ -550,6 +554,33 @@ else
         </div>
     </div>
 }
+
+<script>
+    window.setupEnterSend = (textarea) => {
+        textarea.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                textarea.dispatchEvent(new CustomEvent("enterPressed"));
+            }
+        });
+    };
+
+    window.preventEnterDefault = (el) => {
+        if (!el) return;
+        el.addEventListener("keydown", function(e){
+            if(e.key === "Enter" && !e.shiftKey){
+                e.preventDefault();
+            }
+        });
+    };
+
+    window.resizeTextarea = (el) => {
+        if (!el) return;
+
+        el.style.height = "30px";
+        el.style.height = el.scrollHeight + "px";
+    };
+</script>
 
 @code {
     [CascadingParameter]
@@ -769,6 +800,30 @@ else
     }
 
     // ── Comments ──────────────────────────────────────────────────────────────
+    private ElementReference _commentArea;
+
+    [Inject] private IJSRuntime JS { get; set; }
+
+    private bool IsSendDisabled => string.IsNullOrWhiteSpace(_commentText)
+                                   || (_commentText?.Length ?? 0) < 2
+                                   || (_commentText?.Length ?? 0) > 3000;
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        _commentText = e.Value?.ToString();
+
+        await JS.InvokeVoidAsync("resizeTextarea", _commentArea);
+    }
+
+
+    private async Task HandleKeyDown2(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey && !IsSendDisabled)
+        {
+            await JS.InvokeVoidAsync("preventEnterDefault", _commentArea);
+            await SendCommentAsync();
+        }
+    }
 
     private async Task SendCommentAsync()
     {
@@ -821,7 +876,9 @@ else
         finally
         {
             _sendingComment = false;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);   // 🔥 дождались обновления DOM
+
+            await JS.InvokeVoidAsync("resizeTextarea", _commentArea); // 🔥 теперь уменьшаем
         }
     }
 
