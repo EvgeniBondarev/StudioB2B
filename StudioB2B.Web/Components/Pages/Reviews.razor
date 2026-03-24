@@ -17,6 +17,7 @@
 
 <link rel="stylesheet" href="css/reviews.css" />
 <link rel="stylesheet" href="css/questions.css" />
+<link rel="stylesheet" href="css/chats.css" />
 
 <PageTitle>Отзывы покупателей</PageTitle>
 
@@ -499,8 +500,8 @@ else
                                           value="@_commentText"
                                           @oninput="OnInput"
                                           @onkeydown="HandleKeyDown2"
-                                          disabled="@_sendingComment"
-                                ></textarea>
+                                          disabled="@_sendingComment">
+                                </textarea>
 
                                 <RadzenButton Icon="send"
                                               ButtonStyle="ButtonStyle.Primary"
@@ -556,6 +557,7 @@ else
 }
 
 <script>
+
     window.setupEnterSend = (textarea) => {
         textarea.addEventListener("keydown", function (e) {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -567,8 +569,8 @@ else
 
     window.preventEnterDefault = (el) => {
         if (!el) return;
-        el.addEventListener("keydown", function(e){
-            if(e.key === "Enter" && !e.shiftKey){
+        el.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
             }
         });
@@ -577,7 +579,7 @@ else
     window.resizeTextarea = (el) => {
         if (!el) return;
 
-        el.style.height = "30px";
+        el.style.height = "28px";
         el.style.height = el.scrollHeight + "px";
     };
 </script>
@@ -876,9 +878,9 @@ else
         finally
         {
             _sendingComment = false;
-            await InvokeAsync(StateHasChanged);   // 🔥 дождались обновления DOM
+            await InvokeAsync(StateHasChanged);
 
-            await JS.InvokeVoidAsync("resizeTextarea", _commentArea); // 🔥 теперь уменьшаем
+            await JS.InvokeVoidAsync("resizeTextarea", _commentArea);
         }
     }
 
