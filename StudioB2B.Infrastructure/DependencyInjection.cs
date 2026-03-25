@@ -127,20 +127,8 @@ public static class DependencyInjection
         services.AddAuthorization();
         services.AddSingleton<IAuthorizationHandler, AdminSatisfiesAllRolesHandler>();
 
-        services.AddScoped<GetUsers>();
-        services.AddScoped<GetUserById>();
-        services.AddScoped<GetAvailablePermissions>();
-        services.AddScoped<CreateUser>();
-        services.AddScoped<UpdateUser>();
-        services.AddScoped<DeleteUser>();
-
-        services.AddScoped<GetPermissions>();
-        services.AddScoped<GetPermissionById>();
-        services.AddScoped<CreatePermission>();
-        services.AddScoped<UpdatePermission>();
-        services.AddScoped<DeletePermission>();
-        services.AddScoped<GetPagesWithDetails>();
-        services.AddScoped<GetEntityOptionsForPermission>();
+        // Feature operations moved to TenantDbContext extension methods (e.g. db.GetUsersAsync(...)).
+        // No scoped registrations required for these extension methods.
 
         services.AddScoped<IEntityFilterService, EntityFilterService>();
 

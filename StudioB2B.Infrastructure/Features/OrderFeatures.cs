@@ -1,13 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Domain.Entities;
+using StudioB2B.Infrastructure.Persistence.Tenant;
 
 namespace StudioB2B.Infrastructure.Features;
 
 public static class OrderExtensions
 {
-    /// <summary>
-    /// Базовый набор Include для списка заказов (страница Orders).
-    /// </summary>
+    // Order IQueryable includes
     public static IQueryable<OrderEntity> IncludeForGrid(this IQueryable<OrderEntity> q)
     {
         return q
@@ -22,9 +21,6 @@ public static class OrderExtensions
             .Include(o => o.Prices).ThenInclude(p => p.Currency);
     }
 
-    /// <summary>
-    /// Полный набор Include для детального просмотра заказа (OrderDetailDialog).
-    /// </summary>
     public static IQueryable<OrderEntity> IncludeForDetail(this IQueryable<OrderEntity> q)
     {
         return q
@@ -45,15 +41,55 @@ public static class OrderExtensions
             .Include(o => o.Shipment).ThenInclude(s => s.Returns);
     }
 
-    /// <summary>
-    /// Набор Include для списка позиций внутри одного отправления.
-    /// </summary>
     public static IQueryable<OrderEntity> IncludeForShipmentList(this IQueryable<OrderEntity> q)
     {
         return q
             .Include(o => o.Shipment)
             .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
             .Include(o => o.Status);
+    }
+
+    // OrderStatus methods (CRUD-like, TenantDbContext extensions)
+    public static IQueryable<OrderStatus> IncludeEverything(this IQueryable<OrderStatus> q)
+    {
+        return q.Include(s => s.MarketplaceClientType);
+    }
+
+    public static IQueryable<OrderStatus> Active(this IQueryable<OrderStatus> q)
+    {
+        return q.Where(s => !s.IsDeleted);
+    }
+
+    public static async Task<OrderStatus> CreateOrderStatusAsync(this TenantDbContext db, OrderStatus status,
+                                                                 CancellationToken ct = default)
+    {
+        db.OrderStatuses.Add(status);
+        await db.SaveChangesAsync(ct);
+        return status;
+    }
+
+    public static async Task UpdateOrderStatusAsync(this TenantDbContext db, OrderStatus status,
+                                                    CancellationToken ct = default)
+    {
+        if (!db.OrderStatuses.Local.Contains(status))
+        {
+            db.OrderStatuses.Attach(status).State = EntityState.Modified;
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    public static async Task SoftDeleteOrderStatusAsync(this TenantDbContext db, OrderStatus status,
+                                                        CancellationToken ct = default)
+    {
+        status.IsDeleted = true;
+
+        if (!db.OrderStatuses.Local.Contains(status))
+        {
+            db.OrderStatuses.Attach(status).State = EntityState.Modified;
+        }
+
+        await db.SaveChangesAsync(ct);
     }
 }
 
