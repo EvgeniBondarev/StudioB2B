@@ -1,23 +1,18 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Domain.Entities;
-using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Infrastructure.Services;
+using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Features;
 
-public static class UserQueryExtensions
+public static class UserExtensions
 {
     public static IQueryable<TenantUser> OrderByLastName(this IQueryable<TenantUser> q)
         => q.OrderBy(u => u.LastName).ThenBy(u => u.FirstName);
-}
 
-public class GetUsers(ITenantDbContextFactory factory, IMapper mapper)
-{
-    public async Task<List<UserListDto>> HandleAsync(CancellationToken ct = default)
+    public static async Task<List<UserListDto>> GetUsersAsync(this TenantDbContext db, IMapper mapper, CancellationToken ct = default)
     {
-        using var db = factory.CreateDbContext();
         var users = await db.Users.AsNoTracking().OrderByLastName().ToListAsync(ct);
         var result = new List<UserListDto>(users.Count);
         foreach (var u in users)
@@ -30,13 +25,9 @@ public class GetUsers(ITenantDbContextFactory factory, IMapper mapper)
         }
         return result;
     }
-}
 
-public class GetUserById(ITenantDbContextFactory factory, IMapper mapper)
-{
-    public async Task<UserListDto?> HandleAsync(Guid id, CancellationToken ct = default)
+    public static async Task<UserListDto?> GetUserByIdAsync(this TenantDbContext db, Guid id, IMapper mapper, CancellationToken ct = default)
     {
-        using var db = factory.CreateDbContext();
         var u = await db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (u is null) return null;
         var permissions = await db.UserPermissions.AsNoTracking()
@@ -45,15 +36,9 @@ public class GetUserById(ITenantDbContextFactory factory, IMapper mapper)
             .ToListAsync(ct);
         return mapper.Map<UserListDto>(u) with { Permissions = permissions };
     }
-}
 
-public class CreateUser(ITenantDbContextFactory factory, IMapper mapper)
-{
-    public async Task<(bool Success, string? Error)> HandleAsync(
-        CreateUserDto request, CancellationToken ct = default)
+    public static async Task<(bool Success, string? Error)> CreateUserAsync(this TenantDbContext db, CreateUserDto request, IMapper mapper, CancellationToken ct = default)
     {
-        using var db = factory.CreateDbContext();
-
         var email = request.Email.Trim().ToLowerInvariant();
         if (await db.Users.AnyAsync(u => u.Email == email, ct))
             return (false, "Пользователь с таким email уже существует");
@@ -73,15 +58,10 @@ public class CreateUser(ITenantDbContextFactory factory, IMapper mapper)
         await db.SaveChangesAsync(ct);
         return (true, null);
     }
-}
 
-public class UpdateUser(ITenantDbContextFactory factory, IMapper mapper)
-{
-    public async Task<(bool Success, string? Error)> HandleAsync(
-        Guid id, UpdateUserDto request, CancellationToken ct = default)
+    public static async Task<(bool Success, string? Error)> UpdateUserAsync(this TenantDbContext db, Guid id, UpdateUserDto request, IMapper mapper, CancellationToken ct = default)
     {
-        using var db = factory.CreateDbContext();
-        var user = await db.Users.FindAsync([id], ct);
+        var user = await db.Users.FindAsync(new object[] { id }, ct);
         if (user is null) return (false, "Пользователь не найден");
 
         mapper.Map(request, user);
@@ -99,15 +79,10 @@ public class UpdateUser(ITenantDbContextFactory factory, IMapper mapper)
         await db.SaveChangesAsync(ct);
         return (true, null);
     }
-}
 
-public class DeleteUser(ITenantDbContextFactory factory)
-{
-    public async Task<(bool Success, string? Error)> HandleAsync(
-        Guid id, CancellationToken ct = default)
+    public static async Task<(bool Success, string? Error)> DeleteUserAsync(this TenantDbContext db, Guid id, CancellationToken ct = default)
     {
-        using var db = factory.CreateDbContext();
-        var user = await db.Users.FindAsync([id], ct);
+        var user = await db.Users.FindAsync(new object[] { id }, ct);
         if (user is null) return (false, "Пользователь не найден");
 
         user.IsDeleted = true;

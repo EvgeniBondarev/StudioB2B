@@ -1,9 +1,9 @@
 @using StudioB2B.Infrastructure.Features
-
-@inject CreateUser CreateUserService
-@inject UpdateUser UpdateUserService
-@inject GetUserById GetUserByIdService
-@inject GetAvailablePermissions GetAvailablePermissionsService
+@using AutoMapper
+@using StudioB2B.Infrastructure.Interfaces
+@inject ITenantDbContextFactory TenantFactory
+@inject IMapper Mapper
+// GetAvailablePermissions adapter removed — use TenantFactory + extension methods
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject JwtAuthenticationStateProvider AuthStateProvider
@@ -141,11 +141,12 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _availablePermissions = await GetAvailablePermissionsService.HandleAsync();
+        using var db = TenantFactory.CreateDbContext();
+        _availablePermissions = await db.GetAvailablePermissionsAsync(CancellationToken.None);
 
         if (UserId != Guid.Empty)
         {
-            var fresh = await GetUserByIdService.HandleAsync(UserId);
+            var fresh = await db.GetUserByIdAsync(UserId, Mapper, CancellationToken.None);
             if (fresh is not null)
             {
                 // Map permission names back to IDs
@@ -185,9 +186,11 @@ else
         {
             if (UserId == Guid.Empty)
             {
-                var (ok, error) = await CreateUserService.HandleAsync(
+                using var db = TenantFactory.CreateDbContext();
+                var (ok, error) = await db.CreateUserAsync(
                     new CreateUserDto(model.Email, model.FirstName, model.LastName,
-                                      model.MiddleName, model.Password ?? "P@ssw0rd", model.Permissions));
+                                      model.MiddleName, model.Password ?? "P@ssw0rd", model.Permissions),
+                    Mapper, CancellationToken.None);
                 if (ok)
                 {
                     await AuthStateProvider.RefreshAsync();
@@ -199,9 +202,11 @@ else
             }
             else
             {
-                var (ok, error) = await UpdateUserService.HandleAsync(UserId,
+                using var db = TenantFactory.CreateDbContext();
+                var (ok, error) = await db.UpdateUserAsync(UserId,
                     new UpdateUserDto(model.FirstName, model.LastName, model.MiddleName,
-                                      model.IsActive, model.Permissions));
+                                      model.IsActive, model.Permissions),
+                    Mapper, CancellationToken.None);
                 if (ok)
                 {
                     await AuthStateProvider.RefreshAsync();
