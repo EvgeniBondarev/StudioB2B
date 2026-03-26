@@ -17,6 +17,8 @@
 
 @implements IDisposable
 
+<link rel="stylesheet" href="css/chats/chatMessages.css" />
+<link rel="stylesheet" href="css/chats/chatComposer.css" />
 <link rel="stylesheet" href="css/chats.css" />
 
 <PageTitle>Чаты</PageTitle>
@@ -261,178 +263,23 @@ else
                 </div>
 
                 <!-- Messages -->
-                <div class="chat-messages-area" id="chat-messages-container">
-                    @if (_loadingHistory && !_messages.Any())
-                    {
-                        <div class="dlg-loading" style="flex: 1;">
-                            <div class="dlg-spinner"></div>
-                        </div>
-                    }
-                    else if (!_messages.Any())
-                    {
-                        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
-                                     Style="flex: 1; gap: 0.5rem;">
-                            <RadzenIcon Icon="chat_bubble_outline"
-                                        Style="font-size: 2rem; color: var(--rz-text-secondary-color);" />
-                            <RadzenText TextStyle="TextStyle.Caption"
-                                        Style="color: var(--rz-text-secondary-color);">
-                                Нет сообщений
-                            </RadzenText>
-                        </RadzenStack>
-                    }
-                    else
-                    {
-                        @foreach (var msg in _messages)
-                        {
-                            @if (_firstUnreadOnOpen == msg.MessageId)
-                            {
-                                <div id="newMessagesDivider" class="new-messages-divider">
-                                    Новые сообщения
-                                </div>
-                            }
-
-                            var isSeller = IsSellerMessage(msg);
-                            var senderLabel = GetSenderLabel(msg);
-                            var avatarClass = isSeller ? "chat-avatar seller" : "chat-avatar customer";
-                            var avatarLetter = isSeller ? "П" : "К"; // Продавец / Клиент
-                            var rowClass = "chat-message-row " + (isSeller ? "from-seller" : "");
-                            <div @key="msg.MessageId" class="@rowClass">
-
-                                <!-- Аватар -->
-                                <div class="@avatarClass" title="@senderLabel">@avatarLetter</div>
-
-                                <!-- Обёртка: имя + пузырь + мета -->
-                                <div class="chat-bubble-wrap">
-
-                                    <!-- Имя отправителя -->
-                                    <div class="chat-message-sender">@senderLabel</div>
-
-                                    <!-- Пузырь сообщения -->
-                                    <div class="chat-message-bubble @(isSeller ? "from-seller" : "from-customer")">
-                                        @if (msg.IsImage)
-                                        {
-                                            @foreach (var d in msg.Data)
-                                            {
-                                                @if (!string.IsNullOrWhiteSpace(d))
-                                                {
-                                                    var imgSrc = GetImageSrc(d);
-                                                    <img class="chat-message-image"
-                                                         src="@imgSrc"
-                                                         alt="изображение"
-                                                         loading="lazy"
-                                                         @onclick="@(() => OpenLightbox(imgSrc))"
-                                                         title="Нажмите для просмотра" />
-                                                }
-                                            }
-                                        }
-                                        else
-                                        {
-                                            @foreach (var d in msg.Data)
-                                            {
-                                                @if (IsFileData(d))
-                                                {
-                                                    var fname = GetFileName(d);
-                                                    var furl = GetFileDownloadUrl(d);
-                                                    <div class="chat-file-link">
-                                                        <RadzenIcon Icon="@GetFileIcon(fname)"
-                                                                    Style="font-size: 1.1rem; flex-shrink: 0;" />
-                                                        <a href="@furl" target="_blank"
-                                                           style="font-size: 0.83rem; word-break: break-all;">
-                                                            @fname
-                                                        </a>
-                                                    </div>
-                                                }
-                                                else
-                                                {
-                                                    <div class="chat-md">@MarkdownHelper.ToMarkup(d)</div>
-                                                }
-                                            }
-                                        }
-                                    </div>
-
-                                    <!-- Время + статус прочтения -->
-                                    <div class="chat-message-meta">
-                                        <span class="chat-message-time">
-                                            @msg.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
-                                        </span>
-                                        @if (msg.IsRead)
-                                        {
-                                            <RadzenIcon Icon="done_all"
-                                                        Style="font-size: 0.7rem; color: var(--rz-success);"
-                                                        title="Прочитано" />
-                                        }
-                                    </div>
-
-                                </div>
-                            </div>
-                        }
-                    }
-                </div>
+                <ChatMessages Messages="_messages"
+                              FirstUnreadOnOpen="_firstUnreadOnOpen"
+                              LoadingHistory="_loadingHistory"
+                              SelectedChat="_selectedChat"
+                              OpenLightbox="OpenLightbox"/>
 
                 <!-- Input footer -->
                 @if (_selectedChat.ChatStatus == "OPENED")
                 {
-                    <div class="chat-input-footer">
-
-                        <!-- Шаблонные ответы -->
-                        <div class="chat-quick-replies">
-                            @foreach (var tpl in QuickReplies)
-                            {
-                                <button class="chat-quick-reply-chip" @onclick="@(() => ApplyTemplate(tpl))">
-                                    @tpl
-                                </button>
-                            }
-                        </div>
-
-                        @if (_attachedFile is not null)
-                        {
-                            <div class="chat-attachment-preview">
-                                <RadzenIcon Icon="attach_file" Style="font-size: 0.9rem;" />
-                                <span>@_attachedFile.Name (@FormatFileSize(_attachedFile.Size))</span>
-                                <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger"
-                                              Variant="Variant.Text" Size="ButtonSize.ExtraSmall"
-                                              Style="padding: 0; margin-left: auto;"
-                                              Click="@ClearAttachment" />
-                            </div>
-                        }
-
-                        <div class="chat-input-row">
-                            <label title="Прикрепить файл (JPG, PNG, PDF, DOC, DOCX, TXT — до 10 МБ)"
-                                   style="cursor: pointer;">
-                                <RadzenButton Icon="attach_file" ButtonStyle="ButtonStyle.Light"
-                                              Size="ButtonSize.Small"
-                                              Click="@TriggerFilePicker" />
-                            </label>
-
-                            <RadzenTextArea @bind-Value="_messageText"
-                                            Rows="1"
-                                            Placeholder="Введите сообщение…"
-                                            CharacterCounter="true"
-                                            MaxLength="1000"
-                                            Style="width: 100%; flex: 1; resize: none; padding: 2px 10px; max-height: 140px;"
-                                            oninput="this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,200)+'px';"/>
-
-                            <RadzenButton Icon="send" ButtonStyle="ButtonStyle.Primary"
-                                          Size="ButtonSize.Small"
-                                          Click="@SendMessageAsync"
-                                          IsBusy="@_sending"
-                                          Disabled="@(!CanSend)"
-                                          Title="Отправить"/>
-
-
-
-                        </div>
-
-                        <div class="char-counter @(_messageText.Length > 1000 ? "over-limit" : "")">
-                            @_messageText.Length / 1000
-                        </div>
-
-                        <!-- Hidden file input -->
-                        <InputFile id="chat-file-input"
-                                   accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.txt"
-                                   OnChange="@OnFileSelected"
-                                   style="display: none;" />
-                    </div>
+                    <ChatComposer
+                        QuickReplies="QuickReplies"
+                        AttachedFile="@_attachedFile"
+                        AttachedBase64="@_attachedBase64"
+                        MessageText="@_messageText"
+                        SelectedChat="@_selectedChat"
+                        OnSendWithFile="SendMessageOrFileAsync"
+                       />
                 }
                 else
                 {
@@ -486,7 +333,6 @@ else
     private bool _loadingList;
     private bool _loadingMore;
     private bool _loadingHistory;
-    private bool _sending;
 
     // Пагинация чатов
     private string? _nextCursor;
@@ -502,8 +348,6 @@ else
         "Заявка на рассмотрении, ожидайте",
         "Оформите возврат"
     ];
-
-    private void ApplyTemplate(string text) => _messageText = text;
 
     private void OpenLightbox(string src) { _lightboxSrc = src; }
     private void CloseLightbox() { _lightboxSrc = null; }
@@ -865,77 +709,46 @@ else
         await LoadChatsAsync();
     }
 
-    private async Task SendMessageAsync()
+    private async Task<bool> SendMessageOrFileAsync(string text, IBrowserFile? file, string? base64)
     {
-        if (_selectedChat is null) return;
+        if (_selectedChat is null) return false;
 
-        if (_attachedFile is not null && _attachedBase64 is not null)
-        {
-            await SendFileInternalAsync();
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_messageText) || _messageText.Length > 1000) return;
-
-        _sending = true;
-        StateHasChanged();
-        try
-        {
-            var (ok, error) = await ChatService.SendMessageAsync(
-                _selectedChat.MarketplaceClientId,
-                _selectedChat.ChatId,
-                _messageText.Trim());
-
-            if (ok)
-            {
-                _messageText = string.Empty;
-                await Task.Delay(600);
-                await LoadHistoryAsync();
-            }
-            else
-            {
-                NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Не удалось отправить сообщение.", 6000);
-            }
-        }
-        finally
-        {
-            _sending = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task SendFileInternalAsync()
-    {
-        if (_selectedChat is null || _attachedFile is null || _attachedBase64 is null) return;
-
-        _sending = true;
-        StateHasChanged();
-        try
+        // Отправка файла
+        if (file is not null && base64 is not null)
         {
             var (ok, error) = await ChatService.SendFileAsync(
                 _selectedChat.MarketplaceClientId,
                 _selectedChat.ChatId,
-                _attachedBase64,
-                _attachedFile.Name);
+                base64,
+                file.Name);
 
-            if (ok)
-            {
-                _attachedFile = null;
-                _attachedBase64 = null;
-                _messageText = string.Empty;
-                await Task.Delay(600);
-                await LoadHistoryAsync();
-            }
-            else
+            if (!ok)
             {
                 NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Не удалось отправить файл.", 6000);
+                return false;
             }
+
+            await LoadHistoryAsync();
+            return true;
         }
-        finally
+
+        // Отправка текста
+        if (string.IsNullOrWhiteSpace(text) || text.Length > 1000) return false;
+
+        var (success, errorMsg) = await ChatService.SendMessageAsync(
+            _selectedChat.MarketplaceClientId,
+            _selectedChat.ChatId,
+            text.Trim());
+
+        if (!success)
         {
-            _sending = false;
-            StateHasChanged();
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", errorMsg ?? "Не удалось отправить сообщение.", 6000);
+            return false;
         }
+
+        await Task.Delay(600);
+        await LoadHistoryAsync();
+        return true;
     }
 
     private async Task AutoMarkReadAsync()
@@ -958,53 +771,6 @@ else
         catch { /* не мешаем открытию чата при ошибке */ }
     }
 
-    private async Task OnFileSelected(InputFileChangeEventArgs e)
-    {
-        const long maxSize = 10 * 1024 * 1024; // 10 MB
-
-        var file = e.File;
-        if (file.Size > maxSize)
-        {
-            NotificationService.Notify(NotificationSeverity.Warning, "Файл слишком большой",
-                "Максимальный размер файла — 10 МБ.", 5000);
-            return;
-        }
-
-        var allowed = new[] { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".txt" };
-        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
-        if (!allowed.Contains(ext))
-        {
-            NotificationService.Notify(NotificationSeverity.Warning, "Неподдерживаемый формат",
-                "Допустимые форматы: JPG, PNG, PDF, DOC, DOCX, TXT.", 5000);
-            return;
-        }
-
-        try
-        {
-            using var ms = new MemoryStream();
-            await using var stream = file.OpenReadStream(maxSize);
-            await stream.CopyToAsync(ms);
-            _attachedBase64 = Convert.ToBase64String(ms.ToArray());
-            _attachedFile = file;
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            NotificationService.Notify(NotificationSeverity.Error, "Ошибка чтения файла", ex.Message, 4000);
-        }
-    }
-
-    private async Task TriggerFilePicker()
-    {
-        await JsRuntime.InvokeVoidAsync("eval", "document.getElementById('chat-file-input').click()");
-    }
-
-    private void ClearAttachment()
-    {
-        _attachedFile = null;
-        _attachedBase64 = null;
-    }
-
     private async Task ScrollToBottomAsync()
     {
         try
@@ -1014,11 +780,6 @@ else
         }
         catch { /* ignore */ }
     }
-
-    private bool CanSend =>
-        _selectedChat is not null &&
-        !_sending &&
-        (_attachedFile is not null || (!string.IsNullOrWhiteSpace(_messageText) && _messageText.Length <= 1000));
 
     private static bool IsSellerMessage(OzonChatMessageDto msg) =>
         msg.User?.Type is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT";
