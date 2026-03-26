@@ -17,7 +17,7 @@
 
 <link rel="stylesheet" href="css/reviews.css" />
 <link rel="stylesheet" href="css/questions.css" />
-<link rel="stylesheet" href="css/chats.css" />
+<link rel="stylesheet" href="css/chats/chatComposer.css" />
 
 <PageTitle>Отзывы покупателей</PageTitle>
 
@@ -473,7 +473,7 @@ else
                                                               Style="margin-left: auto; padding: 0 4px;"
                                                               Title="Удалить комментарий"
                                                               IsBusy="@(_deletingCommentId == comment.Id)"
-                                                              Click="@(() => DeleteCommentAsync(comment))" />
+                                                              Click="@(() => DeleteCommentAsync(comment))"/>
                                             }
                                         </div>
                                         <div class="review-comment-text">@comment.Text</div>
@@ -483,45 +483,21 @@ else
                         }
 
                         <!-- Comment composer -->
-                        <div class="review-comment-composer">
-                            <!-- Шаблонные ответы -->
-                            <div class="review-quick-replies">
-                                @foreach (var tpl in QuickReplies)
-                                {
-                                    <button class="review-quick-reply-chip" @onclick="@(() => ApplyTemplate(tpl))">@tpl</button>
-                                }
-                            </div>
-
-                            <div class="review-comment-input-row">
-
-                                <textarea @ref="_commentArea"
-                                          class="comment-textarea"
-                                          placeholder="Напишите комментарий…"
-                                          value="@_commentText"
-                                          @oninput="OnInput"
-                                          @onkeydown="HandleKeyDown2"
-                                          disabled="@_sendingComment">
-                                </textarea>
-
-                                <RadzenButton Icon="send"
-                                              ButtonStyle="ButtonStyle.Primary"
-                                              Size="ButtonSize.Small"
-                                              IsBusy="@_sendingComment"
-                                              Disabled="@IsSendDisabled"
-                                              Click="@SendCommentAsync"
-                                              Title="Отправить комментарий" />
-                            </div>
-                            <div class="review-comment-char-counter @((_commentText?.Length ?? 0) > 3000 ? "over-limit" : "")">
-                                @(_commentText?.Length ?? 0) / 3000
-                            </div>
-                        </div>
+                        <ChatComposer
+                            MessageText="@_commentText"
+                            QuickReplies="QuickReplies"
+                            PlaceHolder="Напишите комметнтарий..."
+                            OnSendTextOnly="SendCommentAsync"
+                            EnableAttachments="false"
+                            MaxLength="3000"
+                        />
                     </div>
                 }
 
                 <!-- lightbox -->
                 @if (_currentIndex >= 0 && _galleryItems.Any())
                 {
-                    <div class="review-lightbox"  tabindex="0" @ref="_lightboxDiv"  @onkeydown="HandleKeyDown" @onclick="Close">
+                    <div class="review-lightbox"  tabindex="0" @ref="_lightboxDiv"  @onkeydown="NavigatePhotoViewer" @onclick="Close">
 
                         <RadzenButton Icon="chevron_left"
                                       ButtonStyle="ButtonStyle.Light"
@@ -599,7 +575,6 @@ else
     private bool _loadingMore;
     private bool _detailLoading;
     private bool _changingStatus;
-    private bool _sendingComment;
 
     private string? _cursor;
     private bool _hasMore;
@@ -740,7 +715,7 @@ else
         _lightboxSrc = null;
         _lightboxVideoSrc = null;
         _descriptionExpanded = false;
-        _commentText = null;
+        _commentText = string.Empty;
         StateHasChanged();
         _ = LoadDetailAsync(r);
     }
@@ -802,40 +777,15 @@ else
     }
 
     // ── Comments ──────────────────────────────────────────────────────────────
-    private ElementReference _commentArea;
 
-    [Inject] private IJSRuntime JS { get; set; }
-
-    private bool IsSendDisabled => string.IsNullOrWhiteSpace(_commentText)
-                                   || (_commentText?.Length ?? 0) < 2
-                                   || (_commentText?.Length ?? 0) > 3000;
-
-    private async Task OnInput(ChangeEventArgs e)
+    private async Task<bool> SendCommentAsync(string text)
     {
-        _commentText = e.Value?.ToString();
+        if (_selectedReview is null || string.IsNullOrWhiteSpace(text)) return false;
 
-        await JS.InvokeVoidAsync("resizeTextarea", _commentArea);
-    }
-
-
-    private async Task HandleKeyDown2(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter" && !e.ShiftKey && !IsSendDisabled)
-        {
-            await JS.InvokeVoidAsync("preventEnterDefault", _commentArea);
-            await SendCommentAsync();
-        }
-    }
-
-    private async Task SendCommentAsync()
-    {
-        if (_selectedReview is null || string.IsNullOrWhiteSpace(_commentText)) return;
-
-        _sendingComment = true;
         try
         {
             var commentId = await ReviewsService.CreateReviewCommentAsync(
-                _selectedReview, _commentText.Trim(), markAsProcessed: true);
+                _selectedReview, text.Trim(), markAsProcessed: true);
 
             if (commentId is not null)
             {
@@ -843,7 +793,7 @@ else
                 _detail.Comments.Add(new OzonReviewCommentDto
                 {
                     Id = commentId,
-                    Text = _commentText.Trim(),
+                    Text = text.Trim(),
                     IsOfficial = true,
                     IsOwner = true,
                     PublishedAt = DateTime.UtcNow
@@ -863,24 +813,22 @@ else
                     _ = LoadReviewCountsAsync();
                 }
 
-                _commentText = null;
+                text =  string.Empty;
                 NotificationService.Notify(NotificationSeverity.Success, "Комментарий опубликован", duration: 3000);
+                return true;
             }
-            else
-            {
-                NotificationService.Notify(NotificationSeverity.Error, "Не удалось отправить комментарий", duration: 4000);
-            }
+
+            NotificationService.Notify(NotificationSeverity.Error, "Не удалось отправить комментарий", duration: 4000);
+            return false;
         }
         catch (Exception ex)
         {
             NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 4000);
+            return false;
         }
         finally
         {
-            _sendingComment = false;
             await InvokeAsync(StateHasChanged);
-
-            await JS.InvokeVoidAsync("resizeTextarea", _commentArea);
         }
     }
 
@@ -929,8 +877,6 @@ else
         "Пожалуйста, напишите нам в личные сообщения, мы поможем решить вопрос.",
         "Мы рады, что вам понравился товар!"
     ];
-
-    private void ApplyTemplate(string text) => _commentText = text;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -1009,7 +955,7 @@ else
         _currentIndex = -1;
     }
 
-    void HandleKeyDown(KeyboardEventArgs e)
+    void NavigatePhotoViewer(KeyboardEventArgs e)
     {
         if (_currentIndex < 0) return;
 

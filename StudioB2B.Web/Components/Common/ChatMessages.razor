@@ -1,0 +1,264 @@
+﻿@using StudioB2B.Web.Helpers
+@using StudioB2B.Shared.DTOs
+
+<div class="chat-messages-area" id="chat-messages-container">
+    @if (LoadingHistory && !Messages.Any())
+    {
+        <div class="dlg-loading" style="flex: 1;">
+            <div class="dlg-spinner"></div>
+        </div>
+    }
+    else if (!Messages.Any())
+    {
+        <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
+                     Style="flex: 1; gap: 0.5rem;">
+            <RadzenIcon Icon="chat_bubble_outline"
+                        Style="font-size: 2rem; color: var(--rz-text-secondary-color);"/>
+            <RadzenText TextStyle="TextStyle.Caption"
+                        Style="color: var(--rz-text-secondary-color);">
+                Нет сообщений
+            </RadzenText>
+        </RadzenStack>
+    }
+    else
+    {
+        @foreach (var msg in Messages)
+        {
+            @if (FirstUnreadOnOpen == msg.MessageId)
+            {
+                <div id="newMessagesDivider" class="new-messages-divider">
+                    Новые сообщения
+                </div>
+            }
+
+            var isSeller = IsSellerMessage(msg);
+            var senderLabel = GetSenderLabel(msg);
+            var avatarClass = isSeller ? "chat-avatar seller" : "chat-avatar customer";
+            var avatarLetter = isSeller ? "П" : "К"; // Продавец / Клиент
+            var rowClass = "chat-message-row " + (isSeller ? "from-seller" : "");
+            <div @key="msg.MessageId" class="@rowClass">
+
+                <!-- Аватар -->
+                <div class="@avatarClass" title="@senderLabel">@avatarLetter</div>
+
+                <!-- Обёртка: имя + пузырь + мета -->
+                <div class="chat-bubble-wrap">
+
+                    <!-- Имя отправителя -->
+                    <div class="chat-message-sender">@senderLabel</div>
+
+                    <!-- Пузырь сообщения -->
+                    <div class="chat-message-bubble @(isSeller ? "from-seller" : "from-customer")">
+                        @if (msg.IsImage)
+                        {
+                            @foreach (var d in msg.Data)
+                            {
+                                @if (!string.IsNullOrWhiteSpace(d))
+                                {
+                                    var imgSrc = GetImageSrc(d);
+                                    <img class="chat-message-image"
+                                         src="@imgSrc"
+                                         alt="изображение"
+                                         loading="lazy"
+                                         @onclick="@(() => OpenLightbox.InvokeAsync(imgSrc))"
+                                         title="Нажмите для просмотра"/>
+                                }
+                            }
+                        }
+                        else
+                        {
+                            @foreach (var d in msg.Data)
+                            {
+                                @if (IsFileData(d))
+                                {
+                                    var fname = GetFileName(d);
+                                    var furl = GetFileDownloadUrl(d);
+                                    <div class="chat-file-link">
+                                        <RadzenIcon Icon="@GetFileIcon(fname)"
+                                                    Style="font-size: 1.1rem; flex-shrink: 0;"/>
+                                        <a href="@furl" target="_blank"
+                                           style="font-size: 0.83rem; word-break: break-all;">
+                                            @fname
+                                        </a>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="chat-md">@MarkdownHelper.ToMarkup(d)</div>
+                                }
+                            }
+                        }
+                    </div>
+
+                    <!-- Время + статус прочтения -->
+                    <div class="chat-message-meta">
+                                        <span class="chat-message-time">
+                                            @msg.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                        </span>
+                        @if (msg.IsRead)
+                        {
+                            <RadzenIcon Icon="done_all"
+                                        Style="font-size: 0.7rem; color: var(--rz-success);"
+                                        title="Прочитано"/>
+                        }
+                    </div>
+
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public List<OzonChatMessageDto> Messages { get; set; } = new();
+
+    [Parameter] public ulong? FirstUnreadOnOpen { get; set; }
+
+    [Parameter] public bool LoadingHistory { get; set; }
+
+    [Parameter] public OzonChatViewModelDto? SelectedChat { get; set; }
+
+    [Parameter] public EventCallback<string> OpenLightbox { get; set; }
+
+    private static bool IsSellerMessage(OzonChatMessageDto msg) =>
+        msg.User?.Type is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT";
+
+    private static string GetSenderLabel(OzonChatMessageDto msg) =>
+        msg.User?.Type switch
+        {
+            "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT" => "Продавец",
+            // Ozon sometimes sends Cyrillic "С" (U+0421) instead of Latin "C"
+            "Customer" or "Сustomer" or "customer" or "BUYER" => "Покупатель",
+            "Support" => "Поддержка Ozon",
+            _ => msg.User?.Type ?? "Система"
+        };
+
+
+    private static string? ExtractOzonFileUrl(string data)
+    {
+        if (string.IsNullOrWhiteSpace(data)) return null;
+
+        // Ищем паттерн [...](url) — Markdown-ссылка
+        var bracketOpen = data.IndexOf('[');
+        if (bracketOpen >= 0)
+        {
+            var bracketClose = data.IndexOf(']', bracketOpen);
+            if (bracketClose >= 0 && bracketClose + 1 < data.Length && data[bracketClose + 1] == '(')
+            {
+                var parenOpen = bracketClose + 1;
+                var parenClose = data.IndexOf(')', parenOpen);
+                if (parenClose > parenOpen)
+                {
+                    var url = data[(parenOpen + 1)..parenClose].Trim();
+                    if (IsOzonChatFileUrl(url)) return url;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    // Проверяет что URL является ссылкой на файл чата Ozon (требует авторизации)
+    private static bool IsOzonChatFileUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return false;
+        try
+        {
+            var uri = new Uri(url);
+            return uri.Host.Equals("api-seller.ozon.ru", StringComparison.OrdinalIgnoreCase)
+                   && uri.AbsolutePath.Contains("/chat/file/", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    // Извлекает имя файла из строки Ozon:
+    // "[video_2026-02-27.mp4 (15 MB)](url)" → "video_2026-02-27.mp4"
+    // "https://.../file.mp4" → "file.mp4"
+    private static string ExtractOzonFileName(string data)
+    {
+        // Паттерн [текст](url) — берём текст из скобок, убираем "(размер)"
+        var bracketOpen = data.IndexOf('[');
+        var bracketClose = bracketOpen >= 0 ? data.IndexOf(']', bracketOpen) : -1;
+        if (bracketOpen >= 0 && bracketClose > bracketOpen)
+        {
+            var label = data[(bracketOpen + 1)..bracketClose].Trim();
+            // Убираем " (размер)" в конце: "video.mp4 (15 MB)" → "video.mp4"
+            var parenIdx = label.LastIndexOf(" (", StringComparison.Ordinal);
+            if (parenIdx > 0) label = label[..parenIdx].Trim();
+            if (!string.IsNullOrWhiteSpace(label)) return label;
+        }
+
+        // Fallback — из URL
+        var url = ExtractOzonFileUrl(data) ?? data;
+        try
+        {
+            var path = new Uri(url).AbsolutePath;
+            var name = Path.GetFileName(path);
+            return string.IsNullOrWhiteSpace(name) ? "файл" : Uri.UnescapeDataString(name);
+        }
+        catch
+        {
+            return "файл";
+        }
+    }
+
+    private string GetProxyUrl(string fileUrl, string? fileName = null)
+    {
+        if (SelectedChat is null) return fileUrl;
+        var encoded = Uri.EscapeDataString(fileUrl);
+        var clientId = SelectedChat.MarketplaceClientId;
+        var url = $"/api/chat/file?url={encoded}&clientId={clientId}";
+        if (!string.IsNullOrWhiteSpace(fileName))
+            url += $"&name={Uri.EscapeDataString(fileName)}";
+        return url;
+    }
+
+    private string GetImageSrc(string data)
+    {
+        if (string.IsNullOrWhiteSpace(data)) return string.Empty;
+
+        var url = ExtractOzonFileUrl(data);
+        if (url is not null) return GetProxyUrl(url);
+
+        // Pure base64
+        var mime = data.Length > 10 && data[0] == '/' ? "image/jpeg"
+            : data.Length > 10 && data.StartsWith("iVBOR") ? "image/png"
+            : "image/jpeg";
+        return $"data:{mime};base64,{data}";
+    }
+
+    private static bool IsFileData(string data) =>
+        ExtractOzonFileUrl(data) is not null;
+
+    private static string GetFileName(string data) => ExtractOzonFileName(data);
+
+    private string GetFileDownloadUrl(string data)
+    {
+        var url = ExtractOzonFileUrl(data);
+        if (url is not null)
+            return GetProxyUrl(url, ExtractOzonFileName(data));
+        return data;
+    }
+
+    private static string GetFileIcon(string fileName)
+    {
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        return ext switch
+        {
+            ".pdf" => "picture_as_pdf",
+            ".doc" or ".docx" => "description",
+            ".txt" => "article",
+            ".jpg" or ".jpeg" or ".png"
+                or ".gif" or ".webp" => "image",
+            ".mp4" or ".avi" or ".mov"
+                or ".mkv" or ".webm" => "videocam",
+            ".mp3" or ".ogg" or ".wav" => "audio_file",
+            ".zip" or ".rar" or ".7z" => "folder_zip",
+            _ => "attach_file"
+        };
+    }
+
+}
