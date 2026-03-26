@@ -1,0 +1,254 @@
+﻿@using StudioB2B.Infrastructure.Interfaces
+@inject NotificationService NotificationService
+@inject IJSRuntime JsRuntime
+
+<div class="chat-input-footer">
+
+    <!-- Шаблонные ответы -->
+    <div class="chat-quick-replies" @ref="_quickRepliesRef">
+        @foreach (var tpl in QuickReplies)
+        {
+            <button class="chat-quick-reply-chip" @onclick="@(() => ApplyTemplate(tpl))">
+                @tpl
+            </button>
+        }
+    </div>
+
+    @if (EnableAttachments && AttachedFile is not null)
+    {
+        <div class="chat-attachment-preview">
+            <RadzenIcon Icon="attach_file" Style="font-size: 0.9rem;"/>
+            <span>@AttachedFile.Name (@FormatFileSize(AttachedFile.Size))</span>
+            <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Danger"
+                          Variant="Variant.Text" Size="ButtonSize.ExtraSmall"
+                          Style="padding: 0; margin-left: auto;"
+                          Click="@ClearAttachment"/>
+        </div>
+    }
+
+    <div class="chat-input-row">
+        @if (EnableAttachments)
+        {
+            <label title="Прикрепить файл (JPG, PNG, PDF, DOC, DOCX, TXT — до 10 МБ)"
+                   style="cursor: pointer; height: 28px;">
+                <RadzenButton Icon="attach_file" ButtonStyle="ButtonStyle.Light"
+                              Size="ButtonSize.Small"
+                              Click="@TriggerFilePicker"/>
+            </label>
+        }
+
+        <textarea @ref="_commentArea"
+                  class="comment-textarea"
+                  placeholder="@PlaceHolder"
+                  value="@MessageText"
+                  @oninput="OnInput"
+                  @onkeydown="HandleKeyDown"
+                  disabled="@_sending">
+        </textarea>
+
+        <RadzenButton Icon="send" ButtonStyle="ButtonStyle.Primary"
+                      Size="ButtonSize.Small"
+                      Click="@SendAsync"
+                      IsBusy="@_sending"
+                      Disabled="@IsSendDisabled"
+                      Title="Отправить"/>
+    </div>
+
+    <div class="char-counter @(MessageText.Length > @MaxLength ? "over-limit" : "")">
+        @MessageText.Length / @MaxLength
+    </div>
+
+    @if (EnableAttachments)
+    {
+        <!-- Hidden file input -->
+        <InputFile id="chat-file-input"
+                   accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.txt"
+                   OnChange="@OnFileSelected"
+                   style="display: none;"/>
+    }
+</div>
+
+
+<script>
+    window.preventEnterDefault = (el) => {
+        if (!el) return;
+        el.addEventListener("keydown", function(e){
+            if(e.key === "Enter" && !e.shiftKey){
+                e.preventDefault();
+            }
+        });
+    };
+
+    window.resizeTextarea = (el) => {
+        if (!el) return;
+
+        el.style.height = "28px";
+        el.style.height = el.scrollHeight + "px";
+    };
+
+    window.enableHorizontalScroll = (element) => {
+        element.addEventListener('wheel', function(e) {
+            if (e.deltaY === 0) return;
+            e.preventDefault();
+            element.scrollLeft += Number(e.deltaY * 0.7);
+        });
+    };
+</script>
+
+@code {
+
+    // Функция для текста + файла (чат)
+    [Parameter] public Func<string, IBrowserFile?, string?, Task<bool>>? OnSendWithFile { get; set; }
+
+    // Функция только для текста (комментарий)
+    [Parameter] public Func<string, Task<bool>>? OnSendTextOnly { get; set; }
+
+    [Parameter] public bool EnableAttachments { get; set; } = true;
+
+    [Parameter] public OzonChatViewModelDto? SelectedChat { get; set; }
+    [Parameter] public int MaxLength { get; set; } = 1000;
+    [Parameter] public string PlaceHolder { get; set; } = "Напишите сообщение...";
+    [Parameter] public string[] QuickReplies { get; set; } = Array.Empty<string>();
+    [Parameter] public string MessageText { get; set; } = string.Empty;
+    [Parameter] public IBrowserFile? AttachedFile { get; set; }
+    [Parameter] public string? AttachedBase64 { get; set; }
+
+    [Inject]
+    private IJSRuntime Js { get; set; } = null!;
+
+    private ElementReference _quickRepliesRef;
+    private bool _sending;
+
+    private void ApplyTemplate(string text) => MessageText = text;
+
+    private ElementReference _commentArea;
+
+    private bool IsSendDisabled => string.IsNullOrWhiteSpace(MessageText)
+                                   || (MessageText?.Length ?? 0) < 2
+                                   || (MessageText?.Length ?? 0) > @MaxLength;
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        MessageText = e.Value?.ToString();
+
+        await Js.InvokeVoidAsync("resizeTextarea", _commentArea);
+    }
+
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey && !IsSendDisabled)
+        {
+            await Js.InvokeVoidAsync("preventEnterDefault", _commentArea);
+            await SendAsync();
+        }
+    }
+
+    private async Task SendAsync()
+    {
+        _sending = true;
+        StateHasChanged();
+
+        try
+        {
+
+            bool success = false;
+
+            // вызываем функцию родителя
+            if (OnSendWithFile is not null)
+            {
+                success = await OnSendWithFile.Invoke(MessageText, AttachedFile, AttachedBase64);
+            }
+            else if (OnSendTextOnly is not null)
+            {
+                success = await OnSendTextOnly.Invoke(MessageText);
+            }
+
+            // если дошло сюда — считаем, что отправка завершена успешно, очищаем свои поля
+            if (success)
+            {
+                // очищаем свои поля
+                MessageText = string.Empty;
+                AttachedFile = null;
+                AttachedBase64 = null;
+            }
+        }
+        finally
+        {
+            _sending = false;
+            StateHasChanged();
+
+            // подгоняем высоту textarea
+            await Js.InvokeVoidAsync("resizeTextarea", _commentArea);
+        }
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        const long maxSize = 10 * 1024 * 1024; // 10 MB
+
+        var file = e.File;
+        if (file.Size > maxSize)
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Файл слишком большой",
+                "Максимальный размер файла — 10 МБ.", 5000);
+            return;
+        }
+
+        var allowed = new[] { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".txt" };
+        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+        if (!allowed.Contains(ext))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Неподдерживаемый формат",
+                "Допустимые форматы: JPG, PNG, PDF, DOC, DOCX, TXT.", 5000);
+            return;
+        }
+
+        try
+        {
+            using var ms = new MemoryStream();
+            await using var stream = file.OpenReadStream(maxSize);
+            await stream.CopyToAsync(ms);
+            AttachedBase64 = Convert.ToBase64String(ms.ToArray());
+            AttachedFile = file;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка чтения файла", ex.Message, 4000);
+        }
+    }
+
+    private async Task TriggerFilePicker()
+    {
+        await JsRuntime.InvokeVoidAsync("eval", "document.getElementById('chat-file-input').click()");
+    }
+
+    private void ClearAttachment()
+    {
+        AttachedFile = null;
+        AttachedBase64 = null;
+    }
+
+    private bool CanSend =>
+        SelectedChat is not null &&
+        !_sending &&
+        (AttachedFile is not null || (!string.IsNullOrWhiteSpace(MessageText) && MessageText.Length <= 1000));
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Js.InvokeVoidAsync("enableHorizontalScroll", _quickRepliesRef);
+        }
+    }
+
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} Б";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024} КБ";
+        return $"{bytes / (1024 * 1024.0):F1} МБ";
+    }
+}
