@@ -34,8 +34,7 @@ else
         <!-- Заголовок -->
         <div class="reviews-top">
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
-                         JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 0.5rem; margin-top:0.35rem">
-                <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Отзывы покупателей</RadzenText>
+                         JustifyContent="JustifyContent.End">
                 <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Primary" Shade="Shade.Light" Size="ButtonSize.Small"
                               Click="@ReloadAsync" IsBusy="@_loading" Text="Обновить" />
             </RadzenStack>

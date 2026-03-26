@@ -31,23 +31,15 @@ else
 
         <div class="questions-top">
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
-                         JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 0.5rem; margin-top:0.35rem">
-                <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Вопросы покупателей</RadzenText>
+                         JustifyContent="JustifyContent.End" >
+
                 <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Primary" Shade="Shade.Light" Size="ButtonSize.Small"
                               Click="@ReloadAsync" IsBusy="@_loading" Text="Обновить"/>
             </RadzenStack>
 
-            <div class="questions-tab-bar">
-                <span class="questions-tab @(_activeTab == 0 ? "active" : "")" @onclick="@(() => SwitchTab(0))">
-                    Вопросы
-                </span>
-                <span class="questions-tab @(_activeTab == 1 ? "active" : "")" @onclick="@(() => SwitchTab(1))">
-                    Топ товаров
-                </span>
-            </div>
         </div>
 
-        @if (_activeTab == 0)
+        @if (!ShowTopProducts)
         {
             @if (_questionCounts is not null)
             {
@@ -431,7 +423,7 @@ else
             </div>
         </div>
         }
-        @if (_activeTab == 1)
+        else
         {
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
                          Style="margin-bottom: 0.75rem;">
@@ -555,6 +547,8 @@ else
 }
 
 @code {
+    [Parameter] public bool ShowTopProducts { get; set; } = false;
+
     [CascadingParameter]
     private Task<AuthenticationState> AuthState { get; set; } = null!;
 
