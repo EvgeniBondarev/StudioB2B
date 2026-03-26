@@ -21,6 +21,7 @@ public class TabService
             ["/calculation-rules"] = ("Расчёты", "calculate"),
             ["/audit"] = ("Журнал", "history"),
             ["/roles"] = ("Роли", "security"),
+            ["/communication"] = ("Коммуникации", "communication"),
             ["/chats"] = ("Чаты", "chat"),
             ["/questions"] = ("Вопросы", "help"),
             ["/reviews"] = ("Отзывы", "star")

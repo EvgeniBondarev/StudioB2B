@@ -581,3 +581,13 @@ h1:focus {
 @keyframes dlg-spin {
     to { transform: rotate(360deg); }
 }
+
+/* Коммуникации */
+.rz-tabview-panel {
+  padding: 0;
+}
+.tab-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
