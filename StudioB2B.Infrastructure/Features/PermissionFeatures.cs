@@ -5,9 +5,6 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Shared.DTOs;
 
 namespace StudioB2B.Infrastructure.Features;
-public record PageWithDetailsDto(int Id, string Name, string DisplayName, List<LabelValueDto> Columns, List<LabelValueDto> Functions);
-
-public record EntityOptionDto(Guid Id, string Name);
 
 public static class PermissionExtensions
 {
