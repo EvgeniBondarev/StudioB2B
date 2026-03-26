@@ -449,13 +449,13 @@
 
 /* ── Comment composer ───────────────────────────────────────────────────────── */
 .review-comment-composer {
-    border-top: 2px solid var(--rz-border-color);
-    padding: 0.65rem 0 0;
-    margin-top: 0.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    background: var(--rz-base-background-color);
+  border-top: 2px solid var(--rz-border-color);
+  padding: 0.65rem 0 0;
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--rz-base-background-color);
 }
 
 /* Quick reply chips */
@@ -503,4 +503,3 @@
     color: var(--rz-danger);
     font-weight: 600;
 }
-

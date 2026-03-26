@@ -1,0 +1,117 @@
+﻿.chat-input-footer {
+  margin-top: 15px;
+  border-top: 2px solid var(--rz-border-color);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--rz-base-background-color);
+}
+
+.chat-quick-replies {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  white-space: nowrap;
+
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: var(--rz-base-200) white;
+}
+
+/* Chrome / Edge / Safari */
+.chat-quick-replies::-webkit-scrollbar {
+  height: 6px;
+}
+
+.chat-quick-reply-chip {
+  flex: 0 0 auto; /* не сжимать */
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--rz-primary-light);
+  background: var(--rz-primary-lighter);
+  color: var(--rz-primary-dark);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  line-height: 1.4;
+}
+
+.chat-quick-reply-chip:hover {
+  background: var(--rz-primary-light);
+  border-color: var(--rz-primary);
+  color: var(--rz-base);
+  transform: translateY(-1px);
+}
+
+.chat-attachment-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  background: var(--rz-base-100);
+  border: 1px solid var(--rz-border-color);
+  border-radius: 6px;
+  padding: 0.3rem 0.6rem;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  margin-top: 0.7rem;
+}
+
+/* Полее ввода сообщения */
+.comment-textarea {
+  flex: 1;
+  padding: 3px 10px !important;
+  resize: none;
+  overflow-y: auto;
+  display: block;
+
+  height: 28px;
+  min-height: 28px !important;
+  max-height: 200px !important;
+
+  border: 2px solid var(--rz-base-400) !important;
+  border-radius: 6px;
+  background-color: var(--rz-input-background-color) !important;
+  color: var(--rz-text-color) !important;
+
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.comment-textarea:focus {
+  outline: none;
+  border-color: var(--rz-primary) !important;
+  box-shadow: 0 0 0 2px rgba(var(--rz-primary-rgb), 0.2) !important;
+}
+
+.comment-textarea::placeholder {
+  color: var(--rz-text-secondary-color) !important;
+}
+
+.comment-textarea:disabled {
+  background-color: var(--rz-base-200) !important;
+  cursor: not-allowed;
+}
+
+.char-counter {
+  font-size: 0.68rem;
+  color: var(--rz-text-secondary-color);
+  text-align: right;
+}
+
+.char-counter.over-limit {
+  color: var(--rz-danger);
+  font-weight: 600;
+}
