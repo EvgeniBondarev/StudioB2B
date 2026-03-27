@@ -4,7 +4,7 @@ using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Features;
 using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 using System.Linq.Dynamic.Core;
 
 namespace StudioB2B.Infrastructure.Services;

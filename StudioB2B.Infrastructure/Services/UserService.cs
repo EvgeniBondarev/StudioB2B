@@ -1,7 +1,7 @@
 using AutoMapper;
 using StudioB2B.Infrastructure.Features;
 using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Services;
 

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 public class MasterRegisterModelDto
 {

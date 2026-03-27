@@ -8,7 +8,6 @@ namespace StudioB2B.Domain.Constants;
 /// </summary>
 public enum PageColumnEnum
 {
-    // ── Заказы ───────────────────────────────────────────────────────────
     [Description("Заказы: колонка «Цена»")]
     OrdersViewPrice = 1,
 
@@ -54,7 +53,6 @@ public enum PageColumnEnum
     [Description("Заказы: колонка «Склад»")]
     OrdersColWarehouse = 15,
 
-    // ── Пользователи ─────────────────────────────────────────────────────
     [Description("Пользователи: колонка «Фамилия»")]
     UsersColLastName = 16,
 
@@ -73,7 +71,6 @@ public enum PageColumnEnum
     [Description("Пользователи: колонка «Права»")]
     UsersColPermissions = 21,
 
-    // ── Маркетплейс ──────────────────────────────────────────────────────
     [Description("Маркетплейс: колонка «Название»")]
     MktClientsColName = 22,
 
@@ -95,7 +92,6 @@ public enum PageColumnEnum
     [Description("Маркетплейс: колонка «ИНН»")]
     MktClientsColINN = 28,
 
-    // ── Статусы заказов ──────────────────────────────────────────────────
     [Description("Статусы: колонка «Название»")]
     OStatusColName = 29,
 
@@ -114,7 +110,6 @@ public enum PageColumnEnum
     [Description("Статусы: колонка «Тип клиента»")]
     OStatusColClientType = 34,
 
-    // ── Возвраты ─────────────────────────────────────────────────────────
     [Description("Возвраты: колонка «ID возврата»")]
     ReturnsColReturnId = 35,
 
@@ -157,7 +152,6 @@ public enum PageColumnEnum
     [Description("Возвраты: колонка «Дата синхр.»")]
     ReturnsColSyncedAt = 48,
 
-    // ── Правила расчёта ──────────────────────────────────────────────────
     [Description("Правила расчёта: колонка «№»")]
     CalcRulesColSortOrder = 49,
 
@@ -173,7 +167,6 @@ public enum PageColumnEnum
     [Description("Правила расчёта: колонка «Активно»")]
     CalcRulesColIsActive = 53,
 
-    // ── Документы ────────────────────────────────────────────────────────
     [Description("Документы: колонка «Название»")]
     TransColName = 54,
 
@@ -192,7 +185,6 @@ public enum PageColumnEnum
     [Description("Документы: колонка «Активна»")]
     TransColIsEnabled = 59,
 
-    // ── История проведений ───────────────────────────────────────────────
     [Description("История проведений: колонка «Документ»")]
     TransHistColDocument = 60,
 
@@ -208,7 +200,6 @@ public enum PageColumnEnum
     [Description("История проведений: колонка «Пользователь»")]
     TransHistColUser = 64,
 
-    // ── Журнал аудита ────────────────────────────────────────────────────
     [Description("Аудит: колонка «Дата»")]
     AuditColDate = 65,
 
@@ -233,7 +224,6 @@ public enum PageColumnEnum
     [Description("Аудит: колонка «Кто изменил»")]
     AuditColUser = 72,
 
-    // ── Типы цен ─────────────────────────────────────────────────────────
     [Description("Типы цен: колонка «Название»")]
     PriceTypesColName = 73,
 
@@ -243,7 +233,6 @@ public enum PageColumnEnum
     [Description("Типы цен: колонка «Пользовательский»")]
     PriceTypesColIsUserDefined = 75,
 
-    // ── Загрузка (фоновые задачи) ─────────────────────────────────────────
     [Description("Загрузка: колонка «Тип»")]
     SyncColType = 76,
 

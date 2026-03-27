@@ -248,8 +248,6 @@ else if (_step == 3)
         _model.ClientTypeId = _ozonTypes.Count > 0 ? _ozonTypes[0].Id : _types.FirstOrDefault()?.Id;
     }
 
-    // ── Timeline helpers ─────────────────────────────────────────────────────
-
     private PointStyle StepStyle(int step) => step switch
     {
         _ when step < _step  => PointStyle.Success,
@@ -266,8 +264,6 @@ else if (_step == 3)
     private string StepDescStyle(int step) => step <= _step
         ? string.Empty
         : "color: var(--rz-text-disabled-color);";
-
-    // ── Actions ──────────────────────────────────────────────────────────────
 
     private void Cancel() => DialogService.Close(false);
 

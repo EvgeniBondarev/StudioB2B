@@ -2,7 +2,7 @@
 @attribute [Authorize(Roles = "ReviewsView")]
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
-@using StudioB2B.Shared.DTOs
+@using StudioB2B.Shared
 
 @inject ITenantProvider TenantProvider
 @inject IMarketplaceClientService MarketplaceClientService
@@ -613,10 +613,7 @@ else
     private string? _commentText;
     private string? _deletingCommentId;
     private string? _lightboxSrc;
-    private string? _lightboxVideoSrc;
     private bool _descriptionExpanded;
-
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     protected override async Task OnInitializedAsync()
     {
@@ -629,8 +626,6 @@ else
         _ = LoadReviewCountsAsync();
         await ReloadAsync();
     }
-
-    // ── Data loading ──────────────────────────────────────────────────────────
 
     private async Task LoadClientOptionsAsync()
     {
@@ -719,15 +714,12 @@ else
         return ReloadAsync();
     }
 
-    // ── Review selection & detail ─────────────────────────────────────────────
-
     private void SelectReview(OzonReviewViewModelDto r)
     {
         _selectedReview = r;
         _detail = null;
         _detailLoading = true;
         _lightboxSrc = null;
-        _lightboxVideoSrc = null;
         _descriptionExpanded = false;
         _commentText = string.Empty;
         StateHasChanged();
@@ -751,8 +743,6 @@ else
             StateHasChanged();
         }
     }
-
-    // ── Status change ─────────────────────────────────────────────────────────
 
     private async Task ChangeStatusAsync(string newStatus)
     {
@@ -789,8 +779,6 @@ else
             StateHasChanged();
         }
     }
-
-    // ── Comments ──────────────────────────────────────────────────────────────
 
     private async Task<bool> SendCommentAsync(string text)
     {
@@ -880,8 +868,6 @@ else
         }
     }
 
-    // ── Quick replies ─────────────────────────────────────────────────────────
-
     private static readonly string[] QuickReplies =
     [
         "Здравствуйте!",
@@ -891,8 +877,6 @@ else
         "Пожалуйста, напишите нам в личные сообщения, мы поможем решить вопрос.",
         "Мы рады, что вам понравился товар!"
     ];
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static string FormatTimeAgo(DateTime utcTime)
     {
@@ -925,8 +909,6 @@ else
         "CANCELLED" => "Отменён",
         _ => status ?? "—"
     };
-
-    // ── lightbox navigation ──────────────────────────────────────────────────────
 
     List<string> _galleryItems = new();
     int _currentIndex = -1;

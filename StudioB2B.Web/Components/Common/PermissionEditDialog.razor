@@ -11,8 +11,6 @@ else
 {
     <RadzenTemplateForm TItem="PermFormModel" Data="_model" Submit="@HandleSubmit">
         <RadzenStack Gap="1.2rem" Style="padding: 0.25rem 0;">
-
-            <!-- ── Name + Full access ──────────────────────────────────── -->
             <RadzenRow Gap="1rem">
                 <RadzenColumn Size="12" SizeMD="8">
                     <RadzenFormField Text="Название права" Style="width: 100%;">
@@ -42,8 +40,6 @@ else
             {
                 <RadzenTabs>
                     <Tabs>
-
-                        <!-- ── Pages ──────────────────────────────────────── -->
                         <RadzenTabsItem Text="@($"Страницы ({_model.Pages.Count})")" Icon="web">
                             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                                          Gap="0.4rem" Style="margin-top:0.5rem;margin-bottom:0.3rem;">
@@ -75,8 +71,6 @@ else
                                 }
                             </div>
                         </RadzenTabsItem>
-
-                        <!-- ── Functions ──────────────────────────────────── -->
                         <RadzenTabsItem Text="@($"Функции ({_model.Functions.Count})")" Icon="functions">
                             @{
                                 var allFuncValues = _pages.SelectMany(p => p.Functions.Select(f => f.Value)).ToList();
@@ -137,8 +131,6 @@ else
                                 }
                             </div>
                         </RadzenTabsItem>
-
-                        <!-- ── Columns ─────────────────────────────────────── -->
                         <RadzenTabsItem Text="@($"Колонки ({_model.PageColumns.Count})")" Icon="view_column">
                             @{
                                 var allColValues = _pages.SelectMany(p => p.Columns.Select(c => c.Value)).ToList();
@@ -199,8 +191,6 @@ else
                                 }
                             </div>
                         </RadzenTabsItem>
-
-                        <!-- ── Entity restrictions ─────────────────────────── -->
                         <RadzenTabsItem Text="@($"Ограничения ({_model.BlockedEntities.Count})")" Icon="filter_alt">
                             <div style="display:flex;flex-direction:column;gap:1rem;margin-top:0.5rem;">
                                 @foreach (var entityType in Enum.GetValues<BlockedEntityTypeEnum>())
@@ -287,8 +277,6 @@ else
                     </Tabs>
                 </RadzenTabs>
             }
-
-            <!-- ── Footer ─────────────────────────────────────────────── -->
             <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" JustifyContent="JustifyContent.End"
                          Style="margin-top:0.5rem;border-top:1px solid var(--rz-border-color);padding-top:1rem;">
                 <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Light"
@@ -340,9 +328,6 @@ else
         _loading = false;
     }
 
-    // ── Label helpers ──────────────────────────────────────────────────────
-
-
     private static string GetEntityTypeLabel(BlockedEntityTypeEnum type) => type switch
     {
         BlockedEntityTypeEnum.Warehouse => "Склады",
@@ -352,9 +337,6 @@ else
         BlockedEntityTypeEnum.DeliveryMethod => "Методы доставки",
         _ => type.ToString()
     };
-
-
-    // ── Toggle helpers ─────────────────────────────────────────────────────
 
     private void TogglePage(string name)
     {
@@ -375,8 +357,6 @@ else
         if (existing is not null) _model.BlockedEntities.Remove(existing);
         else _model.BlockedEntities.Add(new BlockedItem(typeKey, entityId));
     }
-
-    // ── Bulk selection helpers ─────────────────────────────────────────────
 
     private void SelectAllPages() =>
         _model.Pages = _pages.Select(p => p.Name).ToList();
@@ -408,8 +388,6 @@ else
     /// Clears all BlockedEntity entries for the given type (= unrestricted access).
     private void ClearBlockedEntityType(string typeKey) =>
         _model.BlockedEntities.RemoveAll(b => b.EntityType == typeKey);
-
-    // ── Submit ─────────────────────────────────────────────────────────────
 
     private async Task HandleSubmit(PermFormModel model)
     {
