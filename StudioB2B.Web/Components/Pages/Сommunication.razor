@@ -1,0 +1,50 @@
+﻿@page "/communication"
+@using StudioB2B.Infrastructure.Interfaces
+
+@inject ITenantProvider TenantProvider
+
+<PageTitle>Коммуникации</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+
+{
+    <RadzenTabs @bind-SelectedIndex="_activeTab" Style="height: 100%;">
+
+        <Tabs>
+            <RadzenTabsItem Text="Чаты">
+                <div class="tab-content">
+                    <Chats/>
+                </div>
+            </RadzenTabsItem>
+
+            <RadzenTabsItem Text="Отзывы">
+                <div class="tab-content">
+                    <Reviews/>
+                </div>
+            </RadzenTabsItem>
+
+            <RadzenTabsItem Text="Вопросы">
+                <div class="tab-content">
+                    <Questions/>
+                </div>
+            </RadzenTabsItem>
+
+            <RadzenTabsItem Text="Топ товаров">
+                <div class="tab-content">
+                    <Questions ShowTopProducts="true"/>
+                </div>
+            </RadzenTabsItem>
+        </Tabs>
+
+    </RadzenTabs>
+}
+
+@code {
+    private int _activeTab = 0;
+}
