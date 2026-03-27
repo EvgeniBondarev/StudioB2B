@@ -59,6 +59,7 @@ public static class ServiceExtensions
             .AddInteractiveServerComponents();
 
         services.AddScoped<MasterAuthStateService>();
+        services.AddScoped<IMasterAuthApiService, MasterAuthApiService>();
 
         // JWT используется для аутентификации — CSRF-защита не нужна.
         services.AddSingleton<IAntiforgery, NoOpAntiforgery>();

@@ -8,4 +8,14 @@ public interface IModuleService
     Task<List<TenantModule>> GetAllAsync(CancellationToken ct = default);
     Task EnableAsync(string moduleCode, CancellationToken ct = default);
     Task DisableAsync(string moduleCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// Количество производителей (для карточки модуля на странице).
+    /// </summary>
+    Task<int> GetManufacturerCountAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Гарантирует наличие всех базовых записей в TenantModules.
+    /// </summary>
+    Task EnsureModulesSeededAsync(CancellationToken ct = default);
 }

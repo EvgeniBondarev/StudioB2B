@@ -1,5 +1,7 @@
 @using StudioB2B.Infrastructure.Interfaces
 @using SyncJobType = StudioB2B.Domain.Constants.SyncJobTypeEnum
+@inject IOrderSyncJobService JobService
+@inject DialogService DialogService
 
 <RadzenStack Gap="1.5rem">
 
@@ -87,9 +89,6 @@
 </RadzenStack>
 
 @code {
-    [Parameter] public IOrderSyncJobService JobService { get; set; } = null!;
-    [Parameter] public DialogService DialogService { get; set; } = null!;
-    [Parameter] public NotificationService NotificationService { get; set; } = null!;
     /// <summary>If null or empty — all job types are allowed.</summary>
     [Parameter] public IReadOnlyList<SyncJobType>? AllowedTypes { get; set; }
 

@@ -1,7 +1,5 @@
-@using StudioB2B.Domain.Constants
-@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
-@inject ITenantDbContextFactory TenantFactory
+@inject IPermissionService PermissionService
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 
@@ -317,13 +315,12 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        using var db = TenantFactory.CreateDbContext();
-        _pages = await db.GetPagesWithDetailsAsync(CancellationToken.None);
-        _entityOptions = await db.GetEntityOptionsForPermissionAsync(CancellationToken.None);
+        _pages = await PermissionService.GetPagesWithDetailsAsync(CancellationToken.None);
+        _entityOptions = await PermissionService.GetEntityOptionsAsync(CancellationToken.None);
 
         if (PermissionId != Guid.Empty)
         {
-            var existing = await db.GetPermissionByIdAsync(PermissionId, CancellationToken.None);
+            var existing = await PermissionService.GetByIdAsync(PermissionId, CancellationToken.None);
             if (existing is not null)
             {
                 _model = new PermFormModel
@@ -425,8 +422,7 @@ else
 
             if (PermissionId == Guid.Empty)
             {
-                using var db = TenantFactory.CreateDbContext();
-                var (ok, error, _) = await db.CreatePermissionAsync(
+                var (ok, error, _) = await PermissionService.CreateAsync(
                     new CreatePermissionDto(model.Name, model.IsFullAccess,
                         model.Pages, model.PageColumns, model.Functions, blockedDtos), CancellationToken.None);
                 if (ok) { NotificationService.Notify(NotificationSeverity.Success, "Право создано"); DialogService.Close(true); }
@@ -434,8 +430,7 @@ else
             }
             else
             {
-                using var db = TenantFactory.CreateDbContext();
-                var (ok, error) = await db.UpdatePermissionAsync(PermissionId,
+                var (ok, error) = await PermissionService.UpdateAsync(PermissionId,
                     new UpdatePermissionDto(model.Name, model.IsFullAccess,
                         model.Pages, model.PageColumns, model.Functions, blockedDtos), CancellationToken.None);
                 if (ok) { NotificationService.Notify(NotificationSeverity.Success, "Право обновлено"); DialogService.Close(true); }

@@ -1,11 +1,8 @@
 @page "/users"
 @attribute [Authorize(Roles = "UsersView")]
-@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
-@using AutoMapper
 
-@inject ITenantDbContextFactory TenantFactory
-@inject IMapper Mapper
+@inject IUserService UserService
 @inject ITenantProvider TenantProvider
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
@@ -199,8 +196,7 @@ else
     private async Task LoadAsync()
     {
         _loading = true;
-        using var db = TenantFactory.CreateDbContext();
-        _users = await db.GetUsersAsync(Mapper, CancellationToken.None);
+        _users = await UserService.GetAllUsersAsync(CancellationToken.None);
         _loading = false;
     }
 
@@ -252,8 +248,7 @@ else
 
         if (confirmed != true) return;
 
-        using var db = TenantFactory.CreateDbContext();
-        var (ok, error) = await db.DeleteUserAsync(user.Id, CancellationToken.None);
+        var (ok, error) = await UserService.DeleteUserAsync(user.Id, CancellationToken.None);
         if (ok)
         {
             NotificationService.Notify(NotificationSeverity.Success, "Пользователь удалён");

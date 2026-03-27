@@ -1,10 +1,8 @@
 @page "/master-users"
-@using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Persistence.Master
 @using StudioB2B.Web.Services
-@inject MasterDbContext Db
+@inject IMasterUserService MasterUserService
 @inject JwtAuthenticationStateProvider AuthStateProvider
 @inject ITenantProvider TenantProvider
 @inject NotificationService NotificationService
@@ -159,21 +157,10 @@
 
     private async Task LoadDataAsync()
     {
-        _allRoles = await Db.Roles.AsNoTracking().OrderBy(r => r.Name).ToListAsync();
-
-        _users = await Db.Users.AsNoTracking()
-            .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
-            .ToListAsync();
-
-        var userIds = _users.Select(u => u.Id).ToList();
-        var rawLinks = await Db.UserRoles
-            .AsNoTracking()
-            .Where(ur => userIds.Contains(ur.UserId))
-            .ToListAsync();
-
-        _userRoleIds = rawLinks
-            .GroupBy(x => x.UserId)
-            .ToDictionary(g => g.Key, g => g.Select(x => x.RoleId).ToList());
+        var data = await MasterUserService.GetInitDataAsync();
+        _allRoles   = data.Roles;
+        _users      = data.Users;
+        _userRoleIds = data.UserRoleIds;
     }
 
     private IEnumerable<Guid> GetSelectedRoleIds(Guid userId) =>
@@ -186,7 +173,7 @@
             ? existing.ToHashSet()
             : new HashSet<Guid>();
 
-        var toAdd = newIds.Except(oldIds).ToList();
+        var toAdd    = newIds.Except(oldIds).ToList();
         var toRemove = oldIds.Except(newIds).ToList();
 
         // Нельзя снять с себя Admin
@@ -195,7 +182,6 @@
         {
             NotificationService.Notify(NotificationSeverity.Warning, "Запрещено",
                 "Нельзя снять с себя роль Admin");
-            // Возвращаем Admin обратно
             newIds.Add(adminRole.Id);
             toRemove.Remove(adminRole.Id);
             if (toAdd.Count == 0 && toRemove.Count == 0) return;
@@ -204,23 +190,12 @@
         _busyId = user.Id;
         try
         {
-            foreach (var roleId in toAdd)
-                Db.UserRoles.Add(new MasterUserRole { UserId = user.Id, RoleId = roleId });
-
-            if (toRemove.Count > 0)
-            {
-                var linksToRemove = await Db.UserRoles
-                    .Where(ur => ur.UserId == user.Id && toRemove.Contains(ur.RoleId))
-                    .ToListAsync();
-                Db.UserRoles.RemoveRange(linksToRemove);
-            }
-
-            await Db.SaveChangesAsync();
+            await MasterUserService.UpdateUserRolesAsync(user.Id, toAdd, toRemove);
 
             // Обновляем локальный кеш
             _userRoleIds[user.Id] = newIds.ToList();
 
-            var addedNames = _allRoles.Where(r => toAdd.Contains(r.Id)).Select(r => r.Name).ToList();
+            var addedNames   = _allRoles.Where(r => toAdd.Contains(r.Id)).Select(r => r.Name).ToList();
             var removedNames = _allRoles.Where(r => toRemove.Contains(r.Id)).Select(r => r.Name).ToList();
 
             if (addedNames.Count > 0)
@@ -233,9 +208,6 @@
         catch
         {
             NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось сохранить роли");
-            // Откатываем изменения контекста
-            foreach (var entry in Db.ChangeTracker.Entries().ToList())
-                entry.State = Microsoft.EntityFrameworkCore.EntityState.Detached;
         }
         finally
         {
@@ -248,11 +220,7 @@
         _busyId = user.Id;
         try
         {
-            var tracked = await Db.Users.FindAsync(user.Id);
-            if (tracked is null) return;
-
-            tracked.IsActive = isActive;
-            await Db.SaveChangesAsync();
+            await MasterUserService.SetUserActiveAsync(user.Id, isActive);
             user.IsActive = isActive;
 
             NotificationService.Notify(NotificationSeverity.Success, "Успешно",

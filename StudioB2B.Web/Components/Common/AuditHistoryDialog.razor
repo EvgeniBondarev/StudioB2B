@@ -1,14 +1,9 @@
-@using Microsoft.EntityFrameworkCore
-@using StudioB2B.Infrastructure.Persistence.Tenant
-@using System.Text.Json
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Services
 
-@inject ITenantDbContextFactory Factory
+@inject IAuditLogService AuditLogService
 @inject DialogService DialogService
 
-@implements IDisposable
 
 <div style="min-width: min(760px, 90vw);">
 
@@ -70,7 +65,6 @@
 @code {
     [Parameter] public IReadOnlyList<AuditSubject> Subjects { get; set; } = [];
 
-    private TenantDbContext? _db;
     private bool _loading = true;
     private int _totalCount = 0;
 
@@ -79,22 +73,13 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _db = Factory.CreateDbContext();
-
         if (Subjects.Count == 0)
         {
             _loading = false;
             return;
         }
 
-        var entityNames = Subjects.Select(s => s.EntityName).Distinct().ToList();
-        var entityIds = Subjects.Select(s => s.EntityId).Distinct().ToList();
-
-        var allLogs = await _db.FieldAuditLogs
-            .Where(x => entityNames.Contains(x.EntityName) && entityIds.Contains(x.EntityId))
-            .OrderByDescending(x => x.ChangedAtUtc)
-            .AsNoTracking()
-            .ToListAsync();
+        var allLogs = await AuditLogService.GetBySubjectsAsync(Subjects);
 
         foreach (var subject in Subjects)
         {
@@ -104,128 +89,12 @@
         }
 
         _totalCount = allLogs.Count;
-        _resolver = await BuildResolverAsync(allLogs);
-        _loading = false;
-    }
-
-    private async Task<IReadOnlyDictionary<string, string>> BuildResolverAsync(List<FieldAuditLog> logs)
-    {
-        var d = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        var statusIds = ExtractGuids(logs, "StatusId", "SystemStatusId");
-        if (statusIds.Count > 0)
-        {
-            var items = await _db!.OrderStatuses.IgnoreQueryFilters()
-                .Where(x => statusIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.Name })
-                .ToListAsync();
-            foreach (var item in items) d[item.Id.ToString()] = item.Name;
-        }
-
-        var methodIds = ExtractGuids(logs, "DeliveryMethodId");
-        if (methodIds.Count > 0)
-        {
-            var items = await _db!.DeliveryMethods.IgnoreQueryFilters()
-                .Where(x => methodIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.Name })
-                .ToListAsync();
-            foreach (var item in items) d[item.Id.ToString()] = item.Name;
-        }
-
-        var clientIds = ExtractGuids(logs, "MarketplaceClientId");
-        if (clientIds.Count > 0 && _db!.MarketplaceClients != null)
-        {
-            var items = await _db.MarketplaceClients.IgnoreQueryFilters()
-                .Where(x => clientIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.Name })
-                .ToListAsync();
-            foreach (var item in items) d[item.Id.ToString()] = item.Name;
-        }
-
-        var categoryIds = ExtractGuids(logs, "CategoryId");
-        if (categoryIds.Count > 0)
-        {
-            var items = await _db!.Categories.IgnoreQueryFilters()
-                .Where(x => categoryIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.Name })
-                .ToListAsync();
-            foreach (var item in items) d[item.Id.ToString()] = item.Name;
-        }
-
-        var mfgIds = ExtractGuids(logs, "ManufacturerId");
-        if (mfgIds.Count > 0)
-        {
-            var items = await _db!.Manufacturers.IgnoreQueryFilters()
-                .Where(x => mfgIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.Name })
-                .ToListAsync();
-            foreach (var item in items) d[item.Id.ToString()] = item.Name;
-        }
-
-        var ptIds = ExtractGuids(logs, "PriceTypeId");
-        if (ptIds.Count > 0)
-        {
-            var items = await _db!.PriceTypes.IgnoreQueryFilters()
-                .Where(x => ptIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.Name })
-                .ToListAsync();
-            foreach (var item in items) d[item.Id.ToString()] = item.Name;
-        }
-
-        var currencyIds = ExtractGuids(logs, "CurrencyId");
-        if (currencyIds.Count > 0)
-        {
-            var items = await _db!.Currencies.IgnoreQueryFilters()
-                .Where(x => currencyIds.Contains(x.Id))
-                .Select(x => new { x.Id, Display = x.Name ?? x.Code })
-                .ToListAsync();
-            foreach (var item in items) d[item.Id.ToString()] = item.Display;
-        }
-
-        var warehouseIds = ExtractGuids(logs, "WarehouseId", "SenderWarehouseId");
-        if (warehouseIds.Count > 0)
-        {
-            var items = await _db!.Warehouses.IgnoreQueryFilters()
-                .Where(x => warehouseIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.Name })
-                .ToListAsync();
-            foreach (var item in items) d[item.Id.ToString()] = item.Name;
-        }
-
-        return d;
-    }
-
-    private static HashSet<Guid> ExtractGuids(List<FieldAuditLog> logs, params string[] fieldNames)
-    {
-        var set = new HashSet<Guid>();
-        foreach (var log in logs)
-        {
-            if (!fieldNames.Contains(log.FieldName)) continue;
-            if (TryParseGuidJson(log.OldValue, out var g1)) set.Add(g1);
-            if (TryParseGuidJson(log.NewValue, out var g2)) set.Add(g2);
-        }
-        return set;
-    }
-
-    private static bool TryParseGuidJson(string? json, out Guid guid)
-    {
-        guid = Guid.Empty;
-        if (json is null) return false;
-        try
-        {
-            using var doc = JsonDocument.Parse(json);
-            var el = doc.RootElement;
-            if (el.ValueKind == JsonValueKind.String)
-                return Guid.TryParse(el.GetString(), out guid);
-        }
-        catch { }
-        return false;
+        _resolver   = await AuditLogService.BuildValueResolverAsync(allLogs);
+        _loading    = false;
     }
 
     private List<FieldAuditLog> GetLogs(AuditSubject subject) =>
         _logsByKey.GetValueOrDefault(SubjectKey(subject)) ?? [];
 
     private static string SubjectKey(AuditSubject s) => $"{s.EntityName}|{s.EntityId}";
-
-    public void Dispose() => _db?.Dispose();
 }

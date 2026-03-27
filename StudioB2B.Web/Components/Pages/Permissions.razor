@@ -1,9 +1,8 @@
 @page "/permissions"
 @attribute [Authorize(Roles = "PermissionsView")]
-@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
-@inject ITenantDbContextFactory TenantFactory
 @inject ITenantProvider TenantProvider
+@inject IPermissionService PermissionService
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
 @inject DialogService DialogService
@@ -124,8 +123,7 @@ else
     private async Task LoadAsync()
     {
         _loading = true;
-        using var db = TenantFactory.CreateDbContext();
-        _permissions = await db.GetPermissionsAsync(CancellationToken.None);
+        _permissions = await PermissionService.GetAllAsync(CancellationToken.None);
         _loading = false;
     }
 
@@ -158,8 +156,7 @@ else
 
         if (confirmed != true) return;
 
-        using var db = TenantFactory.CreateDbContext();
-        var (ok, error) = await db.DeletePermissionAsync(perm.Id, CancellationToken.None);
+        var (ok, error) = await PermissionService.DeleteAsync(perm.Id, CancellationToken.None);
         if (ok)
         {
             NotificationService.Notify(NotificationSeverity.Success, "Право удалено");
