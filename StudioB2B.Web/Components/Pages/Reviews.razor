@@ -15,9 +15,10 @@
 @inject UserContext UserContext
 @inject IEntityFilterService EntityFilterSvc
 
-<link rel="stylesheet" href="css/reviews.css" />
-<link rel="stylesheet" href="css/questions.css" />
-<link rel="stylesheet" href="css/chats/chatComposer.css" />
+<link rel="stylesheet" href="css/reviews.css"/>
+<link rel="stylesheet" href="css/questions.css"/>
+<link rel="stylesheet" href="css/chats/chatComposer.css"/>
+<link rel="stylesheet" href="css/chats/chatMessages.css"/>
 
 <PageTitle>Отзывы покупателей</PageTitle>
 
@@ -35,8 +36,9 @@ else
         <div class="reviews-top">
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                          JustifyContent="JustifyContent.End">
-                <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Primary" Shade="Shade.Light" Size="ButtonSize.Small"
-                              Click="@ReloadAsync" IsBusy="@_loading" Text="Обновить" />
+                <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Primary" Shade="Shade.Light"
+                              Size="ButtonSize.Small"
+                              Click="@ReloadAsync" IsBusy="@_loading" Text="Обновить"/>
             </RadzenStack>
 
             <!-- Статус-пилюли -->
@@ -47,7 +49,11 @@ else
                     @{ var allActive = string.IsNullOrEmpty(_filterStatus); }
                     <span class="q-pill @(allActive ? "active" : "")"
                           style="background:@(allActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allActive ? "#fff" : "var(--rz-text-color)");"
-                          @onclick="@(async () => { _filterStatus = null; await OnStatusPillClick(); })">
+                          @onclick="@(async () =>
+                                    {
+                                        _filterStatus = null;
+                                        await OnStatusPillClick();
+                                    })">
                         Все
                         @if (_counts.Total > 0)
                         {
@@ -56,7 +62,11 @@ else
                     </span>
                     <span class="q-pill @(_filterStatus == "UNPROCESSED" ? "active" : "")"
                           style="background:@(_filterStatus == "UNPROCESSED" ? "#f59e0b" : "#fef3c7"); color:@(_filterStatus == "UNPROCESSED" ? "#fff" : "#78350f");"
-                          @onclick="@(async () => { _filterStatus = _filterStatus == "UNPROCESSED" ? null : "UNPROCESSED"; await OnStatusPillClick(); })">
+                          @onclick="@(async () =>
+                                    {
+                                        _filterStatus = _filterStatus == "UNPROCESSED" ? null : "UNPROCESSED";
+                                        await OnStatusPillClick();
+                                    })">
                         Необработанные
                         @if (_counts.Unprocessed > 0)
                         {
@@ -65,7 +75,11 @@ else
                     </span>
                     <span class="q-pill @(_filterStatus == "PROCESSED" ? "active" : "")"
                           style="background:@(_filterStatus == "PROCESSED" ? "#10b981" : "#d1fae5"); color:@(_filterStatus == "PROCESSED" ? "#fff" : "#064e3b");"
-                          @onclick="@(async () => { _filterStatus = _filterStatus == "PROCESSED" ? null : "PROCESSED"; await OnStatusPillClick(); })">
+                          @onclick="@(async () =>
+                                    {
+                                        _filterStatus = _filterStatus == "PROCESSED" ? null : "PROCESSED";
+                                        await OnStatusPillClick();
+                                    })">
                         Обработанные
                         @if (_counts.Processed > 0)
                         {
@@ -80,14 +94,14 @@ else
                 <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                              Gap="0.75rem" Wrap="FlexWrap.Wrap">
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
-                        <RadzenLabel Text="Маркетплейс:" Style="white-space: nowrap;" />
+                        <RadzenLabel Text="Маркетплейс:" Style="white-space: nowrap;"/>
                         <RadzenDropDown TValue="Guid?" @bind-Value="_filterClientId"
                                         Data="@_clientOptions"
                                         TextProperty="Name" ValueProperty="Id"
                                         Placeholder="Все"
                                         AllowClear="true"
                                         Style="width: 200px;"
-                                        Change="@OnFilterChanged" />
+                                        Change="@OnFilterChanged"/>
                     </RadzenStack>
                 </RadzenStack>
             </RadzenCard>
@@ -109,7 +123,7 @@ else
                     <RadzenStack AlignItems="AlignItems.Center" JustifyContent="JustifyContent.Center"
                                  Style="flex: 1; padding: 2rem; gap: 0.5rem;">
                         <RadzenIcon Icon="star_border"
-                                    Style="font-size: 2.5rem; color: var(--rz-text-secondary-color);" />
+                                    Style="font-size: 2.5rem; color: var(--rz-text-secondary-color);"/>
                         <RadzenText TextStyle="TextStyle.Body2"
                                     Style="color: var(--rz-text-secondary-color); text-align: center;">
                             Отзывов не найдено
@@ -149,14 +163,15 @@ else
                                 }
                                 <div class="review-item-footer">
                                     <RadzenBadge Text="@GetStatusLabel(r.Status)"
-                                                 BadgeStyle="@GetStatusBadgeStyle(r.Status)" />
+                                                 BadgeStyle="@GetStatusBadgeStyle(r.Status)"/>
                                     @if (r.CommentsAmount > 0)
                                     {
-                                        <RadzenBadge Text="@($"💬 {r.CommentsAmount}")" BadgeStyle="BadgeStyle.Secondary" />
+                                        <RadzenBadge Text="@($"💬 {r.CommentsAmount}")"
+                                                     BadgeStyle="BadgeStyle.Secondary"/>
                                     }
                                     @if (r.PhotosAmount > 0)
                                     {
-                                        <RadzenBadge Text="@($"📷 {r.PhotosAmount}")" BadgeStyle="BadgeStyle.Info" />
+                                        <RadzenBadge Text="@($"📷 {r.PhotosAmount}")" BadgeStyle="BadgeStyle.Info"/>
                                     }
                                 </div>
                             </RadzenCard>
@@ -268,18 +283,6 @@ else
                             }
                         </div>
 
-                        <!-- Review text -->
-                        @if (!string.IsNullOrWhiteSpace(_selectedReview.Text))
-                        {
-                            <div class="review-text-block">@_selectedReview.Text</div>
-                        }
-                        else
-                        {
-                            <RadzenText TextStyle="TextStyle.Body2"
-                                        Style="color: var(--rz-text-secondary-color); margin-bottom: 0.75rem;">
-                                Без текста
-                            </RadzenText>
-                        }
 
                         <!-- Product card (reuse question-product-* classes) -->
                         @if (_detail?.Product is not null)
@@ -296,7 +299,7 @@ else
                                              alt="@_detail.Product.Name"
                                              class="question-product-image"
                                              @onclick="@(() => _lightboxSrc = _detail.Product.PrimaryImage)"
-                                             title="Нажмите для просмотра" />
+                                             title="Нажмите для просмотра"/>
                                     }
                                     <div class="question-product-info">
                                         <RadzenText TextStyle="TextStyle.Body1" Style="font-weight: 600; margin: 0;">
@@ -327,7 +330,7 @@ else
                                                       Shade="Shade.Lighter"
                                                       Size="ButtonSize.Small"
                                                       Style="margin-top: 0.5rem;"
-                                                      Click="@(() => Navigation.NavigateTo($"/orders?search={_detail.Product.Sku}"))" />
+                                                      Click="@(() => Navigation.NavigateTo($"/orders?search={_detail.Product.Sku}"))"/>
                                     </div>
                                 </div>
 
@@ -338,7 +341,8 @@ else
                                                     Style="font-weight: 600; margin-bottom: 0.35rem; color: var(--rz-text-secondary-color);">
                                             Описание
                                         </RadzenText>
-                                        <div class="question-product-description-text @(_descriptionExpanded ? "expanded" : "")">
+                                        <div
+                                            class="question-product-description-text @(_descriptionExpanded ? "expanded" : "")">
                                             @_detail.Product.Description
                                         </div>
                                         @if (_detail.Product.Description.Length > 300)
@@ -367,7 +371,7 @@ else
                                                      class="question-product-thumb"
                                                      loading="lazy"
                                                      @onclick="@(() => OpenGallery(_detail.Product.Images, img.Index))"
-                                                     title="Нажмите для просмотра" />
+                                                     title="Нажмите для просмотра"/>
                                             }
                                         </div>
                                     </div>
@@ -375,111 +379,138 @@ else
                             </div>
                         }
 
-                        <!-- Photos gallery -->
-                        @if (_detail?.Photos.Count > 0)
-                        {
-                            <div class="review-photos-section">
-                                <RadzenText TextStyle="TextStyle.Subtitle2"
-                                            Style="font-weight: 600; margin-bottom: 0.35rem; color: var(--rz-text-secondary-color);">
-                                    Фотографии (@_detail.Photos.Count)
-                                </RadzenText>
-                                <div class="review-photos-grid">
-                                    @foreach (var item in _detail.Photos.Select((p, i) => new { Photo = p, Index = i }))
-                                    {
-                                        <img src="@item.Photo.Url"
-                                             alt="Фото отзыва"
-                                             class="review-photo-thumb"
-                                             loading="lazy"
-                                             @onclick="@(() => OpenGallery(
-                                                           _detail.Photos.Select(x => x.Url).ToList(),
-                                                           item.Index))"
-                                             title="Нажмите для просмотра" />
-                                    }
-                                </div>
-                            </div>
-                        }
 
+                        @* Review display *@
+                        <div class="chat-messages-area">
 
-                        <!-- Videos -->
-                        @if (_detail?.Videos.Count > 0)
-                        {
-                            <div class="review-videos-section">
-                                <RadzenText TextStyle="TextStyle.Subtitle2"
-                                            Style="font-weight: 600; margin-bottom: 0.35rem; color: var(--rz-text-secondary-color);">
-                                    Видео (@_detail.Videos.Count)
-                                </RadzenText>
-
-                                <div class="review-videos-grid">
-                                    @foreach (var item in _detail.Videos.Select((v, i) => new { Video = v, Index = i }))
-                                    {
-                                        var videoUrl = item.Video.Url;
-                                        <div class="review-video-thumb"
-                                             @onclick="@(() => OpenGallery(_detail.Videos.Select(v => v.Url).ToList(), item.Index, GalleryType.Video))"
-                                             title="Нажмите для просмотра">
-
-                                            @if (!string.IsNullOrWhiteSpace(item.Video.PreviewUrl))
-                                            {
-                                                <img src="@item.Video.PreviewUrl" alt="Видео" loading="lazy" />
-                                            }
-                                            else
-                                            {
-                                                <div style="width:100%;height:100%;background:#1a1a2e;"></div>
-                                            }
-
-                                            <div class="review-video-play">
-                                                <RadzenIcon Icon="play_circle_filled" />
-                                            </div>
+                            <!-- Текст отзыва (Покупатель) -->
+                            @if (!string.IsNullOrWhiteSpace(_selectedReview.Text))
+                            {
+                                <div class="chat-message-row from-customer">
+                                    <div class="chat-avatar customer" title="Покупатель">К</div>
+                                    <div class="chat-bubble-wrap">
+                                        <div class="chat-message-sender">Покупатель</div>
+                                        <div class="chat-message-bubble from-customer">
+                                            @_selectedReview.Text
                                         </div>
-                                    }
-                                </div>
-                            </div>
-                        }
+                                        <div class="chat-message-meta">
+                                            <span class="chat-message-time">
+                                                @_selectedReview.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                            </span>
+                                        </div>
 
-                        <!-- Comments -->
-                        @if (_detail?.Comments.Count > 0)
-                        {
-                            <div class="review-comments-section">
-                                <RadzenText TextStyle="TextStyle.Subtitle2"
-                                            Style="font-weight: 600; margin-bottom: 0.5rem; color: var(--rz-text-secondary-color);">
-                                    Комментарии (@_detail.Comments.Count)
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <RadzenText TextStyle="TextStyle.Body2"
+                                            Style="color: var(--rz-text-secondary-color); margin-bottom: 0.75rem;">
+                                    Без текста
                                 </RadzenText>
+                            }
+
+                            <!-- Фото галерея (Продавец) -->
+                            @if (_detail?.Photos.Count > 0)
+                            {
+                                <div class="chat-message-row from-customer">
+                                    <div class="chat-avatar customer" title="Покупатель">К</div>
+                                    <div class="chat-bubble-wrap">
+                                        <div class="chat-message-sender">Покупатель</div>
+                                        <div class="chat-message-bubble from-customer review-photos-grid">
+                                            @foreach (var item in _detail.Photos.Select((p, i) => new { Photo = p, Index = i }))
+                                            {
+                                                <img src="@item.Photo.Url"
+                                                     alt="Фото отзыва"
+                                                     class="review-photo-thumb"
+                                                     loading="lazy"
+                                                     @onclick="@(() => OpenGallery(
+                                                                   _detail.Photos.Select(x => x.Url).ToList(),
+                                                                   item.Index))"
+                                                     title="Нажмите для просмотра"/>
+                                            }
+                                        </div>
+                                        <div class="chat-message-meta">
+                                            <span class="chat-message-time">
+                                                @_selectedReview.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Видео галерея (Продавец) -->
+                            @if (_detail?.Videos.Count > 0)
+                            {
+                                <div class="chat-message-row from-customer">
+                                    <div class="chat-avatar customer" title="Покупатель">К</div>
+                                    <div class="chat-bubble-wrap">
+                                        <div class="chat-message-sender">Покупатель</div>
+                                        <div class="chat-message-bubble from-customer review-videos-grid">
+                                            @foreach (var item in _detail.Videos.Select((v, i) => new { Video = v, Index = i }))
+                                            {
+                                                <div class="review-video-thumb"
+                                                     @onclick="@(() => OpenGallery(_detail.Videos.Select(v => v.Url).ToList(), item.Index, GalleryType.Video))"
+                                                     title="Нажмите для просмотра">
+
+                                                    @if (!string.IsNullOrWhiteSpace(item.Video.PreviewUrl))
+                                                    {
+                                                        <img src="@item.Video.PreviewUrl" alt="Видео" loading="lazy"/>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div style="width:100%;height:100%;background:#1a1a2e;"></div>
+                                                    }
+
+                                                    <div class="review-video-play">
+                                                        <RadzenIcon Icon="play_circle_filled"/>
+                                                    </div>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="chat-message-meta">
+                                            <span class="chat-message-time">
+                                                @_selectedReview.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Комментарии (Продавец) -->
+                            @if (_detail?.Comments.Count > 0)
+                            {
                                 @foreach (var comment in _detail.Comments)
                                 {
-                                    <div class="review-comment-item @(comment.IsOfficial ? "is-official" : "")">
-                                        <div class="review-comment-meta">
-                                            <span class="review-comment-author">
-                                                @if (comment.IsOfficial)
+                                    <div class="chat-message-row from-seller">
+                                        <div class="chat-avatar seller" title="Продавец">П</div>
+                                        <div class="chat-bubble-wrap">
+                                            <div class="chat-message-sender">Продавец</div>
+                                            <div class="chat-message-bubble from-seller">
+                                                @comment.Text
+                                            </div>
+                                            <div class="chat-message-meta" style="display: flex; align-items: center; gap: 0.5rem;">
+                                                @if (comment.IsOwner || comment.IsOfficial)
                                                 {
-                                                    <text>Продавец (официальный)</text>
+                                                    <RadzenButton Icon="delete"
+                                                                  ButtonStyle="ButtonStyle.Danger"
+                                                                  Shade="Shade.Lighter"
+                                                                  Variant="Variant.Text"
+                                                                  Size="ButtonSize.ExtraSmall"
+                                                                  Style="margin-left: auto; padding: 0 2px;"
+                                                                  Title="Удалить комментарий"
+                                                                  IsBusy="@(_deletingCommentId == comment.Id)"
+                                                                  Click="@(() => DeleteCommentAsync(comment))"/>
                                                 }
-                                                else if (comment.IsOwner)
-                                                {
-                                                    <text>Вы</text>
-                                                }
-                                                else
-                                                {
-                                                    <text>Покупатель</text>
-                                                }
-                                            </span>
-                                            <span>@comment.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
-                                            @if (comment.IsOwner || comment.IsOfficial)
-                                            {
-                                                <RadzenButton Icon="delete"
-                                                              ButtonStyle="ButtonStyle.Danger"
-                                                              Shade="Shade.Lighter"
-                                                              Variant="Variant.Text"
-                                                              Size="ButtonSize.ExtraSmall"
-                                                              Style="margin-left: auto; padding: 0 4px;"
-                                                              Title="Удалить комментарий"
-                                                              IsBusy="@(_deletingCommentId == comment.Id)"
-                                                              Click="@(() => DeleteCommentAsync(comment))"/>
-                                            }
+
+                                                <span>@comment.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                            </div>
                                         </div>
-                                        <div class="review-comment-text">@comment.Text</div>
                                     </div>
                                 }
-                            </div>
-                        }
+                            }
+
+                        </div>
 
                         <!-- Comment composer -->
                         <ChatComposer
@@ -496,34 +527,37 @@ else
                 <!-- lightbox -->
                 @if (_currentIndex >= 0 && _galleryItems.Any())
                 {
-                    <div class="review-lightbox"  tabindex="0" @ref="_lightboxDiv"  @onkeydown="NavigatePhotoViewer" @onclick="Close">
+                    <div class="review-lightbox" tabindex="0" @ref="_lightboxDiv" @onkeydown="NavigatePhotoViewer"
+                         @onclick="Close">
 
                         <RadzenButton Icon="chevron_left"
                                       ButtonStyle="ButtonStyle.Light"
                                       @onclick:stopPropagation="true"
                                       class="lightbox-arrow left"
-                                      Click="Prev" />
+                                      Click="Prev"/>
 
-                        @if (_galleryType ==  GalleryType.Photo)
+                        @if (_galleryType == GalleryType.Photo)
                         {
-                            <img src="@_galleryItems[_currentIndex]" @onclick:stopPropagation="true" class="lightbox-media" />
+                            <img src="@_galleryItems[_currentIndex]" @onclick:stopPropagation="true"
+                                 class="lightbox-media"/>
                         }
                         else if (_galleryType == GalleryType.Video)
                         {
-                            <video src="@_galleryItems[_currentIndex]" controls autoplay @onclick:stopPropagation="true" class="lightbox-media"></video>
+                            <video src="@_galleryItems[_currentIndex]" controls autoplay @onclick:stopPropagation="true"
+                                   class="lightbox-media"></video>
                         }
 
                         <RadzenButton Icon="chevron_right"
                                       ButtonStyle="ButtonStyle.Primary"
                                       @onclick:stopPropagation="true"
                                       class="lightbox-arrow right"
-                                      Click="Next" />
+                                      Click="Next"/>
 
                         <RadzenButton Icon="close"
                                       ButtonStyle="ButtonStyle.Light"
                                       class="review-lightbox-close"
                                       @onclick:stopPropagation="true"
-                                      Click="Close" />
+                                      Click="Close"/>
                     </div>
                 }
             </div>
@@ -560,8 +594,7 @@ else
 </script>
 
 @code {
-    [CascadingParameter]
-    private Task<AuthenticationState> AuthState { get; set; } = null!;
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = null!;
 
     private List<ClientOptionDto> _clientOptions = new();
     private OzonReviewCountAggregateDto? _counts;
@@ -812,7 +845,7 @@ else
                     _ = LoadReviewCountsAsync();
                 }
 
-                text =  string.Empty;
+                text = string.Empty;
                 NotificationService.Notify(NotificationSeverity.Success, "Комментарий опубликован", duration: 3000);
                 return true;
             }
@@ -916,11 +949,13 @@ else
     List<string> _galleryItems = new();
     int _currentIndex = -1;
     private ElementReference _lightboxDiv;
+
     enum GalleryType
     {
         Photo,
         Video
     }
+
     private GalleryType _galleryType = GalleryType.Photo;
 
     void OpenGallery(List<string> items, int startIndex, GalleryType type = GalleryType.Photo)
@@ -967,5 +1002,6 @@ else
 
         StateHasChanged();
     }
+
 }
 
