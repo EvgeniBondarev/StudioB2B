@@ -13,7 +13,6 @@
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
 @inject DialogService DialogService
-@inject TabService TabService
 
 @implements IDisposable
 
@@ -1409,8 +1408,7 @@ else
         }
 
         var path = new Uri(Navigation.Uri).PathAndQuery;
-        var navigateTo = TabService.Close(path);
-        Navigation.NavigateTo(navigateTo ?? "/orders", forceLoad: true);
+        Navigation.NavigateTo("/orders", forceLoad: true);
     }
 
     private void ToggleComputedLayout() =>
