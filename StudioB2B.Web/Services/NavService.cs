@@ -55,9 +55,7 @@ public class NavService
             Items = new()
             {
                 new NavItem { Path = "/marketplace-clients", Role = "MarketplaceClientsView" },
-                new NavItem { Path = "/chats", Role = "ChatsView" },
-                new NavItem { Path = "/questions", Role = "QuestionsView" },
-                new NavItem { Path = "/reviews", Role = "ReviewsView" },
+                new NavItem { Path = "/communication", Role = "ChatsView" },
                 new NavItem { Path = "/price-types", Role = "PriceTypesView" },
                 new NavItem { Path = "/calculation-rules", Role = "CalculationRulesView" },
                 new NavItem { Path = "/order-statuses", Role = "OrderStatusesView" }
