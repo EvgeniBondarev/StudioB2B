@@ -495,10 +495,7 @@ else
 
         var result = await DialogService.OpenAsync(
             "Запустить фоновую задачу",
-            ds => @<EnqueueJobDialog JobService="@JobService"
-                                     DialogService="@ds"
-                                     AllowedTypes="@allowed"
-                                     NotificationService="@NotificationService" />,
+            _ => @<EnqueueJobDialog AllowedTypes="@allowed" />,
             new DialogOptions { Width = "700px", Resizable = true, Draggable = true });
 
         if (result is true)
@@ -600,7 +597,7 @@ else
     {
         var result = await DialogService.OpenAsync(
             "Новое расписание",
-            ds => @<ScheduleJobDialog JobService="@JobService" DialogService="@ds" />,
+            _ => @<ScheduleJobDialog />,
             new DialogOptions { Width = "930px", Resizable = true, Draggable = true });
 
         if (result is true)
@@ -611,7 +608,7 @@ else
     {
         var result = await DialogService.OpenAsync(
             "Редактировать расписание",
-            ds => @<ScheduleJobDialog JobService="@JobService" DialogService="@ds" EditSchedule="@schedule" />,
+            _ => @<ScheduleJobDialog EditSchedule="@schedule" />,
             new DialogOptions { Width = "930px", Resizable = true, Draggable = true });
 
         if (result is true)
@@ -720,7 +717,7 @@ else
 
             await DialogService.OpenAsync(
                 "Результат загрузки возвратов",
-                ds => @<SyncResultDialogContent ReturnsSummary="@returnsSummary" JobType="@history.JobType" />,
+                _ => @<SyncResultDialogContent ReturnsSummary="@returnsSummary" JobType="@history.JobType" />,
                 new DialogOptions { Width = "600px", Resizable = true, Draggable = true });
         }
         else
@@ -730,7 +727,7 @@ else
 
             await DialogService.OpenAsync(
                 history.JobType == SyncJobType.Sync ? "Результат синхронизации" : "Результат обновления",
-                ds => @<SyncResultDialogContent Summary="@summary" JobType="@history.JobType" />,
+                _ => @<SyncResultDialogContent Summary="@summary" JobType="@history.JobType" />,
                 new DialogOptions { Width = "900px", Resizable = true, Draggable = true });
         }
     }

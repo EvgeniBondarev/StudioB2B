@@ -1,18 +1,15 @@
 @page "/orders"
 @attribute [Authorize(Roles = "OrdersView")]
-@using Microsoft.EntityFrameworkCore
 @using Radzen
 @using Radzen.Blazor.Rendering
 
 @using StudioB2B.Domain.Constants
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features
-@using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider
-@inject ITenantDbContextFactory Factory
 @inject DialogService DialogService
 @inject ContextMenuService ContextMenuService
 @inject NotificationService NotificationService
@@ -21,7 +18,7 @@
 @inject TabService TabService
 @inject IJSRuntime JsRuntime
 @inject IModuleService ModuleService
-@inject IEntityFilterService EntityFilterSvc
+@inject IOrderService OrderService
 @inject UserContext UserContext
 
 @implements IDisposable
@@ -842,7 +839,7 @@ window.gridResize = {
 
     private RadzenDataGrid<OrderEntity>? _grid;
 
-    private TenantDbContext? _db;
+    private bool _initialized;
     private IEnumerable<OrderEntity> _pageItems = Array.Empty<OrderEntity>();
     private int _totalCount;
     private Density _density = Density.Default;
@@ -1124,16 +1121,7 @@ window.gridResize = {
                 TenantProvider.IsResolved)
             {
                 OpenReturnId = null;
-                await using var db = Factory.CreateDbContext();
-                // Сначала ищем как ShipmentId, потом как OrderId (для обратной совместимости)
-                var order = await db.Orders
-                    .IncludeForGrid()
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(o => o.ShipmentId == openReturnId)
-                    ?? await db.Orders
-                    .IncludeForGrid()
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(o => o.Id == openReturnId);
+                var order = await OrderService.FindOrderByIdAsync(openReturnId);
                 if (order != null)
                     await OpenOrderDetailAsync(order, openReturnTab: true);
                 Navigation.NavigateTo("/orders", replace: true);
@@ -1279,161 +1267,48 @@ window.gridResize = {
         {
         await EnsureInitializedAsync();
 
-        // Counts for pills — respect client/warehouse/search filters but NOT status/return filters
-        var countBase = _db!.Orders.AsNoTracking().AsQueryable();
-
-        // Apply entity restriction filters to the base query
-        var _efClients = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient);
-        var _efWarehouses = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.Warehouse);
-        var _efStatuses = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.OrderStatus);
-        var _efDelivery = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.DeliveryMethod);
-
-        if (_efClients is not null)
-            countBase = countBase.Where(o => _efClients.Contains(o.Shipment.MarketplaceClientId));
-        if (_efWarehouses is not null)
-            countBase = countBase.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId.HasValue && _efWarehouses.Contains(o.WarehouseInfo.SenderWarehouseId.Value));
-        if (_efStatuses is not null)
-            countBase = countBase.Where(o => o.StatusId != null && _efStatuses.Contains(o.StatusId.Value));
-        if (_efDelivery is not null)
-            countBase = countBase.Where(o => o.Shipment.DeliveryMethodId != null && _efDelivery.Contains(o.Shipment.DeliveryMethodId.Value));
-
-        if (_filterClientId.HasValue)
-            countBase = countBase.Where(o => o.Shipment.MarketplaceClientId == _filterClientId.Value);
-        if (_filterWarehouseId.HasValue)
-            countBase = countBase.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId == _filterWarehouseId.Value);
-        if (!string.IsNullOrWhiteSpace(_searchText))
-        {
-            var term = _searchText.Trim();
-            countBase = countBase.Where(o =>
-                o.Shipment.PostingNumber.Contains(term) ||
-                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Article != null && o.ProductInfo.Product.Article.Contains(term)) ||
-                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Name.Contains(term)) ||
-                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Manufacturer != null && o.ProductInfo.Product.Manufacturer.Name.Contains(term)));
-        }
-        if (!string.IsNullOrEmpty(args.Filter))
-            countBase = countBase.Where(args.Filter);
-
-        var msCounts = await countBase
-            .Where(o => o.StatusId != null)
-            .GroupBy(o => o.StatusId!.Value)
-            .Select(g => new { StatusId = g.Key, Count = g.Count() })
-            .ToListAsync();
-        _statusCounts = msCounts.ToDictionary(x => x.StatusId, x => x.Count);
-
-        var ssCounts = await countBase
-            .Where(o => o.SystemStatusId != null)
-            .GroupBy(o => o.SystemStatusId!.Value)
-            .Select(g => new { StatusId = g.Key, Count = g.Count() })
-            .ToListAsync();
-        _systemStatusCounts = ssCounts.ToDictionary(x => x.StatusId, x => x.Count);
-
-        _returnCount = await countBase
-            .Where(o => _db!.OrderReturns.Any(r => r.ShipmentId == o.ShipmentId))
-            .Select(o => o.ShipmentId)
-            .Distinct()
-            .CountAsync();
-
-        // Counts for FBS/FBO pills.
-        // - учитывают client/warehouse/search (+ restrictions)
-        // - НЕ учитывают статус/возвраты (как и остальные pills)
-        var fbsCount = await countBase
-            .Where(o => o.Shipment.DeliveryMethod!.DeliveryType != null &&
-                        o.Shipment.DeliveryMethod.DeliveryType!.Name == "fbs")
-            .CountAsync();
-        var fboCount = await countBase
-            .Where(o => o.Shipment.DeliveryMethod!.DeliveryType != null &&
-                        o.Shipment.DeliveryMethod.DeliveryType!.Name == "fbo")
-            .CountAsync();
-        _schemeTypeCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["fbs"] = fbsCount,
-            ["fbo"] = fboCount
-        };
-
-        var query = _db!.Orders
-            .IncludeForGrid()
-            .AsNoTracking()
-            .AsQueryable();
-
-        // Apply entity restriction filters
-        if (_efClients is not null)
-            query = query.Where(o => _efClients.Contains(o.Shipment.MarketplaceClientId));
-        if (_efWarehouses is not null)
-            query = query.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId.HasValue && _efWarehouses.Contains(o.WarehouseInfo.SenderWarehouseId.Value));
-        if (_efStatuses is not null)
-            query = query.Where(o => o.StatusId != null && _efStatuses.Contains(o.StatusId.Value));
-        if (_efDelivery is not null)
-            query = query.Where(o => o.Shipment.DeliveryMethodId != null && _efDelivery.Contains(o.Shipment.DeliveryMethodId.Value));
-
-        if (_filterClientId.HasValue)
-            query = query.Where(o => o.Shipment.MarketplaceClientId == _filterClientId.Value);
-        if (_filterStatusId.HasValue)
-            query = query.Where(o => o.StatusId == _filterStatusId.Value);
-        if (_filterSystemStatusId.HasValue)
-            query = query.Where(o => o.SystemStatusId == _filterSystemStatusId.Value);
-        if (_filterWarehouseId.HasValue)
-            query = query.Where(o => o.WarehouseInfo != null && o.WarehouseInfo.SenderWarehouseId == _filterWarehouseId.Value);
-        if (!string.IsNullOrWhiteSpace(_filterSchemeType))
-            query = query.Where(o => o.Shipment.DeliveryMethod!.DeliveryType != null &&
-                                       o.Shipment.DeliveryMethod.DeliveryType!.Name == _filterSchemeType);
-        if (_filterHasReturn)
-            query = query.Where(o => _db!.OrderReturns.Any(r => r.ShipmentId == o.ShipmentId));
-        if (!string.IsNullOrWhiteSpace(_searchText))
-        {
-            var term = _searchText.Trim();
-            query = query.Where(o =>
-                o.Shipment.PostingNumber.Contains(term) ||
-                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Article != null && o.ProductInfo.Product.Article.Contains(term)) ||
-                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Name.Contains(term)) ||
-                (o.ProductInfo != null && o.ProductInfo.Product != null && o.ProductInfo.Product.Manufacturer != null && o.ProductInfo.Product.Manufacturer.Name.Contains(term)));
-        }
-
-        if (!string.IsNullOrEmpty(args.Filter))
-            query = query.Where(args.Filter);
-
         var appliedOrderBy = args.OrderBy;
         var isComputedOrder = _computedSplitByColumns &&
                               !string.IsNullOrEmpty(appliedOrderBy) &&
                               appliedOrderBy.StartsWith("Computed_", StringComparison.OrdinalIgnoreCase);
 
-        if (!isComputedOrder)
-        {
-            query = !string.IsNullOrEmpty(appliedOrderBy)
-                ? query.OrderBy(appliedOrderBy)
-                : query.OrderByDescending(o => o.Shipment.InProcessAt)
-                    .ThenByDescending(o => o.Shipment.CreatedAt);
-        }
+        var skip = args.Skip ?? 0;
+        var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 15);
 
-        var baseList = isComputedOrder
-            ? await query.ToListAsync()
-            : null;
+        var request = new OrderPageRequest(
+            ClientId:       _filterClientId,
+            StatusId:       _filterStatusId,
+            SystemStatusId: _filterSystemStatusId,
+            WarehouseId:    _filterWarehouseId,
+            HasReturn:      _filterHasReturn,
+            SchemeType:     _filterSchemeType,
+            SearchText:     _searchText,
+            DynamicFilter:  args.Filter,
+            OrderBy:        isComputedOrder ? null : appliedOrderBy,
+            Skip:           skip,
+            Take:           take,
+            FetchAll:       isComputedOrder);
 
-        if (baseList == null)
-        {
-            _totalCount = await query.CountAsync();
+        var result = await OrderService.GetOrderPageAsync(request);
 
-            var skip = args.Skip ?? 0;
-            var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 15);
+        _statusCounts       = result.StatusCounts;
+        _systemStatusCounts = result.SystemStatusCounts;
+        _returnCount        = result.ReturnCount;
+        _schemeTypeCounts   = result.SchemeTypeCounts;
 
-            _pageItems = await query.Skip(skip).Take(take).ToListAsync();
-        }
-        else
-        {
-            _pageItems = baseList;
-        }
+        var pageItems  = result.Items.ToList();
+        var totalCount = result.TotalCount;
 
         _computed = _calcRules.Count > 0
-            ? _pageItems.ToDictionary(
-                o => o.Id,
-                o => _calcEngine.Calculate(o, _calcRules))
+            ? pageItems.ToDictionary(o => o.Id, o => _calcEngine.Calculate(o, _calcRules))
             : new Dictionary<Guid, Dictionary<string, decimal>>();
 
-        if (isComputedOrder && baseList != null)
+        if (isComputedOrder)
         {
             var parts = appliedOrderBy!.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var field = parts[0];
-            var desc = parts.Length > 1 &&
-                       parts[1].Equals("desc", StringComparison.OrdinalIgnoreCase);
+            var desc  = parts.Length > 1 &&
+                        parts[1].Equals("desc", StringComparison.OrdinalIgnoreCase);
 
             var ruleByProp = _calcRules.ToDictionary(
                 r => $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(r.ResultKey)}",
@@ -1448,38 +1323,18 @@ window.gridResize = {
                         ? v
                         : 0m;
 
-                _pageItems = desc
-                    ? _pageItems.OrderByDescending(GetSortValue).ToList()
-                    : _pageItems.OrderBy(GetSortValue).ToList();
+                pageItems = desc
+                    ? pageItems.OrderByDescending(GetSortValue).ToList()
+                    : pageItems.OrderBy(GetSortValue).ToList();
             }
+
+            totalCount = pageItems.Count;
+            pageItems  = pageItems.Skip(skip).Take(take).ToList();
         }
 
-        if (baseList != null)
-        {
-            _totalCount = _pageItems.Count();
-
-            var skip = args.Skip ?? 0;
-            var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 15);
-
-            _pageItems = _pageItems.Skip(skip).Take(take).ToList();
-        }
-
-        var orderIds = _pageItems.Select(o => o.Id).ToList();
-        if (orderIds.Count > 0)
-        {
-            var histories = await _db!.OrderTransactionHistories
-                .Include(h => h.OrderTransaction)
-                .Where(h => h.Success && orderIds.Contains(h.OrderId))
-                .OrderByDescending(h => h.PerformedAtUtc)
-                .ToListAsync();
-            _orderLastTransactionColor = histories
-                .GroupBy(h => h.OrderId)
-                .ToDictionary(g => g.Key, g => g.First().OrderTransaction?.Color);
-        }
-        else
-        {
-            _orderLastTransactionColor = new Dictionary<Guid, string?>();
-        }
+        _pageItems  = pageItems;
+        _totalCount = totalCount;
+        _orderLastTransactionColor = result.TransactionColors;
 
         _loading = false;
         }
@@ -1501,51 +1356,15 @@ window.gridResize = {
 
     private async Task EnsureInitializedAsync()
     {
-        if (_db != null) return;
-        _db = Factory.CreateDbContext(); // set before first await — prevents re-entry
+        if (_initialized) return;
+        _initialized = true; // устанавливаем до первого await, чтобы предотвратить повторный вход
 
-        // Load entity restriction filters once
-        var allowedClients = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient);
-        var allowedWarehouses = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.Warehouse);
-        var allowedStatuses = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.OrderStatus);
-
-        var clientsQ = _db.MarketplaceClients!
-            .Include(c => c.ClientType)
-            .Include(c => c.Mode)
-            .Include(c => c.Mode2)
-            .Where(c => c.ClientType!.Name == "Ozon"
-                        && ((c.Mode != null && (c.Mode.Name == "FBS" || c.Mode.Name == "FBO"))
-                            || (c.Mode2 != null && (c.Mode2.Name == "FBS" || c.Mode2.Name == "FBO"))))
-            .OrderBy(c => c.Name)
-            .AsNoTracking();
-        if (allowedClients is not null)
-            clientsQ = clientsQ.Where(c => allowedClients.Contains(c.Id));
-        _clients = await clientsQ.ToListAsync();
-
-        var msStatusQ = _db.OrderStatuses
-            .Where(s => !s.IsInternal && !s.IsDeleted)
-            .OrderBy(s => s.Name)
-            .AsNoTracking();
-        if (allowedStatuses is not null)
-            msStatusQ = msStatusQ.Where(s => allowedStatuses.Contains(s.Id));
-        _marketplaceStatuses = await msStatusQ.ToListAsync();
-
-        var sysStatusQ = _db.OrderStatuses
-            .Where(s => s.IsInternal && !s.IsDeleted)
-            .OrderBy(s => s.Name)
-            .AsNoTracking();
-        if (allowedStatuses is not null)
-            sysStatusQ = sysStatusQ.Where(s => allowedStatuses.Contains(s.Id));
-        _systemStatuses = await sysStatusQ.ToListAsync();
-
-        var warehouseQ = _db.Warehouses
-            .OrderBy(w => w.Name)
-            .AsNoTracking();
-        if (allowedWarehouses is not null)
-            warehouseQ = warehouseQ.Where(w => allowedWarehouses.Contains(w.Id));
-        _warehouses = await warehouseQ.ToListAsync();
-
-        _calcRules = await _db.GetActiveRulesAsync();
+        var data = await OrderService.GetInitDataAsync();
+        _clients              = data.Clients;
+        _marketplaceStatuses  = data.MarketplaceStatuses;
+        _systemStatuses       = data.SystemStatuses;
+        _warehouses           = data.Warehouses;
+        _calcRules            = data.CalcRules;
     }
 
     private async Task OnFilterChange()
@@ -1713,29 +1532,16 @@ window.gridResize = {
         StateHasChanged();
 
         await EnsureInitializedAsync();
-        var statusIdsWithValue = await _db!.Orders
-            .Where(o => _selectedOrderIds.Contains(o.Id) && o.SystemStatusId != null)
-            .Select(o => o.SystemStatusId!.Value)
-            .Distinct()
-            .ToListAsync();
-        var hasNull = await _db.Orders
-            .Where(o => _selectedOrderIds.Contains(o.Id) && o.SystemStatusId == null)
-            .AnyAsync();
-        _selectionStatusGroups = statusIdsWithValue.Count + (hasNull ? 1 : 0);
+        var info = await OrderService.GetSelectionInfoAsync(_selectedOrderIds);
+
+        _selectionStatusGroups = info.StatusIds.Count + (info.HasNullStatus ? 1 : 0);
 
         if (_selectionStatusGroups == 1)
         {
-            if (statusIdsWithValue.Count == 1)
+            if (info.StatusIds.Count == 1)
             {
-                var statusId = statusIdsWithValue[0];
-                _selectionStatusName = _systemStatuses.FirstOrDefault(s => s.Id == statusId)?.Name ?? "—";
-                _availableTransactions = await _db.OrderTransactions
-                    .Include(t => t.FromSystemStatus)
-                    .Include(t => t.ToSystemStatus)
-                    .Where(t => !t.IsDeleted && t.IsEnabled && t.FromSystemStatusId == statusId)
-                    .OrderBy(t => t.Name)
-                    .AsNoTracking()
-                    .ToListAsync();
+                _selectionStatusName   = _systemStatuses.FirstOrDefault(s => s.Id == info.StatusIds[0])?.Name ?? "—";
+                _availableTransactions = info.AvailableTransactions;
             }
             else
             {
@@ -1806,7 +1612,6 @@ window.gridResize = {
 
     public void Dispose()
     {
-        _db?.Dispose();
         _resizeRef?.Dispose();
     }
 

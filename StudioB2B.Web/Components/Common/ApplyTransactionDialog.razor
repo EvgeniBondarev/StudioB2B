@@ -1,16 +1,12 @@
-@using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Constants
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Persistence.Tenant
-@using StudioB2B.Infrastructure.Services
+@using StudioB2B.Infrastructure.Features
 
-@inject ITenantDbContextFactory Factory
 @inject IOrderTransactionService TransactionService
 @inject NotificationService NotificationService
 @inject DialogService DialogService
 
-@implements IDisposable
 
 @if (_loading)
 {
@@ -129,7 +125,6 @@ else
     [Parameter] public Guid OrderId { get; set; }
     [Parameter] public Guid? CurrentSystemStatusId { get; set; }
 
-    private TenantDbContext? _db;
     private bool _loading = true;
     private List<OrderTransaction> _transactions = [];
     private string? _currentStatusName;
@@ -137,36 +132,15 @@ else
     private Guid? _selectedTransactionId;
     private Dictionary<Guid, decimal> _userValues = [];
     private Dictionary<Guid, string> _fieldUserValues = [];
-    private List<OrderStatus> _orderStatuses = [];
-    private List<Product> _products = [];
-    private List<Supplier> _suppliers = [];
-    private List<Warehouse> _warehouses = [];
-    private List<DeliveryMethod> _deliveryMethods = [];
-    private List<Recipient> _recipients = [];
-    private List<Address> _addresses = [];
-    private List<WarehouseInfo> _warehouseInfos = [];
-    private List<OrderProductInfo> _orderProductInfos = [];
+    private TransactionReferenceData _refData = new();
 
     protected override async Task OnInitializedAsync()
     {
-        _db = Factory.CreateDbContext();
-
         if (CurrentSystemStatusId.HasValue)
         {
-            var status = await _db.OrderStatuses
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => s.Id == CurrentSystemStatusId.Value);
-            _currentStatusName = status?.Name;
-
-            _transactions = await _db.OrderTransactions
-                .Include(t => t.FromSystemStatus)
-                .Include(t => t.ToSystemStatus)
-                .Include(t => t.Rules)
-                .Include(t => t.FieldRules)
-                .Where(t => !t.IsDeleted && t.IsEnabled && t.FromSystemStatusId == CurrentSystemStatusId.Value)
-                .OrderBy(t => t.Name)
-                .AsNoTracking()
-                .ToListAsync();
+            var (statusName, transactions) = await TransactionService.GetApplyDialogInitDataAsync(CurrentSystemStatusId.Value);
+            _currentStatusName = statusName;
+            _transactions = transactions;
         }
 
         _loading = false;
@@ -200,38 +174,8 @@ else
 
     private async Task LoadReferenceDataAsync(IEnumerable<TransactionApplyFieldRulePreviewDto> fieldRules)
     {
-        if (_db == null) return;
-        var refTypes = fieldRules.Select(f => f.ReferenceType).Distinct().ToList();
-        if (refTypes.Contains(FieldReferenceTypeEnum.OrderStatus))
-            _orderStatuses = await _db.OrderStatuses.Where(s => !s.IsDeleted).OrderBy(s => s.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.Product))
-            _products = await _db.Products.Where(p => !p.IsDeleted).OrderBy(p => p.Article).Take(1000).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.Supplier))
-            _suppliers = await _db.Suppliers.Where(s => !s.IsDeleted).OrderBy(s => s.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.Warehouse))
-            _warehouses = await _db.Warehouses.Where(w => !w.IsDeleted).OrderBy(w => w.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.DeliveryMethod))
-            _deliveryMethods = await _db.DeliveryMethods.Where(d => !d.IsDeleted).OrderBy(d => d.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.Recipient))
-            _recipients = await _db.Recipients.OrderBy(r => r.Name).Take(500).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.Address))
-            _addresses = await _db.Addresses.Take(500).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.WarehouseInfo))
-            _warehouseInfos = await _db.WarehouseInfos
-                .Include(wi => wi.RecipientWarehouse)
-                .Include(wi => wi.SenderWarehouse)
-                .OrderBy(wi => wi.Id)
-                .Take(500)
-                .AsNoTracking()
-                .ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.OrderProductInfo))
-            _orderProductInfos = await _db.OrderProductInfos
-                .Include(opi => opi.Product)
-                .Where(opi => !opi.IsDeleted)
-                .OrderBy(opi => opi.Product != null ? opi.Product.Article : "")
-                .Take(500)
-                .AsNoTracking()
-                .ToListAsync();
+        var refTypes = fieldRules.Select(f => f.ReferenceType).Distinct();
+        _refData = await TransactionService.GetReferenceDataAsync(refTypes);
     }
 
     private RenderFragment RenderFieldControl(TransactionApplyFieldRulePreviewDto fr) => builder =>
@@ -303,15 +247,15 @@ else
 
     private object GetReferenceItems(FieldReferenceTypeEnum refType) => refType switch
     {
-        FieldReferenceTypeEnum.OrderStatus => _orderStatuses.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
-        FieldReferenceTypeEnum.Product => _products.Select(p => new { p.Id, Name = $"{p.Article} — {p.Name}" }).ToList(),
-        FieldReferenceTypeEnum.Supplier => _suppliers.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
-        FieldReferenceTypeEnum.Warehouse => _warehouses.Select(w => new { w.Id, Name = w.Name ?? "" }).ToList(),
-        FieldReferenceTypeEnum.WarehouseInfo => _warehouseInfos.Select(wi => new { wi.Id, Name = $"{wi.SenderWarehouse?.Name ?? "—"} → {wi.RecipientWarehouse?.Name ?? "—"}" }).ToList(),
-        FieldReferenceTypeEnum.DeliveryMethod => _deliveryMethods.Select(d => new { d.Id, Name = d.Name ?? "" }).ToList(),
-        FieldReferenceTypeEnum.OrderProductInfo => _orderProductInfos.Select(opi => new { opi.Id, Name = $"{opi.Product?.Article ?? "—"} — {opi.Product?.Name ?? ""}" }).ToList(),
-        FieldReferenceTypeEnum.Recipient => _recipients.Select(r => new { r.Id, Name = r.Name ?? "" }).ToList(),
-        FieldReferenceTypeEnum.Address => _addresses.Select(a => new { a.Id, Name = $"{a.City} {a.Street}".Trim() }).ToList(),
+        FieldReferenceTypeEnum.OrderStatus => _refData.OrderStatuses.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.Product => _refData.Products.Select(p => new { p.Id, Name = $"{p.Article} — {p.Name}" }).ToList(),
+        FieldReferenceTypeEnum.Supplier => _refData.Suppliers.Select(s => new { s.Id, Name = s.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.Warehouse => _refData.Warehouses.Select(w => new { w.Id, Name = w.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.WarehouseInfo => _refData.WarehouseInfos.Select(wi => new { wi.Id, Name = $"{wi.SenderWarehouse?.Name ?? "—"} → {wi.RecipientWarehouse?.Name ?? "—"}" }).ToList(),
+        FieldReferenceTypeEnum.DeliveryMethod => _refData.DeliveryMethods.Select(d => new { d.Id, Name = d.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.OrderProductInfo => _refData.OrderProductInfos.Select(opi => new { opi.Id, Name = $"{opi.Product?.Article ?? "—"} — {opi.Product?.Name ?? ""}" }).ToList(),
+        FieldReferenceTypeEnum.Recipient => _refData.Recipients.Select(r => new { r.Id, Name = r.Name ?? "" }).ToList(),
+        FieldReferenceTypeEnum.Address => _refData.Addresses.Select(a => new { a.Id, Name = $"{a.City} {a.Street}".Trim() }).ToList(),
         _ => Array.Empty<object>()
     };
 
@@ -396,7 +340,6 @@ else
         }
     }
 
-    public void Dispose() => _db?.Dispose();
 
     private static string GetPriceColor(decimal? value) =>
         value is null || value < 0 ? "color: var(--rz-danger);" : "";
