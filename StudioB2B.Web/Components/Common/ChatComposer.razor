@@ -129,8 +129,7 @@
 
     private async Task OnInput(ChangeEventArgs e)
     {
-        MessageText = e.Value?.ToString();
-
+        MessageText = e.Value?.ToString() ?? string.Empty;
         await Js.InvokeVoidAsync("resizeTextarea", _commentArea);
     }
 

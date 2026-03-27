@@ -1,4 +1,4 @@
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 public record MasterRegisterDto(
     string Email,

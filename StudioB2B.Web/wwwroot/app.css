@@ -26,10 +26,6 @@ h1:focus {
   content: "Произошла ошибка приложения.";
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Стартовый оверлей — виден пока Blazor не установил SignalR-соединение.
-   Скрывается через Blazor.start().then(...) в App.razor.
-   ────────────────────────────────────────────────────────────── */
 #app-initial-loading {
   position: fixed;
   inset: 0;
@@ -139,14 +135,12 @@ h1:focus {
   40% { transform: scale(1); opacity: 1; }
 }
 
-/* ── App Shell ──────────────────────────────────────────────── */
 .app-shell {
   display: flex;
   height: 100vh;
   overflow: hidden;
 }
 
-/* ── Icon Rail ─────────────────────────────────────────────── */
 .icon-rail {
   width: 56px;
   flex-shrink: 0;
@@ -278,7 +272,6 @@ h1:focus {
   flex-shrink: 0;
 }
 
-/* ── Main area ─────────────────────────────────────────────── */
 .app-main {
   flex: 1;
   display: flex;
@@ -287,7 +280,6 @@ h1:focus {
   overflow: hidden;
 }
 
-/* ── Slim header ───────────────────────────────────────────── */
 .app-header {
   height: 36px;
   flex-shrink: 0;
@@ -395,7 +387,6 @@ h1:focus {
   overflow-y: auto;
 }
 
-/* ── Communication page: Radzen Tabs full-height chain ───── */
 .body-full-height .rz-tabview {
   flex: 1;
   display: flex;
@@ -618,10 +609,6 @@ h1:focus {
   z-index: -1;
 }
 
-/* ── Shared status pill filters (q-pill) ─────────────────────────────────────
-   Используются на страницах Questions, Reviews, TenantUsers и других.
-   Определены здесь глобально, чтобы работали без подключения конкретного css.
-   ─────────────────────────────────────────────────────────────────────────── */
 .q-pill {
     display: inline-flex;
     align-items: center;
@@ -650,9 +637,6 @@ h1:focus {
     font-weight: 400;
 }
 
-/* ──────────────────────────────────────────────────────────────
-   CSS-only dialog loading spinner (avoids Radzen JS interop issues)
-   ────────────────────────────────────────────────────────────── */
 .dlg-loading {
     display: flex;
     align-items: center;
@@ -683,7 +667,6 @@ h1:focus {
   flex-direction: column;
 }
 
-/* ── Mobile: bottom nav bar ──────────────────────────────── */
 @media (max-width: 768px) {
   .app-shell { flex-direction: column-reverse; }
   .icon-rail {
