@@ -15,7 +15,6 @@
 @inject NotificationService NotificationService
 @inject IOrderSyncService OrderSyncService
 @inject NavigationManager Navigation
-@inject TabService TabService
 @inject IJSRuntime JsRuntime
 @inject IModuleService ModuleService
 @inject IOrderService OrderService
@@ -1558,7 +1557,6 @@ window.gridResize = {
         if (_selectedOrderIds.Count == 0) return;
         var ids = string.Join(",", _selectedOrderIds);
         var path = $"/orders/apply-transaction?ids={ids}&transactionId={transactionId}";
-        TabService.OpenTab(path, $"Провести документ ({_selectedOrderIds.Count})", "swap_horiz");
         Navigation.NavigateTo(path);
     }
 

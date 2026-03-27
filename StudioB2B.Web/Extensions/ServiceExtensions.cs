@@ -43,6 +43,7 @@ public static class ServiceExtensions
         services.AddScoped<ContextMenuService>();
         services.AddScoped<TabService>();
         services.AddSingleton<NavService>();
+        services.AddSingleton<PageRegistry>();
 
         ConfigureCors(services, environment);
 

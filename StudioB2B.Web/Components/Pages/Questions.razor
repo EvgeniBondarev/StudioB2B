@@ -750,7 +750,6 @@ else
         {
             _detail = await QuestionsService.GetQuestionDetailAsync(q);
             _selectedQuestion = _detail.Question;
-            _ = QuestionsService.ChangeQuestionStatusAsync(q, "VIEWED");
         }
         catch (Exception ex)
         {

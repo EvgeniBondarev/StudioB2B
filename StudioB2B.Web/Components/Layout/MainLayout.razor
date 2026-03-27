@@ -1,10 +1,9 @@
 @inherits LayoutComponentBase
-@using System.Text.Json
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
 @inject ITenantProvider TenantProvider
 @inject NavigationManager Navigation
-@inject TabService TabService
+@inject PageRegistry PageRegistry
 @inject JwtAuthenticationStateProvider AuthStateProvider
 @inject MasterAuthStateService MasterAuthState
 @inject IJSRuntime JsRuntime
@@ -13,125 +12,127 @@
 
 @implements IDisposable
 
-<RadzenLayout Style="min-height: 100vh;">
+<div class="app-shell">
 
-    <RadzenSidebar Style="@(_sidebarExpanded ? "width: 220px;" : "width: 0;")" class="sidebar-animated">
-        <div class="sidebar-inner">
+    <!-- ───── Icon Rail (left) ───── -->
+    <nav class="icon-rail">
+        <div class="rail-brand">
+            <i class="notranslate rzi" style="font-size:1.3rem;color:var(--rz-primary);">business_center</i>
+        </div>
 
-            <div class="sidebar-logo">
-                <RadzenIcon Icon="business_center"
-                            Style="color: var(--rz-primary-light); font-size: 1.4rem; flex-shrink: 0;" />
-
-                <RadzenText Text="StudioB2B"
-                            TextStyle="TextStyle.H6"
-                            Style="color: var(--rz-primary-light); margin:0; font-weight:700;" />
-            </div>
-
-
-           <RadzenPanelMenu>
-    @if (TenantProvider.IsResolved)
-    {
-        @foreach (var group in NavService.Groups)
-        {
-            @* Если в группе только 1 элемент *@
-            @if (group.Items.Count == 1)
+        <div class="rail-items">
+            @if (TenantProvider.IsResolved)
             {
-                var item = group.Items.First();
-
-                if (string.IsNullOrEmpty(item.Role))
+                @foreach (var group in NavService.Groups)
                 {
-                    <RadzenPanelMenuItem Text="@group.Title"
-                                         Path="@item.Path"
-                                         Icon="@group.Icon" />
+                    var idx = NavService.Groups.IndexOf(group);
+                    var firstPath = group.Items.FirstOrDefault()?.Path ?? "/";
+                    var isGroupActive = IsGroupActive(group);
 
-                }
-                else
-                {
-                    <AuthorizeView Roles="@item.Role">
-                        <Authorized>
-                            <RadzenPanelMenuItem Text="@group.Title"
-                                                 Path="@item.Path"
-                                                 Icon="@group.Icon" />
-                        </Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="CalculationRulesView">
-                        <Authorized><RadzenPanelMenuItem Text="Расчёты" Path="/calculation-rules" Icon="calculate" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="ChatsView">
-                        <Authorized><RadzenPanelMenuItem Text="Коммуникации" Path="/communication" Icon="communication" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="AuditView">
-                        <Authorized><RadzenPanelMenuItem Text="Журнал" Path="/audit" Icon="history" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="ModulesView">
-                        <Authorized><RadzenPanelMenuItem Text="Модули" Path="/modules" Icon="extension" /></Authorized>
-                    </AuthorizeView>
-                    <AuthorizeView Roles="PermissionsView">
-                        <Authorized><RadzenPanelMenuItem Text="Права доступа" Path="/permissions" Icon="shield" /></Authorized>
-                    </AuthorizeView>
-
-                    <RadzenPanelMenuItem Text="@TenantProvider.Subdomain" Icon="apartment" Disabled="true" />                }
-            }
-            else
-            {
-                @* Группа с подпунктами *@
-                <RadzenPanelMenuItem Text="@group.Title" Icon="@group.Icon">
-                    @foreach (var item in group.Items)
+                    @if (group.Items.Count == 1)
                     {
-                        if (string.IsNullOrEmpty(item.Role))
+                        var item = group.Items[0];
+                        @if (string.IsNullOrEmpty(item.Role))
                         {
-                            <RadzenPanelMenuItem Text="@TabService.KnownPages[item.Path].Title"
-                                                 Path="@item.Path"
-                                                 Icon="@TabService.KnownPages[item.Path].Icon" />
+                            <div class="rail-item @(isGroupActive ? "active" : "")"
+                                 @onclick="@(() => NavigateDirect(item.Path))" title="@group.Title">
+                                <i class="notranslate rzi">@group.Icon</i>
+                                <span class="rail-label">@group.Title</span>
+                            </div>
                         }
                         else
                         {
                             <AuthorizeView Roles="@item.Role">
                                 <Authorized>
-                                    <RadzenPanelMenuItem Text="@TabService.KnownPages[item.Path].Title"
-                                                         Path="@item.Path"
-                                                         Icon="@TabService.KnownPages[item.Path].Icon" />
+                                    <div class="rail-item @(isGroupActive ? "active" : "")"
+                                         @onclick="@(() => NavigateDirect(item.Path))" title="@group.Title">
+                                        <i class="notranslate rzi">@group.Icon</i>
+                                        <span class="rail-label">@group.Title</span>
+                                    </div>
                                 </Authorized>
                             </AuthorizeView>
                         }
                     }
-                </RadzenPanelMenuItem>
+                    else
+                    {
+                        <div class="rail-group">
+                            <div class="rail-item @(isGroupActive ? "active" : "")"
+                                 @onclick="@(() => NavigateDirect(firstPath))" title="@group.Title">
+                                <i class="notranslate rzi">@group.Icon</i>
+                                <span class="rail-label">@group.Title</span>
+                            </div>
+                            <div class="rail-flyout" style="top: @(GetFlyoutTop(group))px;">
+                                <div class="rail-flyout-title">@group.Title</div>
+                                @foreach (var item in group.Items)
+                                {
+                                    var info = PageRegistry.Get(item.Path);
+                                    var isItemActive = IsPathActive(item.Path);
+                                    @if (string.IsNullOrEmpty(item.Role))
+                                    {
+                                        <div class="rail-flyout-item @(isItemActive ? "active" : "")"
+                                             @onclick="@(() => NavigateFromFlyout(item.Path))">
+                                            <i class="notranslate rzi">@info.Icon</i>
+                                            <span>@info.Title</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <AuthorizeView Roles="@item.Role">
+                                            <Authorized>
+                                                <div class="rail-flyout-item @(isItemActive ? "active" : "")"
+                                                     @onclick="@(() => NavigateFromFlyout(item.Path))">
+                                                    <i class="notranslate rzi">@info.Icon</i>
+                                                    <span>@info.Title</span>
+                                                </div>
+                                            </Authorized>
+                                        </AuthorizeView>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                }
             }
-        }
-
-        <RadzenPanelMenuItem Text="@TenantProvider.Subdomain" Icon="apartment" Disabled="true" />
-    }
-    else if (MasterAuthState.IsAuthenticated)
-    {
-        <RadzenPanelMenuItem Text="Рабочие пространства" Path="/my-tenants" Icon="domain" />
-        @if (MasterAuthState.UserInfo?.IsAdmin == true)
-        {
-            <RadzenPanelMenuItem Text="Пользователи" Path="/master-users" Icon="manage_accounts" />
-        }
-    }
-</RadzenPanelMenu>
-
+            else if (MasterAuthState.IsAuthenticated)
+            {
+                <div class="rail-item @(IsPathActive("/my-tenants") ? "active" : "")"
+                     @onclick="@(() => NavigateDirect("/my-tenants"))" title="Рабочие пространства">
+                    <i class="notranslate rzi">domain</i>
+                    <span class="rail-label">Пространства</span>
+                </div>
+                @if (MasterAuthState.UserInfo?.IsAdmin == true)
+                {
+                    <div class="rail-item @(IsPathActive("/master-users") ? "active" : "")"
+                         @onclick="@(() => NavigateDirect("/master-users"))" title="Пользователи">
+                        <i class="notranslate rzi">manage_accounts</i>
+                        <span class="rail-label">Пользователи</span>
+                    </div>
+                }
+            }
         </div>
-    </RadzenSidebar>
 
-    <RadzenHeader Style="padding: 0; background: var(--rz-primary-light); border-bottom: 1px solid var(--rz-border-color);">
-        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
-                     JustifyContent="JustifyContent.SpaceBetween"
-                     Style="height: 56px; padding: 0 1rem; width: 100%;">
+        @if (TenantProvider.IsResolved)
+        {
+            <div class="rail-tenant" title="@TenantProvider.Subdomain">
+                <i class="notranslate rzi">apartment</i>
+            </div>
+        }
+    </nav>
 
-            <!-- Кнопка-бургер для сворачивания/разворачивания панели -->
-            <RadzenButton Icon="menu" ButtonStyle="ButtonStyle.Light" Variant="Variant.Text"
-                          Size="ButtonSize.Medium" Click="ToggleSidebar" />
-
-            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+    <!-- ───── Main area ───── -->
+    <div class="app-main">
+        <!-- Slim header -->
+        <header class="app-header">
+            <div class="app-header-left">
+                <i class="notranslate rzi" style="font-size:1rem;color:var(--rz-text-secondary-color);">@_pageIcon</i>
+                <span class="app-header-title">@_pageTitle</span>
+            </div>
+            <div class="app-header-right">
                 <AuthorizeView>
                     <Authorized>
-                        <RadzenText TextStyle="TextStyle.Body2"
-                                    Style="color: var(--rz-base-light); margin: 0; font-weight: 500;">
-                            @context.User.Identity?.Name
-                        </RadzenText>
+                        <span class="app-header-user">@context.User.Identity?.Name</span>
                         <RadzenButton Text="Выйти" Icon="logout" ButtonStyle="ButtonStyle.Light"
-                                      Variant="Variant.Text" Size="ButtonSize.Small"
+                                      Variant="Variant.Text" Size="ButtonSize.ExtraSmall"
                                       Click="HandleTenantLogout" />
                     </Authorized>
                 </AuthorizeView>
@@ -139,67 +140,58 @@
                 {
                     @if (MasterAuthState.UserInfo is not null)
                     {
-                        <RadzenText TextStyle="TextStyle.Body2"
-                                    Style="color: var(--rz-base-light); margin: 0; font-weight: 500;">
+                        <span class="app-header-user">
                             @MasterAuthState.UserInfo.LastName @MasterAuthState.UserInfo.FirstName
-                        </RadzenText>
+                        </span>
                     }
                     <RadzenButton Text="Выйти" Icon="logout" ButtonStyle="ButtonStyle.Light"
-                                  Variant="Variant.Text" Size="ButtonSize.Small"
+                                  Variant="Variant.Text" Size="ButtonSize.ExtraSmall"
                                   Click="HandleMasterLogout" />
                 }
-            </RadzenStack>
+            </div>
+        </header>
 
-        </RadzenStack>
-    </RadzenHeader>
-
-    <RadzenBody>
-        <AppTabBar />
+        <!-- Body -->
         @if (_isFullHeight)
         {
-            <div class="body-full-height @(!_sidebarExpanded ? "sidebar-hidden" : "")" style="@BodyPadding">
+            <div class="body-full-height">
                 @Body
             </div>
         }
         else
         {
-            <div class="body-content @(!_sidebarExpanded ? "sidebar-hidden" : "")" style="@BodyPadding">
+            <div class="body-content" style="padding: 1rem 1.5rem;">
                 @Body
             </div>
         }
-    </RadzenBody>
-</RadzenLayout>
+    </div>
+</div>
 
 <RadzenNotification />
 <RadzenDialog />
 <RadzenContextMenu />
 
 @code {
-    private bool _sidebarExpanded = true;
-    private const string TabsStorageKey = "app-tabs";
-    private const string SidebarStorageKey = "sidebar-expanded";
+    private string _pageTitle = "StudioB2B";
+    private string _pageIcon = "home";
 
-    private string BodyPadding => _sidebarExpanded
-        ? "padding: 1rem 1.5rem;"
-        : "padding: 0.5rem 0;";
+    private static readonly HashSet<string> FullHeightPages = ["/chats", "/questions", "/communication"];
 
-    private static readonly HashSet<string> FullHeightPages = ["/chats", "/questions"];
-
-    private bool _isFullHeight => FullHeightPages.Contains(new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant());
+    private bool _isFullHeight => FullHeightPages.Contains(
+        new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant());
 
     protected override void OnInitialized()
     {
-        TabService.TabsChanged += OnTabsChanged;
         Navigation.LocationChanged += OnLocationChanged;
         AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
         MasterAuthState.OnChanged += OnMasterAuthChanged;
+        UpdatePageInfo();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            // Инициализируем состояние из localStorage при первом рендере
             var isAuth = await AuthStateProvider.IsMasterAuthenticatedAsync();
             if (isAuth)
             {
@@ -209,95 +201,56 @@
 
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             UserContext.SetUser(authState.User);
-            await LoadSidebarStateAsync();
-            await LoadTabsFromStorageAsync();
-            OpenCurrentTab();
             StateHasChanged();
         }
     }
 
-    private void OnMasterAuthChanged()
-    {
-        InvokeAsync(StateHasChanged);
-    }
+    private void OnMasterAuthChanged() => InvokeAsync(StateHasChanged);
 
     private void OnAuthenticationStateChanged(Task<AuthenticationState> task)
     {
         _ = task.ContinueWith(t =>
         {
-            if (t.IsCompletedSuccessfully)
-                UserContext.SetUser(t.Result.User);
+            if (t.IsCompletedSuccessfully) UserContext.SetUser(t.Result.User);
         }, TaskScheduler.Default);
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        OpenCurrentTab();
-    }
-
-    private void OpenCurrentTab()
-    {
-        var path = new Uri(Navigation.Uri).AbsolutePath;
-        if (string.IsNullOrEmpty(path)) path = "/";
-        TabService.EnsureOpen(path);
-        _ = SaveTabsToStorageAsync();
-    }
-
-    private void OnTabsChanged()
-    {
-        _ = SaveTabsToStorageAsync();
+        UpdatePageInfo();
         InvokeAsync(StateHasChanged);
     }
 
-    private async Task LoadTabsFromStorageAsync()
+    private void UpdatePageInfo()
     {
-        try
-        {
-            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", TabsStorageKey);
-            if (!string.IsNullOrEmpty(json))
-            {
-                var entries = JsonSerializer.Deserialize<List<TabEntry>>(json);
-                if (entries is { Count: > 0 })
-                    TabService.Restore(entries);
-            }
-        }
-        catch { }
+        var path = new Uri(Navigation.Uri).AbsolutePath;
+        var info = PageRegistry.Get(path);
+        _pageTitle = info.Title;
+        _pageIcon = info.Icon;
     }
 
-    private async Task SaveTabsToStorageAsync()
+    private bool IsGroupActive(NavGroup group)
     {
-        try
-        {
-            var json = JsonSerializer.Serialize(TabService.Tabs.ToList());
-            await JsRuntime.InvokeVoidAsync("localStorage.setItem", TabsStorageKey, json);
-        }
-        catch { }
+        var current = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant();
+        if (string.IsNullOrEmpty(current)) current = "/";
+        return group.Items.Any(i => i.Path.TrimEnd('/').ToLowerInvariant() == current);
     }
 
-    private void ToggleSidebar()
+    private bool IsPathActive(string path)
     {
-        _sidebarExpanded = !_sidebarExpanded;
-        _ = SaveSidebarStateAsync();
+        var current = new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant();
+        if (string.IsNullOrEmpty(current)) current = "/";
+        return path.TrimEnd('/').ToLowerInvariant() == current;
     }
 
-    private async Task LoadSidebarStateAsync()
-    {
-        try
-        {
-            var val = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", SidebarStorageKey);
-            if (val is not null)
-                _sidebarExpanded = val == "true";
-        }
-        catch { }
-    }
+    private void NavigateDirect(string path) => Navigation.NavigateTo(path);
 
-    private async Task SaveSidebarStateAsync()
+    private void NavigateFromFlyout(string path) => Navigation.NavigateTo(path);
+
+    private int GetFlyoutTop(NavGroup group)
     {
-        try
-        {
-            await JsRuntime.InvokeVoidAsync("localStorage.setItem", SidebarStorageKey, _sidebarExpanded ? "true" : "false");
-        }
-        catch { }
+        var idx = NavService.Groups.IndexOf(group);
+        return 56 + idx * 52;
     }
 
     private async Task HandleTenantLogout()
@@ -315,7 +268,6 @@
 
     public void Dispose()
     {
-        TabService.TabsChanged -= OnTabsChanged;
         Navigation.LocationChanged -= OnLocationChanged;
         AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
         MasterAuthState.OnChanged -= OnMasterAuthChanged;

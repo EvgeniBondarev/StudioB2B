@@ -3,7 +3,7 @@
 public class NavItem
 {
     public string Path { get; set; } = string.Empty;
-    public string? Role { get; set; } // Роль, необходимая для доступа к пункту
+    public string? Role { get; set; }
 }
 
 public class NavGroup
@@ -21,24 +21,12 @@ public class NavService
         {
             Title = "Главная",
             Icon = "home",
-            Items = new()
-            {
-                new NavItem { Path = "/" } // Главная страница, доступна всем
-            }
+            Items = new() { new NavItem { Path = "/" } }
         },
         new NavGroup
         {
-            Title = "Пользователи",
-            Icon = "people",
-            Items = new()
-            {
-                new NavItem { Path = "/users", Role = "UsersView" }
-            }
-        },
-        new NavGroup
-        {
-            Title = "Menu-1",
-            Icon = "shopping_cart",
+            Title = "Заказы",
+            Icon = "receipt_long",
             Items = new()
             {
                 new NavItem { Path = "/orders", Role = "OrdersView" },
@@ -50,12 +38,11 @@ public class NavService
         },
         new NavGroup
         {
-            Title = "Menu-2",
-            Icon = "inventory",
+            Title = "Маркетплейс",
+            Icon = "storefront",
             Items = new()
             {
                 new NavItem { Path = "/marketplace-clients", Role = "MarketplaceClientsView" },
-                new NavItem { Path = "/communication", Role = "ChatsView" },
                 new NavItem { Path = "/price-types", Role = "PriceTypesView" },
                 new NavItem { Path = "/calculation-rules", Role = "CalculationRulesView" },
                 new NavItem { Path = "/order-statuses", Role = "OrderStatusesView" }
@@ -63,13 +50,27 @@ public class NavService
         },
         new NavGroup
         {
-            Title = "Menu-3",
+            Title = "Коммуникации",
+            Icon = "forum",
+            Items = new()
+            {
+                new NavItem { Path = "/communication", Role = "ChatsView" },
+                new NavItem { Path = "/chats", Role = "ChatsView" },
+                new NavItem { Path = "/questions", Role = "ChatsView" },
+                new NavItem { Path = "/reviews", Role = "ChatsView" }
+            }
+        },
+        new NavGroup
+        {
+            Title = "Управление",
             Icon = "settings",
             Items = new()
             {
+                new NavItem { Path = "/users", Role = "UsersView" },
                 new NavItem { Path = "/audit", Role = "AuditView" },
                 new NavItem { Path = "/roles", Role = "ModulesView" },
-                new NavItem { Path = "/orders-sync", Role = "OrdersView" }
+                new NavItem { Path = "/orders-sync", Role = "OrdersView" },
+                new NavItem { Path = "/modules", Role = "ModulesView" }
             }
         }
     };

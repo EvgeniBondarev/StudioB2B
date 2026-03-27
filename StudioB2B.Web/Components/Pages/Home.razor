@@ -15,6 +15,7 @@
 @inject MasterAuthStateService MasterAuthState
 @inject Microsoft.Extensions.Options.IOptions<MultiTenancyOptions> MultiTenancyOptions
 @inject NavService NavService
+@inject PageRegistry PageRegistry
 
 <PageTitle>StudioB2B</PageTitle>
 
@@ -322,10 +323,10 @@ else
                                                              Style="cursor:pointer;"
                                                              Click="@(() => Navigation.NavigateTo(item.Path))">
 
-                                                    <RadzenIcon Icon="@TabService.KnownPages[item.Path].Icon"
+                                                    <RadzenIcon Icon="@PageRegistry.Pages[item.Path].Icon"
                                                                 Style="font-size:1rem;" />
 
-                                                    <RadzenText Text="@TabService.KnownPages[item.Path].Title"
+                                                    <RadzenText Text="@PageRegistry.Pages[item.Path].Title"
                                                                 TextStyle="TextStyle.Body1" />
 
                                                 </RadzenStack>
@@ -340,10 +341,10 @@ else
                                                                      Style="cursor:pointer;"
                                                                      Click="@(() => Navigation.NavigateTo(item.Path))">
 
-                                                            <RadzenIcon Icon="@TabService.KnownPages[item.Path].Icon"
+                                                            <RadzenIcon Icon="@PageRegistry.Pages[item.Path].Icon"
                                                                         Style="font-size:1rem;" />
 
-                                                            <RadzenText Text="@TabService.KnownPages[item.Path].Title"
+                                                            <RadzenText Text="@PageRegistry.Pages[item.Path].Title"
                                                                         TextStyle="TextStyle.Body1" />
 
                                                         </RadzenStack>
