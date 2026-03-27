@@ -1,20 +1,17 @@
 @page "/calculation-rules"
 @attribute [Authorize(Roles = "CalculationRulesView")]
-@using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
-@using StudioB2B.Infrastructure.Features
-@using StudioB2B.Infrastructure.Persistence.Tenant
-@using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Infrastructure.Services
 
 @inject ITenantProvider TenantProvider
-@inject ITenantDbContextFactory Factory
+@inject ICalculationRuleService CalculationRuleService
+@inject CalculationEngine CalculationEngine
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
 @inject DialogService DialogService
 @inject IJSRuntime JsRuntime
 
-@implements IDisposable
 
 <PageTitle>Правила расчёта</PageTitle>
 
@@ -161,8 +158,6 @@ else
     [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
 
     private RadzenDataGrid<CalculationRule>? _grid;
-    private TenantDbContext? _db;
-    private CalculationEngine? _engine;
     private IEnumerable<CalculationRule> _items = Array.Empty<CalculationRule>();
     private int _totalCount;
     private Density _density = Density.Default;
@@ -170,7 +165,9 @@ else
     private bool _canManage;
     private System.Security.Claims.ClaimsPrincipal? _user;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
-    private List<string> _availableVariables = new();
+    private List<string> _availableVariables = [];
+
+    private bool _initialized;
 
     private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
 
@@ -225,80 +222,52 @@ else
         _loading = true;
         await EnsureInitializedAsync();
 
-        var query = _db!.CalculationRules
-            .Where(r => !r.IsDeleted)
-            .AsNoTracking()
-            .AsQueryable();
-
-        if (!string.IsNullOrEmpty(args.Filter))
-            query = query.Where(args.Filter);
-
-        query = !string.IsNullOrEmpty(args.OrderBy)
-            ? query.OrderBy(args.OrderBy)
-            : query.OrderBy(r => r.SortOrder).ThenBy(r => r.Name);
-
-        _totalCount = await query.CountAsync();
-
         var skip = args.Skip ?? 0;
         var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 20);
 
-        _items = await query.Skip(skip).Take(take).ToListAsync();
-        _loading = false;
+        var (items, total) = await CalculationRuleService.GetPagedAsync(
+            args.Filter,
+            args.OrderBy,
+            skip,
+            take);
+
+        _items      = items;
+        _totalCount = total;
+        _loading    = false;
     }
 
+    /// <summary>
+    /// Однократная инициализация переменных (без DbContext).
+    /// </summary>
     private async Task EnsureInitializedAsync()
     {
-        if (_db != null) return;
-        _db = Factory.CreateDbContext();
-        _engine = new CalculationEngine();
-
-        var priceTypeNames = await _db.PriceTypes
-            .AsNoTracking()
-            .OrderBy(p => p.Name)
-            .Select(p => p.Name)
-            .ToListAsync();
-
-        _availableVariables = CalculationEngine.GetBaseVariableNames(priceTypeNames).ToList();
+        if (_initialized) return;
+        _availableVariables = await CalculationRuleService.GetAvailableVariablesAsync();
+        _initialized = true;
     }
 
     private async Task AddRow()
     {
         await EnsureInitializedAsync();
 
-        var parameters = new Dictionary<string, object?>
-        {
-            ["AvailableVariables"] = _availableVariables
-        };
-
-        var options = new DialogOptions
-        {
-            Width = "850px",
-            CloseDialogOnEsc = true,
-            CloseDialogOnOverlayClick = true
-        };
-
         var result = await DialogService.OpenAsync<CalculationRuleDialog>(
             "Новое правило расчёта",
-            parameters,
-            options);
+            new Dictionary<string, object?> { ["AvailableVariables"] = _availableVariables },
+            new DialogOptions { Width = "850px", CloseDialogOnEsc = true, CloseDialogOnOverlayClick = true });
 
         if (result is bool b && b && _grid != null)
-        {
             await _grid.Reload();
-        }
     }
 
-    private async Task EditRow(CalculationRule r) => await _grid!.EditRow(r);
-
-    private async Task SaveRow(CalculationRule r) => await _grid!.UpdateRow(r);
-
-    private void CancelRow(CalculationRule r) => _grid!.CancelEditRow(r);
+    private async Task EditRow(CalculationRule r)  => await _grid!.EditRow(r);
+    private async Task SaveRow(CalculationRule r)  => await _grid!.UpdateRow(r);
+    private void      CancelRow(CalculationRule r) => _grid!.CancelEditRow(r);
 
     private async Task OnUpdate(CalculationRule r)
     {
         try
         {
-            await _db!.UpdateCalculationRuleAsync(r);
+            await CalculationRuleService.UpdateAsync(r);
             NotificationService.Notify(NotificationSeverity.Success, "Правило обновлено");
         }
         catch (Exception ex)
@@ -311,7 +280,7 @@ else
     {
         try
         {
-            await _db!.CreateCalculationRuleAsync(r);
+            await CalculationRuleService.CreateAsync(r);
             NotificationService.Notify(NotificationSeverity.Success, "Правило создано");
         }
         catch (Exception ex)
@@ -332,7 +301,7 @@ else
 
         try
         {
-            await _db!.SoftDeleteCalculationRuleAsync(r);
+            await CalculationRuleService.SoftDeleteAsync(r);
             await _grid!.Reload();
             NotificationService.Notify(NotificationSeverity.Success, "Правило удалено");
         }
@@ -345,9 +314,10 @@ else
     private async Task ValidateFormulaAsync(CalculationRule r)
     {
         await EnsureInitializedAsync();
-        var error = _engine!.ValidateFormula(r.Formula, _availableVariables);
+        var error = CalculationEngine.ValidateFormula(r.Formula, _availableVariables);
         if (error == null)
-            NotificationService.Notify(NotificationSeverity.Success, "Формула корректна", $"Переменные: {string.Join(", ", _availableVariables)}");
+            NotificationService.Notify(NotificationSeverity.Success, "Формула корректна",
+                $"Переменные: {string.Join(", ", _availableVariables)}");
         else
             NotificationService.Notify(NotificationSeverity.Error, "Ошибка в формуле", error, duration: 6000);
     }
@@ -357,23 +327,21 @@ else
         var items = new List<ContextMenuItem>();
         if (_canManage)
         {
-            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" });
-            items.Add(new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" });
+            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit",   Value = "edit" });
+            items.Add(new ContextMenuItem { Text = "Удалить",       Icon = "delete", Value = "delete" });
         }
         if (items.Count == 0) return;
 
-        ContextMenuService.Open(args, items,
-            e =>
-            {
-                ContextMenuService.Close();
-                if (e.Value?.ToString() == "edit")
-                    InvokeAsync(() => EditRow(args.Data!));
-                else if (e.Value?.ToString() == "delete")
-                    InvokeAsync(() => DeleteRow(args.Data!));
-            });
+        ContextMenuService.Open(args, items, e =>
+        {
+            ContextMenuService.Close();
+            if (e.Value?.ToString() == "edit")
+                InvokeAsync(() => EditRow(args.Data!));
+            else if (e.Value?.ToString() == "delete")
+                InvokeAsync(() => DeleteRow(args.Data!));
+        });
     }
 
-    public void Dispose() => _db?.Dispose();
 
     private void ToggleDensity() =>
         _density = _density == Density.Compact ? Density.Default : Density.Compact;

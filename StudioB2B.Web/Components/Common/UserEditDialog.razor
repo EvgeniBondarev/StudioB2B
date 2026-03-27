@@ -1,9 +1,6 @@
-@using StudioB2B.Infrastructure.Features
-
-@inject CreateUser CreateUserService
-@inject UpdateUser UpdateUserService
-@inject GetUserById GetUserByIdService
-@inject GetAvailablePermissions GetAvailablePermissionsService
+@using StudioB2B.Infrastructure.Interfaces
+@inject IUserService UserService
+@inject IPermissionService PermissionService
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject JwtAuthenticationStateProvider AuthStateProvider
@@ -141,11 +138,11 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _availablePermissions = await GetAvailablePermissionsService.HandleAsync();
+        _availablePermissions = await PermissionService.GetAvailableAsync(CancellationToken.None);
 
         if (UserId != Guid.Empty)
         {
-            var fresh = await GetUserByIdService.HandleAsync(UserId);
+            var fresh = await UserService.GetUserByIdAsync(UserId, CancellationToken.None);
             if (fresh is not null)
             {
                 // Map permission names back to IDs
@@ -185,9 +182,10 @@ else
         {
             if (UserId == Guid.Empty)
             {
-                var (ok, error) = await CreateUserService.HandleAsync(
+                var (ok, error) = await UserService.CreateUserAsync(
                     new CreateUserDto(model.Email, model.FirstName, model.LastName,
-                                      model.MiddleName, model.Password ?? "P@ssw0rd", model.Permissions));
+                                      model.MiddleName, model.Password ?? "P@ssw0rd", model.Permissions),
+                    CancellationToken.None);
                 if (ok)
                 {
                     await AuthStateProvider.RefreshAsync();
@@ -199,9 +197,10 @@ else
             }
             else
             {
-                var (ok, error) = await UpdateUserService.HandleAsync(UserId,
+                var (ok, error) = await UserService.UpdateUserAsync(UserId,
                     new UpdateUserDto(model.FirstName, model.LastName, model.MiddleName,
-                                      model.IsActive, model.Permissions));
+                                      model.IsActive, model.Permissions),
+                    CancellationToken.None);
                 if (ok)
                 {
                     await AuthStateProvider.RefreshAsync();

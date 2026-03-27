@@ -79,6 +79,7 @@ public static class DependencyInjection
         services.AddScoped<CircuitHandler, TenantCircuitHandler>();
 
         services.AddScoped<MasterAuthService>();
+        services.AddScoped<IMasterUserService, MasterUserService>();
 
         // Tenant DbContext (Scoped, dynamic connection)
         services.AddScoped(sp =>
@@ -127,20 +128,19 @@ public static class DependencyInjection
         services.AddAuthorization();
         services.AddSingleton<IAuthorizationHandler, AdminSatisfiesAllRolesHandler>();
 
-        services.AddScoped<GetUsers>();
-        services.AddScoped<GetUserById>();
-        services.AddScoped<GetAvailablePermissions>();
-        services.AddScoped<CreateUser>();
-        services.AddScoped<UpdateUser>();
-        services.AddScoped<DeleteUser>();
+        // Feature operations moved to TenantDbContext extension methods (e.g. db.GetUsersAsync(...)).
+        // No scoped registrations required for these extension methods.
 
-        services.AddScoped<GetPermissions>();
-        services.AddScoped<GetPermissionById>();
-        services.AddScoped<CreatePermission>();
-        services.AddScoped<UpdatePermission>();
-        services.AddScoped<DeletePermission>();
-        services.AddScoped<GetPagesWithDetails>();
-        services.AddScoped<GetEntityOptionsForPermission>();
+        // Business logic services (wrapping Features for UI layer)
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IAuditLogService, AuditLogService>();
+        services.AddScoped<ICalculationRuleService, CalculationRuleService>();
+        services.AddScoped<IMarketplaceClientService, MarketplaceClientService>();
+        services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<IReturnsService, ReturnsService>();
+        services.AddScoped<IOrderStatusService, OrderStatusService>();
+        services.AddScoped<IPermissionService, PermissionService>();
+        services.AddScoped<IPriceTypeService, PriceTypeService>();
 
         services.AddScoped<IEntityFilterService, EntityFilterService>();
 
@@ -151,6 +151,7 @@ public static class DependencyInjection
 
         services.AddScoped<CalculationEngine>();
         services.AddScoped<IOrderTransactionService, OrderTransactionService>();
+        services.AddScoped<IOrderTransactionManagementService, OrderTransactionManagementService>();
 
         services.AddScoped<IModuleService, ModuleService>();
         services.AddScoped<IModuleActivator, ManufacturerModuleActivator>();

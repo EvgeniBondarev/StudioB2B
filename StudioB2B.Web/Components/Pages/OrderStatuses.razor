@@ -1,20 +1,16 @@
 @page "/order-statuses"
 @attribute [Authorize(Roles = "OrderStatusesView")]
-@using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features
-@using StudioB2B.Infrastructure.Persistence.Tenant
-@using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider
-@inject ITenantDbContextFactory Factory
+@inject IOrderStatusService StatusService
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
 @inject DialogService DialogService
 @inject IJSRuntime JsRuntime
 
-@implements IDisposable
 
 <link rel="stylesheet" href="css/orders.css" />
 <PageTitle>Статусы заказов</PageTitle>
@@ -316,7 +312,7 @@ else
     [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
 
     private RadzenDataGrid<OrderStatus>? _grid;
-    private TenantDbContext? _db;
+    private bool _initialized;
     private IEnumerable<OrderStatus> _pageItems = Array.Empty<OrderStatus>();
     private int _totalCount;
     private Density _density = Density.Default;
@@ -431,60 +427,27 @@ else
         _loading = true;
         await EnsureInitializedAsync();
 
-        var query = _db!.OrderStatuses
-            .AsQueryable()
-            .IncludeEverything()
-            .Active()
-            .AsNoTracking();
+        var filter = new OrderStatusPageFilter(_filterType, _filterMarketplaceTypeId, _filterTerminal);
+        var skip   = args.Skip ?? 0;
+        var take   = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 20);
 
-        if (_filterType == "internal")
-            query = query.Where(s => s.IsInternal);
-        else if (_filterType == "marketplace")
-            query = query.Where(s => !s.IsInternal);
-
-        if (_filterMarketplaceTypeId.HasValue)
-            query = query.Where(s => s.MarketplaceClientTypeId == _filterMarketplaceTypeId.Value);
-
-        if (_filterTerminal.HasValue)
-            query = query.Where(s => s.IsTerminal == _filterTerminal.Value);
-
-        if (!string.IsNullOrEmpty(args.Filter))
-            query = query.Where(args.Filter);
-
-        query = !string.IsNullOrEmpty(args.OrderBy)
-            ? query.OrderBy(args.OrderBy)
-            : query.OrderBy(s => s.IsInternal).ThenBy(s => s.Name);
-
-        _totalCount = await query.CountAsync();
-
-        var skip = args.Skip ?? 0;
-        var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 20);
-
-        _pageItems = await query.Skip(skip).Take(take).ToListAsync();
+        var result = await StatusService.GetPagedAsync(filter, args.Filter, args.OrderBy, skip, take);
+        _pageItems  = result.Items;
+        _totalCount = result.TotalCount;
         _loading = false;
     }
 
     private async Task EnsureInitializedAsync()
     {
-        if (_db != null) return;
-        _db = Factory.CreateDbContext();
-
-        _clientTypes = await _db.MarketplaceClientTypes!
-            .AsNoTracking().OrderBy(t => t.Name).ToListAsync();
-
-        var statusData = await _db.OrderStatuses
-            .Active()
-            .AsNoTracking()
-            .Select(s => new { s.IsInternal, s.IsTerminal, s.MarketplaceClientTypeId })
-            .ToListAsync();
-        _countInternal = statusData.Count(s => s.IsInternal);
-        _countMarketplace = statusData.Count(s => !s.IsInternal);
-        _countTerminal = statusData.Count(s => s.IsTerminal);
-        _countNonTerminal = statusData.Count(s => !s.IsTerminal);
-        _countByClientTypeId = statusData
-            .Where(s => s.MarketplaceClientTypeId.HasValue)
-            .GroupBy(s => s.MarketplaceClientTypeId!.Value)
-            .ToDictionary(g => g.Key, g => g.Count());
+        if (_initialized) return;
+        var data = await StatusService.GetInitDataAsync();
+        _clientTypes         = data.ClientTypes;
+        _countInternal       = data.CountInternal;
+        _countMarketplace    = data.CountMarketplace;
+        _countTerminal       = data.CountTerminal;
+        _countNonTerminal    = data.CountNonTerminal;
+        _countByClientTypeId = data.CountByClientTypeId;
+        _initialized = true;
     }
 
     private async Task OnFilterChange()
@@ -518,7 +481,7 @@ else
         try
         {
             s.Color = ToHex(s.Color) ?? s.Color;
-            await _db!.UpdateOrderStatusAsync(s);
+            await StatusService.UpdateAsync(s);
             NotificationService.Notify(NotificationSeverity.Success, "Статус обновлён");
         }
         catch (Exception ex)
@@ -532,7 +495,7 @@ else
         try
         {
             s.Color = ToHex(s.Color) ?? s.Color;
-            await _db!.CreateOrderStatusAsync(s);
+            await StatusService.CreateAsync(s);
             NotificationService.Notify(NotificationSeverity.Success, "Статус создан");
         }
         catch (Exception ex)
@@ -553,7 +516,7 @@ else
 
         try
         {
-            await _db!.SoftDeleteOrderStatusAsync(s);
+            await StatusService.SoftDeleteAsync(s);
             await _grid!.Reload();
             NotificationService.Notify(NotificationSeverity.Success, "Статус удалён");
         }
@@ -665,7 +628,6 @@ else
         return IsLightColor(bg) ? "#1f2937" : "#ffffff";
     }
 
-    public void Dispose() => _db?.Dispose();
 
     private void ToggleDensity() =>
         _density = _density == Density.Compact ? Density.Default : Density.Compact;

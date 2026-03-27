@@ -29,6 +29,90 @@ public class OrderTransactionService : IOrderTransactionService
         _logger = logger;
     }
 
+    /// <inheritdoc/>
+    public async Task<List<OrderEntity>> GetOrdersForApplyAsync(IEnumerable<Guid> orderIds, CancellationToken ct = default)
+    {
+        var ids = orderIds.ToList();
+        return await _db.Orders
+            .IncludeForGrid()
+            .Include(o => o.Prices).ThenInclude(p => p.PriceType)
+            .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
+            .AsNoTracking()
+            .Where(o => ids.Contains(o.Id))
+            .ToListAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<List<OrderTransaction>> GetTransactionsForStatusAsync(Guid statusId, CancellationToken ct = default)
+    {
+        return await _db.OrderTransactions
+            .Include(t => t.FromSystemStatus)
+            .Include(t => t.ToSystemStatus)
+            .Where(t => !t.IsDeleted && t.IsEnabled && t.FromSystemStatusId == statusId)
+            .OrderBy(t => t.Name)
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<(string? StatusName, List<OrderTransaction> Transactions)> GetApplyDialogInitDataAsync(
+        Guid statusId, CancellationToken ct = default)
+    {
+        var statusName = await _db.OrderStatuses
+            .AsNoTracking()
+            .Where(s => s.Id == statusId)
+            .Select(s => s.Name)
+            .FirstOrDefaultAsync(ct);
+
+        var transactions = await GetTransactionsForStatusAsync(statusId, ct);
+        return (statusName, transactions);
+    }
+
+    /// <inheritdoc/>
+    public async Task<TransactionReferenceData> GetReferenceDataAsync(IEnumerable<FieldReferenceTypeEnum> refTypes, CancellationToken ct = default)
+    {
+        var types = refTypes.ToHashSet();
+        var data = new TransactionReferenceData();
+
+        if (types.Contains(FieldReferenceTypeEnum.OrderStatus))
+            data.OrderStatuses = await _db.OrderStatuses
+                .Where(s => !s.IsDeleted).OrderBy(s => s.Name).AsNoTracking().ToListAsync(ct);
+
+        if (types.Contains(FieldReferenceTypeEnum.Product))
+            data.Products = await _db.Products
+                .Where(p => !p.IsDeleted).OrderBy(p => p.Article).AsNoTracking().ToListAsync(ct);
+
+        if (types.Contains(FieldReferenceTypeEnum.Supplier))
+            data.Suppliers = await _db.Suppliers
+                .OrderBy(s => s.Name).AsNoTracking().ToListAsync(ct);
+
+        if (types.Contains(FieldReferenceTypeEnum.Warehouse))
+            data.Warehouses = await _db.Warehouses
+                .OrderBy(w => w.Name).AsNoTracking().ToListAsync(ct);
+
+        if (types.Contains(FieldReferenceTypeEnum.DeliveryMethod))
+            data.DeliveryMethods = await _db.DeliveryMethods
+                .OrderBy(d => d.Name).AsNoTracking().ToListAsync(ct);
+
+        if (types.Contains(FieldReferenceTypeEnum.Recipient))
+            data.Recipients = await _db.Recipients
+                .AsNoTracking().ToListAsync(ct);
+
+        if (types.Contains(FieldReferenceTypeEnum.Address))
+            data.Addresses = await _db.Addresses
+                .AsNoTracking().ToListAsync(ct);
+
+        if (types.Contains(FieldReferenceTypeEnum.WarehouseInfo))
+            data.WarehouseInfos = await _db.WarehouseInfos
+                .AsNoTracking().ToListAsync(ct);
+
+        if (types.Contains(FieldReferenceTypeEnum.OrderProductInfo))
+            data.OrderProductInfos = await _db.OrderProductInfos
+                .AsNoTracking().ToListAsync(ct);
+
+        return data;
+    }
+
     public async Task<TransactionApplyPreviewDto?> GetApplyPreviewAsync(Guid orderId, Guid transactionId, CancellationToken ct = default)
     {
         var order = await _db.Orders

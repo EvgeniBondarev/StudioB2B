@@ -1,17 +1,17 @@
 @page "/"
-@using Microsoft.EntityFrameworkCore
-@using StudioB2B.Infrastructure.Services
 @using System.ComponentModel.DataAnnotations
 @using StudioB2B.Domain.Options
 @using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Infrastructure.Services
 @using StudioB2B.Shared
 @using StudioB2B.Web.Services
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
 @inject NavigationManager Navigation
-@inject ITenantDbContextFactory Factory
+@inject IMarketplaceClientService MarketplaceClientService
 @inject HttpClient Http
 @inject JwtAuthenticationStateProvider AuthStateProvider
+@inject IMasterAuthApiService MasterAuthApi
 @inject MasterAuthStateService MasterAuthState
 @inject Microsoft.Extensions.Options.IOptions<MultiTenancyOptions> MultiTenancyOptions
 @inject NavService NavService
@@ -491,11 +491,7 @@ else
         if (TenantProvider.IsResolved && TenantProvider.TenantId.HasValue)
         {
             _tenant = await TenantService.GetByIdAsync(TenantProvider.TenantId.Value);
-
-            await using var db = Factory.CreateDbContext();
-            _hasMarketplaceClients = await db.MarketplaceClients!
-                .AsNoTracking()
-                .AnyAsync();
+            _hasMarketplaceClients = await MarketplaceClientService.HasAnyAsync();
         }
         else if (!MasterAuthState.IsAuthenticated)
         {
@@ -531,31 +527,9 @@ else
         _masterLoginLoading = true;
         try
         {
-            var response = await Http.PostAsJsonAsync("/api/master/auth/login", new
-            {
-                _masterLogin.Email,
-                _masterLogin.Password
-            });
-
-            if (response.IsSuccessStatusCode)
-            {
-                var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
-                if (result?.Token is not null)
-                {
-                    await AuthStateProvider.MasterLoginAsync(result.Token);
-                    var userInfo = await AuthStateProvider.GetMasterUserInfoAsync();
-                    MasterAuthState.Set(true, userInfo);
-                    FillRegFromUserInfo();
-                }
-            }
-            else
-            {
-                _masterLoginError = "Неверный email или пароль";
-            }
-        }
-        catch
-        {
-            _masterLoginError = "Произошла ошибка при входе";
+            _masterLoginError = await MasterAuthApi.LoginAsync(_masterLogin.Email, _masterLogin.Password);
+            if (_masterLoginError is null)
+                FillRegFromUserInfo();
         }
         finally
         {
