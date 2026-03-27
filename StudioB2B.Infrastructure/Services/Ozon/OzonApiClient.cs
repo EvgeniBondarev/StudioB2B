@@ -5,7 +5,7 @@ using StudioB2B.Domain.Constants;
 using StudioB2B.Infrastructure.Helpers;
 using StudioB2B.Infrastructure.Helpers.Http;
 using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Services.Ozon;
 
@@ -409,8 +409,6 @@ public class OzonApiClient : IOzonApiClient
         var body = new OzonReadChatRequestDto { ChatId = chatId, FromMessageId = fromMessageId };
         return SendPostAsync<OzonReadChatResponseDto>(OzonEndpoints.ChatRead, clientId, plainApiKey, body, ct);
     }
-
-    // ── Reviews ──────────────────────────────────────────────────────────────
 
     public Task<OzonApiResultDto<OzonReviewListResponseDto>> GetReviewListAsync(
         string clientId, string apiKey, OzonReviewListRequestDto request, CancellationToken ct = default)

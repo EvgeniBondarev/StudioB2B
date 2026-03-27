@@ -1,0 +1,130 @@
+---
+description: Project architecture rules — layered service pattern
+globs: **/*.cs,**/*.razor
+alwaysApply: true
+---
+
+# Architecture Rules
+
+## 1. Layered architecture
+
+The project is divided into four layers. Each layer must only communicate with the layer directly below it.
+
+```
+UI Layer  (Blazor .razor, Controllers)
+    ↓  @inject / constructor — interfaces only
+Service Layer  (Infrastructure/Services/)
+    ↓  uses extension-methods
+Feature Layer  (Infrastructure/Features/)
+    ↓  EF Core
+Database
+```
+
+- UI components (`.razor`, controllers) must **never** inject `ITenantDbContextFactory` or `IMapper` directly.
+- All database work goes through the Service layer.
+
+**Wrong:**
+```razor
+@inject ITenantDbContextFactory Factory
+@inject IMapper Mapper
+
+using var db = Factory.CreateDbContext();
+_users = await db.GetUsersAsync(Mapper, ct);
+```
+
+**Correct:**
+```razor
+@inject IUserService UserService
+
+_users = await UserService.GetAllUsersAsync(ct);
+```
+
+---
+
+## 2. Service pattern — adding a new module
+
+For every new module `[Module]` follow these five steps in order.
+
+### Step 1 — Interface
+
+File: `StudioB2B.Infrastructure/Interfaces/I[Module]Service.cs`
+
+```csharp
+namespace StudioB2B.Infrastructure.Interfaces;
+
+public interface I[Module]Service
+{
+    Task<List<[Module]Dto>> GetAllAsync(CancellationToken ct = default);
+
+    Task<[Module]Dto?> GetByIdAsync(Guid id, CancellationToken ct = default);
+
+    Task<[Module]Dto> CreateAsync(Create[Module]Dto dto, CancellationToken ct = default);
+
+    Task<[Module]Dto?> UpdateAsync(Update[Module]Dto dto, CancellationToken ct = default);
+
+    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+}
+```
+
+### Step 2 — Implementation
+
+File: `StudioB2B.Infrastructure/Services/[Module]Service.cs`
+
+```csharp
+namespace StudioB2B.Infrastructure.Services;
+
+public class [Module]Service : I[Module]Service
+{
+    private readonly ITenantDbContextFactory _dbContextFactory;
+    private readonly IMapper _mapper;
+
+    public [Module]Service(ITenantDbContextFactory dbContextFactory, IMapper mapper)
+    {
+        _dbContextFactory = dbContextFactory;
+        _mapper = mapper;
+    }
+
+    public async Task<List<[Module]Dto>> GetAllAsync(CancellationToken ct = default)
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        return await db.[Module]s.GetAllAsync(_mapper, ct);
+    }
+
+    // remaining methods follow the same pattern
+}
+```
+
+### Step 3 — DI registration
+
+File: `StudioB2B.Infrastructure/DependencyInjection.cs`
+
+```csharp
+services.AddScoped<I[Module]Service, [Module]Service>();
+```
+
+### Step 4 — Update controller
+
+```csharp
+// Remove: ITenantDbContextFactory, IMapper, direct db.* calls
+// Add constructor injection:
+private readonly I[Module]Service _[module]Service;
+```
+
+### Step 5 — Update Razor component
+
+```razor
+@* Remove: @inject ITenantDbContextFactory, @inject IMapper *@
+@inject I[Module]Service [Module]Service
+```
+
+---
+
+## 3. Extension methods in Features stay unchanged
+
+Files in `StudioB2B.Infrastructure/Features/` contain extension methods on `TenantDbContext` that perform actual database queries. **Do not move or rewrite them.** Services are thin wrappers that delegate to these extension methods.
+
+```
+[Module]Service.GetAllAsync()
+    → using var db = _dbContextFactory.CreateDbContext()
+    → db.[Module]s.GetAllAsync(_mapper, ct)   // extension in [Module]Features.cs
+```

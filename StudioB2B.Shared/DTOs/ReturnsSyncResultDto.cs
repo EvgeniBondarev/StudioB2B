@@ -1,4 +1,4 @@
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 public class ReturnsSyncResultDto
 {
@@ -7,5 +7,5 @@ public class ReturnsSyncResultDto
     public int Updated { get; set; }
 
     /// <summary>Отправлений, которым проставлен HasReturn = true.</summary>
-    public int Linked  { get; set; }
+    public int Linked { get; set; }
 }

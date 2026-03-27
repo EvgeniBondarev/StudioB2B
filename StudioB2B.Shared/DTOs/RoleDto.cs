@@ -1,3 +1,3 @@
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 public record RoleDto(Guid Id, string Name);

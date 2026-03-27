@@ -1,7 +1,7 @@
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Domain.Constants
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Shared.DTOs
+@using StudioB2B.Shared
 
 @inject IOrderTransactionManagementService TransactionService
 @inject DialogService DialogService
@@ -322,7 +322,6 @@
     private HashSet<Guid> _jsInited = new();
     private int _svgVersion;
 
-    // ──────────────────────── zoom / pan ────────────────────────
     private double _zoom = 1.0;
     private double _panX;
     private double _panY;
@@ -393,8 +392,6 @@
     }
 
     private sealed class Pos { public double X; public double Y; public Pos() { } public Pos(double x, double y) { X = x; Y = y; } }
-
-    // ──────────────────────── lifecycle ────────────────────────
 
     protected override async Task OnInitializedAsync()
     {
@@ -484,8 +481,6 @@
         }
     }
 
-    // ──────────────────────── JS-invokable ────────────────────────
-
     [JSInvokable]
     public async Task OnNodeMoved(string idStr, double x, double y)
     {
@@ -533,8 +528,6 @@
             }
         });
     }
-
-    // ──────────────────────── actions ────────────────────────
 
     private async Task StartConnect(Guid statusId)
         => await JS.InvokeVoidAsync("transactionCanvas.startConnect",
@@ -756,8 +749,6 @@
         catch { /* ignore */ }
     }
 
-    // ──────────────────────── geometry ────────────────────────
-
     private const double NodeWidth = 190;   // status node card width
     private const double NodeHeight = 68;   // status node card height (header + body)
 
@@ -790,8 +781,6 @@
 
     private IEnumerable<string> GetDistinctTxColors()
         => _transactions.Select(t => NormColor(t.Color)).Distinct();
-
-    // ──────────────────────── colour helpers ────────────────────────
 
     private static string GetStatusColor(OrderStatus s)
     {

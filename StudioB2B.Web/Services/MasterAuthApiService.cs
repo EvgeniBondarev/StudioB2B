@@ -93,8 +93,6 @@ public class MasterAuthApiService : IMasterAuthApiService
         }
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────
-
     private static async Task<string?> TryReadErrorAsync(HttpResponseMessage response)
     {
         try
