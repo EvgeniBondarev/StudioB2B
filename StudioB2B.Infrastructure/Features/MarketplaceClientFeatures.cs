@@ -62,7 +62,6 @@ public static class MarketplaceClientExtensions
         return entity != null ? mapper.Map<MarketplaceClientDto>(entity) : null;
     }
 
-
     public static async Task<MarketplaceClientDto> CreateAsync(
         this TenantDbContext db,
         CreateMarketplaceClientDto request,
@@ -98,5 +97,44 @@ public static class MarketplaceClientExtensions
         db.MarketplaceClients.Remove(entity);
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    public static async Task<List<ClientOptionDto>> GetClientOptionsAsync(
+        this TenantDbContext db,
+        ICollection<Guid>? allowedIds,
+        CancellationToken ct = default)
+    {
+        var query = db.MarketplaceClients!.AsNoTracking().AsQueryable();
+        if (allowedIds is not null)
+            query = query.Where(c => allowedIds.Contains(c.Id));
+        return await query
+            .OrderBy(c => c.Name)
+            .Select(c => new ClientOptionDto { Id = c.Id, Name = c.Name ?? string.Empty })
+            .ToListAsync(ct);
+    }
+
+    public static async Task<MarketplaceClientInitData> GetInitDataAsync(
+        this TenantDbContext db,
+        CancellationToken ct = default)
+    {
+        var types = await db.MarketplaceClientTypes!
+            .OrderBy(t => t.Name).AsNoTracking().ToListAsync(ct);
+        var modes = await db.MarketplaceClientModes!
+            .OrderBy(m => m.Name).AsNoTracking().ToListAsync(ct);
+        var countsByType = await db.MarketplaceClients!
+            .Where(c => c.ClientTypeId != null)
+            .GroupBy(c => c.ClientTypeId!.Value)
+            .Select(g => new { TypeId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        var countsByMode = await db.MarketplaceClients!
+            .Where(c => c.ModeId.HasValue)
+            .GroupBy(c => c.ModeId!.Value)
+            .Select(g => new { ModeId = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        return new MarketplaceClientInitData(
+            types,
+            modes,
+            countsByType.ToDictionary(x => x.TypeId, x => x.Count),
+            countsByMode.ToDictionary(x => x.ModeId, x => x.Count));
     }
 }

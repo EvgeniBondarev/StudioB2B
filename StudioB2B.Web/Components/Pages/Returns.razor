@@ -3,12 +3,11 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
-@using StudioB2B.Infrastructure.Persistence.Tenant
+@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Services
 
 @inject ITenantProvider TenantProvider
-@inject ITenantDbContextFactory Factory
+@inject IReturnsService ReturnsService
 @inject IOrderSyncJobService JobService
 @inject NotificationService NotificationService
 @inject IJSRuntime JsRuntime
@@ -16,8 +15,6 @@
 @inject DialogService DialogService
 
 @implements IDisposable
-
-<PageTitle>Возвраты</PageTitle>
 
 @if (!TenantProvider.IsResolved)
 {
@@ -300,7 +297,6 @@ else
     private bool _loadDataInProgress;
     private bool _enqueueing;
     private Density _density = Density.Default;
-    private TenantDbContext? _db;
     private System.Security.Claims.ClaimsPrincipal? _user;
 
     private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
@@ -349,29 +345,11 @@ else
             await _grid.Reload();
     }
 
-    private async Task EnsureInitializedAsync()
-    {
-        if (_db != null) return;
-        _db = Factory.CreateDbContext(); // must be before any await
-    }
-
     private async Task LoadCountsAsync()
     {
-        // Use a separate short-lived context to avoid concurrency with LoadData,
-        // which may be triggered concurrently by the grid Settings binding.
-        using var db = Factory.CreateDbContext();
-
-        var raw = await db.OrderReturns.AsNoTracking()
-            .Where(r => r.Type != null)
-            .GroupBy(r => r.Type!)
-            .Select(g => new { Type = g.Key, Count = g.Count() })
-            .ToListAsync();
-        _typeCounts = raw.ToDictionary(x => x.Type, x => x.Count);
-
-        _cancellationsWithOrderCount = await db.OrderReturns.AsNoTracking()
-            .Where(r => r.Type == "Cancellation" && r.OrderId != null)
-            .Select(r => r.OzonReturnId).Distinct()
-            .CountAsync();
+        var counts = await ReturnsService.GetCountsAsync();
+        _typeCounts = counts.TypeCounts;
+        _cancellationsWithOrderCount = counts.CancellationsWithOrderCount;
     }
 
     private async Task LoadData(LoadDataArgs args)
@@ -382,38 +360,19 @@ else
             _loading = true;
         try
         {
-            await EnsureInitializedAsync();
+            var request = new ReturnsPageRequest(
+                SearchText:          _searchText,
+                DynamicFilter:       args.Filter,
+                FilterType:          _filterType,
+                FilterSchema:        _filterSchema,
+                FilterLinkedToOrder: _filterLinkedToOrder,
+                OrderBy:             args.OrderBy,
+                Skip:                args.Skip ?? 0,
+                Take:                args.Top is > 0 ? args.Top.Value : 20);
 
-            var query = _db!.OrderReturns.AsNoTracking().AsQueryable();
-
-            if (!string.IsNullOrEmpty(_searchText))
-            {
-                var term = _searchText.Trim();
-                query = query.Where(r =>
-                    (r.PostingNumber != null && r.PostingNumber.Contains(term)) ||
-                    (r.OrderNumber != null && r.OrderNumber.Contains(term)) ||
-                    (r.ProductName != null && r.ProductName.Contains(term)) ||
-                    (r.OfferId != null && r.OfferId.Contains(term)));
-            }
-            if (!string.IsNullOrEmpty(args.Filter))
-                query = query.Where(args.Filter);
-            if (!string.IsNullOrEmpty(_filterType))
-                query = query.Where(r => r.Type == _filterType);
-            if (!string.IsNullOrEmpty(_filterSchema))
-                query = query.Where(r => r.Schema == _filterSchema);
-            if (_filterLinkedToOrder)
-                query = query.Where(r => r.Type == "Cancellation" && r.OrderId != null);
-
-            _totalCount = await query.Select(r => r.OzonReturnId).Distinct().CountAsync();
-
-            query = !string.IsNullOrEmpty(args.OrderBy)
-                ? query.OrderBy(args.OrderBy)
-                : query.OrderByDescending(r => r.ReturnDate ?? r.SyncedAt);
-
-            var skip = args.Skip ?? 0;
-            var take = args.Top is > 0 ? args.Top.Value : 20;
-            _pageItems = (await query.Skip(skip).Take(take).ToListAsync())
-                .DistinctBy(r => r.OzonReturnId).ToList();
+            var result = await ReturnsService.GetPageAsync(request);
+            _pageItems  = result.Items;
+            _totalCount = result.TotalCount;
 
             _loading = false;
         }
@@ -523,7 +482,7 @@ else
         _ => ("#f3f4f6", "#374151")
     };
 
-    public void Dispose() => _db?.Dispose();
+    public void Dispose() { }
 
     private void OnReturnRowClick(DataGridRowMouseEventArgs<OrderReturn> args)
     {

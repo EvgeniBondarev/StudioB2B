@@ -1,16 +1,13 @@
-@using Microsoft.EntityFrameworkCore
 @using System.Text.RegularExpressions
 @using StudioB2B.Domain.Entities
-@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 
-@inject ITenantDbContextFactory Factory
+@inject ICalculationRuleService CalculationRuleService
+@inject CalculationEngine CalculationEngine
 @inject NotificationService NotificationService
 @inject DialogService DialogService
 
-@implements IDisposable
 
 @if (_loading)
 {
@@ -238,52 +235,33 @@ else
 @code {
     [Parameter] public IReadOnlyList<string> AvailableVariables { get; set; } = Array.Empty<string>();
 
-    private TenantDbContext? _db;
-    private CalculationEngine _engine = new();
     private bool _loading = true;
 
-    private string _name = string.Empty;
-    private string _resultKey = string.Empty;
-    private string _formula = string.Empty;
-    private int _sortOrder;
-    private bool _isActive = true;
+    private string _name       = string.Empty;
+    private string _resultKey  = string.Empty;
+    private string _formula    = string.Empty;
+    private int    _sortOrder;
+    private bool   _isActive   = true;
 
-    private List<string> _availableVariables = new();
-    private OrderEntity? _exampleOrder;
+    private List<string>  _availableVariables  = [];
+    private OrderEntity?  _exampleOrder;
     private IReadOnlyDictionary<string, decimal>? _contextSnapshot;
     private decimal? _exampleResult;
-    private string? _exampleError;
-    private string _postingNumberFilter = string.Empty;
-    private string? _exampleFormulaRendered;
+    private string?  _exampleError;
+    private string   _postingNumberFilter = string.Empty;
+    private string?  _exampleFormulaRendered;
 
     private static readonly string[] _operatorTokens = ["+", "-", "*", "/", "(", ")"];
 
     protected override async Task OnInitializedAsync()
     {
-        _db = Factory.CreateDbContext();
-
-        // Доступные переменные
-        if (AvailableVariables.Count > 0)
-        {
-            _availableVariables = AvailableVariables.ToList();
-        }
-        else
-        {
-            var priceTypeNames = await _db.PriceTypes
-                .AsNoTracking()
-                .OrderBy(p => p.Name)
-                .Select(p => p.Name)
-                .ToListAsync();
-
-            _availableVariables = CalculationEngine.GetBaseVariableNames(priceTypeNames).ToList();
-        }
+        // Доступные переменные — из параметра или из БД через сервис
+        _availableVariables = AvailableVariables.Count > 0
+            ? AvailableVariables.ToList()
+            : await CalculationRuleService.GetAvailableVariablesAsync();
 
         // Порядок по умолчанию = max + 1
-        var maxOrder = await _db.CalculationRules
-            .AsNoTracking()
-            .Select(r => (int?)r.SortOrder)
-            .MaxAsync();
-        _sortOrder = (maxOrder ?? -1) + 1;
+        _sortOrder = await CalculationRuleService.GetNextSortOrderAsync();
 
         await LoadExampleOrderCoreAsync();
 
@@ -292,29 +270,15 @@ else
 
     private async Task LoadExampleOrderAsync()
     {
-        _exampleError = null;
-        _exampleResult = null;
+        _exampleError           = null;
+        _exampleResult          = null;
         _exampleFormulaRendered = null;
         await LoadExampleOrderCoreAsync();
     }
 
     private async Task LoadExampleOrderCoreAsync()
     {
-        IQueryable<OrderEntity> q = _db!.Orders
-            .IncludeForGrid()
-            .AsNoTracking();
-
-        if (!string.IsNullOrWhiteSpace(_postingNumberFilter))
-        {
-            var pn = _postingNumberFilter.Trim();
-            q = q.Where(o => o.Shipment.PostingNumber == pn);
-        }
-
-        _exampleOrder = await q
-            .OrderByDescending(o => o.Shipment.InProcessAt)
-            .ThenByDescending(o => o.Shipment.CreatedAt)
-            .FirstOrDefaultAsync();
-
+        _exampleOrder    = await CalculationRuleService.GetExampleOrderAsync(_postingNumberFilter);
         _contextSnapshot = _exampleOrder != null
             ? CalculationEngine.GetContextSnapshot(_exampleOrder)
             : null;
@@ -322,9 +286,7 @@ else
 
     private void AppendToken(string token)
     {
-        // Если только что была показана ошибка проверки на примере — очищаем её,
-        // чтобы пользователь видел актуальное состояние.
-        _exampleError = null;
+        _exampleError  = null;
         _exampleResult = null;
 
         if (string.IsNullOrWhiteSpace(_formula))
@@ -333,59 +295,41 @@ else
             return;
         }
 
-        // Добавляем пробел перед токеном, если предыдущий символ не пробел и токен не ")"
         var needsSpace = !_formula.EndsWith(" ");
         _formula += needsSpace ? " " + token : token;
     }
 
     private async Task TestFormulaAsync()
     {
-        _exampleError = null;
+        _exampleError  = null;
         _exampleResult = null;
 
-        if (_exampleOrder == null)
-        {
-            _exampleError = "В базе пока нет заказов для примера.";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_formula))
-        {
-            _exampleError = "Введите формулу.";
-            return;
-        }
+        if (_exampleOrder == null)           { _exampleError = "В базе пока нет заказов для примера."; return; }
+        if (string.IsNullOrWhiteSpace(_formula)) { _exampleError = "Введите формулу."; return; }
 
         var key = string.IsNullOrWhiteSpace(_resultKey) ? "Preview" : _resultKey;
 
         try
         {
-            var rules = await _db!.CalculationRules
-                .AsNoTracking()
-                .Where(r => !r.IsDeleted && r.IsActive)
-                .OrderBy(r => r.SortOrder)
-                .ToListAsync();
+            var rules = await CalculationRuleService.GetActiveRulesAsync();
 
             var tempRule = new CalculationRule
             {
-                Id = Guid.NewGuid(),
-                Name = _name == string.Empty ? "Черновик" : _name,
+                Id        = Guid.NewGuid(),
+                Name      = _name == string.Empty ? "Черновик" : _name,
                 ResultKey = key,
-                Formula = _formula,
+                Formula   = _formula,
                 SortOrder = 0,
-                IsActive = true
+                IsActive  = true
             };
-
             rules.Add(tempRule);
 
-            var result = _engine.Calculate(_exampleOrder, rules);
+            var result = CalculationEngine.Calculate(_exampleOrder, rules);
             if (result.TryGetValue(key, out var value))
             {
                 _exampleResult = value;
-
                 if (_contextSnapshot != null)
-                {
                     _exampleFormulaRendered = RenderFormulaWithValues(_formula, _contextSnapshot);
-                }
             }
             else
             {
@@ -408,20 +352,18 @@ else
             NotificationService.Notify(NotificationSeverity.Warning, "Некорректные данные", "Укажите название правила.");
             return;
         }
-
         if (string.IsNullOrWhiteSpace(_resultKey))
         {
             NotificationService.Notify(NotificationSeverity.Warning, "Некорректные данные", "Укажите ключ результата.");
             return;
         }
-
         if (string.IsNullOrWhiteSpace(_formula))
         {
             NotificationService.Notify(NotificationSeverity.Warning, "Некорректные данные", "Укажите формулу.");
             return;
         }
 
-        var error = _engine.ValidateFormula(_formula, _availableVariables);
+        var error = CalculationEngine.ValidateFormula(_formula, _availableVariables);
         if (error != null)
         {
             NotificationService.Notify(NotificationSeverity.Error, "Ошибка в формуле", error);
@@ -432,15 +374,15 @@ else
         {
             var entity = new CalculationRule
             {
-                Id = Guid.NewGuid(),
-                Name = _name.Trim(),
+                Id        = Guid.NewGuid(),
+                Name      = _name.Trim(),
                 ResultKey = _resultKey.Trim(),
-                Formula = _formula.Trim(),
+                Formula   = _formula.Trim(),
                 SortOrder = _sortOrder,
-                IsActive = _isActive
+                IsActive  = _isActive
             };
 
-            await _db!.CreateCalculationRuleAsync(entity);
+            await CalculationRuleService.CreateAsync(entity);
 
             NotificationService.Notify(NotificationSeverity.Success, "Правило создано");
             DialogService.Close(true);
@@ -457,21 +399,14 @@ else
             return formula;
 
         var rendered = formula;
-
         foreach (var kv in context)
         {
-            if (string.IsNullOrWhiteSpace(kv.Key))
-                continue;
-
-            var pattern = $@"\b{Regex.Escape(kv.Key)}\b";
+            if (string.IsNullOrWhiteSpace(kv.Key)) continue;
             rendered = Regex.Replace(
                 rendered,
-                pattern,
+                $@"\b{Regex.Escape(kv.Key)}\b",
                 kv.Value.ToString("N2"));
         }
-
         return rendered;
     }
-
-    public void Dispose() => _db?.Dispose();
 }

@@ -1,13 +1,10 @@
 @page "/modules"
 @attribute [Authorize(Roles = "ModulesView")]
-@using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Persistence.Tenant
 
 @inject ITenantProvider TenantProvider
 @inject IModuleService ModuleService
-@inject TenantDbContext Db
 @inject NotificationService NotificationService
 
 <PageTitle>Модули</PageTitle>
@@ -109,7 +106,7 @@ else
     {
         if (!TenantProvider.IsResolved) return;
 
-        await EnsureModulesSeeded();
+        await ModuleService.EnsureModulesSeededAsync();
         await LoadModules();
 
         _loading = false;
@@ -125,28 +122,11 @@ else
     {
         try
         {
-            _manufacturerCount = await Db.Manufacturers.CountAsync();
+            _manufacturerCount = await ModuleService.GetManufacturerCountAsync();
         }
         catch
         {
             _manufacturerCount = 0;
-        }
-    }
-
-    private async Task EnsureModulesSeeded()
-    {
-        var existing = await Db.TenantModules.Select(m => m.Code).ToListAsync();
-
-        if (!existing.Contains(ModuleCodes.Manufacturers))
-        {
-            Db.TenantModules.Add(new TenantModule
-            {
-                Id = Guid.NewGuid(),
-                Code = ModuleCodes.Manufacturers,
-                Name = "Производители",
-                Description = "Справочник производителей с привязкой к товарам по префиксу артикула."
-            });
-            await Db.SaveChangesAsync();
         }
     }
 

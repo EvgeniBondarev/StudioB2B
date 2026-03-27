@@ -1,17 +1,14 @@
 @page "/audit"
 @attribute [Authorize(Roles = "AuditView")]
-@using Microsoft.EntityFrameworkCore
-@using StudioB2B.Infrastructure.Persistence.Tenant
-@using StudioB2B.Infrastructure.Services
 @using System.Text.Json
 @using StudioB2B.Domain.Entities
+@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider
-@inject ITenantDbContextFactory Factory
+@inject IAuditLogService AuditLogService
 @inject DialogService DialogService
 
-@implements IDisposable
 
 <PageTitle>Журнал изменений</PageTitle>
 
@@ -211,7 +208,6 @@ else
 @code {
     [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
 
-    private TenantDbContext? _db;
     private RadzenDataGrid<FieldAuditLog>? _grid;
 
     private List<FieldAuditLog> _pageItems = [];
@@ -237,10 +233,7 @@ else
     private DateTime? _filterTo;
 
     /// <summary>
-    /// true — LoadFilterDataAsync полностью завершён, DbContext свободен для запросов из LoadData.
-    /// В Blazor Server OnInitializedAsync рендерит компонент при каждом await-е,
-    /// поэтому OnAfterRenderAsync(firstRender=true) может сработать ДО завершения
-    /// LoadFilterDataAsync. Этот флаг предотвращает конкурентное обращение к DbContext.
+    /// true — LoadFilterDataAsync полностью завершён, сервис свободен для запросов из LoadData.
     /// </summary>
     private bool _filtersLoaded;
 
@@ -257,16 +250,12 @@ else
     {
         var state = await AuthState;
         _user = state.User;
-        _db = Factory.CreateDbContext();
         await LoadFilterDataAsync();
-        _filtersLoaded = true;   // только после полного завершения всех запросов фильтров
+        _filtersLoaded = true;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Ждём, пока LoadFilterDataAsync не завершится (_filtersLoaded),
-        // чтобы не использовать DbContext конкурентно.
-        // _gridReloadDone — защита от повторного вызова при каждом StateHasChanged.
         if (!_gridReloadDone && _filtersLoaded && _grid is not null)
         {
             _gridReloadDone = true;
@@ -276,48 +265,27 @@ else
 
     private async Task LoadFilterDataAsync()
     {
-        _entityNames = await _db!.FieldAuditLogs
-            .Select(x => x.EntityName)
-            .Distinct()
-            .OrderBy(x => x)
-            .AsNoTracking()
-            .ToListAsync();
-
-        _userNames = await _db.FieldAuditLogs
-            .Where(x => x.ChangedByUserName != null)
-            .Select(x => x.ChangedByUserName!)
-            .Distinct()
-            .OrderBy(x => x)
-            .AsNoTracking()
-            .ToListAsync();
+        _entityNames = await AuditLogService.GetFilterEntityNamesAsync();
+        _userNames   = await AuditLogService.GetFilterUserNamesAsync();
     }
 
     private async Task LoadData(LoadDataArgs args)
     {
-        // _db может быть null если grid вызвал LoadData до завершения OnInitializedAsync
-        if (_db is null)
-            return;
+        if (!_filtersLoaded) return;
 
         _loading = true;
         StateHasChanged();
 
         try
         {
-            var query = BuildQuery();
+            var (items, total) = await AuditLogService.GetPagedAsync(
+                BuildFilter(),
+                args.Skip ?? 0,
+                args.Top ?? 30,
+                args.OrderBy);
 
-            _totalCount = await query.CountAsync();
-
-            // Сортировка
-            if (!string.IsNullOrEmpty(args.OrderBy))
-                query = query.OrderBy(args.OrderBy);
-            else
-                query = query.OrderByDescending(x => x.ChangedAtUtc);
-
-            _pageItems = await query
-                .Skip(args.Skip ?? 0)
-                .Take(args.Top ?? 30)
-                .AsNoTracking()
-                .ToListAsync();
+            _pageItems  = items;
+            _totalCount = total;
         }
         finally
         {
@@ -326,45 +294,23 @@ else
         }
     }
 
-    private IQueryable<FieldAuditLog> BuildQuery()
-    {
-        var q = _db!.FieldAuditLogs.AsQueryable();
+    private AuditLogFilter BuildFilter() => new(
+        EntityName: _filterEntity,
+        ChangeType: _filterChangeType,
+        UserName:   _filterUser,
+        FromUtc:    _filterFrom?.ToUniversalTime(),
+        ToUtc:      _filterTo?.AddDays(1).ToUniversalTime());
 
-        if (!string.IsNullOrEmpty(_filterEntity))
-            q = q.Where(x => x.EntityName == _filterEntity);
-
-        if (!string.IsNullOrEmpty(_filterChangeType))
-            q = q.Where(x => x.ChangeType == _filterChangeType);
-
-        if (!string.IsNullOrEmpty(_filterUser))
-            q = q.Where(x => x.ChangedByUserName == _filterUser);
-
-        if (_filterFrom.HasValue)
-            q = q.Where(x => x.ChangedAtUtc >= _filterFrom.Value.ToUniversalTime());
-
-        if (_filterTo.HasValue)
-            q = q.Where(x => x.ChangedAtUtc <= _filterTo.Value.AddDays(1).ToUniversalTime());
-
-        return q;
-    }
-
-    private async Task OnFilterChange(object? _)
-    {
-        await RefreshGrid();
-    }
-
-    private async Task OnDateFilterChange(DateTime? _)
-    {
-        await RefreshGrid();
-    }
+    private async Task OnFilterChange(object? _)   => await RefreshGrid();
+    private async Task OnDateFilterChange(DateTime? _) => await RefreshGrid();
 
     private async Task ResetFilters()
     {
-        _filterEntity = null;
+        _filterEntity     = null;
         _filterChangeType = null;
-        _filterUser = null;
-        _filterFrom = null;
-        _filterTo = null;
+        _filterUser       = null;
+        _filterFrom       = null;
+        _filterTo         = null;
         await RefreshGrid();
     }
 
@@ -381,7 +327,7 @@ else
             new Dictionary<string, object?>
             {
                 [nameof(FieldAuditDialog.EntityName)] = log.EntityName,
-                [nameof(FieldAuditDialog.EntityId)] = log.EntityId
+                [nameof(FieldAuditDialog.EntityId)]   = log.EntityId
             },
             new DialogOptions
             {
@@ -412,16 +358,14 @@ else
             {
                 JsonValueKind.String => el.GetString() ?? "—",
                 JsonValueKind.Number => el.GetRawText(),
-                JsonValueKind.True => "да",
-                JsonValueKind.False => "нет",
-                JsonValueKind.Null => "—",
-                _ => raw
+                JsonValueKind.True   => "да",
+                JsonValueKind.False  => "нет",
+                JsonValueKind.Null   => "—",
+                _                    => raw
             };
         }
         catch { return raw; }
     }
-
-    public void Dispose() => _db?.Dispose();
 }
 
 

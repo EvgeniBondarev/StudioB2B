@@ -1,10 +1,8 @@
 @page "/users"
 @attribute [Authorize(Roles = "UsersView")]
-@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
 
-@inject GetUsers GetUsers
-@inject DeleteUser DeleteUserService
+@inject IUserService UserService
 @inject ITenantProvider TenantProvider
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
@@ -198,7 +196,7 @@ else
     private async Task LoadAsync()
     {
         _loading = true;
-        _users = await GetUsers.HandleAsync();
+        _users = await UserService.GetAllUsersAsync(CancellationToken.None);
         _loading = false;
     }
 
@@ -250,7 +248,7 @@ else
 
         if (confirmed != true) return;
 
-        var (ok, error) = await DeleteUserService.HandleAsync(user.Id);
+        var (ok, error) = await UserService.DeleteUserAsync(user.Id, CancellationToken.None);
         if (ok)
         {
             NotificationService.Notify(NotificationSeverity.Success, "Пользователь удалён");
