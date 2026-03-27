@@ -2,7 +2,7 @@ using System.Linq.Dynamic.Core;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Persistence.Tenant;
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Features;
 
@@ -141,8 +141,6 @@ public static class OrderExtensions
             : query.OrderBy(s => s.IsInternal).ThenBy(s => s.Name);
         return (await query.Skip(skip).Take(take).ToListAsync(ct), total);
     }
-
-    // ─── Init / page / selection helpers ───────────────────────────────────
 
     public static async Task<OrderInitData> GetOrderInitDataAsync(
         this TenantDbContext db,
@@ -325,8 +323,6 @@ public static class OrderExtensions
         return await db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.ShipmentId == id, ct)
                ?? await db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == id, ct);
     }
-
-    // ─── Private helpers ──────────────────────────────────────────────────────
 
     private static IQueryable<OrderEntity> ApplyRestrictions(
         IQueryable<OrderEntity> q,

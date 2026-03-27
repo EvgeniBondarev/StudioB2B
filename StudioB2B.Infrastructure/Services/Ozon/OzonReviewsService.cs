@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Domain.Constants;
 using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Services.Ozon;
 
@@ -21,8 +21,6 @@ public class OzonReviewsService : IOzonReviewsService
         _logger = logger;
         _entityFilter = entityFilter;
     }
-
-    // ── GetReviewsPageAsync ───────────────────────────────────────────────────
 
     public async Task<OzonReviewPageDto> GetReviewsPageAsync(
         int pageSize = 20,
@@ -119,8 +117,6 @@ public class OzonReviewsService : IOzonReviewsService
             NextCursor = nextCursor
         };
     }
-
-    // ── GetReviewDetailAsync ──────────────────────────────────────────────────
 
     public async Task<OzonReviewDetailDto> GetReviewDetailAsync(
         OzonReviewViewModelDto review,
@@ -253,8 +249,6 @@ public class OzonReviewsService : IOzonReviewsService
         return detail;
     }
 
-    // ── ChangeReviewStatusAsync ───────────────────────────────────────────────
-
     public async Task<bool> ChangeReviewStatusAsync(
         OzonReviewViewModelDto review,
         string status,
@@ -277,8 +271,6 @@ public class OzonReviewsService : IOzonReviewsService
             return false;
         }
     }
-
-    // ── GetReviewCountsAsync ──────────────────────────────────────────────────
 
     public async Task<OzonReviewCountAggregateDto> GetReviewCountsAsync(
         Guid? marketplaceClientId = null,
@@ -313,8 +305,6 @@ public class OzonReviewsService : IOzonReviewsService
         return totals;
     }
 
-    // ── CreateReviewCommentAsync ──────────────────────────────────────────────
-
     public async Task<string?> CreateReviewCommentAsync(
         OzonReviewViewModelDto review,
         string text,
@@ -347,8 +337,6 @@ public class OzonReviewsService : IOzonReviewsService
         }
     }
 
-    // ── DeleteReviewCommentAsync ──────────────────────────────────────────────
-
     public async Task<bool> DeleteReviewCommentAsync(
         OzonReviewViewModelDto review,
         string commentId,
@@ -371,10 +359,6 @@ public class OzonReviewsService : IOzonReviewsService
             return false;
         }
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// <summary>
     /// Извлекает описание товара из атрибутов Ozon.

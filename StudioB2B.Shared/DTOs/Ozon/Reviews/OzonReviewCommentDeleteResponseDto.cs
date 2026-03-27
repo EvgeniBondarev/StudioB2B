@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
 
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 public class OzonReviewCommentDeleteResponseDto { }

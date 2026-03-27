@@ -7,8 +7,6 @@ namespace StudioB2B.Infrastructure.Features;
 
 public static class PriceTypeExtensions
 {
-    // ── Чтение ──────────────────────────────────────────────────────────────
-
     /// <summary>
     /// Постраничная выборка типов цен с Dynamic LINQ-фильтром и сортировкой.
     /// </summary>
@@ -36,8 +34,6 @@ public static class PriceTypeExtensions
         var items = await query.Skip(skip).Take(take).ToListAsync(ct);
         return (items, totalCount);
     }
-
-    // ── Запись ──────────────────────────────────────────────────────────────
 
     /// <summary>Создать новый пользовательский тип цены.</summary>
     public static async Task<PriceType> CreatePriceTypeAsync(

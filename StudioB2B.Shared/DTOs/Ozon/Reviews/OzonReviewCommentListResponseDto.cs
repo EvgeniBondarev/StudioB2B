@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
 
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 public class OzonReviewCommentListResponseDto
 {
     [JsonPropertyName("comments")] public List<OzonReviewCommentDto> Comments { get; set; } = new();
-    [JsonPropertyName("offset")]   public int                        Offset   { get; set; }
+    [JsonPropertyName("offset")] public int Offset { get; set; }
 }

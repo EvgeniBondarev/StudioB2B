@@ -6,7 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Persistence.Master;
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Services;
 
