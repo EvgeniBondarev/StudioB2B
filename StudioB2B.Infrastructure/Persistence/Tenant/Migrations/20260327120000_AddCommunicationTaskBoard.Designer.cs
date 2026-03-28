@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -11,9 +12,11 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 {
     [DbContext(typeof(TenantDbContext))]
-    partial class TenantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260327120000_AddCommunicationTaskBoard")]
+    partial class AddCommunicationTaskBoard
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -145,18 +148,8 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(256)
-                        .HasColumnType("varchar(256)");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
-
-                    b.Property<int?>("MaxDurationMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("MinDurationMinutes")
-                        .HasColumnType("int");
 
                     b.Property<int>("PaymentMode")
                         .HasColumnType("int");
@@ -164,15 +157,10 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<decimal>("Rate")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int?>("TaskType")
+                    b.Property<int>("TaskType")
                         .HasColumnType("int");
 
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("char(36)");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("UserId");
 
                     b.HasIndex("TaskType", "IsActive");
 
@@ -190,10 +178,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
                     b.Property<Guid?>("AssignedToUserId")
                         .HasColumnType("char(36)");
-
-                    b.Property<string>("ChatType")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
 
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime(6)");
@@ -243,9 +227,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
                     b.Property<long>("TotalTimeSpentTicks")
                         .HasColumnType("bigint");
-
-                    b.Property<int>("UnreadCount")
-                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -1905,16 +1886,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Parent");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.CommunicationPaymentRate", b =>
-                {
-                    b.HasOne("StudioB2B.Domain.Entities.TenantUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.CommunicationTask", b =>

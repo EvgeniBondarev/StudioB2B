@@ -380,6 +380,9 @@ else
         new ("Не определён", "UNSPECIFIED"),
     ];
 
+    [Parameter] public string? PreSelectChatId { get; set; }
+    [Parameter] public Guid? PreSelectClientId { get; set; }
+
     [Inject]
     private IJSRuntime Js { get; set; } = null!;
 
@@ -390,18 +393,37 @@ else
     {
         if (!TenantProvider.IsResolved) return;
 
-        // Ensure UserContext is populated before any service that uses EntityFilterService
         var authState = await AuthState;
         UserContext.SetUser(authState.User);
 
         await LoadClientOptionsAsync();
         await LoadChatsAsync();
+        await TryPreSelectAsync();
 
         _pollingTimer = new Timer(
             callback: _ => InvokeAsync(PollAsync),
             state: null,
             dueTime: TimeSpan.FromSeconds(30),
             period: TimeSpan.FromSeconds(30));
+    }
+
+    private async Task TryPreSelectAsync()
+    {
+        if (string.IsNullOrEmpty(PreSelectChatId)) return;
+
+        var match = _chats.FirstOrDefault(c => c.ChatId == PreSelectChatId);
+        if (match is null && PreSelectClientId.HasValue)
+        {
+            var extra = await ChatService.GetChatsPageAsync(
+                pageSize: 50, chatStatus: null, chatType: null, unreadOnly: false,
+                marketplaceClientId: PreSelectClientId);
+            match = extra.Chats.FirstOrDefault(c => c.ChatId == PreSelectChatId);
+            if (match is not null && !_chats.Any(c => c.ChatId == match.ChatId && c.MarketplaceClientId == match.MarketplaceClientId))
+                _chats.Insert(0, match);
+        }
+
+        if (match is not null)
+            await SelectChatAsync(match);
     }
 
     public void Dispose()

@@ -1,4 +1,4 @@
-﻿namespace StudioB2B.Web.Services;
+namespace StudioB2B.Web.Services;
 
 public class NavItem
 {
@@ -58,6 +58,17 @@ public class NavService
                 new NavItem { Path = "/chats", Role = "ChatsView" },
                 new NavItem { Path = "/questions", Role = "ChatsView" },
                 new NavItem { Path = "/reviews", Role = "ChatsView" }
+            }
+        },
+        new NavGroup
+        {
+            Title = "Доска задач",
+            Icon = "view_kanban",
+            Items = new()
+            {
+                new NavItem { Path = "/task-board", Role = "TaskBoardView" },
+                new NavItem { Path = "/task-board-settings", Role = "TaskBoardAdmin" },
+                new NavItem { Path = "/task-board-report", Role = "TaskBoardAdmin" }
             }
         },
         new NavGroup

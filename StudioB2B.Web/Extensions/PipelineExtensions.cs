@@ -30,6 +30,7 @@ public static class PipelineExtensions
         app.MapStaticAssets();
 
         app.MapHub<SyncNotificationHub>("/hubs/sync");
+        app.MapHub<TaskBoardHub>("/hubs/taskboard");
 
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();

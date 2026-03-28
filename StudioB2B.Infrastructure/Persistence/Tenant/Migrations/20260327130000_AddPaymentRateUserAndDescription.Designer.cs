@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -11,9 +12,11 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 {
     [DbContext(typeof(TenantDbContext))]
-    partial class TenantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260327130000_AddPaymentRateUserAndDescription")]
+    partial class AddPaymentRateUserAndDescription
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -152,12 +155,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<int?>("MaxDurationMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("MinDurationMinutes")
-                        .HasColumnType("int");
-
                     b.Property<int>("PaymentMode")
                         .HasColumnType("int");
 
@@ -190,10 +187,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
                     b.Property<Guid?>("AssignedToUserId")
                         .HasColumnType("char(36)");
-
-                    b.Property<string>("ChatType")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
 
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime(6)");
@@ -243,9 +236,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 
                     b.Property<long>("TotalTimeSpentTicks")
                         .HasColumnType("bigint");
-
-                    b.Property<int>("UnreadCount")
-                        .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");

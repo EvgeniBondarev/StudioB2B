@@ -66,6 +66,13 @@ public partial class TenantService : ITenantService
 
             var connectionString = BuildConnectionString(normalized);
 
+            if (createdByUserId.HasValue)
+            {
+                var userExists = await _masterDb.Users.AnyAsync(u => u.Id == createdByUserId.Value, ct);
+                if (!userExists)
+                    createdByUserId = null;
+            }
+
             var tenant = new TenantEntity
             {
                 Name = companyName,

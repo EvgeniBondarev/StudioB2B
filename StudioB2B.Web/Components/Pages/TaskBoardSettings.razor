@@ -1,0 +1,252 @@
+@page "/task-board-settings"
+@attribute [Authorize(Roles = "TaskBoardAdmin")]
+@using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Domain.Constants
+
+@inject ICommunicationTaskService TaskService
+@inject IUserService UserService
+@inject ITenantProvider TenantProvider
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+<link rel="stylesheet" href="css/taskboard.css" />
+
+<PageTitle>Настройки тарифов</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+{
+    <RadzenStack Gap="1rem" Style="max-width:1000px;">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                     JustifyContent="JustifyContent.SpaceBetween">
+            <RadzenText TextStyle="TextStyle.H5" Style="margin:0;">Настройки тарифов</RadzenText>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                <RadzenButton Text="Пересчитать оплаты" Icon="calculate" ButtonStyle="ButtonStyle.Secondary"
+                              Size="ButtonSize.Small" Click="@RecalculatePaymentsAsync" IsBusy="@_recalculating"
+                              title="Пересчитать PaymentAmount для всех выполненных задач по текущим тарифам" />
+                <RadzenButton Text="Добавить тариф" Icon="add" ButtonStyle="ButtonStyle.Primary"
+                              Size="ButtonSize.Small" Click="@(() => OpenRateDialog(null))" />
+            </RadzenStack>
+        </RadzenStack>
+
+        <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false" Variant="Variant.Flat"
+                     Style="font-size:0.85rem;">
+            Тарифы суммируются при расчёте оплаты.<br/>
+            <b>Тип задачи</b> — пусто = для всех типов. <b>Сотрудник</b> — пусто = для всех.
+            <b>Почасовая</b> — ₽/час × время. <b>За задачу</b> — фикс ₽ за штуку.<br/>
+            <b>Диапазон времени</b> — тариф применяется только если длительность задачи попадает в диапазон. Пример: &lt;1 мин. = 10₽, 1–60 мин. = 50₽, &gt;60 мин. = 100₽.
+        </RadzenAlert>
+
+        <RadzenDataGrid TItem="CommunicationPaymentRateDto" @ref="_grid"
+                        Data="@_rates" AllowColumnResize="true"
+                        Density="Density.Compact" AllowSorting="true">
+            <Columns>
+                <RadzenDataGridColumn TItem="CommunicationPaymentRateDto" Property="Description" Title="Описание" Width="200px">
+                    <Template Context="rate">
+                        <span style="font-weight:500;">@(rate.Description ?? "—")</span>
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="CommunicationPaymentRateDto" Property="TaskType" Title="Тип задачи" Width="130px">
+                    <Template Context="rate">
+                        @if (rate.TaskType.HasValue)
+                        {
+                            <span class="task-type-badge @GetTypeClass(rate.TaskType.Value)">@GetTypeLabel(rate.TaskType.Value)</span>
+                        }
+                        else
+                        {
+                            <span style="color:var(--rz-text-secondary-color);font-size:0.82rem;">Все типы</span>
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="CommunicationPaymentRateDto" Property="PaymentMode" Title="Режим" Width="120px">
+                    <Template Context="rate">@GetModeLabel(rate.PaymentMode)</Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="CommunicationPaymentRateDto" Title="Сотрудник" Width="160px">
+                    <Template Context="rate">
+                        @if (rate.UserName is not null)
+                        {
+                            <span>@rate.UserName</span>
+                        }
+                        else
+                        {
+                            <span style="color:var(--rz-text-secondary-color);font-size:0.82rem;">Все</span>
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="CommunicationPaymentRateDto" Property="Rate" Title="Ставка" Width="100px">
+                    <Template Context="rate">
+                        <span style="font-weight:600;">@rate.Rate.ToString("F2") ₽</span>
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="CommunicationPaymentRateDto" Title="Время (min)" Width="120px">
+                    <Template Context="rate">
+                        @if (rate.MinDurationMinutes.HasValue || rate.MaxDurationMinutes.HasValue)
+                        {
+                            var from = rate.MinDurationMinutes.HasValue ? rate.MinDurationMinutes.Value.ToString() : "∅";
+                            var to   = rate.MaxDurationMinutes.HasValue ? rate.MaxDurationMinutes.Value.ToString() : "∞";
+                            <span style="font-size:0.82rem;">@from – @to</span>
+                        }
+                        else
+                        {
+                            <span style="color:var(--rz-text-secondary-color);font-size:0.82rem;">Любое</span>
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="CommunicationPaymentRateDto" Property="IsActive" Title="" Width="60px" TextAlign="TextAlign.Center">
+                    <Template Context="rate">
+                        @if (rate.IsActive)
+                        {
+                            <RadzenBadge BadgeStyle="BadgeStyle.Success" Text="Вкл" Style="font-size:0.7rem;" />
+                        }
+                        else
+                        {
+                            <RadzenBadge BadgeStyle="BadgeStyle.Light" Text="Выкл" Style="font-size:0.7rem;" />
+                        }
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="CommunicationPaymentRateDto" Title="" Width="90px" Sortable="false" Filterable="false" TextAlign="TextAlign.Right">
+                    <Template Context="rate">
+                        <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                      Click="@(() => OpenRateDialog(rate))" Style="margin-right:4px;" />
+                        <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter"
+                                      Size="ButtonSize.ExtraSmall"
+                                      Click="@(async () => await DeleteRate(rate))" />
+                    </Template>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+    </RadzenStack>
+}
+
+@code {
+    private RadzenDataGrid<CommunicationPaymentRateDto>? _grid;
+    private List<CommunicationPaymentRateDto> _rates = new();
+    private List<UserOption> _users = new();
+    private bool _recalculating;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!TenantProvider.IsResolved) return;
+        await Task.WhenAll(LoadRatesAsync(), LoadUsersAsync());
+    }
+
+    private async Task LoadRatesAsync()
+    {
+        try { _rates = await TaskService.GetPaymentRatesAsync(); }
+        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        try
+        {
+            var all = await UserService.GetAllUsersAsync();
+            _users = all
+                .Where(u => u.IsActive)
+                .Select(u => new UserOption { Id = u.Id, Name = $"{u.LastName} {u.FirstName}".Trim() })
+                .OrderBy(u => u.Name)
+                .ToList();
+        }
+        catch { }
+    }
+
+    private async Task OpenRateDialog(CommunicationPaymentRateDto? existing)
+    {
+        var title = existing is null ? "Новый тариф" : "Редактировать тариф";
+        var result = await DialogService.OpenAsync<PaymentRateDialog>(
+            title,
+            new Dictionary<string, object?>
+            {
+                [nameof(PaymentRateDialog.Rate)] = existing ?? new CommunicationPaymentRateDto
+                {
+                    TaskType = null,
+                    PaymentMode = PaymentMode.PerTask,
+                    Rate = 0,
+                    IsActive = true
+                },
+                [nameof(PaymentRateDialog.Users)] = _users
+            },
+            new DialogOptions
+            {
+                Width = "480px",
+                CloseDialogOnEsc = true,
+                CloseDialogOnOverlayClick = true
+            });
+
+        if (result is true)
+        {
+            await LoadRatesAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteRate(CommunicationPaymentRateDto rate)
+    {
+        try
+        {
+            await TaskService.DeletePaymentRateAsync(rate.Id);
+            _rates.Remove(rate);
+            NotificationService.Notify(NotificationSeverity.Success, "Тариф удалён", "", 2000);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000);
+        }
+    }
+
+    private async Task RecalculatePaymentsAsync()
+    {
+        _recalculating = true;
+        try
+        {
+            var count = await TaskService.RecalculatePaymentsAsync();
+            NotificationService.Notify(NotificationSeverity.Success, "Пересчёт завершён", $"Обновлено: {count} задач", 3000);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000);
+        }
+        finally { _recalculating = false; }
+    }
+
+    private static string GetTypeLabel(CommunicationTaskType t) => t switch
+    {
+        CommunicationTaskType.Chat => "Чат",
+        CommunicationTaskType.Question => "Вопрос",
+        CommunicationTaskType.Review => "Отзыв",
+        _ => "—"
+    };
+
+    private static string GetTypeClass(CommunicationTaskType t) => t switch
+    {
+        CommunicationTaskType.Chat => "task-type-chat",
+        CommunicationTaskType.Question => "task-type-question",
+        CommunicationTaskType.Review => "task-type-review",
+        _ => ""
+    };
+
+    private static string GetModeLabel(PaymentMode m) => m switch
+    {
+        PaymentMode.Hourly => "Почасовая",
+        PaymentMode.PerTask => "За задачу",
+        _ => "—"
+    };
+
+    public class UserOption
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+}

@@ -590,6 +590,9 @@ else
 </script>
 
 @code {
+    [Parameter] public string? PreSelectReviewId { get; set; }
+    [Parameter] public Guid? PreSelectClientId { get; set; }
+
     [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = null!;
 
     private List<ClientOptionDto> _clientOptions = new();
@@ -625,9 +628,21 @@ else
         var authState = await AuthState;
         UserContext.SetUser(authState.User);
 
+        if (!string.IsNullOrEmpty(PreSelectReviewId) && PreSelectClientId.HasValue)
+            _filterClientId = PreSelectClientId;
+
         await LoadClientOptionsAsync();
         _ = LoadReviewCountsAsync();
         await ReloadAsync();
+        TryPreSelect();
+    }
+
+    private void TryPreSelect()
+    {
+        if (string.IsNullOrEmpty(PreSelectReviewId)) return;
+        var match = _reviews.FirstOrDefault(r => r.Id == PreSelectReviewId);
+        if (match is not null)
+            SelectReview(match);
     }
 
     // ── Data loading ──────────────────────────────────────────────────────────
