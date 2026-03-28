@@ -74,7 +74,7 @@ public class DatabaseMigrationService : IHostedService
             // Применяем миграции для всех тенантов
             var initializer = scope.ServiceProvider.GetRequiredService<ITenantDatabaseInitializer>();
             var tenants = await masterDbContext.Tenants
-                .Select(t => new { t.Id, t.ConnectionString })
+                .Select(t => new { t.Id, t.ConnectionString, t.Subdomain })
                 .ToListAsync(cancellationToken);
 
             _logger.LogInformation("Migrating {Count} tenant database(s).", tenants.Count);
@@ -83,7 +83,7 @@ public class DatabaseMigrationService : IHostedService
             {
                 try
                 {
-                    await initializer.MigrateOnlyAsync(tenant.ConnectionString, cancellationToken);
+                    await initializer.MigrateOnlyAsync(tenant.ConnectionString, tenant.Subdomain, cancellationToken);
                 }
                 catch (Exception ex)
                 {

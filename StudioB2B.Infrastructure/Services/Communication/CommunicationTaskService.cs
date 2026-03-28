@@ -31,11 +31,14 @@ public class CommunicationTaskService : ICommunicationTaskService
         var exists = await _db.Users.AnyAsync(u => u.Id == userId, ct);
         if (exists) return;
 
+        var email = _currentUser.Email;
+        var emailTaken = email is not null && await _db.Users.AnyAsync(u => u.Email == email, ct);
+
         _db.Users.Add(new TenantUser
         {
             Id = userId,
-            Email = _currentUser.Email ?? $"{userId}@stub",
-            FirstName = _currentUser.Email?.Split('@').FirstOrDefault() ?? "User",
+            Email = !emailTaken && email is not null ? email : $"{userId}@stub",
+            FirstName = email?.Split('@').FirstOrDefault() ?? "User",
             LastName = "",
             HashPassword = "",
             IsActive = true

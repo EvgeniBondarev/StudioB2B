@@ -1,11 +1,16 @@
 using System.Text.RegularExpressions;
+using Hangfire;
+using Hangfire.States;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Domain.Options;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
+using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Infrastructure.Services.Order;
 using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Services.MultiTenancy;
@@ -87,10 +92,11 @@ public partial class TenantService : ITenantService
 
             try
             {
-                await _dbInitializer.MigrateAndSeedAsync(connectionString, ct);
+                await _dbInitializer.MigrateAndSeedAsync(connectionString, normalized, ct);
                 await _dbInitializer.CreateAdminUserAsync(connectionString, adminEmail, adminPassword,
                     firstName, lastName, middleName, ct);
                 await _hangfireManager.AddTenant(tenant.Id, connectionString, ct);
+                await EnqueueInitialSyncJobsAsync(tenant.Id, connectionString, ct);
 
                 _logger.LogInformation("Tenant registration completed: {TenantId}", tenant.Id);
                 return new TenantRegistrationResultDto(true, tenant.Id);
@@ -155,6 +161,62 @@ public partial class TenantService : ITenantService
 
         try { _masterDb.Tenants.Remove(tenantEntity); await _masterDb.SaveChangesAsync(ct); }
         catch (Exception ex) { _logger.LogError(ex, "Failed to remove tenant record during rollback for {Subdomain}", subdomain); }
+    }
+
+    private async Task EnqueueInitialSyncJobsAsync(Guid tenantId, string connectionString, CancellationToken ct)
+    {
+        try
+        {
+            var optionsBuilder = new DbContextOptionsBuilder<TenantDbContext>();
+            optionsBuilder.UseMySql(connectionString, await ServerVersion.AutoDetectAsync(connectionString, ct));
+            await using var db = new TenantDbContext(optionsBuilder.Options, currentUserProvider: null);
+
+            if (!await db.Set<MarketplaceClient>().AnyAsync(ct))
+                return;
+
+            var from = DateTime.UtcNow.Date.AddDays(-90);
+            var to = DateTime.UtcNow.Date.AddDays(1);
+
+            var client = _hangfireManager.GetClient(tenantId);
+            var queue = $"tenant-{tenantId:N}";
+            var paramsJson = System.Text.Json.JsonSerializer.Serialize(new { From = from, To = to });
+
+            foreach (var jobType in new[] { SyncJobTypeEnum.Sync, SyncJobTypeEnum.Update, SyncJobTypeEnum.Returns })
+            {
+                var history = new SyncJobHistory
+                {
+                    JobType = jobType,
+                    Status = SyncJobStatusEnum.Enqueued,
+                    ParametersJson = paramsJson,
+                    StartedAtUtc = DateTime.UtcNow
+                };
+                db.SyncJobHistories.Add(history);
+                await db.SaveChangesAsync(ct);
+
+                var historyId = history.Id;
+                string hangfireJobId = jobType switch
+                {
+                    SyncJobTypeEnum.Sync => client.Create<OrderSyncJob>(
+                        j => j.ExecuteSyncAsync(tenantId, connectionString, historyId, from, to, CancellationToken.None),
+                        new EnqueuedState(queue)),
+                    SyncJobTypeEnum.Update => client.Create<OrderSyncJob>(
+                        j => j.ExecuteUpdateAsync(tenantId, connectionString, historyId, from, to, CancellationToken.None),
+                        new EnqueuedState(queue)),
+                    _ => client.Create<OrderSyncJob>(
+                        j => j.ExecuteReturnsSyncAsync(tenantId, connectionString, historyId, from, to, CancellationToken.None),
+                        new EnqueuedState(queue))
+                };
+
+                history.HangfireJobId = hangfireJobId;
+                await db.SaveChangesAsync(ct);
+            }
+
+            _logger.LogInformation("TenantService: enqueued 3 initial sync jobs for new tenant {TenantId}.", tenantId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "TenantService: failed to enqueue initial sync jobs for tenant {TenantId}. Tenant created successfully.", tenantId);
+        }
     }
 
     private static TenantRegistrationResultDto Fail(string error) => new(false, Error: error);
