@@ -544,6 +544,8 @@ else
 
 @code {
     [Parameter] public bool ShowTopProducts { get; set; } = false;
+    [Parameter] public string? PreSelectQuestionId { get; set; }
+    [Parameter] public Guid? PreSelectClientId { get; set; }
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthState { get; set; } = null!;
@@ -584,12 +586,30 @@ else
         var authState = await AuthState;
         UserContext.SetUser(authState.User);
 
+        if (!string.IsNullOrEmpty(PreSelectQuestionId) && PreSelectClientId.HasValue)
+        {
+            _filterClientId = PreSelectClientId;
+            _filterFrom = null;
+            _filterTo = null;
+        }
+        else
+        {
+            _filterTo = DateTime.UtcNow.Date.AddDays(1);
+            _filterFrom = DateTime.UtcNow.Date.AddDays(-7);
+        }
+
         await LoadClientOptionsAsync();
-        // По умолчанию показываем вопросы за последние 7 дней
-        _filterTo = DateTime.UtcNow.Date.AddDays(1);
-        _filterFrom = DateTime.UtcNow.Date.AddDays(-7);
         _ = LoadQuestionCountsAsync();
         await ReloadAsync();
+        TryPreSelect();
+    }
+
+    private void TryPreSelect()
+    {
+        if (string.IsNullOrEmpty(PreSelectQuestionId)) return;
+        var match = _questions.FirstOrDefault(q => q.Id == PreSelectQuestionId);
+        if (match is not null)
+            SelectQuestion(match);
     }
 
     private async Task LoadClientOptionsAsync()

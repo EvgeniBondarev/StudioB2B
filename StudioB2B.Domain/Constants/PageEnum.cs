@@ -48,5 +48,11 @@ public enum PageEnum
 
     [Description("Права доступа")]
     PermissionsView = 15,
+
+    [Description("Доска задач")]
+    TaskBoardView = 16,
+
+    [Description("Доска задач: администрирование")]
+    TaskBoardAdmin = 17,
 }
 

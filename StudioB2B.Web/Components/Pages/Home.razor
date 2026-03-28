@@ -323,10 +323,10 @@ else
                                                              Style="cursor:pointer;"
                                                              Click="@(() => Navigation.NavigateTo(item.Path))">
 
-                                                    <RadzenIcon Icon="@PageRegistry.Pages[item.Path].Icon"
+                                                    <RadzenIcon Icon="@PageRegistry.Get(item.Path).Icon"
                                                                 Style="font-size:1rem;" />
 
-                                                    <RadzenText Text="@PageRegistry.Pages[item.Path].Title"
+                                                    <RadzenText Text="@PageRegistry.Get(item.Path).Title"
                                                                 TextStyle="TextStyle.Body1" />
 
                                                 </RadzenStack>
@@ -341,10 +341,10 @@ else
                                                                      Style="cursor:pointer;"
                                                                      Click="@(() => Navigation.NavigateTo(item.Path))">
 
-                                                            <RadzenIcon Icon="@PageRegistry.Pages[item.Path].Icon"
+                                                            <RadzenIcon Icon="@PageRegistry.Get(item.Path).Icon"
                                                                         Style="font-size:1rem;" />
 
-                                                            <RadzenText Text="@PageRegistry.Pages[item.Path].Title"
+                                                            <RadzenText Text="@PageRegistry.Get(item.Path).Title"
                                                                         TextStyle="TextStyle.Body1" />
 
                                                         </RadzenStack>

@@ -36,6 +36,7 @@ public static class ServiceExtensions
 
         services.AddSignalR();
         services.AddScoped<ISyncNotificationSender, SyncNotificationSender>();
+        services.AddScoped<ITaskBoardNotificationSender, TaskBoardNotificationSender>();
 
         services.AddScoped<DialogService>();
         services.AddScoped<NotificationService>();

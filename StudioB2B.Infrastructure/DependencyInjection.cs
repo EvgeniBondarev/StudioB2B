@@ -17,7 +17,9 @@ using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services.MultiTenancy;
 using StudioB2B.Infrastructure.Services.Modules;
 using StudioB2B.Infrastructure.Services.Order;
-using StudioB2B.Infrastructure.Services.Ozon;using TenantService = StudioB2B.Infrastructure.Services.MultiTenancy.TenantService;
+using StudioB2B.Infrastructure.Services.Communication;
+using StudioB2B.Infrastructure.Services.Ozon;
+using TenantService = StudioB2B.Infrastructure.Services.MultiTenancy.TenantService;
 
 namespace StudioB2B.Infrastructure;
 
@@ -155,6 +157,9 @@ public static class DependencyInjection
 
         services.AddScoped<IModuleService, ModuleService>();
         services.AddScoped<IModuleActivator, ManufacturerModuleActivator>();
+
+        services.AddScoped<ICommunicationTaskService, CommunicationTaskService>();
+        services.AddScoped<ICommunicationTaskSyncService, CommunicationTaskSyncService>();
 
         return services;
     }

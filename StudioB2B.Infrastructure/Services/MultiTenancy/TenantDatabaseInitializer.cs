@@ -239,6 +239,8 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         [FunctionEnum.SyncManageSchedules] = PageEnum.SyncView,
         [FunctionEnum.QuestionsManage] = PageEnum.QuestionsView,
         [FunctionEnum.PermissionsManage] = PageEnum.PermissionsView,
+        [FunctionEnum.TaskBoardManage] = PageEnum.TaskBoardView,
+        [FunctionEnum.TaskBoardAdminManage] = PageEnum.TaskBoardAdmin,
     };
 
     /// <summary>
