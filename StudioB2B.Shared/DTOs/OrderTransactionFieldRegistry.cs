@@ -1,6 +1,6 @@
 using StudioB2B.Domain.Constants;
 
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 /// <summary>
 /// Реестр допустимых полей заказа и связанных сущностей для правил документов.

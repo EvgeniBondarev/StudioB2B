@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using StudioB2B.Infrastructure.Services;
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Web.Controllers;
 

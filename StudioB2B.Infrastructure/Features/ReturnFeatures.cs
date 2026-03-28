@@ -2,7 +2,7 @@ using System.Linq.Dynamic.Core;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Persistence.Tenant;
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Features;
 

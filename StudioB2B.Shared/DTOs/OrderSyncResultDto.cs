@@ -1,4 +1,4 @@
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 /// <summary>
 /// Результат синхронизации заказов: количество созданных, обновлённых и не тронутых отправлений и заказов.

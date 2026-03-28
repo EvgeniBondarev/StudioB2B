@@ -1,4 +1,4 @@
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Interfaces;
 
