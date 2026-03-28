@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "TaskBoardAdmin")]
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Domain.Constants
+@using StudioB2B.Shared.DTOs
 
 @inject ICommunicationTaskService TaskService
 @inject IUserService UserService
