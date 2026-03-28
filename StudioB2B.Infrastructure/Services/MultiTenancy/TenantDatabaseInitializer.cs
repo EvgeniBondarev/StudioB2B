@@ -119,8 +119,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         await ctx.SaveChangesAsync(ct);
     }
 
-    // ── Page / PageColumn / Function seeding ─────────────────────────────
-
     /// <summary>
     /// Maps each PageColumnEnum value to its parent PageEnum.
     /// </summary>
@@ -251,7 +249,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
     /// </summary>
     private static async Task SeedPagesColumnsAndFunctionsAsync(TenantDbContext ctx, CancellationToken ct)
     {
-        // ── Pages ──────────────────────────────────────────────────────────
         var existingPages = await ctx.Pages.ToListAsync(ct);
         var existingPageIds = existingPages.Select(p => p.Id).ToHashSet();
         foreach (var page in Enum.GetValues<PageEnum>())
@@ -274,7 +271,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         }
         await ctx.SaveChangesAsync(ct);
 
-        // ── PageColumns ────────────────────────────────────────────────────
         var existingCols = await ctx.PageColumns.ToListAsync(ct);
         var existingColIds = existingCols.Select(c => c.Id).ToHashSet();
         foreach (var col in Enum.GetValues<PageColumnEnum>())
@@ -297,7 +293,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         }
         await ctx.SaveChangesAsync(ct);
 
-        // ── Functions ──────────────────────────────────────────────────────
         var existingFuncs = await ctx.Functions.ToListAsync(ct);
         var existingFuncIds = existingFuncs.Select(f => f.Id).ToHashSet();
         foreach (var func in Enum.GetValues<FunctionEnum>())

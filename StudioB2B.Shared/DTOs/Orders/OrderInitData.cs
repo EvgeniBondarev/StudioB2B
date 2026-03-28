@@ -1,11 +1,11 @@
 using StudioB2B.Domain.Entities;
 
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 /// <summary>Начальные данные страницы заказов: клиенты, статусы, склады, правила.</summary>
 public record OrderInitData(
     List<MarketplaceClient> Clients,
-    List<OrderStatus>       MarketplaceStatuses,
-    List<OrderStatus>       SystemStatuses,
-    List<Warehouse>         Warehouses,
-    List<CalculationRule>   CalcRules);
+    List<OrderStatus> MarketplaceStatuses,
+    List<OrderStatus> SystemStatuses,
+    List<Warehouse> Warehouses,
+    List<CalculationRule> CalcRules);

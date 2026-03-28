@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using StudioB2B.Domain.Constants;
 
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 public class OzonSubscriptionDto
 {
