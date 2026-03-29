@@ -30,6 +30,7 @@ public static class PipelineExtensions
         app.MapStaticAssets();
 
         app.MapHub<SyncNotificationHub>("/hubs/sync");
+        app.MapHub<TaskBoardHub>("/hubs/taskboard");
 
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();
@@ -50,7 +51,7 @@ public static class PipelineExtensions
             var logger = scope.ServiceProvider.GetRequiredService<ILogger<WebApplication>>();
 
             var tenants = await masterDb.Tenants
-                .Select(t => new { t.Id, t.ConnectionString })
+                .Select(t => new { t.Id, t.ConnectionString, t.Subdomain })
                 .ToListAsync();
 
             logger.LogInformation("Startup: migrating {Count} tenant database(s).", tenants.Count);
@@ -59,7 +60,7 @@ public static class PipelineExtensions
             {
                 try
                 {
-                    await initializer.MigrateOnlyAsync(tenant.ConnectionString, CancellationToken.None);
+                    await initializer.MigrateOnlyAsync(tenant.ConnectionString, tenant.Subdomain, CancellationToken.None);
                 }
                 catch (Exception ex)
                 {

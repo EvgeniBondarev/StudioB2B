@@ -1,4 +1,4 @@
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 /// <summary>
 /// Итог синхронизации: сводка по всем клиентам и разбивка по каждому клиенту.

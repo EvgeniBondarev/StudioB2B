@@ -1,0 +1,165 @@
+@using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Shared.DTOs
+@using StudioB2B.Web.Components.Pages
+
+@inject ICommunicationTaskService TaskService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenTemplateForm TItem="CommunicationPaymentRateDto" Data="Rate" Submit="@HandleSubmit">
+    <RadzenStack Gap="1rem" Style="padding:0.25rem 0;">
+
+        <RadzenFormField Text="Описание" Style="width:100%;">
+            <RadzenTextBox @bind-Value="Rate.Description" Name="Description" Style="width:100%;"
+                           Placeholder="Например: Бонус за чат" />
+        </RadzenFormField>
+
+        <RadzenRow Gap="1rem">
+            <RadzenColumn Size="12" SizeMD="6">
+                <RadzenFormField Text="Тип задачи" Style="width:100%;">
+                    <RadzenDropDown TValue="CommunicationTaskType?" @bind-Value="Rate.TaskType"
+                                    Data="@_taskTypes" TextProperty="Label" ValueProperty="Value"
+                                    AllowClear="true" Placeholder="Все типы"
+                                    Style="width:100%;" />
+                </RadzenFormField>
+            </RadzenColumn>
+            <RadzenColumn Size="12" SizeMD="6">
+                <RadzenFormField Text="Режим оплаты" Style="width:100%;">
+                    <RadzenDropDown TValue="PaymentMode" @bind-Value="Rate.PaymentMode"
+                                    Data="@_paymentModes" TextProperty="Label" ValueProperty="Value"
+                                    Style="width:100%;" />
+                </RadzenFormField>
+            </RadzenColumn>
+        </RadzenRow>
+
+        <RadzenRow Gap="1rem">
+            <RadzenColumn Size="12" SizeMD="6">
+                <RadzenFormField Text="Сотрудник" Style="width:100%;">
+                    <RadzenDropDown TValue="Guid?" @bind-Value="Rate.UserId"
+                                    Data="@Users" TextProperty="Name" ValueProperty="Id"
+                                    AllowClear="true" Placeholder="Все сотрудники"
+                                    AllowFiltering="true" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                                    Style="width:100%;" />
+                </RadzenFormField>
+            </RadzenColumn>
+            <RadzenColumn Size="12" SizeMD="6">
+                <RadzenFormField Text="Ставка (₽)" Style="width:100%;">
+                    <ChildContent>
+                        <RadzenNumeric TValue="decimal" @bind-Value="Rate.Rate" Name="RateValue"
+                                       Style="width:100%;" Min="0" />
+                    </ChildContent>
+                    <Helper>
+                        <RadzenNumericRangeValidator Component="RateValue" Min="0.01m"
+                                                     Text="Ставка должна быть больше 0" />
+                    </Helper>
+                </RadzenFormField>
+            </RadzenColumn>
+        </RadzenRow>
+
+        <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);margin-bottom:0.25rem;">
+            Диапазон времени — тариф применяется только если время задачи попадает в указанный диапазон (мин). Оставьте пустым — без ограничения.
+        </RadzenText>
+        <RadzenRow Gap="1rem">
+            <RadzenColumn Size="12" SizeMD="6">
+                <RadzenFormField Text="От (мин., включительно)" Style="width:100%;">
+                    <RadzenNumeric TValue="int?" @bind-Value="Rate.MinDurationMinutes"
+                                   Style="width:100%;" Min="0" Placeholder="Без минимума" />
+                </RadzenFormField>
+            </RadzenColumn>
+            <RadzenColumn Size="12" SizeMD="6">
+                <RadzenFormField Text="До (мин., включительно)" Style="width:100%;">
+                    <RadzenNumeric TValue="int?" @bind-Value="Rate.MaxDurationMinutes"
+                                   Style="width:100%;" Min="0" Placeholder="Без максимума" />
+                </RadzenFormField>
+            </RadzenColumn>
+        </RadzenRow>
+
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+            <RadzenSwitch @bind-Value="Rate.IsActive" />
+            <RadzenText TextStyle="TextStyle.Body2" Style="margin:0;">
+                @(Rate.IsActive ? "Активен" : "Неактивен")
+            </RadzenText>
+        </RadzenStack>
+
+        <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false"
+                     Variant="Variant.Flat" Style="font-size:0.8rem;padding:0.5rem 0.75rem;">
+            @GetRateHint()
+        </RadzenAlert>
+
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="0.5rem">
+            <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Light" Click="@(() => DialogService.Close(false))"
+                          Disabled="@_saving" />
+            <RadzenButton Text="@(_isNew ? "Создать" : "Сохранить")" Icon="check"
+                          ButtonStyle="ButtonStyle.Primary" ButtonType="ButtonType.Submit"
+                          IsBusy="@_saving" />
+        </RadzenStack>
+    </RadzenStack>
+</RadzenTemplateForm>
+
+@code {
+    [Parameter] public CommunicationPaymentRateDto Rate { get; set; } = new();
+    [Parameter] public List<TaskBoardSettings.UserOption> Users { get; set; } = new();
+
+    private bool _saving;
+    private bool _isNew => Rate.Id == Guid.Empty;
+
+    private static readonly List<object> _taskTypes = new()
+    {
+        new { Label = "Чат", Value = (CommunicationTaskType?)CommunicationTaskType.Chat },
+        new { Label = "Вопрос", Value = (CommunicationTaskType?)CommunicationTaskType.Question },
+        new { Label = "Отзыв", Value = (CommunicationTaskType?)CommunicationTaskType.Review }
+    };
+
+    private static readonly List<object> _paymentModes = new()
+    {
+        new { Label = "Почасовая (₽/час)", Value = PaymentMode.Hourly },
+        new { Label = "За задачу (₽/шт)", Value = PaymentMode.PerTask }
+    };
+
+    private async Task HandleSubmit(CommunicationPaymentRateDto _)
+    {
+        _saving = true;
+        try
+        {
+            var saved = await TaskService.SavePaymentRateAsync(Rate);
+            Rate.Id = saved.Id;
+            NotificationService.Notify(NotificationSeverity.Success,
+                _isNew ? "Тариф создан" : "Тариф обновлён", "", 2000);
+            DialogService.Close(true);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000);
+        }
+        finally { _saving = false; }
+    }
+
+    private string GetRateHint()
+    {
+        var scope = Rate.TaskType.HasValue ? GetTypeLabel(Rate.TaskType.Value) : "любой тип";
+        var user = Rate.UserId.HasValue
+            ? Users.FirstOrDefault(u => u.Id == Rate.UserId.Value)?.Name ?? "выбранный сотрудник"
+            : "все сотрудники";
+
+        var rangeStr = (Rate.MinDurationMinutes, Rate.MaxDurationMinutes) switch
+        {
+            (null, null)     => "любая длительность",
+            (var min, null)  => $"от {min} мин.",
+            (null, var max)  => $"до {max} мин.",
+            (var min, var max) => $"{min}–{max} мин."
+        };
+
+        return Rate.PaymentMode == PaymentMode.Hourly
+            ? $"{Rate.Rate:F2} ₽/час × время • {scope} • {user} • {rangeStr}"
+            : $"{Rate.Rate:F2} ₽ за задачу • {scope} • {user} • {rangeStr}";
+    }
+
+    private static string GetTypeLabel(CommunicationTaskType t) => t switch
+    {
+        CommunicationTaskType.Chat => "Чат",
+        CommunicationTaskType.Question => "Вопрос",
+        CommunicationTaskType.Review => "Отзыв",
+        _ => "—"
+    };
+}

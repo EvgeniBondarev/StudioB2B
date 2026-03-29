@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Domain.Entities;
+using StudioB2B.Infrastructure.Features;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -23,26 +24,15 @@ public class ModuleService : IModuleService
     }
 
     public async Task<bool> IsEnabledAsync(string moduleCode, CancellationToken ct = default)
-    {
-        return await _db.TenantModules
-            .AnyAsync(m => m.Code == moduleCode && m.IsEnabled, ct);
-    }
+        => await _db.TenantModules.AnyAsync(m => m.Code == moduleCode && m.IsEnabled, ct);
 
     public async Task<List<TenantModule>> GetAllAsync(CancellationToken ct = default)
-    {
-        return await _db.TenantModules.ToListAsync(ct);
-    }
+        => await _db.TenantModules.ToListAsync(ct);
 
     public async Task EnableAsync(string moduleCode, CancellationToken ct = default)
     {
-        var module = await _db.TenantModules
-            .FirstOrDefaultAsync(m => m.Code == moduleCode, ct);
-
-        if (module == null)
-        {
-            _logger.LogWarning("Module {Code} not found in TenantModules", moduleCode);
-            return;
-        }
+        var module = await _db.TenantModules.FirstOrDefaultAsync(m => m.Code == moduleCode, ct);
+        if (module == null) { _logger.LogWarning("Module {Code} not found", moduleCode); return; }
 
         if (!module.IsEnabled)
         {
@@ -62,19 +52,20 @@ public class ModuleService : IModuleService
 
     public async Task DisableAsync(string moduleCode, CancellationToken ct = default)
     {
-        var module = await _db.TenantModules
-            .FirstOrDefaultAsync(m => m.Code == moduleCode, ct);
+        var module = await _db.TenantModules.FirstOrDefaultAsync(m => m.Code == moduleCode, ct);
+        if (module == null) { _logger.LogWarning("Module {Code} not found", moduleCode); return; }
 
-        if (module == null)
-        {
-            _logger.LogWarning("Module {Code} not found in TenantModules", moduleCode);
-            return;
-        }
-
-        module.IsEnabled = false;
+        module.IsEnabled  = false;
         module.DisabledAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
-
         _logger.LogInformation("Module {Code} disabled", moduleCode);
     }
+
+    /// <inheritdoc/>
+    public Task<int> GetManufacturerCountAsync(CancellationToken ct = default)
+        => _db.GetManufacturerCountAsync(ct);
+
+    /// <inheritdoc/>
+    public Task EnsureModulesSeededAsync(CancellationToken ct = default)
+        => _db.EnsureModulesSeededAsync(ct);
 }

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services;
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Web.Controllers;
 

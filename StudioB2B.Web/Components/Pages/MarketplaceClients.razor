@@ -1,21 +1,18 @@
 @page "/marketplace-clients"
 @attribute [Authorize(Roles = "MarketplaceClientsView")]
-@using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 
 @inject ITenantProvider TenantProvider
-@inject ITenantDbContextFactory Factory
+@inject IMarketplaceClientService MarketplaceClientService
 @inject IKeyEncryptionService Encryption
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
 @inject DialogService DialogService
 @inject IJSRuntime JsRuntime
 
-@implements IDisposable
 
 <link rel="stylesheet" href="css/orders.css" />
 <PageTitle>Клиенты маркетплейсов</PageTitle>
@@ -251,7 +248,6 @@ else
 
     private RadzenDataGrid<MarketplaceClient>? _grid;
 
-    private TenantDbContext? _db;
     private IEnumerable<MarketplaceClient> _pageItems = Array.Empty<MarketplaceClient>();
     private int _totalCount;
     private List<MarketplaceClientType> _types = [];
@@ -267,9 +263,10 @@ else
     private Dictionary<Guid, int> _typeCountsByTypeId = new();
     private Dictionary<Guid, int> _modeCountsByModeId = new();
 
+    private bool _initialized;
+
     private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
 
-    // tracks which rows have their key revealed
     private readonly HashSet<Guid> _revealedKeys = [];
 
     private DataGridSettings? _gridSettings;
@@ -323,58 +320,35 @@ else
         _loading = true;
         await EnsureInitializedAsync();
 
-        var query = _db!.MarketplaceClients!
-            .IncludeEverything()
-            .AsNoTracking()
-            .AsQueryable();
-
-        if (_filterClientTypeId.HasValue)
-            query = query.Where(c => c.ClientTypeId == _filterClientTypeId.Value);
-        if (_filterModeId.HasValue)
-            query = query.Where(c => c.ModeId == _filterModeId.Value || c.ModeId2 == _filterModeId.Value);
-
-        if (!string.IsNullOrEmpty(args.Filter))
-            query = query.Where(args.Filter);
-
-        query = !string.IsNullOrEmpty(args.OrderBy)
-            ? query.OrderBy(args.OrderBy)
-            : query.OrderBy(c => c.Name);
-
-        _totalCount = await query.CountAsync();
-
         var skip = args.Skip ?? 0;
-        var take = (args.Top is > 0) ? args.Top.Value : (_grid?.PageSize ?? 15);
+        var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 15);
 
-        _pageItems = await query.Skip(skip).Take(take).ToListAsync();
-        _loading = false;
+        var filter = new MarketplaceClientPageFilter(
+            TypeId:  _filterClientTypeId,
+            ModeId:  _filterModeId,
+            Filter:  args.Filter,
+            OrderBy: args.OrderBy);
+
+        var (items, total) = await MarketplaceClientService.GetPagedAsync(filter, skip, take);
+
+        _pageItems  = items;
+        _totalCount = total;
+        _loading    = false;
     }
 
+    /// <summary>
+    /// Однократная загрузка типов, режимов и счётчиков.
+    /// </summary>
     private async Task EnsureInitializedAsync()
     {
-        if (_db != null) return;
+        if (_initialized) return;
 
-        _db = Factory.CreateDbContext();
-
-        _types = await _db.MarketplaceClientTypes!
-            .AsNoTracking().OrderBy(t => t.Name).ToListAsync();
-
-        _modes = await _db.MarketplaceClientModes!
-            .AsNoTracking().OrderBy(m => m.Name).ToListAsync();
-
-        var clientData = await _db.MarketplaceClients!
-            .AsNoTracking()
-            .Where(c => !c.IsDeleted)
-            .Select(c => new { c.ClientTypeId, c.ModeId, c.ModeId2 })
-            .ToListAsync();
-        _typeCountsByTypeId = clientData
-            .Where(c => c.ClientTypeId.HasValue)
-            .GroupBy(c => c.ClientTypeId!.Value)
-            .ToDictionary(g => g.Key, g => g.Count());
-        _modeCountsByModeId = clientData
-            .SelectMany(c => new[] { c.ModeId, c.ModeId2 })
-            .Where(id => id.HasValue)
-            .GroupBy(id => id!.Value)
-            .ToDictionary(g => g.Key, g => g.Count());
+        var data = await MarketplaceClientService.GetInitDataAsync();
+        _types              = data.Types;
+        _modes              = data.Modes;
+        _typeCountsByTypeId = data.CountsByTypeId;
+        _modeCountsByModeId = data.CountsByModeId;
+        _initialized        = true;
     }
 
     private async Task OnPillFilter()
@@ -414,31 +388,25 @@ else
         catch { return encryptedKey; }
     }
 
-    private async Task EditRow(MarketplaceClient client) => await _grid!.EditRow(client);
-
-    private async Task SaveRow(MarketplaceClient client) => await _grid!.UpdateRow(client);
-
-    private void CancelRow(MarketplaceClient client) => _grid!.CancelEditRow(client);
+    private async Task EditRow(MarketplaceClient client)  => await _grid!.EditRow(client);
+    private async Task SaveRow(MarketplaceClient client)  => await _grid!.UpdateRow(client);
+    private void      CancelRow(MarketplaceClient client) => _grid!.CancelEditRow(client);
 
     private void OnClientModeChanged(MarketplaceClient client, Guid modeId, bool isChecked)
     {
         var ids = new List<Guid>(2);
-        if (client.ModeId.HasValue) ids.Add(client.ModeId.Value);
+        if (client.ModeId.HasValue)  ids.Add(client.ModeId.Value);
         if (client.ModeId2.HasValue) ids.Add(client.ModeId2.Value);
 
         if (isChecked)
         {
-            if (ids.Contains(modeId))
-                return;
-
+            if (ids.Contains(modeId)) return;
             if (ids.Count >= 2)
             {
                 NotificationService.Notify(NotificationSeverity.Warning,
-                    "Ограничение",
-                    "В текущей версии можно выбрать максимум 2 режима на клиента.");
+                    "Ограничение", "В текущей версии можно выбрать максимум 2 режима на клиента.");
                 return;
             }
-
             ids.Add(modeId);
         }
         else
@@ -446,7 +414,7 @@ else
             ids.Remove(modeId);
         }
 
-        client.ModeId = ids.Count > 0 ? ids[0] : null;
+        client.ModeId  = ids.Count > 0 ? ids[0] : null;
         client.ModeId2 = ids.Count > 1 ? ids[1] : null;
     }
 
@@ -454,12 +422,11 @@ else
     {
         try
         {
-            // If the key was changed and does NOT look like a base64 cipher text,
-            // encrypt it before persisting
+            // Если ключ изменён и ещё не зашифрован — шифруем перед сохранением
             if (!string.IsNullOrEmpty(client.Key) && !IsEncrypted(client.Key))
                 client.Key = Encryption.Encrypt(client.Key);
 
-            await _db!.SaveChangesAsync();
+            await MarketplaceClientService.UpdateAsync(client);
             NotificationService.Notify(NotificationSeverity.Success, "Клиент обновлён");
         }
         catch (Exception ex)
@@ -469,29 +436,20 @@ else
     }
 
     /// <summary>
-    /// Heuristic: if the string is valid base64 and its byte length implies an AES
-    /// cipher text (> 16 bytes), treat it as already encrypted.
+    /// Heuristic: base64 строка длиннее 24 символов с длиной байт > 16 — это AES-шифртекст.
     /// </summary>
     private static bool IsEncrypted(string value)
     {
         if (value.Length < 24) return false;
-        try
-        {
-            var bytes = Convert.FromBase64String(value);
-            return bytes.Length > 16;
-        }
-        catch
-        {
-            return false;
-        }
+        try { return Convert.FromBase64String(value).Length > 16; }
+        catch { return false; }
     }
 
     private async Task DeleteRow(MarketplaceClient client)
     {
         try
         {
-            _db!.MarketplaceClients!.Remove(client);
-            await _db.SaveChangesAsync();
+            await MarketplaceClientService.DeleteAsync(client.Id);
             await _grid!.Reload();
             NotificationService.Notify(NotificationSeverity.Success, "Клиент удалён");
         }
@@ -506,23 +464,20 @@ else
         var items = new List<ContextMenuItem>();
         if (_canManage)
         {
-            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" });
-            items.Add(new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" });
+            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit",   Value = "edit" });
+            items.Add(new ContextMenuItem { Text = "Удалить",       Icon = "delete", Value = "delete" });
         }
         if (items.Count == 0) return;
 
-        ContextMenuService.Open(args, items,
-            e =>
-            {
-                ContextMenuService.Close();
-                if (e.Value?.ToString() == "edit")
-                    InvokeAsync(() => EditRow(args.Data!));
-                else if (e.Value?.ToString() == "delete")
-                    InvokeAsync(() => DeleteRow(args.Data!));
-            });
+        ContextMenuService.Open(args, items, e =>
+        {
+            ContextMenuService.Close();
+            if (e.Value?.ToString() == "edit")
+                InvokeAsync(() => EditRow(args.Data!));
+            else if (e.Value?.ToString() == "delete")
+                InvokeAsync(() => DeleteRow(args.Data!));
+        });
     }
-
-    public void Dispose() => _db?.Dispose();
 
     private void ToggleDensity() =>
         _density = _density == Density.Compact ? Density.Default : Density.Compact;

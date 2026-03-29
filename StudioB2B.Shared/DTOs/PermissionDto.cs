@@ -1,4 +1,4 @@
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 public record PermissionDto(
     Guid Id,
@@ -8,6 +8,3 @@ public record PermissionDto(
     List<string> PageColumns,
     List<string> Functions,
     List<BlockedEntityDto> BlockedEntities);
-
-public record BlockedEntityDto(Guid Id, string EntityType, Guid EntityId);
-

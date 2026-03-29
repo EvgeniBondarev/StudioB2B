@@ -1,0 +1,518 @@
+@page "/task-board-report"
+@attribute [Authorize(Roles = "TaskBoardAdmin")]
+@using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Shared.DTOs
+
+@inject ICommunicationTaskService TaskService
+@inject ITenantProvider TenantProvider
+@inject NotificationService NotificationService
+@inject NavigationManager Navigation
+@inject IJSRuntime Js
+
+<link rel="stylesheet" href="css/taskboard.css" />
+
+<PageTitle>Отчёт по оплате</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+{
+    <RadzenStack Gap="1rem">
+        <RadzenText TextStyle="TextStyle.H5" Style="margin:0;">Отчёт по оплате</RadzenText>
+
+        <!-- Date range toolbar -->
+        <RadzenCard Style="padding:0.75rem;">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                         Gap="0.75rem" Wrap="FlexWrap.Wrap">
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                    <RadzenLabel Text="С:" />
+                    <RadzenDatePicker TValue="DateTime" @bind-Value="_from" DateFormat="dd.MM.yyyy"
+                                      Style="width:160px;" />
+                </RadzenStack>
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                    <RadzenLabel Text="По:" />
+                    <RadzenDatePicker TValue="DateTime" @bind-Value="_to" DateFormat="dd.MM.yyyy"
+                                      Style="width:160px;" />
+                </RadzenStack>
+                @if (_report is not null && _report.Users.Count > 1)
+                {
+                    <RadzenDropDown TValue="Guid?" Data="@_filterOptions"
+                                    TextProperty="@nameof(UserFilterOption.Text)"
+                                    ValueProperty="@nameof(UserFilterOption.Value)"
+                                    @bind-Value="_filterUserId" Placeholder="Все сотрудники"
+                                    AllowClear="true" Style="width:200px;" />
+                }
+                <RadzenButton Text="Загрузить" Icon="search" ButtonStyle="ButtonStyle.Primary"
+                              Size="ButtonSize.Small" Click="@LoadReportAsync" IsBusy="@_loading" />
+                <RadzenButton Text="CSV" Icon="download" ButtonStyle="ButtonStyle.Light"
+                              Size="ButtonSize.Small" Click="@ExportCsvAsync"
+                              Visible="@(_report is not null)" />
+            </RadzenStack>
+        </RadzenCard>
+
+        @if (_report is not null)
+        {
+            var visibleUsers = _filterUserId.HasValue
+                ? _report.Users.Where(u => u.UserId == _filterUserId.Value).ToList()
+                : _report.Users;
+
+            <!-- Summary stat cards (totals across visible users) -->
+            <div class="taskboard-stats">
+                <div class="taskboard-stat">
+                    <span class="taskboard-stat-value">@visibleUsers.Sum(u => u.TotalDone)</span>
+                    <span class="taskboard-stat-label">Задач выполнено</span>
+                </div>
+                <div class="taskboard-stat">
+                    <span class="taskboard-stat-value">@visibleUsers.Sum(u => u.ChatsDone)</span>
+                    <span class="taskboard-stat-label">Чаты</span>
+                </div>
+                <div class="taskboard-stat">
+                    <span class="taskboard-stat-value">@visibleUsers.Sum(u => u.QuestionsDone)</span>
+                    <span class="taskboard-stat-label">Вопросы</span>
+                </div>
+                <div class="taskboard-stat">
+                    <span class="taskboard-stat-value">@visibleUsers.Sum(u => u.ReviewsDone)</span>
+                    <span class="taskboard-stat-label">Отзывы</span>
+                </div>
+                <div class="taskboard-stat">
+                    <span class="taskboard-stat-value">@visibleUsers.Sum(u => u.TotalHours).ToString("F1") ч</span>
+                    <span class="taskboard-stat-label">Всего часов</span>
+                </div>
+                <div class="taskboard-stat">
+                    <span class="taskboard-stat-value">@visibleUsers.Sum(u => u.TotalPayment).ToString("F0") ₽</span>
+                    <span class="taskboard-stat-label">Итого к оплате</span>
+                </div>
+            </div>
+
+            <!-- Per-user accordion -->
+            @foreach (var u in visibleUsers)
+            {
+                var isExpanded = _expandedUserId == u.UserId;
+                var isLoadingDetail = _loadingDetailUserId == u.UserId;
+                _statsCache.TryGetValue(u.UserId, out var stats);
+                _detailCache.TryGetValue(u.UserId, out var detail);
+
+                <RadzenCard Style="padding:0; overflow:hidden;">
+
+                    <!-- Summary row -->
+                    <div @onclick="@(() => ToggleUserDetailAsync(u))"
+                         style="display:flex; align-items:center; gap:0.75rem; padding:0.6rem 1rem;
+                                cursor:pointer; background:var(--rz-base-background-color);
+                                border-bottom: @(isExpanded ? "1px solid var(--rz-base-300)" : "none");">
+                        <RadzenIcon Icon="@(isExpanded ? "expand_less" : "expand_more")"
+                                    Style="color:var(--rz-text-secondary-color); flex-shrink:0;" />
+                        <span style="font-weight:600; min-width:160px; flex-shrink:0;">@u.UserName</span>
+                        <RadzenBadge BadgeStyle="BadgeStyle.Info"    Text="@($"Чаты: {u.ChatsDone}")"     Style="font-size:0.72rem;" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="@($"Вопросы: {u.QuestionsDone}")" Style="font-size:0.72rem;" />
+                        <RadzenBadge BadgeStyle="BadgeStyle.Danger"  Text="@($"Отзывы: {u.ReviewsDone}")"  Style="font-size:0.72rem;" />
+                        <span style="margin-left:auto; color:var(--rz-text-secondary-color); font-size:0.85rem; white-space:nowrap;">
+                            @u.TotalHours.ToString("F1") ч
+                        </span>
+                        <span style="font-weight:700; min-width:80px; text-align:right; white-space:nowrap;">
+                            @u.TotalPayment.ToString("F0") ₽
+                        </span>
+                    </div>
+
+                    <!-- Expanded panel -->
+                    @if (isExpanded)
+                    {
+                        <div style="padding:0.75rem 1rem;">
+                            @if (isLoadingDetail)
+                            {
+                                <div style="display:flex;align-items:center;gap:0.5rem;padding:1rem 0;">
+                                    <RadzenProgressBarCircular ShowValue="false"
+                                                               Mode="ProgressBarMode.Indeterminate"
+                                                               Size="ProgressBarCircularSize.Small" />
+                                    <span style="color:var(--rz-text-secondary-color);">Загрузка…</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <!-- ── Stat cards ── -->
+                                @if (stats is not null)
+                                {
+                                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.5rem;margin-bottom:0.75rem;">
+                                        <div style="background:var(--rz-base-100);border-radius:6px;padding:0.5rem 0.75rem;text-align:center;">
+                                            <div style="font-size:1.3rem;font-weight:700;color:var(--rz-primary);">@stats.TotalDone</div>
+                                            <div style="font-size:0.75rem;color:var(--rz-text-secondary-color);">Задач</div>
+                                        </div>
+                                        <div style="background:var(--rz-base-100);border-radius:6px;padding:0.5rem 0.75rem;text-align:center;">
+                                            <div style="font-size:1.3rem;font-weight:700;color:#4a90d9;">@stats.ChatsDone</div>
+                                            <div style="font-size:0.75rem;color:var(--rz-text-secondary-color);">Чаты</div>
+                                        </div>
+                                        <div style="background:var(--rz-base-100);border-radius:6px;padding:0.5rem 0.75rem;text-align:center;">
+                                            <div style="font-size:1.3rem;font-weight:700;color:#f59e0b;">@stats.QuestionsDone</div>
+                                            <div style="font-size:0.75rem;color:var(--rz-text-secondary-color);">Вопросы</div>
+                                        </div>
+                                        <div style="background:var(--rz-base-100);border-radius:6px;padding:0.5rem 0.75rem;text-align:center;">
+                                            <div style="font-size:1.3rem;font-weight:700;color:#ef4444;">@stats.ReviewsDone</div>
+                                            <div style="font-size:0.75rem;color:var(--rz-text-secondary-color);">Отзывы</div>
+                                        </div>
+                                        <div style="background:var(--rz-base-100);border-radius:6px;padding:0.5rem 0.75rem;text-align:center;">
+                                            <div style="font-size:1.3rem;font-weight:700;color:#10b981;">@stats.TotalHours.ToString("F1")</div>
+                                            <div style="font-size:0.75rem;color:var(--rz-text-secondary-color);">Часов</div>
+                                        </div>
+                                        <div style="background:var(--rz-base-100);border-radius:6px;padding:0.5rem 0.75rem;text-align:center;">
+                                            <div style="font-size:1.3rem;font-weight:700;color:#8b5cf6;">@stats.TotalPayment.ToString("F0") ₽</div>
+                                            <div style="font-size:0.75rem;color:var(--rz-text-secondary-color);">Оплата</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- ── Activity chart ── -->
+                                    @if (stats.DailyActivity.Any(d => d.TotalDone > 0))
+                                    {
+                                        <div style="margin-bottom:0.75rem;">
+                                            <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin-bottom:0.35rem;font-weight:600;">
+                                                Активность по дням
+                                            </RadzenText>
+                                            <RadzenChart Style="height:200px;">
+                                                <RadzenStackedColumnSeries Data="@stats.DailyActivity"
+                                                                           CategoryProperty="DateStr"
+                                                                           ValueProperty="ChatsDone"
+                                                                           Title="Чаты" Fill="#4a90d9" />
+                                                <RadzenStackedColumnSeries Data="@stats.DailyActivity"
+                                                                           CategoryProperty="DateStr"
+                                                                           ValueProperty="QuestionsDone"
+                                                                           Title="Вопросы" Fill="#f59e0b" />
+                                                <RadzenStackedColumnSeries Data="@stats.DailyActivity"
+                                                                           CategoryProperty="DateStr"
+                                                                           ValueProperty="ReviewsDone"
+                                                                           Title="Отзывы" Fill="#ef4444" />
+                                                <RadzenCategoryAxis>
+                                                    <RadzenAxisTitle Text="Дата" />
+                                                </RadzenCategoryAxis>
+                                                <RadzenValueAxis>
+                                                    <RadzenGridLines Visible="true" />
+                                                </RadzenValueAxis>
+                                                <RadzenLegend Position="LegendPosition.Bottom" />
+                                            </RadzenChart>
+                                        </div>
+
+                                        <div style="margin-bottom:0.75rem;">
+                                            <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin-bottom:0.35rem;font-weight:600;">
+                                                Оплата по дням
+                                            </RadzenText>
+                                            <RadzenChart Style="height:160px;">
+                                                <RadzenColumnSeries Data="@stats.DailyActivity"
+                                                                    CategoryProperty="DateStr"
+                                                                    ValueProperty="TotalPayment"
+                                                                    Title="Оплата, ₽"
+                                                                    Fill="#8b5cf6">
+                                                    <RadzenSeriesDataLabels />
+                                                </RadzenColumnSeries>
+                                                <RadzenCategoryAxis>
+                                                    <RadzenAxisTitle Text="Дата" />
+                                                </RadzenCategoryAxis>
+                                                <RadzenValueAxis Min="0">
+                                                    <RadzenGridLines Visible="true" />
+                                                </RadzenValueAxis>
+                                            </RadzenChart>
+                                        </div>
+                                    }
+                                }
+
+                                <!-- ── Task list ── -->
+                                @if (detail is null || detail.Tasks.Count == 0)
+                                {
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);">
+                                        Нет задач за выбранный период
+                                    </RadzenText>
+                                }
+                                else
+                                {
+                                    <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin-bottom:0.35rem;font-weight:600;">
+                                        Задачи (@detail.Tasks.Count)
+                                    </RadzenText>
+
+                                    @foreach (var task in detail.Tasks)
+                                    {
+                                        var taskLink = GetTaskLink(task);
+                                        var typeBadgeStyle = task.TaskType switch
+                                        {
+                                            CommunicationTaskType.Chat     => BadgeStyle.Info,
+                                            CommunicationTaskType.Question => BadgeStyle.Warning,
+                                            CommunicationTaskType.Review   => BadgeStyle.Danger,
+                                            _                              => BadgeStyle.Light
+                                        };
+                                        var typeLabel = task.TaskType switch
+                                        {
+                                            CommunicationTaskType.Chat     => "Чат",
+                                            CommunicationTaskType.Question => "Вопрос",
+                                            CommunicationTaskType.Review   => "Отзыв",
+                                            _                              => "—"
+                                        };
+                                        var totalMin = TimeSpan.FromTicks(task.TotalTimeSpentTicks).TotalMinutes;
+                                        var isTaskExpanded = _expandedTaskId == task.Id;
+
+                                        <div style="border:1px solid var(--rz-base-200);border-radius:6px;margin-bottom:0.4rem;overflow:hidden;">
+                                            <!-- Task header row -->
+                                            <div style="display:flex;align-items:flex-start;gap:0.5rem;padding:0.45rem 0.75rem;flex-wrap:wrap;background:var(--rz-base-50);">
+                                                <RadzenBadge BadgeStyle="@typeBadgeStyle" Text="@typeLabel"
+                                                             Style="flex-shrink:0;font-size:0.72rem;margin-top:1px;" />
+                                                <span style="flex:1;font-weight:500;font-size:0.87rem;min-width:0;word-break:break-word;">
+                                                    @task.Title
+                                                </span>
+                                                <span style="font-size:0.78rem;color:var(--rz-text-secondary-color);white-space:nowrap;">
+                                                    @task.CompletedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                                                </span>
+                                            </div>
+
+                                            <!-- Preview + meta -->
+                                            <div style="padding:0.3rem 0.75rem 0.45rem;display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;font-size:0.82rem;">
+                                                @if (!string.IsNullOrWhiteSpace(task.PreviewText))
+                                                {
+                                                    <span style="color:var(--rz-text-secondary-color);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                                                          title="@task.PreviewText">
+                                                        @task.PreviewText
+                                                    </span>
+                                                }
+                                                <span style="color:var(--rz-text-secondary-color);white-space:nowrap;">
+                                                    @task.MarketplaceClientName
+                                                </span>
+                                                @if (!string.IsNullOrWhiteSpace(task.ExternalStatus))
+                                                {
+                                                    <span style="color:var(--rz-text-secondary-color);">· @task.ExternalStatus</span>
+                                                }
+                                                <span style="white-space:nowrap;">⏱ @totalMin.ToString("F0") мин.</span>
+                                                @if (task.PaymentAmount.HasValue && task.PaymentAmount > 0)
+                                                {
+                                                    <span style="font-weight:600;white-space:nowrap;">
+                                                        @task.PaymentAmount.Value.ToString("F0") ₽
+                                                    </span>
+                                                }
+                                                <a href="@taskLink" style="text-decoration:none;margin-left:auto;" @onclick:stopPropagation="true">
+                                                    <RadzenButton Text="Открыть" Icon="open_in_new"
+                                                                  ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall" />
+                                                </a>
+                                                @if (task.TimeEntries.Count > 0)
+                                                {
+                                                    <RadzenButton Icon="@(isTaskExpanded ? "expand_less" : "access_time")"
+                                                                  Text="@(isTaskExpanded ? "Скрыть" : $"Сессии ({task.TimeEntries.Count})")"
+                                                                  ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                                                  Click="@(() => ToggleTaskEntries(task.Id))" />
+                                                }
+                                            </div>
+
+                                            <!-- Time entries -->
+                                            @if (isTaskExpanded && task.TimeEntries.Count > 0)
+                                            {
+                                                <table style="width:100%;font-size:0.78rem;border-collapse:collapse;border-top:1px solid var(--rz-base-200);">
+                                                    <thead>
+                                                        <tr style="background:var(--rz-base-100);color:var(--rz-text-secondary-color);">
+                                                            <th style="padding:3px 8px;text-align:left;">#</th>
+                                                            <th style="padding:3px 8px;text-align:left;">Начало</th>
+                                                            <th style="padding:3px 8px;text-align:left;">Конец</th>
+                                                            <th style="padding:3px 8px;text-align:right;">Мин.</th>
+                                                            <th style="padding:3px 8px;text-align:left;">Заметка</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @for (var ei = 0; ei < task.TimeEntries.Count; ei++)
+                                                        {
+                                                            var entry = task.TimeEntries[ei];
+                                                            var rowNum = ei + 1;
+                                                            <tr style="border-top:1px solid var(--rz-base-200);">
+                                                                <td style="padding:3px 8px;color:var(--rz-text-secondary-color);">@rowNum</td>
+                                                                <td style="padding:3px 8px;">@entry.StartedAt.ToLocalTime().ToString("HH:mm:ss")</td>
+                                                                <td style="padding:3px 8px;">@(entry.EndedAt?.ToLocalTime().ToString("HH:mm:ss") ?? "—")</td>
+                                                                <td style="padding:3px 8px;text-align:right;">@entry.DurationMinutes.ToString("F1")</td>
+                                                                <td style="padding:3px 8px;color:var(--rz-text-secondary-color);">@(entry.Note ?? "")</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            }
+                                        </div>
+                                    }
+                                }
+                            }
+                        </div>
+                    }
+                </RadzenCard>
+            }
+        }
+    </RadzenStack>
+}
+
+@code {
+    private DateTime _from = DateTime.UtcNow.Date.AddDays(-30);
+    private DateTime _to   = DateTime.UtcNow.Date.AddDays(1);
+    private PaymentReportDto? _report;
+    private bool _loading;
+
+    private Guid? _expandedUserId;
+    private Guid? _loadingDetailUserId;
+    private Dictionary<Guid, UserTaskDetailsDto?> _detailCache = new();
+    private Dictionary<Guid, PersonalStatsDto?>   _statsCache  = new();
+    private Guid? _expandedTaskId;
+    private Guid? _filterUserId;
+
+    private List<UserFilterOption> _filterOptions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!TenantProvider.IsResolved) return;
+        await LoadReportAsync();
+    }
+
+    private async Task LoadReportAsync()
+    {
+        _loading = true;
+        _expandedUserId = null;
+        _expandedTaskId = null;
+        _filterUserId = null;
+        _detailCache.Clear();
+        _statsCache.Clear();
+        StateHasChanged();
+        try
+        {
+            _report = await TaskService.GetPaymentReportAsync(_from, _to);
+            _filterOptions = _report.Users
+                .Select(u => new UserFilterOption(u.UserName, u.UserId))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleUserDetailAsync(UserTaskStatsDto u)
+    {
+        if (_expandedUserId == u.UserId)
+        {
+            _expandedUserId = null;
+            _expandedTaskId = null;
+            return;
+        }
+
+        _expandedTaskId = null;
+        _expandedUserId = u.UserId;
+
+        var needDetail = !_detailCache.ContainsKey(u.UserId);
+        var needStats  = !_statsCache.ContainsKey(u.UserId);
+
+        if (!needDetail && !needStats) return;
+
+        _loadingDetailUserId = u.UserId;
+        StateHasChanged();
+        try
+        {
+            if (needDetail) await LoadDetailAsync(u.UserId);
+            if (needStats)  await LoadStatsAsync(u.UserId);
+        }
+        finally
+        {
+            _loadingDetailUserId = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadDetailAsync(Guid userId)
+    {
+        try
+        {
+            _detailCache[userId] = await TaskService.GetUserTaskDetailsAsync(userId, _from, _to);
+        }
+        catch (Exception ex)
+        {
+            _detailCache[userId] = null;
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка задач", ex.Message, 5000);
+        }
+    }
+
+    private async Task LoadStatsAsync(Guid userId)
+    {
+        try
+        {
+            _statsCache[userId] = await TaskService.GetPersonalStatsAsync(userId, _from, _to);
+        }
+        catch (Exception ex)
+        {
+            _statsCache[userId] = null;
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка статистики", ex.Message, 5000);
+        }
+    }
+
+    private void ToggleTaskEntries(Guid taskId)
+    {
+        _expandedTaskId = _expandedTaskId == taskId ? null : taskId;
+    }
+
+    private static string GetTaskLink(ReportTaskItemDto task)
+    {
+        if (task.TaskType == CommunicationTaskType.Question && !string.IsNullOrWhiteSpace(task.ExternalUrl))
+            return task.ExternalUrl;
+
+        var tab = task.TaskType switch
+        {
+            CommunicationTaskType.Chat     => 1,
+            CommunicationTaskType.Review   => 2,
+            CommunicationTaskType.Question => 3,
+            _                             => 1
+        };
+        return $"/communication?tab={tab}&id={Uri.EscapeDataString(task.ExternalId)}&clientId={task.MarketplaceClientId}";
+    }
+
+    private async Task ExportCsvAsync()
+    {
+        if (_report is null || _report.Users.Count == 0) return;
+
+        var visibleUsers = _filterUserId.HasValue
+            ? _report.Users.Where(u => u.UserId == _filterUserId.Value).ToList()
+            : _report.Users;
+
+        var lines = new List<string> { "Сотрудник;Тип;Статус;Заголовок;Магазин;Завершено;Минуты;Оплата" };
+
+        foreach (var u in visibleUsers)
+        {
+            if (_detailCache.TryGetValue(u.UserId, out var detail) && detail is not null)
+            {
+                foreach (var t in detail.Tasks)
+                {
+                    var typeLabel = t.TaskType switch
+                    {
+                        CommunicationTaskType.Chat     => "Чат",
+                        CommunicationTaskType.Question => "Вопрос",
+                        CommunicationTaskType.Review   => "Отзыв",
+                        _                             => "—"
+                    };
+                    var minutes = TimeSpan.FromTicks(t.TotalTimeSpentTicks).TotalMinutes;
+                    lines.Add($"{CsvEscape(u.UserName)};{typeLabel};{CsvEscape(t.ExternalStatus ?? "")};{CsvEscape(t.Title)};{CsvEscape(t.MarketplaceClientName)};{t.CompletedAt?.ToLocalTime():dd.MM.yyyy HH:mm};{minutes:F1};{t.PaymentAmount:F0}");
+                }
+            }
+            else
+            {
+                lines.Add($"{CsvEscape(u.UserName)};(без детализации);;;;{u.TotalHours:F1} ч;;{u.TotalPayment:F0}");
+            }
+        }
+
+        lines.Add("");
+        lines.Add($"ИТОГО;;;;;;{visibleUsers.Sum(u => u.TotalHours):F1};{visibleUsers.Sum(u => u.TotalPayment):F0}");
+
+        var csv   = string.Join("\n", lines);
+        var bytes = System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv)).ToArray();
+        var base64 = Convert.ToBase64String(bytes);
+        var fileName = $"payment_report_{_from:yyyyMMdd}_{_to:yyyyMMdd}.csv";
+
+        await Js.InvokeVoidAsync("eval",
+            $"var a=document.createElement('a');a.href='data:text/csv;base64,{base64}';a.download='{fileName}';document.body.appendChild(a);a.click();a.remove();");
+    }
+
+    private static string CsvEscape(string s) =>
+        s.Contains(';') || s.Contains('"') || s.Contains('\n')
+            ? $"\"{s.Replace("\"", "\"\"")}\""
+            : s;
+
+    private sealed record UserFilterOption(string Text, Guid Value);
+}

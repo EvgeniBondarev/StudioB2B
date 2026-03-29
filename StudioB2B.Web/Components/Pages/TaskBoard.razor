@@ -1,0 +1,33 @@
+@page "/task-board"
+@attribute [Authorize(Roles = "TaskBoardView,TaskBoardAdmin")]
+@using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Web.Components.Common
+
+@inject ITenantProvider TenantProvider
+
+<PageTitle>Доска задач</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+{
+    <RadzenTabs @bind-SelectedIndex="_activeTab" Style="width:100%;">
+        <Tabs>
+            <RadzenTabsItem Text="Доска задач" Icon="dashboard">
+                <CommunicationTaskBoard />
+            </RadzenTabsItem>
+            <RadzenTabsItem Text="Моя статистика" Icon="bar_chart">
+                <MyStatsPanel />
+            </RadzenTabsItem>
+        </Tabs>
+    </RadzenTabs>
+}
+
+@code {
+    private int _activeTab;
+}
+

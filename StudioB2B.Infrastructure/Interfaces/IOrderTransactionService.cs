@@ -1,4 +1,6 @@
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Domain.Constants;
+using StudioB2B.Domain.Entities;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Interfaces;
 
@@ -7,6 +9,22 @@ namespace StudioB2B.Infrastructure.Interfaces;
 /// </summary>
 public interface IOrderTransactionService
 {
+    /// <summary>Загрузить заказы для страницы проведения документа (со всеми нужными Include).</summary>
+    Task<List<OrderEntity>> GetOrdersForApplyAsync(IEnumerable<Guid> orderIds, CancellationToken ct = default);
+
+    /// <summary>Загрузить доступные документы для заданного системного статуса.</summary>
+    Task<List<OrderTransaction>> GetTransactionsForStatusAsync(Guid statusId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Загрузить данные для инициализации диалога выбора документа:
+    /// название статуса и список доступных документов.
+    /// </summary>
+    Task<(string? StatusName, List<OrderTransaction> Transactions)> GetApplyDialogInitDataAsync(
+        Guid statusId, CancellationToken ct = default);
+
+    /// <summary>Загрузить справочные данные, необходимые для полей ввода документа.</summary>
+    Task<TransactionReferenceData> GetReferenceDataAsync(IEnumerable<FieldReferenceTypeEnum> refTypes, CancellationToken ct = default);
+
     /// <summary>Предпросмотр: правила, вычисленные значения, поля для ввода.</summary>
     Task<TransactionApplyPreviewDto?> GetApplyPreviewAsync(Guid orderId, Guid transactionId, CancellationToken ct = default);
 

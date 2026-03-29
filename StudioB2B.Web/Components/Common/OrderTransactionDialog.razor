@@ -1,11 +1,9 @@
-@using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Constants
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Persistence.Tenant
-@using StudioB2B.Infrastructure.Services
+@using StudioB2B.Infrastructure.Features
 
-@inject ITenantDbContextFactory Factory
+@inject IOrderTransactionManagementService TransactionService
 @inject NotificationService NotificationService
 @inject DialogService DialogService
 
@@ -264,7 +262,6 @@ else
     /// <summary>Pre-filled when opening from the canvas flow editor.</summary>
     [Parameter] public Guid? InitialToStatusId { get; set; }
 
-    private TenantDbContext? _db;
     private bool _loading = true;
     private string _name = string.Empty;
     private Guid? _fromStatusId;
@@ -374,29 +371,11 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _db = Factory.CreateDbContext();
-
-        _internalStatuses = await _db.OrderStatuses
-            .Where(s => s.IsInternal && !s.IsDeleted)
-            .OrderBy(s => s.Name)
-            .AsNoTracking()
-            .ToListAsync();
-
-        // Terminal statuses cannot be the source of a transaction
-        _nonTerminalStatuses = _internalStatuses.Where(s => !s.IsTerminal).ToList();
-
-        _priceTypes = await _db.PriceTypes
-            .Where(p => !p.IsDeleted)
-            .OrderBy(p => p.Name)
-            .AsNoTracking()
-            .ToListAsync();
-
-        _products = await _db.Products
-            .Where(p => !p.IsDeleted)
-            .OrderBy(p => p.Article)
-            .Take(500)
-            .AsNoTracking()
-            .ToListAsync();
+        var refData = await TransactionService.GetEditReferenceDataAsync();
+        _internalStatuses = refData.InternalStatuses;
+        _nonTerminalStatuses = refData.NonTerminalStatuses;
+        _priceTypes = refData.PriceTypes;
+        _products = refData.Products;
 
         _fieldDescriptors = OrderTransactionFieldRegistry.All
             .OrderBy(d => d.DisplayName)
@@ -404,11 +383,7 @@ else
 
         if (TransactionId.HasValue)
         {
-            var t = await _db.OrderTransactions
-                .Include(x => x.Rules).ThenInclude(r => r.PriceType)
-                .Include(x => x.FieldRules)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == TransactionId.Value);
+            var t = await TransactionService.GetForEditAsync(TransactionId.Value);
             if (t != null)
             {
                 _name = t.Name;
@@ -444,14 +419,12 @@ else
         }
         else if (_priceTypes.Count > 0)
         {
-            // Pre-fill statuses when opened from the canvas flow editor
             if (InitialFromStatusId.HasValue) _fromStatusId = InitialFromStatusId;
             if (InitialToStatusId.HasValue) _toStatusId = InitialToStatusId;
             AddRule();
         }
         else
         {
-            // No price types — still pre-fill statuses from canvas
             if (InitialFromStatusId.HasValue) _fromStatusId = InitialFromStatusId;
             if (InitialToStatusId.HasValue) _toStatusId = InitialToStatusId;
         }
@@ -549,103 +522,28 @@ else
 
         try
         {
+            var request = new SaveOrderTransactionRequest(
+                Name: _name.Trim(),
+                FromSystemStatusId: _fromStatusId.Value,
+                ToSystemStatusId: _toStatusId.Value,
+                IsEnabled: _isEnabled,
+                Color: ToHex(_color) ?? _color,
+                Icon: string.IsNullOrWhiteSpace(_icon) ? null : _icon.Trim(),
+                Rules: _rules.Select(r => new SaveTransactionRuleRequest(
+                    r.PriceTypeId, r.ValueSource, r.Formula, r.ProductId, r.IsRequired)).ToList(),
+                FieldRules: _fieldRules
+                    .Where(fr => !string.IsNullOrWhiteSpace(fr.EntityPath))
+                    .Select(fr => new SaveTransactionFieldRuleRequest(
+                        fr.EntityPath, fr.ValueSource, fr.FixedValue, fr.IsRequired)).ToList());
+
             if (TransactionId.HasValue)
             {
-                var t = await _db!.OrderTransactions
-                    .Include(x => x.Rules)
-                    .Include(x => x.FieldRules)
-                    .FirstOrDefaultAsync(x => x.Id == TransactionId.Value);
-                if (t != null)
-                {
-                    t.Name = _name.Trim();
-                    t.FromSystemStatusId = _fromStatusId.Value;
-                    t.ToSystemStatusId = _toStatusId.Value;
-                    t.IsEnabled = _isEnabled;
-                    t.Color = ToHex(_color) ?? _color;
-                    t.Icon = string.IsNullOrWhiteSpace(_icon) ? null : _icon.Trim();
-                    _db.OrderTransactionRules.RemoveRange(t.Rules);
-                    _db.OrderTransactionFieldRules.RemoveRange(t.FieldRules);
-                    var sortOrder = 0;
-                    foreach (var r in _rules)
-                    {
-                        _db.OrderTransactionRules.Add(new OrderTransactionRule
-                        {
-                            Id = Guid.NewGuid(),
-                            OrderTransactionId = t.Id,
-                            PriceTypeId = r.PriceTypeId,
-                            ValueSource = r.ValueSource,
-                            Formula = r.ValueSource == TransactionValueSourceEnum.Formula ? r.Formula : null,
-                            ProductId = r.ProductId,
-                            SortOrder = sortOrder++,
-                            IsRequired = r.IsRequired
-                        });
-                    }
-                    sortOrder = 0;
-                    foreach (var fr in _fieldRules)
-                    {
-                        if (string.IsNullOrWhiteSpace(fr.EntityPath)) continue;
-                        _db.OrderTransactionFieldRules.Add(new OrderTransactionFieldRule
-                        {
-                            Id = Guid.NewGuid(),
-                            OrderTransactionId = t.Id,
-                            EntityPath = fr.EntityPath,
-                            ValueSource = fr.ValueSource,
-                            FixedValue = fr.ValueSource == TransactionFieldValueSourceEnum.Fixed ? fr.FixedValue : null,
-                            SortOrder = sortOrder++,
-                            IsRequired = fr.IsRequired
-                        });
-                    }
-                    await _db.SaveChangesAsync();
-                    NotificationService.Notify(NotificationSeverity.Success, "Документ обновлён");
-                }
+                await TransactionService.UpdateAsync(TransactionId.Value, request);
+                NotificationService.Notify(NotificationSeverity.Success, "Документ обновлён");
             }
             else
             {
-                var t = new OrderTransaction
-                {
-                    Id = Guid.NewGuid(),
-                    Name = _name.Trim(),
-                    FromSystemStatusId = _fromStatusId.Value,
-                    ToSystemStatusId = _toStatusId.Value,
-                    IsEnabled = _isEnabled,
-                    Color = ToHex(_color) ?? _color,
-                    Icon = string.IsNullOrWhiteSpace(_icon) ? null : _icon.Trim(),
-                    SortOrder = 0
-                };
-                _db!.OrderTransactions.Add(t);
-                await _db.SaveChangesAsync();
-                var sortOrder = 0;
-                foreach (var r in _rules)
-                {
-                    _db.OrderTransactionRules.Add(new OrderTransactionRule
-                    {
-                        Id = Guid.NewGuid(),
-                        OrderTransactionId = t.Id,
-                        PriceTypeId = r.PriceTypeId,
-                        ValueSource = r.ValueSource,
-                        Formula = r.ValueSource == TransactionValueSourceEnum.Formula ? r.Formula : null,
-                        ProductId = r.ProductId,
-                        SortOrder = sortOrder++,
-                        IsRequired = r.IsRequired
-                    });
-                }
-                await _db.SaveChangesAsync();
-                sortOrder = 0;
-                foreach (var fr in _fieldRules)
-                {
-                    if (string.IsNullOrWhiteSpace(fr.EntityPath)) continue;
-                    _db.OrderTransactionFieldRules.Add(new OrderTransactionFieldRule
-                    {
-                        Id = Guid.NewGuid(),
-                        OrderTransactionId = t.Id,
-                        EntityPath = fr.EntityPath,
-                        ValueSource = fr.ValueSource,
-                        FixedValue = fr.ValueSource == TransactionFieldValueSourceEnum.Fixed ? fr.FixedValue : null,
-                        SortOrder = sortOrder++,
-                        IsRequired = fr.IsRequired
-                    });
-                }
-                await _db.SaveChangesAsync();
+                await TransactionService.CreateAsync(request);
                 NotificationService.Notify(NotificationSeverity.Success, "Документ создан");
             }
             DialogService.Close(true);
@@ -656,5 +554,5 @@ else
         }
     }
 
-    public void Dispose() => _db?.Dispose();
+    public void Dispose() { }
 }

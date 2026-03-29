@@ -1,4 +1,3 @@
-/* ── Page root ──────────────────────────────────────────────────────────────── */
 .reviews-page-root {
     flex: 1;
     display: flex;
@@ -9,9 +8,9 @@
 
 .reviews-top {
     flex-shrink: 0;
+    padding: 0.2rem 0.5rem 0;
 }
 
-/* ── Layout ─────────────────────────────────────────────────────────────────── */
 .reviews-layout {
     flex: 1;
     display: flex;
@@ -19,7 +18,6 @@
     overflow: hidden;
 }
 
-/* ── Left panel ─────────────────────────────────────────────────────────────── */
 .review-list-panel {
     width: 380px;
     min-width: 280px;
@@ -40,7 +38,6 @@
     gap: 0.4rem;
 }
 
-/* ── Review list card ───────────────────────────────────────────────────────── */
 .review-item-card {
     cursor: pointer;
     padding: 0.65rem 0.8rem !important;
@@ -147,7 +144,6 @@
     margin-top: 0.25rem;
 }
 
-/* ── Right panel ────────────────────────────────────────────────────────────── */
 .review-detail-panel {
     flex: 1;
     display: flex;
@@ -184,7 +180,6 @@
     overflow-y: auto;
 }
 
-/* ── Review text block ──────────────────────────────────────────────────────── */
 .review-text-block {
     font-size: 0.9rem;
     line-height: 1.6;
@@ -193,7 +188,6 @@
     margin-bottom: 0.75rem;
 }
 
-/* ── Photo gallery ──────────────────────────────────────────────────────────── */
 .review-photos-section {
     margin-top: 0.75rem;
     padding-top: 0.6rem;
@@ -204,7 +198,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-top: 0.4rem;
 }
 
 .review-photo-thumb {
@@ -228,7 +221,6 @@
     box-shadow: 0 0 0 2px var(--rz-primary-light);
 }
 
-/* ── Video thumbnails ───────────────────────────────────────────────────────── */
 .review-videos-section {
     margin-top: 0.75rem;
     padding-top: 0.6rem;
@@ -239,7 +231,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
-    margin-top: 0.4rem;
 }
 
 .review-video-thumb {
@@ -293,7 +284,6 @@
     text-shadow: 0 1px 4px rgba(0,0,0,.5);
 }
 
-/* ── Video lightbox player ───────────────────────────────────────────────── */
 .review-video-lightbox-inner {
     max-width: 90vw;
     max-height: 85vh;
@@ -314,7 +304,6 @@
     outline: none;
 }
 
-/* ── Lightbox ───────────────────────────────────────────────────────────────── */
 .review-lightbox {
     position: fixed;
     inset: 0;
@@ -336,29 +325,58 @@
 }
 
 .review-lightbox-close {
-    position: absolute;
-    top: 1rem;
-    right: 1.25rem;
-    background: rgba(255,255,255,0.15);
+    position: absolute !important;
+    top: 1rem !important;
+    right: 1.25rem !important;
+    background: rgba(255,255,255,0.15) !important;
     border: none;
-    color: #fff;
-    font-size: 1.4rem;
-    line-height: 1;
-    width: 2.2rem;
-    height: 2.2rem;
+    color: #fff !important;
+    font-size: 1.4rem !important;
+    line-height: 1 !important;
+    width: 2.2rem !important;
+    height: 2.2rem !important;
     border-radius: 50%;
-    cursor: pointer;
-    display: flex;
+    cursor: pointer !important;
+    display: flex !important;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s;
+    transition: background 0.15s !important;
 }
 
 .review-lightbox-close:hover {
-    background: rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.3) !important;
 }
 
-/* ── Meta stats row ─────────────────────────────────────────────────────────── */
+.lightbox-arrow {
+  position: absolute !important;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255,255,255,0.15) !important;
+  border: none !important;
+  color: #fff !important;
+  font-size: 3rem !important;
+  width: 3rem !important;
+  height: 3rem !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.lightbox-arrow:hover {
+  background: rgba(255,255,255,0.3) !important;
+}
+
+.lightbox-arrow.left {
+  left: 6rem !important;
+}
+
+.lightbox-arrow.right {
+  right: 6rem !important;
+}
+
 .review-meta-row {
     display: flex;
     flex-wrap: wrap;
@@ -373,7 +391,6 @@
     font-weight: 500;
 }
 
-/* ── Comments section ───────────────────────────────────────────────────────── */
 .review-comments-section {
     margin-top: 0.75rem;
     padding-top: 0.6rem;
@@ -417,15 +434,14 @@
     white-space: pre-line;
 }
 
-/* ── Comment composer ───────────────────────────────────────────────────────── */
 .review-comment-composer {
-    border-top: 2px solid var(--rz-border-color);
-    padding: 0.65rem 0 0;
-    margin-top: 0.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    background: var(--rz-base-background-color);
+  border-top: 2px solid var(--rz-border-color);
+  padding: 0.65rem 0 0;
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: var(--rz-base-background-color);
 }
 
 /* Quick reply chips */
@@ -473,4 +489,3 @@
     color: var(--rz-danger);
     font-weight: 600;
 }
-

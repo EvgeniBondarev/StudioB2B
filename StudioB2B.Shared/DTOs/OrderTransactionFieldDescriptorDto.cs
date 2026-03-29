@@ -1,6 +1,6 @@
 using StudioB2B.Domain.Constants;
 
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 /// <summary>
 /// Описание поля, доступного для изменения в документе.

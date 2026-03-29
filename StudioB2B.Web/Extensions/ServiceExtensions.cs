@@ -34,14 +34,27 @@ public static class ServiceExtensions
 
         services.AddInfrastructure(configuration);
 
+        // Специальный клиент для скачивания файлов из Ozon Chat API.
+        // AllowAutoRedirect = false: следуем редиректам вручную в ChatFileProxyController,
+        // иначе HttpClient теряет кастомные заголовки Client-Id / Api-Key при редиректе.
+        services.AddHttpClient("OzonFileProxy")
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = false
+            });
+
         services.AddSignalR();
         services.AddScoped<ISyncNotificationSender, SyncNotificationSender>();
+        services.AddScoped<ITaskBoardNotificationSender, TaskBoardNotificationSender>();
 
         services.AddScoped<DialogService>();
         services.AddScoped<NotificationService>();
         services.AddScoped<TooltipService>();
         services.AddScoped<ContextMenuService>();
         services.AddScoped<TabService>();
+        services.AddScoped<TaskBoardStateService>();
+        services.AddSingleton<NavService>();
+        services.AddSingleton<PageRegistry>();
 
         ConfigureCors(services, environment);
 
@@ -59,6 +72,7 @@ public static class ServiceExtensions
             .AddInteractiveServerComponents();
 
         services.AddScoped<MasterAuthStateService>();
+        services.AddScoped<IMasterAuthApiService, MasterAuthApiService>();
 
         // JWT используется для аутентификации — CSRF-защита не нужна.
         services.AddSingleton<IAntiforgery, NoOpAntiforgery>();

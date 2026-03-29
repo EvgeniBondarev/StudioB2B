@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Domain.Constants;
 using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Services.Ozon;
 
@@ -227,7 +227,8 @@ public class OzonChatService : IOzonChatService
                                                                     ulong? fromMessageId = null, int limit = 50, CancellationToken ct = default)
     {
         var client = await GetClientOrNullAsync(marketplaceClientId, ct);
-        if (client is null) return null;
+        if (client is null)
+            throw new InvalidOperationException($"Маркетплейс-клиент {marketplaceClientId} не найден.");
 
         var request = new OzonChatHistoryRequestDto
         {
@@ -241,7 +242,8 @@ public class OzonChatService : IOzonChatService
         if (!result.IsSuccess)
         {
             _logger.LogWarning("GetChatHistory failed for chat {ChatId}: {Error}", chatId, result.ErrorMessage);
-            return null;
+            throw new InvalidOperationException(
+                $"Не удалось загрузить историю чата: {result.ErrorMessage ?? "неизвестная ошибка"}");
         }
 
         return result.Data;
