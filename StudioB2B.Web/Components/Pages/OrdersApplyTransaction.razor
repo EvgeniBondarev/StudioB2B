@@ -1,21 +1,18 @@
 @page "/orders/apply-transaction"
 @attribute [Authorize(Roles = "OrdersView")]
-@using Microsoft.EntityFrameworkCore
 @using Radzen.Blazor.Rendering
 @using StudioB2B.Domain.Constants
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Infrastructure.Services
 
 @inject ITenantProvider TenantProvider
-@inject ITenantDbContextFactory Factory
 @inject IOrderTransactionService TransactionService
+@inject ICalculationRuleService CalculationRuleService
 @inject NavigationManager Navigation
 @inject NotificationService NotificationService
 @inject DialogService DialogService
-@inject TabService TabService
 
 @implements IDisposable
 
@@ -659,7 +656,6 @@ else
     [SupplyParameterFromQuery(Name = "transactionId")]
     public string? TransactionIdQuery { get; set; }
 
-    private TenantDbContext? _db;
     private bool _loading = true;
     private List<Guid> _orderIds = [];
     private List<OrderEntity> _orders = [];
@@ -902,20 +898,10 @@ else
     private async Task LoadAsync()
     {
         _loading = true;
-        _db = Factory.CreateDbContext();
 
         if (_orderIds.Count > 0)
         {
-            _orders = await _db.Orders
-                .IncludeForGrid()
-                .Include(o => o.Prices).ThenInclude(p => p.PriceType)
-                .Include(o => o.ProductInfo).ThenInclude(pi => pi!.Product)
-                .Include(o => o.SystemStatus)
-                .Where(o => _orderIds.Contains(o.Id))
-                .AsNoTracking()
-                .ToListAsync();
-
-
+            _orders = await TransactionService.GetOrdersForApplyAsync(_orderIds);
 
             var statusIds = _orders.Select(o => o.SystemStatusId).Where(s => s.HasValue).Distinct().ToList();
             _statusGroups = statusIds.Count + (_orders.Any(o => !o.SystemStatusId.HasValue) ? 1 : 0);
@@ -923,18 +909,11 @@ else
 
             if (_statusGroups == 1 && statusIds.Count == 1)
             {
-                var statusId = statusIds[0];
-                _transactions = await _db.OrderTransactions
-                    .Include(t => t.ToSystemStatus)
-                    .Include(t => t.Rules)
-                    .Include(t => t.FieldRules)
-                    .Where(t => !t.IsDeleted && t.IsEnabled && t.FromSystemStatusId == statusId)
-                    .OrderBy(t => t.Name)
-                    .AsNoTracking()
-                    .ToListAsync();
+                var statusId = statusIds[0]!.Value;
+                _transactions = await TransactionService.GetTransactionsForStatusAsync(statusId);
             }
 
-            _calcRules = await _db.GetActiveRulesAsync();
+            _calcRules = await CalculationRuleService.GetActiveRulesAsync();
         }
 
         _ordersToApply.Clear();
@@ -1133,38 +1112,17 @@ else
 
     private async Task LoadReferenceDataAsync(IEnumerable<TransactionApplyFieldRulePreviewDto> fieldRules)
     {
-        if (_db == null) return;
-        var refTypes = fieldRules.Select(f => f.ReferenceType).Distinct().ToList();
-        if (refTypes.Contains(FieldReferenceTypeEnum.OrderStatus))
-            _orderStatuses = await _db.OrderStatuses.Where(s => !s.IsDeleted).OrderBy(s => s.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.Product))
-            _products = await _db.Products.Where(p => !p.IsDeleted).OrderBy(p => p.Article).Take(1000).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.Supplier))
-            _suppliers = await _db.Suppliers.Where(s => !s.IsDeleted).OrderBy(s => s.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.Warehouse))
-            _warehouses = await _db.Warehouses.Where(w => !w.IsDeleted).OrderBy(w => w.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.DeliveryMethod))
-            _deliveryMethods = await _db.DeliveryMethods.Where(d => !d.IsDeleted).OrderBy(d => d.Name).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.Recipient))
-            _recipients = await _db.Recipients.OrderBy(r => r.Name).Take(500).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.Address))
-            _addresses = await _db.Addresses.Take(500).AsNoTracking().ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.WarehouseInfo))
-            _warehouseInfos = await _db.WarehouseInfos
-                .Include(wi => wi.RecipientWarehouse)
-                .Include(wi => wi.SenderWarehouse)
-                .OrderBy(wi => wi.Id)
-                .Take(500)
-                .AsNoTracking()
-                .ToListAsync();
-        if (refTypes.Contains(FieldReferenceTypeEnum.OrderProductInfo))
-            _orderProductInfos = await _db.OrderProductInfos
-                .Include(opi => opi.Product)
-                .Where(opi => !opi.IsDeleted)
-                .OrderBy(opi => opi.Product != null ? opi.Product.Article : "")
-                .Take(500)
-                .AsNoTracking()
-                .ToListAsync();
+        var refTypes = fieldRules.Select(f => f.ReferenceType).Distinct();
+        var data = await TransactionService.GetReferenceDataAsync(refTypes);
+        _orderStatuses  = data.OrderStatuses;
+        _products       = data.Products;
+        _suppliers      = data.Suppliers;
+        _warehouses     = data.Warehouses;
+        _deliveryMethods = data.DeliveryMethods;
+        _recipients     = data.Recipients;
+        _addresses      = data.Addresses;
+        _warehouseInfos = data.WarehouseInfos;
+        _orderProductInfos = data.OrderProductInfos;
     }
 
     private RenderFragment RenderFieldControlMass(TransactionApplyFieldRulePreviewDto fr) => builder =>
@@ -1450,8 +1408,7 @@ else
         }
 
         var path = new Uri(Navigation.Uri).PathAndQuery;
-        var navigateTo = TabService.Close(path);
-        Navigation.NavigateTo(navigateTo ?? "/orders", forceLoad: true);
+        Navigation.NavigateTo("/orders", forceLoad: true);
     }
 
     private void ToggleComputedLayout() =>
@@ -1528,5 +1485,5 @@ else
         return d.Value.Date == DateTime.Today ? d.Value.ToString("HH:mm") : d.Value.ToString("dd.MM.yyyy HH:mm");
     }
 
-    public void Dispose() => _db?.Dispose();
+    public void Dispose() => _resizeRef?.Dispose();
 }

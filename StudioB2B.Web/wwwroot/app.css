@@ -1,7 +1,8 @@
 html, body {
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
+  overflow: hidden;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 code {
@@ -25,10 +26,6 @@ h1:focus {
   content: "Произошла ошибка приложения.";
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Стартовый оверлей — виден пока Blazor не установил SignalR-соединение.
-   Скрывается через Blazor.start().then(...) в App.razor.
-   ────────────────────────────────────────────────────────────── */
 #app-initial-loading {
   position: fixed;
   inset: 0;
@@ -138,29 +135,183 @@ h1:focus {
   40% { transform: scale(1); opacity: 1; }
 }
 
-.sidebar-inner {
+.app-shell {
   display: flex;
-  flex-direction: column;
-  height: 100%;
+  height: 100vh;
   overflow: hidden;
 }
 
-.sidebar-logo {
-  padding: 1rem 1.25rem 0.5rem;
-  font-weight: 700;
-  font-size: 1.05rem;
-  white-space: nowrap;
+.icon-rail {
+  width: 56px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-right: 1px solid #e2e8f0;
+  z-index: 100;
+}
+
+.rail-brand {
+  height: 52px;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  overflow: hidden;
+  justify-content: center;
+  flex-shrink: 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.rail-items {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.rail-group {
+  position: relative;
+}
+
+.rail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  cursor: pointer;
+  color: #64748b;
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+}
+
+.rail-item .rzi { font-size: 1.25rem; }
+
+.rail-label {
+  font-size: 0.55rem;
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+
+.rail-item:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.rail-item.active {
+  color: var(--rz-primary);
+  background: #eff6ff;
+}
+
+.rail-group:hover > .rail-item:not(.active) {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+/* Flyout submenu — hidden by default, shown on hover */
+.rail-flyout {
+  position: fixed;
+  left: 56px;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  padding: 6px 0;
+  z-index: 200;
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.rail-group:hover .rail-flyout {
+  visibility: visible;
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.rail-flyout-title {
+  padding: 6px 14px 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.04em;
+}
+
+.rail-flyout-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.rail-flyout-item:hover {
+  background: #f1f5f9;
+}
+
+.rail-flyout-item.active {
+  color: var(--rz-primary);
+  font-weight: 600;
+}
+
+.rail-flyout-item .rzi { font-size: 1.05rem; }
+
+.rail-tenant {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid #e2e8f0;
+  color: #94a3b8;
   flex-shrink: 0;
 }
 
-/* Smooth sidebar open/close */
-.sidebar-animated {
-  transition: width 0.2s ease;
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   overflow: hidden;
+}
+
+.app-header {
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.8rem;
+}
+
+.app-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-header-title {
+  font-weight: 600;
+  color: var(--rz-text-color);
+}
+
+.app-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-header-user {
+  font-size: 0.78rem;
+  color: var(--rz-text-secondary-color);
 }
 
 .rz-header-filter-cell {
@@ -207,85 +358,7 @@ h1:focus {
   padding: 0.2rem 0.5rem !important;
 }
 
-.app-tab-bar {
-  display: flex;
-  align-items: end;
-  height: 50px;
-  margin: 0 -15px;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--rz-border-color);
-  background: var(--rz-base-background-color);
-  scrollbar-width: thin;
-  flex-shrink: 0;
-}
-
-.app-tab-bar::-webkit-scrollbar {
-  height: 3px;
-}
-
-.app-tab-bar::-webkit-scrollbar-thumb {
-  background: var(--rz-border-color);
-  border-radius: 2px;
-}
-
-.app-tab {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 0 10px 10px 10px;
-  height: 34px;
-  cursor: pointer;
-  border-right: 1px solid var(--rz-border-color);
-  min-width: 110px;
-  max-width: 180px;
-  flex-shrink: 0;
-  user-select: none;
-  font-size: 0.8rem;
-  color: var(--rz-text-secondary-color);
-  transition: background 0.15s;
-}
-
-.app-tab:hover {
-  background: var(--rz-surface-color);
-  color: var(--rz-text-color);
-}
-
-.app-tab.active {
-  border-bottom: 2px solid var(--rz-primary);
-  background: var(--rz-surface-color);
-  color: var(--rz-text-color);
-  font-weight: 600;
-}
-
-.app-tab-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.app-tab-close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  opacity: 0;
-  border-radius: 3px;
-  padding: 1px;
-  transition: opacity 0.15s, background 0.15s;
-}
-
-.app-tab:hover .app-tab-close,
-.app-tab.active .app-tab-close {
-  opacity: 0.5;
-}
-
-.app-tab-close:hover {
-  opacity: 1 !important;
-  background: var(--rz-danger-lighter);
-  color: var(--rz-danger);
-}
+/* Body containers removed — replaced by app-shell layout */
 
 
 .rz-body {
@@ -294,10 +367,9 @@ h1:focus {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  transition: margin-left 0.2s ease;
 }
 
-/* Контейнер для страниц с full-height layout (чаты и др.) */
+/* Контейнер для страниц с full-height layout (чаты, коммуникации и др.) */
 .body-full-height {
   flex: 1;
   display: flex;
@@ -312,28 +384,38 @@ h1:focus {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow-y: auto;
 }
 
-/* Когда боковая панель скрыта — контент на всю ширину и высоту */
-.sidebar-hidden {
+.body-full-height .rz-tabview {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
-.sidebar-hidden .rz-data-grid {
+.body-full-height .rz-tabview-panels {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-radius: 0;
 }
 
-.sidebar-hidden .rz-data-grid .rz-datatable-scrollable-wrapper,
-.sidebar-hidden .rz-data-grid .rz-datatable-scrollable-view {
+.body-full-height .rz-tabview-panel {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
+}
+
+/* Compact Radzen tab headers for communication page */
+.body-full-height .rz-tabview-nav {
+  gap: 0 !important;
+}
+
+.body-full-height .rz-tabview-nav li .rz-tabview-nav-link {
+  padding: 0.35rem 1rem !important;
+  font-size: 0.82rem !important;
 }
 
 /* Общий стиль всех таблиц Radzen */
@@ -527,10 +609,6 @@ h1:focus {
   z-index: -1;
 }
 
-/* ── Shared status pill filters (q-pill) ─────────────────────────────────────
-   Используются на страницах Questions, Reviews, TenantUsers и других.
-   Определены здесь глобально, чтобы работали без подключения конкретного css.
-   ─────────────────────────────────────────────────────────────────────────── */
 .q-pill {
     display: inline-flex;
     align-items: center;
@@ -559,9 +637,6 @@ h1:focus {
     font-weight: 400;
 }
 
-/* ──────────────────────────────────────────────────────────────
-   CSS-only dialog loading spinner (avoids Radzen JS interop issues)
-   ────────────────────────────────────────────────────────────── */
 .dlg-loading {
     display: flex;
     align-items: center;
@@ -580,4 +655,35 @@ h1:focus {
 
 @keyframes dlg-spin {
     to { transform: rotate(360deg); }
+}
+
+/* Коммуникации */
+.rz-tabview-panel {
+  padding: 0;
+}
+.tab-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .app-shell { flex-direction: column-reverse; }
+  .icon-rail {
+    width: 100%;
+    height: 56px;
+    flex-direction: row;
+    border-right: none;
+    border-top: 1px solid #e2e8f0;
+  }
+  .rail-brand { display: none; }
+  .rail-tenant { display: none; }
+  .rail-items {
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 0;
+    overflow-x: auto;
+  }
+  .rail-item { height: 56px; min-width: 56px; }
+  .rail-flyout { display: none !important; }
 }

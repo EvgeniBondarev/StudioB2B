@@ -1,13 +1,9 @@
-@using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
-@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Persistence.Tenant
 
-@inject ITenantDbContextFactory Factory
+@inject IMarketplaceClientService MarketplaceClientService
 @inject IOzonApiClient OzonApiClient
 @inject IKeyEncryptionService Encryption
-@inject AutoMapper.IMapper Mapper
 @inject NotificationService NotificationService
 @inject DialogService DialogService
 
@@ -216,7 +212,6 @@ else if (_step == 3)
 }
 
 @code {
-    private TenantDbContext? _db;
     private List<MarketplaceClientType> _types = [];
     private List<MarketplaceClientType> _ozonTypes = [];
     private List<MarketplaceClientMode> _modes = [];
@@ -231,49 +226,33 @@ else if (_step == 3)
 
     protected override async Task OnInitializedAsync()
     {
-        _db = Factory.CreateDbContext();
+        var data = await MarketplaceClientService.GetInitDataAsync();
 
-        _types = await _db.MarketplaceClientTypes!
-            .AsNoTracking()
-            .OrderBy(t => t.Name)
-            .ToListAsync();
-
+        _types = data.Types;
         _ozonTypes = _types
             .Where(t => t.Name.Equals("Ozon", StringComparison.OrdinalIgnoreCase) ||
                         t.Name.Equals("OZON", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        _modes = await _db.MarketplaceClientModes!
-            .AsNoTracking()
-            .OrderBy(m => m.Name)
-            .ToListAsync();
-
-        _fbsModeId = _modes.FirstOrDefault(m => m.Name.Equals("FBS", StringComparison.OrdinalIgnoreCase))?.Id;
-        _fboModeId = _modes.FirstOrDefault(m => m.Name.Equals("FBO", StringComparison.OrdinalIgnoreCase))?.Id;
+        _modes        = data.Modes;
+        _fbsModeId    = _modes.FirstOrDefault(m => m.Name.Equals("FBS",     StringComparison.OrdinalIgnoreCase))?.Id;
+        _fboModeId    = _modes.FirstOrDefault(m => m.Name.Equals("FBO",     StringComparison.OrdinalIgnoreCase))?.Id;
         _expressModeId = _modes.FirstOrDefault(m => m.Name.Equals("Express", StringComparison.OrdinalIgnoreCase))?.Id;
 
-        // Изначально выбран FBS и FBO, чтобы синк мог загрузить всё сразу.
         var modeIds = new List<Guid>(capacity: 2);
         if (_fbsModeId is not null) modeIds.Add(_fbsModeId.Value);
         if (_fboModeId is not null) modeIds.Add(_fboModeId.Value);
+        if (modeIds.Count == 0 && _modes.Count > 0) modeIds.Add(_modes[0].Id);
 
-        if (modeIds.Count == 0 && _modes.Count > 0)
-            modeIds.Add(_modes[0].Id);
-
-        _model.ModeIds = modeIds;
-
-        _model.ClientTypeId = _ozonTypes.Count > 0
-            ? _ozonTypes[0].Id
-            : _types.FirstOrDefault()?.Id;
+        _model.ModeIds      = modeIds;
+        _model.ClientTypeId = _ozonTypes.Count > 0 ? _ozonTypes[0].Id : _types.FirstOrDefault()?.Id;
     }
-
-    // Timeline helpers
 
     private PointStyle StepStyle(int step) => step switch
     {
-        _ when step < _step => PointStyle.Success,
+        _ when step < _step  => PointStyle.Success,
         _ when step == _step => PointStyle.Primary,
-        _ => PointStyle.Secondary
+        _                    => PointStyle.Secondary
     };
 
     private string StepLabelStyle(int step) => step == _step
@@ -286,26 +265,19 @@ else if (_step == 3)
         ? string.Empty
         : "color: var(--rz-text-disabled-color);";
 
-    // Actions
-
     private void Cancel() => DialogService.Close(false);
 
     private void OnModeChanged(Guid modeId, bool isChecked)
     {
         if (isChecked)
         {
-            if (_model.ModeIds.Contains(modeId))
-                return;
-
-            // Сейчас в БД поддерживаются 2 режима (ModeId/ModeId2), поэтому ограничиваем UI.
+            if (_model.ModeIds.Contains(modeId)) return;
             if (_model.ModeIds.Count >= 2)
             {
                 NotificationService.Notify(NotificationSeverity.Warning,
-                    "Ограничение",
-                    "В текущей версии можно выбрать максимум 2 режима на клиента.");
+                    "Ограничение", "В текущей версии можно выбрать максимум 2 режима на клиента.");
                 return;
             }
-
             _model.ModeIds.Add(modeId);
         }
         else
@@ -314,17 +286,13 @@ else if (_step == 3)
         }
     }
 
-    private void ToggleMode(Guid modeId, bool shouldSelect)
-    {
-        OnModeChanged(modeId, shouldSelect);
-    }
+    private void ToggleMode(Guid modeId, bool shouldSelect) => OnModeChanged(modeId, shouldSelect);
 
     private async Task LoadFromOzonAsync()
     {
         if (string.IsNullOrWhiteSpace(_model.ApiId) || string.IsNullOrWhiteSpace(_model.Key))
         {
-            NotificationService.Notify(NotificationSeverity.Warning,
-                "Заполните поля", "Укажите API ID и API ключ.");
+            NotificationService.Notify(NotificationSeverity.Warning, "Заполните поля", "Укажите API ID и API ключ.");
             return;
         }
 
@@ -335,8 +303,7 @@ else if (_step == 3)
             if (!result.IsSuccess || result.Data is null)
             {
                 NotificationService.Notify(NotificationSeverity.Error,
-                    "Ошибка Ozon API",
-                    result.ErrorMessage ?? "Не удалось получить данные кабинета продавца.");
+                    "Ошибка Ozon API", result.ErrorMessage ?? "Не удалось получить данные кабинета продавца.");
                 return;
             }
 
@@ -345,8 +312,7 @@ else if (_step == 3)
         }
         catch (Exception ex)
         {
-            NotificationService.Notify(NotificationSeverity.Error,
-                "Ошибка при обращении к Ozon", ex.Message);
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка при обращении к Ozon", ex.Message);
         }
         finally
         {
@@ -356,10 +322,9 @@ else if (_step == 3)
 
     private async Task CreateClientAsync()
     {
-        if (_db is null || _sellerInfo?.Company is null)
+        if (_sellerInfo?.Company is null)
         {
-            NotificationService.Notify(NotificationSeverity.Error,
-                "Нет данных", "Данные компании не загружены.");
+            NotificationService.Notify(NotificationSeverity.Error, "Нет данных", "Данные компании не загружены.");
             return;
         }
 
@@ -373,39 +338,33 @@ else if (_step == 3)
         _busy = true;
         try
         {
-            var exists = await _db.MarketplaceClients!
-                .AsNoTracking()
-                .AnyAsync(c => c.ApiId == _model.ApiId);
-
-            if (exists)
+            if (await MarketplaceClientService.ExistsByApiIdAsync(_model.ApiId))
             {
                 NotificationService.Notify(NotificationSeverity.Warning,
-                    "Клиент уже существует",
-                    "Клиент с таким API ID уже добавлен.");
+                    "Клиент уже существует", "Клиент с таким API ID уже добавлен.");
                 return;
             }
 
             var c = _sellerInfo.Company;
-
             var request = new CreateMarketplaceClientDto(
-                Name: c.Name ?? c.LegalName ?? "Ozon клиент",
-                ApiId: _model.ApiId,
-                Key: Encryption.Encrypt(_model.Key), // store encrypted
-                ClientTypeId: _model.ClientTypeId,
-                ModeIds: _model.ModeIds,
-                Settings: null,
-                Settings1C: null,
-                Company: c.LegalName ?? c.Name,
-                Country: c.Country,
-                Currency: c.Currency,
-                INN: c.Inn,
-                LegalName: c.LegalName,
-                OzonName: c.Name,
-                OGRN: c.Ogrn,
+                Name:          c.Name ?? c.LegalName ?? "Ozon клиент",
+                ApiId:         _model.ApiId,
+                Key:           Encryption.Encrypt(_model.Key),
+                ClientTypeId:  _model.ClientTypeId,
+                ModeIds:       _model.ModeIds,
+                Settings:      null,
+                Settings1C:    null,
+                Company:       c.LegalName ?? c.Name,
+                Country:       c.Country,
+                Currency:      c.Currency,
+                INN:           c.Inn,
+                LegalName:     c.LegalName,
+                OzonName:      c.Name,
+                OGRN:          c.Ogrn,
                 OwnershipForm: c.OwnershipForm
             );
 
-            await _db.CreateAsync(request, Mapper);
+            await MarketplaceClientService.CreateAsync(request);
 
             NotificationService.Notify(NotificationSeverity.Success,
                 "Клиент создан",
@@ -415,8 +374,7 @@ else if (_step == 3)
         }
         catch (Exception ex)
         {
-            NotificationService.Notify(NotificationSeverity.Error,
-                "Ошибка при сохранении", ex.Message);
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка при сохранении", ex.Message);
         }
         finally
         {

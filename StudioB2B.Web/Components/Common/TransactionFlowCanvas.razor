@@ -1,11 +1,9 @@
-@using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Domain.Constants
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Persistence.Tenant
-@using StudioB2B.Shared.DTOs
+@using StudioB2B.Shared
 
-@inject ITenantDbContextFactory Factory
+@inject IOrderTransactionManagementService TransactionService
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
@@ -314,7 +312,6 @@
 @code {
     [Parameter] public EventCallback OnTransactionsChanged { get; set; }
 
-    private TenantDbContext? _db;
     private DotNetObjectReference<TransactionFlowCanvas>? _ref;
     private bool _loading = true;
 
@@ -325,7 +322,6 @@
     private HashSet<Guid> _jsInited = new();
     private int _svgVersion;
 
-    // ──────────────────────── zoom / pan ────────────────────────
     private double _zoom = 1.0;
     private double _panX;
     private double _panY;
@@ -397,12 +393,9 @@
 
     private sealed class Pos { public double X; public double Y; public Pos() { } public Pos(double x, double y) { X = x; Y = y; } }
 
-    // ──────────────────────── lifecycle ────────────────────────
-
     protected override async Task OnInitializedAsync()
     {
         _ref = DotNetObjectReference.Create(this);
-        _db = Factory.CreateDbContext();
         await LoadDataAsync();
     }
 
@@ -423,18 +416,7 @@
 
     private async Task LoadDataAsync()
     {
-        _allStatuses = await _db!.OrderStatuses
-            .Where(s => !s.IsDeleted)
-            .OrderBy(s => s.Name)
-            .AsNoTracking()
-            .ToListAsync();
-
-        _transactions = await _db.OrderTransactions
-            .Include(t => t.Rules).ThenInclude(r => r.PriceType)
-            .Include(t => t.FieldRules)
-            .Where(t => !t.IsDeleted)
-            .AsNoTracking()
-            .ToListAsync();
+        (_allStatuses, _transactions) = await TransactionService.GetCanvasDataAsync();
     }
 
     private async Task LoadPositionsAsync()
@@ -499,8 +481,6 @@
         }
     }
 
-    // ──────────────────────── JS-invokable ────────────────────────
-
     [JSInvokable]
     public async Task OnNodeMoved(string idStr, double x, double y)
     {
@@ -548,8 +528,6 @@
             }
         });
     }
-
-    // ──────────────────────── actions ────────────────────────
 
     private async Task StartConnect(Guid statusId)
         => await JS.InvokeVoidAsync("transactionCanvas.startConnect",
@@ -715,15 +693,9 @@
 
         try
         {
-            _db?.Dispose();
-            _db = Factory.CreateDbContext();
-            var entity = await _db.OrderTransactions.FindAsync(tx.Id);
-            if (entity != null)
-            {
-                entity.IsDeleted = true;
-                await _db.SaveChangesAsync();
+            var deleted = await TransactionService.SoftDeleteAsync(tx.Id);
+            if (deleted)
                 NotificationService.Notify(NotificationSeverity.Success, "Транзакция удалена", tx.Name);
-            }
             await ReloadTxAsync();
             await OnTransactionsChanged.InvokeAsync();
         }
@@ -755,21 +727,14 @@
 
     public async Task ReloadAsync()
     {
-        await ReloadTxAsync();
         await LoadDataAsync();
+        await ReloadTxAsync();
         StateHasChanged();
     }
 
     private async Task ReloadTxAsync()
     {
-        _db?.Dispose();
-        _db = Factory.CreateDbContext();
-        _transactions = await _db.OrderTransactions
-            .Include(t => t.Rules).ThenInclude(r => r.PriceType)
-            .Include(t => t.FieldRules)
-            .Where(t => !t.IsDeleted)
-            .AsNoTracking()
-            .ToListAsync();
+        _transactions = await TransactionService.GetAllForCanvasAsync();
         StateHasChanged();
     }
 
@@ -783,8 +748,6 @@
         }
         catch { /* ignore */ }
     }
-
-    // ──────────────────────── geometry ────────────────────────
 
     private const double NodeWidth = 190;   // status node card width
     private const double NodeHeight = 68;   // status node card height (header + body)
@@ -818,8 +781,6 @@
 
     private IEnumerable<string> GetDistinctTxColors()
         => _transactions.Select(t => NormColor(t.Color)).Distinct();
-
-    // ──────────────────────── colour helpers ────────────────────────
 
     private static string GetStatusColor(OrderStatus s)
     {
@@ -867,7 +828,7 @@
     public async ValueTask DisposeAsync()
     {
         _ref?.Dispose();
-        if (_db != null) await _db.DisposeAsync();
+        await Task.CompletedTask;
     }
 }
 

@@ -125,6 +125,11 @@ public class TenantDbContext : DbContext
 
     public DbSet<TenantModule> TenantModules { get; set; } = null!;
 
+    public DbSet<CommunicationTask> CommunicationTasks { get; set; } = null!;
+    public DbSet<CommunicationTaskLog> CommunicationTaskLogs { get; set; } = null!;
+    public DbSet<CommunicationTimeEntry> CommunicationTimeEntries { get; set; } = null!;
+    public DbSet<CommunicationPaymentRate> CommunicationPaymentRates { get; set; } = null!;
+
     #endregion
 
     public TenantDbContext(

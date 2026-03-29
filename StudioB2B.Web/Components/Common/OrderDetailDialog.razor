@@ -1,15 +1,13 @@
-@using Microsoft.EntityFrameworkCore
-@using StudioB2B.Infrastructure.Persistence.Tenant
-@using StudioB2B.Infrastructure.Services
 @using System.Text.RegularExpressions
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Infrastructure.Services
 
-@inject ITenantDbContextFactory Factory
+@inject IOrderService OrderService
+@inject ICalculationRuleService CalculationRuleService
 @inject DialogService DialogService
 
-@implements IDisposable
 
 @if (_order == null)
 {
@@ -413,7 +411,6 @@ else
     [Parameter] public Guid OrderId { get; set; }
     [Parameter] public bool OpenReturnTab { get; set; }
 
-    private TenantDbContext? _db;
     private OrderEntity? _order;
     private List<OrderEntity> _shipmentOrders = new();
     private int _selectedTabIndex;
@@ -425,20 +422,14 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _db = Factory.CreateDbContext();
+        _order     = await OrderService.GetOrderDetailAsync(OrderId);
+        _calcRules = await CalculationRuleService.GetActiveRulesAsync();
 
-        _order = await _db.Orders
-            .IncludeForDetail()
-            .AsSplitQuery()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == OrderId);
-
-        _calcRules = await _db.GetActiveRulesAsync();
         if (_order != null && _calcRules.Count > 0)
         {
-            var engine = new CalculationEngine();
+            var engine   = new CalculationEngine();
             var computed = engine.Calculate(_order, _calcRules);
-            var context = CalculationEngine.GetContextSnapshot(_order);
+            var context  = CalculationEngine.GetContextSnapshot(_order);
 
             _calcResults = _calcRules
                 .Where(r => computed.ContainsKey(r.ResultKey))
@@ -452,24 +443,11 @@ else
         }
 
         if (_order?.ShipmentId != null)
-        {
-            _shipmentOrders = await _db.Orders
-                .IncludeForShipmentList()
-                .AsNoTracking()
-                .Where(o => o.ShipmentId == _order.ShipmentId)
-                .OrderByDescending(o => o.Shipment.InProcessAt)
-                .ThenBy(o => o.ProductInfo == null ? "" : (o.ProductInfo.Product == null ? "" : (o.ProductInfo.Product.Article ?? "")))
-                .ToListAsync();
-        }
+            _shipmentOrders = await OrderService.GetShipmentOrdersAsync(_order.ShipmentId);
 
         if (OpenReturnTab && _order?.Shipment.Returns.Count > 0)
-        {
-            // Tabs: Товар(0), Цены(1), [Расчёты(2)], Получатель, Отправление, Возврат
             _selectedTabIndex = (_calcRules.Count > 0 ? 1 : 0) + 4;
-        }
     }
-
-    public void Dispose() => _db?.Dispose();
 
     private static string? GetReturnTypeDisplayName(string? type) => type switch
     {

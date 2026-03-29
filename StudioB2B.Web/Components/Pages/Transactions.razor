@@ -1,13 +1,11 @@
 @page "/transactions"
 @attribute [Authorize(Roles = "TransactionsView")]
-@using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Persistence.Tenant
-@using StudioB2B.Infrastructure.Services
+@using StudioB2B.Infrastructure.Features
 
 @inject ITenantProvider TenantProvider
-@inject ITenantDbContextFactory Factory
+@inject IOrderTransactionManagementService TransactionService
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
 @inject DialogService DialogService
@@ -240,7 +238,6 @@ else
 
     private RadzenDataGrid<OrderTransaction>? _grid;
     private TransactionFlowCanvas? _canvas;
-    private TenantDbContext? _db;
     private IEnumerable<OrderTransaction> _pageItems = Array.Empty<OrderTransaction>();
     private int _totalCount;
     private Density _density = Density.Default;
@@ -345,51 +342,30 @@ else
     private async Task LoadData(LoadDataArgs args)
     {
         _loading = true;
-        await EnsureInitializedAsync();
-
-        var query = _db!.OrderTransactions
-            .Include(t => t.FromSystemStatus)
-            .Include(t => t.ToSystemStatus)
-            .Include(t => t.Rules)
-            .Where(t => !t.IsDeleted)
-            .AsNoTracking()
-            .AsQueryable();
-
-        if (!string.IsNullOrEmpty(args.Filter))
-            query = query.Where(args.Filter);
-
-        _totalCount = await query.CountAsync();
-
-        query = !string.IsNullOrEmpty(args.OrderBy)
-            ? query.OrderBy(args.OrderBy)
-            : query.OrderBy(t => t.Name);
 
         var skip = args.Skip ?? 0;
         var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 20);
-        _pageItems = await query.Skip(skip).Take(take).ToListAsync();
+
+        var (items, count) = await TransactionService.GetPagedAsync(
+            args.Filter,
+            args.OrderBy,
+            skip,
+            take);
+
+        _pageItems = items;
+        _totalCount = count;
 
         await LoadStatusMatrixAsync();
         _loading = false;
     }
 
-    private async Task EnsureInitializedAsync()
-    {
-        if (_db != null) return;
-        _db = Factory.CreateDbContext();
-    }
 
     private async Task LoadStatusMatrixAsync()
     {
-        if (_db == null) return;
-        var transactions = await _db.OrderTransactions
-            .Include(t => t.FromSystemStatus)
-            .Include(t => t.ToSystemStatus)
-            .Where(t => !t.IsDeleted && t.IsEnabled)
-            .AsNoTracking()
-            .ToListAsync();
+        var transactions = await TransactionService.GetAllEnabledAsync();
 
         _statusMatrix = new StatusTransitionMatrix();
-        foreach (var t in transactions.OrderBy(t => t.FromSystemStatus?.Name).ThenBy(t => t.ToSystemStatus?.Name))
+        foreach (var t in transactions)
             _statusMatrix.Add(t);
         _statusMatrix.Statuses.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal));
     }
@@ -425,11 +401,9 @@ else
 
         if (confirmed != true) return;
 
-        var entity = await _db!.OrderTransactions.FindAsync(t.Id);
-        if (entity != null)
+        var deleted = await TransactionService.SoftDeleteAsync(t.Id);
+        if (deleted)
         {
-            entity.IsDeleted = true;
-            await _db.SaveChangesAsync();
             NotificationService.Notify(NotificationSeverity.Success, "Документ удалён");
             await _grid!.Reload();
         }
@@ -484,7 +458,7 @@ else
         catch { return "#ececff"; }
     }
 
-    public void Dispose() => _db?.Dispose();
+    public void Dispose() { }
 
     private static bool IsLightColor(string hex)
     {

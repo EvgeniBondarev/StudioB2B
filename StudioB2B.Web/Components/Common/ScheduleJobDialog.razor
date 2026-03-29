@@ -2,6 +2,8 @@
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
 @using SyncJobType = StudioB2B.Domain.Constants.SyncJobTypeEnum
+@inject IOrderSyncJobService JobService
+@inject DialogService DialogService
 
 <RadzenStack Gap="1.25rem">
 
@@ -169,8 +171,6 @@
 </RadzenStack>
 
 @code {
-    [Parameter] public IOrderSyncJobService JobService { get; set; } = null!;
-    [Parameter] public DialogService DialogService { get; set; } = null!;
     [Parameter] public SyncJobSchedule? EditSchedule { get; set; }
 
     private SyncJobType _jobType = SyncJobType.Sync;

@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Shared;
 using System.Reflection;
 
 namespace StudioB2B.Infrastructure.Services.MultiTenancy;
@@ -13,14 +15,25 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 {
     private readonly MasterDbContext _masterDb;
     private readonly ILogger<TenantDatabaseInitializer> _logger;
+    private readonly IConfiguration _configuration;
+    private readonly IOzonApiClient _ozonApiClient;
+    private readonly IKeyEncryptionService _keyEncryption;
 
-    public TenantDatabaseInitializer(MasterDbContext masterDb, ILogger<TenantDatabaseInitializer> logger)
+    public TenantDatabaseInitializer(
+        MasterDbContext masterDb,
+        ILogger<TenantDatabaseInitializer> logger,
+        IConfiguration configuration,
+        IOzonApiClient ozonApiClient,
+        IKeyEncryptionService keyEncryption)
     {
         _masterDb = masterDb;
         _logger = logger;
+        _configuration = configuration;
+        _ozonApiClient = ozonApiClient;
+        _keyEncryption = keyEncryption;
     }
 
-    public async Task MigrateAndSeedAsync(string connectionString, CancellationToken ct)
+    public async Task MigrateAndSeedAsync(string connectionString, string tenantSubdomain, CancellationToken ct)
     {
         await using var context = await CreateContextAsync(connectionString, ct);
 
@@ -41,10 +54,10 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
             _logger.LogInformation("No pending tenant migrations, database is up to date");
         }
 
-        await RunSeedAsync(context, ct);
+        await RunSeedAsync(context, tenantSubdomain, ct);
     }
 
-    public async Task MigrateOnlyAsync(string connectionString, CancellationToken ct)
+    public async Task MigrateOnlyAsync(string connectionString, string tenantSubdomain, CancellationToken ct)
     {
         await using var context = await CreateContextAsync(connectionString, ct);
 
@@ -60,10 +73,10 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
             _logger.LogInformation("Startup: tenant database migrated successfully");
         }
 
-        await RunSeedAsync(context, ct);
+        await RunSeedAsync(context, tenantSubdomain, ct);
     }
 
-    private static async Task RunSeedAsync(TenantDbContext context, CancellationToken ct)
+    private async Task RunSeedAsync(TenantDbContext context, string tenantSubdomain, CancellationToken ct)
     {
         await SeedPagesColumnsAndFunctionsAsync(context, ct);
         await SeedMarketplaceDataAsync(context, ct);
@@ -71,7 +84,100 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         await SeedBaseCalculationRulesAsync(context, ct);
         await SeedBaseOrderTransactionsAsync(context, ct);
         await EnsureRobotUserAsync(context, ct);
+
+        var seedSection = _configuration.GetSection($"TenantSeeds:{tenantSubdomain}");
+        if (seedSection.Exists())
+            await SeedTenantSpecificAsync(context, seedSection, ct);
     }
+
+    private async Task SeedTenantSpecificAsync(
+        TenantDbContext ctx,
+        IConfigurationSection section, CancellationToken ct)
+    {
+        await SeedChatManagerPermissionAsync(ctx, ct);
+        await SeedMarketplaceClientsFromConfigAsync(ctx, section, ct);
+    }
+
+    private static async Task SeedChatManagerPermissionAsync(TenantDbContext ctx, CancellationToken ct)
+    {
+        const string permName = "Менеджер чатов";
+        if (await ctx.Permissions.AnyAsync(p => p.Name == permName && !p.IsDeleted, ct))
+            return;
+
+        var pages = new[] { PageEnum.TaskBoardView, PageEnum.ChatsView, PageEnum.QuestionsView, PageEnum.ReviewsView };
+        var functions = new[] { FunctionEnum.TaskBoardManage, FunctionEnum.QuestionsManage };
+
+        var perm = new Permission { Id = Guid.NewGuid(), Name = permName, IsFullAccess = false };
+        ctx.Permissions.Add(perm);
+        await ctx.SaveChangesAsync(ct);
+
+        ctx.Set<PermissionPage>().AddRange(
+            pages.Select(p => new PermissionPage { PermissionId = perm.Id, PageId = (int)p }));
+
+        ctx.Set<PermissionFunction>().AddRange(
+            functions.Select(f => new PermissionFunction { PermissionId = perm.Id, FunctionId = (int)f }));
+
+        await ctx.SaveChangesAsync(ct);
+    }
+
+    private async Task SeedMarketplaceClientsFromConfigAsync(
+        TenantDbContext ctx, IConfigurationSection section, CancellationToken ct)
+    {
+        var ozonType = await ctx.Set<MarketplaceClientType>()
+            .FirstOrDefaultAsync(t => t.Name == "Ozon", ct);
+        if (ozonType is null)
+            return;
+
+        var clientConfigs = section.GetSection("MarketplaceClients")
+            .Get<List<MarketplaceClientSeedConfig>>();
+        if (clientConfigs is null || clientConfigs.Count == 0)
+            return;
+
+        var fbsMode = await ctx.Set<MarketplaceClientMode>()
+            .FirstOrDefaultAsync(m => m.Name == "FBS", ct);
+        var fboMode = await ctx.Set<MarketplaceClientMode>()
+            .FirstOrDefaultAsync(m => m.Name == "FBO", ct);
+
+        foreach (var cfg in clientConfigs)
+        {
+            if (await ctx.Set<MarketplaceClient>().AnyAsync(c => c.ApiId == cfg.ApiId, ct))
+                continue;
+
+            OzonCompanyDto? company = null;
+            try
+            {
+                var result = await _ozonApiClient.GetSellerInfoAsync(cfg.ApiId, cfg.Key, ct);
+                company = result.IsSuccess ? result.Data?.Company : null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "TenantDatabaseInitializer: could not fetch Ozon seller info for ApiId {ApiId}.", cfg.ApiId);
+            }
+
+            ctx.Set<MarketplaceClient>().Add(new MarketplaceClient
+            {
+                Name = company?.Name ?? company?.LegalName ?? cfg.Name,
+                ApiId = cfg.ApiId,
+                Key = _keyEncryption.Encrypt(cfg.Key),
+                ClientTypeId = ozonType.Id,
+                ModeId = fboMode?.Id,
+                ModeId2 = fbsMode?.Id,
+                Company = company?.LegalName ?? company?.Name,
+                Country = company?.Country,
+                Currency = company?.Currency,
+                INN = company?.Inn,
+                LegalName = company?.LegalName,
+                OzonName = company?.Name,
+                OGRN = company?.Ogrn,
+                OwnershipForm = company?.OwnershipForm
+            });
+        }
+
+        await ctx.SaveChangesAsync(ct);
+    }
+
+    private sealed record MarketplaceClientSeedConfig(string ApiId, string Key, string Name);
 
     public async Task CreateAdminUserAsync(
         string connectionString, string email, string password,
@@ -118,8 +224,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 
         await ctx.SaveChangesAsync(ct);
     }
-
-    // ── Page / PageColumn / Function seeding ─────────────────────────────
 
     /// <summary>
     /// Maps each PageColumnEnum value to its parent PageEnum.
@@ -239,6 +343,8 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         [FunctionEnum.SyncManageSchedules] = PageEnum.SyncView,
         [FunctionEnum.QuestionsManage] = PageEnum.QuestionsView,
         [FunctionEnum.PermissionsManage] = PageEnum.PermissionsView,
+        [FunctionEnum.TaskBoardManage] = PageEnum.TaskBoardView,
+        [FunctionEnum.TaskBoardAdminManage] = PageEnum.TaskBoardAdmin,
     };
 
     /// <summary>
@@ -249,7 +355,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
     /// </summary>
     private static async Task SeedPagesColumnsAndFunctionsAsync(TenantDbContext ctx, CancellationToken ct)
     {
-        // ── Pages ──────────────────────────────────────────────────────────
         var existingPages = await ctx.Pages.ToListAsync(ct);
         var existingPageIds = existingPages.Select(p => p.Id).ToHashSet();
         foreach (var page in Enum.GetValues<PageEnum>())
@@ -272,7 +377,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         }
         await ctx.SaveChangesAsync(ct);
 
-        // ── PageColumns ────────────────────────────────────────────────────
         var existingCols = await ctx.PageColumns.ToListAsync(ct);
         var existingColIds = existingCols.Select(c => c.Id).ToHashSet();
         foreach (var col in Enum.GetValues<PageColumnEnum>())
@@ -295,7 +399,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         }
         await ctx.SaveChangesAsync(ct);
 
-        // ── Functions ──────────────────────────────────────────────────────
         var existingFuncs = await ctx.Functions.ToListAsync(ct);
         var existingFuncIds = existingFuncs.Select(f => f.Id).ToHashSet();
         foreach (var func in Enum.GetValues<FunctionEnum>())

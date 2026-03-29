@@ -1,9 +1,8 @@
 @page "/register"
 @using StudioB2B.Shared
+@using StudioB2B.Web.Services
 @inject NavigationManager Navigation
-@inject HttpClient Http
-@inject JwtAuthenticationStateProvider AuthStateProvider
-@inject MasterAuthStateService MasterAuthState
+@inject IMasterAuthApiService MasterAuthApi
 
 <PageTitle>Регистрация — StudioB2B</PageTitle>
 
@@ -97,35 +96,12 @@
 
         try
         {
-            var response = await Http.PostAsJsonAsync("/api/master/auth/register", new
-            {
-                _model.Email,
-                _model.Password,
-                _model.FirstName,
-                _model.LastName,
-                MiddleName = string.IsNullOrWhiteSpace(_model.MiddleName) ? null : _model.MiddleName
-            });
+            _error = await MasterAuthApi.RegisterAsync(
+                _model.Email, _model.Password,
+                _model.FirstName, _model.LastName, _model.MiddleName);
 
-            if (response.IsSuccessStatusCode)
-            {
-                var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
-                if (result?.Token is not null)
-                {
-                    await AuthStateProvider.MasterLoginAsync(result.Token);
-                    var userInfo = await AuthStateProvider.GetMasterUserInfoAsync();
-                    MasterAuthState.Set(true, userInfo);
-                    Navigation.NavigateTo("/", replace: true);
-                }
-            }
-            else
-            {
-                var err = await response.Content.ReadFromJsonAsync<ErrorResponse>();
-                _error = err?.Error ?? "Ошибка регистрации";
-            }
-        }
-        catch
-        {
-            _error = "Произошла ошибка при регистрации";
+            if (_error is null)
+                Navigation.NavigateTo("/", replace: true);
         }
         finally
         {

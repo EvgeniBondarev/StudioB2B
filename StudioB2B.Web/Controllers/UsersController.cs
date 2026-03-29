@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Infrastructure.Services;
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Web.Controllers;
 
@@ -15,12 +13,12 @@ namespace StudioB2B.Web.Controllers;
 [Authorize]
 public class UsersController : ControllerBase
 {
-    private readonly ITenantDbContextFactory _dbContextFactory;
+    private readonly IUserService _userService;
     private readonly ITenantProvider _tenantProvider;
 
-    public UsersController(ITenantDbContextFactory dbContextFactory, ITenantProvider tenantProvider)
+    public UsersController(IUserService userService, ITenantProvider tenantProvider)
     {
-        _dbContextFactory = dbContextFactory;
+        _userService = userService;
         _tenantProvider = tenantProvider;
     }
 
@@ -33,20 +31,7 @@ public class UsersController : ControllerBase
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
 
-        using var db = _dbContextFactory.CreateDbContext();
-
-        var users = await db.Users
-            .AsNoTracking()
-            .Select(u => new UserDto
-            {
-                Id = u.Id,
-                Email = u.Email,
-                FirstName = u.FirstName,
-                LastName = u.LastName,
-                IsActive = u.IsActive
-            })
-            .ToListAsync();
-
+        var users = await _userService.GetAllUsersAsync();
         return Ok(users);
     }
 
@@ -59,21 +44,7 @@ public class UsersController : ControllerBase
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
 
-        using var db = _dbContextFactory.CreateDbContext();
-
-        var user = await db.Users
-            .AsNoTracking()
-            .Where(u => u.Id == id)
-            .Select(u => new UserDto
-            {
-                Id = u.Id,
-                Email = u.Email,
-                FirstName = u.FirstName,
-                LastName = u.LastName,
-                IsActive = u.IsActive
-            })
-            .FirstOrDefaultAsync();
-
+        var user = await _userService.GetUserByIdAsync(id);
         if (user == null)
             return NotFound();
 
@@ -81,39 +52,51 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Деактивировать пользователя
+    /// Создать пользователя
     /// </summary>
-    [HttpPost("{id:guid}/deactivate")]
-    public async Task<IActionResult> DeactivateUser(Guid id)
+    [HttpPost]
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserDto request)
     {
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
 
-        using var db = _dbContextFactory.CreateDbContext();
-        var user = await db.Users.FindAsync(id);
-        if (user == null) return NotFound();
+        var (success, error) = await _userService.CreateUserAsync(request);
+        if (!success)
+            return BadRequest(new { error });
 
-        user.IsActive = false;
-        await db.SaveChangesAsync();
         return Ok();
     }
 
     /// <summary>
-    /// Активировать пользователя
+    /// Обновить пользователя
     /// </summary>
-    [HttpPost("{id:guid}/activate")]
-    public async Task<IActionResult> ActivateUser(Guid id)
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateUserDto request)
     {
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
 
-        using var db = _dbContextFactory.CreateDbContext();
-        var user = await db.Users.FindAsync(id);
-        if (user == null) return NotFound();
+        var (success, error) = await _userService.UpdateUserAsync(id, request);
+        if (!success)
+            return BadRequest(new { error });
 
-        user.IsActive = true;
-        await db.SaveChangesAsync();
         return Ok();
+    }
+
+    /// <summary>
+    /// Удалить пользователя
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteUser(Guid id)
+    {
+        if (!_tenantProvider.IsResolved)
+            return BadRequest(new { error = "Tenant not resolved" });
+
+        var (success, error) = await _userService.DeleteUserAsync(id);
+        if (!success)
+            return BadRequest(new { error });
+
+        return NoContent();
     }
 }
 

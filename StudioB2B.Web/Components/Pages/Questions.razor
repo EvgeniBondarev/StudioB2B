@@ -1,19 +1,15 @@
 @page "/questions"
 @attribute [Authorize(Roles = "QuestionsView")]
-@using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.EntityFrameworkCore
-@using StudioB2B.Domain.Constants
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
-@using StudioB2B.Shared.DTOs
+@using StudioB2B.Shared
 
 @inject ITenantProvider TenantProvider
-@inject ITenantDbContextFactory Factory
+@inject IMarketplaceClientService MarketplaceClientService
 @inject IOzonQuestionsService QuestionsService
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
 @inject UserContext UserContext
-@inject IEntityFilterService EntityFilterSvc
 
 <link rel="stylesheet" href="css/questions.css" />
 
@@ -31,23 +27,15 @@ else
 
         <div class="questions-top">
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
-                         JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 0.5rem; margin-top:0.35rem">
-                <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Вопросы покупателей</RadzenText>
+                         JustifyContent="JustifyContent.End" >
+
                 <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Primary" Shade="Shade.Light" Size="ButtonSize.Small"
                               Click="@ReloadAsync" IsBusy="@_loading" Text="Обновить"/>
             </RadzenStack>
 
-            <div class="questions-tab-bar">
-                <span class="questions-tab @(_activeTab == 0 ? "active" : "")" @onclick="@(() => SwitchTab(0))">
-                    Вопросы
-                </span>
-                <span class="questions-tab @(_activeTab == 1 ? "active" : "")" @onclick="@(() => SwitchTab(1))">
-                    Топ товаров
-                </span>
-            </div>
         </div>
 
-        @if (_activeTab == 0)
+        @if (!ShowTopProducts)
         {
             @if (_questionCounts is not null)
             {
@@ -431,7 +419,7 @@ else
             </div>
         </div>
         }
-        @if (_activeTab == 1)
+        else
         {
             <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem"
                          Style="margin-bottom: 0.75rem;">
@@ -555,6 +543,12 @@ else
 }
 
 @code {
+    [Parameter] public bool ShowTopProducts { get; set; } = false;
+    [Parameter] public string? PreSelectQuestionId { get; set; }
+    [Parameter] public Guid? PreSelectClientId { get; set; }
+
+    private string? _lastPreSelectQuestionId;
+
     [CascadingParameter]
     private Task<AuthenticationState> AuthState { get; set; } = null!;
 
@@ -594,33 +588,92 @@ else
         var authState = await AuthState;
         UserContext.SetUser(authState.User);
 
+        if (!string.IsNullOrEmpty(PreSelectQuestionId) && PreSelectClientId.HasValue)
+        {
+            _filterClientId = PreSelectClientId;
+            _filterFrom = null;
+            _filterTo = null;
+        }
+        else
+        {
+            _filterTo = DateTime.UtcNow.Date.AddDays(1);
+            _filterFrom = DateTime.UtcNow.Date.AddDays(-7);
+        }
+
         await LoadClientOptionsAsync();
-        // По умолчанию показываем вопросы за последние 7 дней
-        _filterTo = DateTime.UtcNow.Date.AddDays(1);
-        _filterFrom = DateTime.UtcNow.Date.AddDays(-7);
         _ = LoadQuestionCountsAsync();
         await ReloadAsync();
+        _lastPreSelectQuestionId = PreSelectQuestionId;
+        await TryPreSelectAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (PreSelectQuestionId == _lastPreSelectQuestionId) return;
+        _lastPreSelectQuestionId = PreSelectQuestionId;
+        if (string.IsNullOrEmpty(PreSelectQuestionId)) return;
+
+        if (PreSelectClientId.HasValue)
+        {
+            _filterClientId = PreSelectClientId;
+            _filterFrom = null;
+            _filterTo = null;
+        }
+        _filterStatus = null;
+
+        await ReloadAsync();
+        await TryPreSelectAsync();
+    }
+
+    private void TryPreSelect() => _ = TryPreSelectAsync();
+
+    private async Task TryPreSelectAsync()
+    {
+        if (string.IsNullOrEmpty(PreSelectQuestionId)) return;
+
+        var match = _questions.FirstOrDefault(q => q.Id == PreSelectQuestionId);
+
+        if (match is null && PreSelectClientId.HasValue)
+        {
+            try
+            {
+                var extra = await QuestionsService.GetQuestionsPageAsync(
+                    pageSize: 50,
+                    status: null,
+                    marketplaceClientId: PreSelectClientId);
+                match = extra.Questions.FirstOrDefault(q => q.Id == PreSelectQuestionId);
+                if (match is not null && !_questions.Any(q => q.Id == match.Id))
+                    _questions.Insert(0, match);
+            }
+            catch { /* non-critical */ }
+        }
+
+        // Last resort: question not found in paginated results (e.g. old question ranked beyond page 50).
+        // Borrow API credentials from any loaded question for this client — they all share the same ApiId/ApiKey.
+        if (match is null && PreSelectClientId.HasValue)
+        {
+            var credSource = _questions.FirstOrDefault();
+            var clientName = _clientOptions.FirstOrDefault(c => c.Id == PreSelectClientId)?.Name ?? string.Empty;
+            match = new OzonQuestionViewModelDto
+            {
+                Id = PreSelectQuestionId,
+                MarketplaceClientId = PreSelectClientId.Value,
+                MarketplaceClientName = clientName,
+                ApiId = credSource?.ApiId ?? string.Empty,
+                ApiKey = credSource?.ApiKey ?? string.Empty
+            };
+            _questions.Insert(0, match);
+        }
+
+        if (match is not null)
+            SelectQuestion(match);
     }
 
     private async Task LoadClientOptionsAsync()
     {
         try
         {
-            await using var db = Factory.CreateDbContext();
-            var allowedIds = await EntityFilterSvc.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient);
-            var query = db.MarketplaceClients!
-                .AsNoTracking()
-                .Where(c => !c.IsDeleted)
-                .OrderBy(c => c.Name);
-            if (allowedIds is not null)
-                _clientOptions = await query
-                    .Where(c => allowedIds.Contains(c.Id))
-                    .Select(c => new ClientOptionDto { Id = c.Id, Name = c.Name })
-                    .ToListAsync();
-            else
-                _clientOptions = await query
-                    .Select(c => new ClientOptionDto { Id = c.Id, Name = c.Name })
-                    .ToListAsync();
+            _clientOptions = await MarketplaceClientService.GetClientOptionsAsync();
         }
         catch (Exception ex)
         {
@@ -774,7 +827,14 @@ else
         {
             _detail = await QuestionsService.GetQuestionDetailAsync(q);
             _selectedQuestion = _detail.Question;
-            _ = QuestionsService.ChangeQuestionStatusAsync(q, "VIEWED");
+
+            // Sync full API data back into the list entry so the sidebar card
+            // shows correct Text, Sku, Status, PublishedAt etc.
+            // (important when the item was opened via URL last-resort fallback with a minimal DTO)
+            var idx = _questions.FindIndex(x => x.Id == _selectedQuestion.Id &&
+                                               x.MarketplaceClientId == _selectedQuestion.MarketplaceClientId);
+            if (idx >= 0)
+                _questions[idx] = _selectedQuestion;
         }
         catch (Exception ex)
         {

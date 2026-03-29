@@ -1,4 +1,4 @@
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 /// <summary>
 /// Предпросмотр проведения документа: правила и значения для ввода.

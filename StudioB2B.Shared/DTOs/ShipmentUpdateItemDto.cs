@@ -1,4 +1,4 @@
-namespace StudioB2B.Shared.DTOs;
+namespace StudioB2B.Shared;
 
 /// <summary>
 /// Информация об обновлении одного отправления: старый и новый статус.
