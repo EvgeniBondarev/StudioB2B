@@ -126,7 +126,28 @@ private static void ToggleString(List<string> list, string value)
 
 ---
 
-## 5. All models belong to the `StudioB2B.Shared` project
+## 5. One class per file
+
+Each `.cs` file must contain **exactly one** top-level type (class, record, struct, interface, or enum).
+
+**Wrong:**
+```csharp
+// OrderDtos.cs
+public class CreateOrderDto { ... }
+public class UpdateOrderDto { ... }
+public class OrderDto      { ... }
+```
+
+**Correct:**
+```
+CreateOrderDto.cs  → public class CreateOrderDto { ... }
+UpdateOrderDto.cs  → public class UpdateOrderDto { ... }
+OrderDto.cs        → public class OrderDto       { ... }
+```
+
+---
+
+## 6. All models belong to the `StudioB2B.Shared` project
 
 - All DTO and model classes must be placed in the **`StudioB2B.Shared`** project.
 - Subdirectories within `StudioB2B.Shared` are used for file organisation only and must **not** introduce additional namespace levels.

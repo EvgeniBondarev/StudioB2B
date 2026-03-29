@@ -31,22 +31,25 @@ else
 
             <RadzenTabsItem Text="Чаты">
                 <div class="tab-content">
-                    <Chats PreSelectChatId="@(_activeTab == 1 ? _preSelectId : null)"
-                           PreSelectClientId="@(_activeTab == 1 ? _preSelectClientId : null)" />
+                    <Chats @key="@(_activeTab == 1 && _preSelectTab == 1 ? _preSelectId : null)"
+                           PreSelectChatId="@(_activeTab == 1 && _preSelectTab == 1 ? _preSelectId : null)"
+                           PreSelectClientId="@(_activeTab == 1 && _preSelectTab == 1 ? _preSelectClientId : null)" />
                 </div>
             </RadzenTabsItem>
 
             <RadzenTabsItem Text="Отзывы">
                 <div class="tab-content">
-                    <Reviews PreSelectReviewId="@(_activeTab == 2 ? _preSelectId : null)"
-                             PreSelectClientId="@(_activeTab == 2 ? _preSelectClientId : null)" />
+                    <Reviews @key="@(_activeTab == 2 && _preSelectTab == 2 ? _preSelectId : null)"
+                             PreSelectReviewId="@(_activeTab == 2 && _preSelectTab == 2 ? _preSelectId : null)"
+                             PreSelectClientId="@(_activeTab == 2 && _preSelectTab == 2 ? _preSelectClientId : null)" />
                 </div>
             </RadzenTabsItem>
 
             <RadzenTabsItem Text="Вопросы">
                 <div class="tab-content">
-                    <Questions PreSelectQuestionId="@(_activeTab == 3 ? _preSelectId : null)"
-                               PreSelectClientId="@(_activeTab == 3 ? _preSelectClientId : null)" />
+                    <Questions @key="@(_activeTab == 3 && _preSelectTab == 3 ? _preSelectId : null)"
+                               PreSelectQuestionId="@(_activeTab == 3 && _preSelectTab == 3 ? _preSelectId : null)"
+                               PreSelectClientId="@(_activeTab == 3 && _preSelectTab == 3 ? _preSelectClientId : null)" />
                 </div>
             </RadzenTabsItem>
 
@@ -67,12 +70,22 @@ else
     private bool _boardInitialized;
     private string? _preSelectId;
     private Guid? _preSelectClientId;
+    private int _preSelectTab = -1;  // which tab the URL preselect applies to (-1 = none)
 
     protected override void OnInitialized()
     {
         Navigation.LocationChanged += OnLocationChanged;
         ApplyQueryParams();
         if (_activeTab == 0)
+            _boardInitialized = true;
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Called by the Blazor router on every same-page navigation,
+        // even before LocationChanged fires — keep query params in sync.
+        ApplyQueryParams();
+        if (_activeTab == 0 && !_boardInitialized)
             _boardInitialized = true;
     }
 
@@ -96,15 +109,21 @@ else
         _preSelectId = qs.TryGetValue("id", out var idVal) ? idVal.ToString() : null;
         _preSelectClientId = qs.TryGetValue("clientId", out var cidVal) &&
                              Guid.TryParse(cidVal, out var cid) ? cid : null;
+
+        // Record which tab owns this preselect so it isn't forwarded to other tabs
+        _preSelectTab = _preSelectId is not null ? _activeTab : -1;
     }
 
     private void OnTabChanged(int index)
     {
         _activeTab = index;
-        if (index == 0 && !_boardInitialized)
-            _boardInitialized = true;
+        // Clear URL-based preselect when the user manually switches tabs —
+        // a different tab should never inherit another tab's entity ID.
         _preSelectId = null;
         _preSelectClientId = null;
+        _preSelectTab = -1;
+        if (index == 0 && !_boardInitialized)
+            _boardInitialized = true;
     }
 
     public void Dispose()
