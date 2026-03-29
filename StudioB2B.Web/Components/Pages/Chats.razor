@@ -179,10 +179,13 @@ else
                                                      Text="@chat.UnreadCount.ToString()"
                                                      Class="badge-unread-msg"/>
                                     }
-                                    <span class="chat-item-date"
-                                          title="@chat.LastMessageAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">
-                                        @FormatTimeAgo(chat.LastMessageAt)
-                                    </span>
+                                    @if (chat.LastMessageAt != default)
+                                    {
+                                        <span class="chat-item-date"
+                                              title="@chat.LastMessageAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")">
+                                            @FormatTimeAgo(chat.LastMessageAt)
+                                        </span>
+                                    }
                                 </div>
                             </div>
 
@@ -190,9 +193,12 @@ else
                                 <RadzenBadge BadgeStyle="@GetStatusBadgeStyle(chat.ChatStatus)"
                                              Text="@GetStatusLabel(chat.ChatStatus)"
                                              Style="font-size: 0.65rem; padding: 2px 6px;" />
-                                <RadzenBadge BadgeStyle="@GetTypeBadgeStyle(chat.ChatType)"
-                                             Text="@GetTypeLabel(chat.ChatType)"
-                                             Style="font-size: 0.65rem; padding: 2px 6px;" />
+                                @if (!string.IsNullOrEmpty(chat.ChatType))
+                                {
+                                    <RadzenBadge BadgeStyle="@GetTypeBadgeStyle(chat.ChatType)"
+                                                 Text="@GetTypeLabel(chat.ChatType)"
+                                                 Style="font-size: 0.65rem; padding: 2px 6px;" />
+                                }
                             </div>
                         </RadzenCard>
                     }
@@ -262,7 +268,7 @@ else
                               FirstUnreadOnOpen="_firstUnreadOnOpen"
                               LoadingHistory="_loadingHistory"
                               SelectedChat="_selectedChat"
-                              OpenLightbox="OpenLightbox"/>
+                              OpenGallery="OnOpenGallery"/>
 
                 <!-- Input footer -->
                 @if (_selectedChat.ChatStatus == "OPENED")
@@ -289,17 +295,36 @@ else
         </div>
     </div> <!-- /.chats-layout -->
 
-    @if (_lightboxSrc is not null)
+    @if (_galleryCurrentIndex >= 0 && _galleryItems.Any())
     {
-        <div class="lightbox-overlay" @onclick="CloseLightbox">
-            <button class="lightbox-close" @onclick:stopPropagation="true" @onclick="CloseLightbox"
-                    title="Закрыть (Esc)">
-                <RadzenIcon Icon="close" />
-            </button>
+        <div class="lightbox-overlay" tabindex="0" @ref="_galleryDiv" @onkeydown="GalleryNavigate"
+             @onclick="GalleryClose">
+
+            @if (_galleryItems.Count > 1)
+            {
+                <RadzenButton Icon="chevron_left" ButtonStyle="ButtonStyle.Light"
+                              @onclick:stopPropagation="true"
+                              class="lightbox-arrow left"
+                              Click="GalleryPrev"/>
+            }
+
             <img class="lightbox-image"
-                 src="@_lightboxSrc"
+                 src="@_galleryItems[_galleryCurrentIndex]"
                  alt="изображение"
-                 @onclick:stopPropagation="true" />
+                 @onclick:stopPropagation="true"/>
+
+            @if (_galleryItems.Count > 1)
+            {
+                <RadzenButton Icon="chevron_right" ButtonStyle="ButtonStyle.Primary"
+                              @onclick:stopPropagation="true"
+                              class="lightbox-arrow right"
+                              Click="GalleryNext"/>
+            }
+
+            <button class="lightbox-close" @onclick:stopPropagation="true" @onclick="GalleryClose"
+                    title="Закрыть (Esc)">
+                <RadzenIcon Icon="close"/>
+            </button>
         </div>
     }
 
@@ -334,7 +359,9 @@ else
     private bool _hasMoreChats;
 
     private string _messageText = string.Empty;
-    private string? _lightboxSrc;
+    private List<string> _galleryItems = new();
+    private int _galleryCurrentIndex = -1;
+    private ElementReference _galleryDiv;
 
     private static readonly string[] QuickReplies =
     [
@@ -344,8 +371,46 @@ else
         "Оформите возврат"
     ];
 
-    private void OpenLightbox(string src) { _lightboxSrc = src; }
-    private void CloseLightbox() { _lightboxSrc = null; }
+    private void OnOpenGallery((List<string> Items, int Index) args)
+    {
+        _galleryItems = args.Items;
+        _galleryCurrentIndex = args.Index;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Yield();
+            await _galleryDiv.FocusAsync();
+        });
+    }
+
+    private void GalleryNext()
+    {
+        if (_galleryItems.Count == 0) return;
+        _galleryCurrentIndex = (_galleryCurrentIndex + 1) % _galleryItems.Count;
+    }
+
+    private void GalleryPrev()
+    {
+        if (_galleryItems.Count == 0) return;
+        _galleryCurrentIndex = (_galleryCurrentIndex - 1 + _galleryItems.Count) % _galleryItems.Count;
+    }
+
+    private void GalleryClose()
+    {
+        _galleryCurrentIndex = -1;
+    }
+
+    private void GalleryNavigate(KeyboardEventArgs e)
+    {
+        if (_galleryCurrentIndex < 0) return;
+        switch (e.Key)
+        {
+            case "ArrowLeft": GalleryPrev(); break;
+            case "ArrowRight": GalleryNext(); break;
+            case "Escape": GalleryClose(); break;
+        }
+        StateHasChanged();
+    }
+
     private IBrowserFile? _attachedFile;
     private string? _attachedBase64;
 
@@ -383,6 +448,8 @@ else
     [Parameter] public string? PreSelectChatId { get; set; }
     [Parameter] public Guid? PreSelectClientId { get; set; }
 
+    private string? _lastPreSelectChatId;
+
     [Inject]
     private IJSRuntime Js { get; set; } = null!;
 
@@ -396,8 +463,12 @@ else
         var authState = await AuthState;
         UserContext.SetUser(authState.User);
 
+        if (!string.IsNullOrEmpty(PreSelectChatId) && PreSelectClientId.HasValue)
+            _filterClientId = PreSelectClientId;
+
         await LoadClientOptionsAsync();
         await LoadChatsAsync();
+        _lastPreSelectChatId = PreSelectChatId;
         await TryPreSelectAsync();
 
         _pollingTimer = new Timer(
@@ -405,6 +476,14 @@ else
             state: null,
             dueTime: TimeSpan.FromSeconds(30),
             period: TimeSpan.FromSeconds(30));
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (PreSelectChatId == _lastPreSelectChatId) return;
+        _lastPreSelectChatId = PreSelectChatId;
+        if (!string.IsNullOrEmpty(PreSelectChatId))
+            await TryPreSelectAsync();
     }
 
     private async Task TryPreSelectAsync()
@@ -422,8 +501,58 @@ else
                 _chats.Insert(0, match);
         }
 
+        // Last resort: chat not found in paginated results (e.g. old/idle chat ranked beyond page 50).
+        // Construct a minimal entry directly — all service calls only need MarketplaceClientId + ChatId.
+        if (match is null && PreSelectClientId.HasValue)
+        {
+            var clientName = _clientOptions.FirstOrDefault(c => c.Id == PreSelectClientId)?.Name ?? string.Empty;
+            match = new OzonChatViewModelDto
+            {
+                ChatId = PreSelectChatId,
+                MarketplaceClientId = PreSelectClientId.Value,
+                MarketplaceClientName = clientName,
+                ChatStatus = "OPENED"
+            };
+            _chats.Insert(0, match);
+        }
+
         if (match is not null)
+        {
             await SelectChatAsync(match);
+
+            // If this is a minimal fallback DTO (no ChatType / ApiKey), enrich with full metadata
+            // in the background by searching a wider page. Same object reference as _chats[0]
+            // and _selectedChat, so mutating it refreshes both sidebar card and right-panel header.
+            if (string.IsNullOrEmpty(match.ChatType))
+                _ = TryEnrichChatAsync(match);
+        }
+    }
+
+    private async Task TryEnrichChatAsync(OzonChatViewModelDto chat)
+    {
+        try
+        {
+            var page = await ChatService.GetChatsPageAsync(
+                pageSize: 200, chatStatus: null, chatType: null, unreadOnly: false,
+                marketplaceClientId: chat.MarketplaceClientId);
+
+            var full = page.Chats.FirstOrDefault(c => c.ChatId == chat.ChatId);
+            if (full is null) return;
+
+            // Update in-place — same reference as _chats[0] and _selectedChat
+            chat.ChatType = full.ChatType;
+            chat.ChatStatus = full.ChatStatus;
+            chat.CreatedAt = full.CreatedAt;
+            chat.UnreadCount = full.UnreadCount;
+            chat.FirstUnreadMessageId = full.FirstUnreadMessageId;
+            chat.LastMessageId = full.LastMessageId;
+            chat.ApiId = full.ApiId;
+            chat.ApiKey = full.ApiKey;
+            // LastMessageAt is already up-to-date from LoadHistoryAsync — do not overwrite
+
+            await InvokeAsync(StateHasChanged);
+        }
+        catch { /* non-critical */ }
     }
 
     public void Dispose()
@@ -448,9 +577,9 @@ else
     [JSInvokable]
     public void HandleKeyEscape()
     {
-        if (_lightboxSrc is not null)
+        if (_galleryCurrentIndex >= 0)
         {
-            CloseLightbox();
+            GalleryClose();
             InvokeAsync(StateHasChanged);
         }
     }

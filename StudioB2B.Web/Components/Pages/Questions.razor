@@ -547,6 +547,8 @@ else
     [Parameter] public string? PreSelectQuestionId { get; set; }
     [Parameter] public Guid? PreSelectClientId { get; set; }
 
+    private string? _lastPreSelectQuestionId;
+
     [CascadingParameter]
     private Task<AuthenticationState> AuthState { get; set; } = null!;
 
@@ -601,13 +603,68 @@ else
         await LoadClientOptionsAsync();
         _ = LoadQuestionCountsAsync();
         await ReloadAsync();
-        TryPreSelect();
+        _lastPreSelectQuestionId = PreSelectQuestionId;
+        await TryPreSelectAsync();
     }
 
-    private void TryPreSelect()
+    protected override async Task OnParametersSetAsync()
+    {
+        if (PreSelectQuestionId == _lastPreSelectQuestionId) return;
+        _lastPreSelectQuestionId = PreSelectQuestionId;
+        if (string.IsNullOrEmpty(PreSelectQuestionId)) return;
+
+        if (PreSelectClientId.HasValue)
+        {
+            _filterClientId = PreSelectClientId;
+            _filterFrom = null;
+            _filterTo = null;
+        }
+        _filterStatus = null;
+
+        await ReloadAsync();
+        await TryPreSelectAsync();
+    }
+
+    private void TryPreSelect() => _ = TryPreSelectAsync();
+
+    private async Task TryPreSelectAsync()
     {
         if (string.IsNullOrEmpty(PreSelectQuestionId)) return;
+
         var match = _questions.FirstOrDefault(q => q.Id == PreSelectQuestionId);
+
+        if (match is null && PreSelectClientId.HasValue)
+        {
+            try
+            {
+                var extra = await QuestionsService.GetQuestionsPageAsync(
+                    pageSize: 50,
+                    status: null,
+                    marketplaceClientId: PreSelectClientId);
+                match = extra.Questions.FirstOrDefault(q => q.Id == PreSelectQuestionId);
+                if (match is not null && !_questions.Any(q => q.Id == match.Id))
+                    _questions.Insert(0, match);
+            }
+            catch { /* non-critical */ }
+        }
+
+        // Last resort: question not found in paginated results (e.g. old question ranked beyond page 50).
+        // Borrow API credentials from any loaded question for this client — they all share the same ApiId/ApiKey.
+        if (match is null && PreSelectClientId.HasValue)
+        {
+            var credSource = _questions.FirstOrDefault();
+            var clientName = _clientOptions.FirstOrDefault(c => c.Id == PreSelectClientId)?.Name ?? string.Empty;
+            match = new OzonQuestionViewModelDto
+            {
+                Id = PreSelectQuestionId,
+                MarketplaceClientId = PreSelectClientId.Value,
+                MarketplaceClientName = clientName,
+                ApiId = credSource?.ApiId ?? string.Empty,
+                ApiKey = credSource?.ApiKey ?? string.Empty
+            };
+            _questions.Insert(0, match);
+        }
+
         if (match is not null)
             SelectQuestion(match);
     }
@@ -770,6 +827,14 @@ else
         {
             _detail = await QuestionsService.GetQuestionDetailAsync(q);
             _selectedQuestion = _detail.Question;
+
+            // Sync full API data back into the list entry so the sidebar card
+            // shows correct Text, Sku, Status, PublishedAt etc.
+            // (important when the item was opened via URL last-resort fallback with a minimal DTO)
+            var idx = _questions.FindIndex(x => x.Id == _selectedQuestion.Id &&
+                                               x.MarketplaceClientId == _selectedQuestion.MarketplaceClientId);
+            if (idx >= 0)
+                _questions[idx] = _selectedQuestion;
         }
         catch (Exception ex)
         {

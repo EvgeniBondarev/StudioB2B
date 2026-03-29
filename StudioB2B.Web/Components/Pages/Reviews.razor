@@ -593,6 +593,8 @@ else
     [Parameter] public string? PreSelectReviewId { get; set; }
     [Parameter] public Guid? PreSelectClientId { get; set; }
 
+    private string? _lastPreSelectReviewId;
+
     [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = null!;
 
     private List<ClientOptionDto> _clientOptions = new();
@@ -631,13 +633,64 @@ else
         await LoadClientOptionsAsync();
         _ = LoadReviewCountsAsync();
         await ReloadAsync();
-        TryPreSelect();
+        _lastPreSelectReviewId = PreSelectReviewId;
+        await TryPreSelectAsync();
     }
 
-    private void TryPreSelect()
+    protected override async Task OnParametersSetAsync()
+    {
+        if (PreSelectReviewId == _lastPreSelectReviewId) return;
+        _lastPreSelectReviewId = PreSelectReviewId;
+        if (string.IsNullOrEmpty(PreSelectReviewId)) return;
+
+        if (PreSelectClientId.HasValue)
+            _filterClientId = PreSelectClientId;
+        _filterStatus = null;
+
+        await ReloadAsync();
+        await TryPreSelectAsync();
+    }
+
+    private void TryPreSelect() => _ = TryPreSelectAsync();
+
+    private async Task TryPreSelectAsync()
     {
         if (string.IsNullOrEmpty(PreSelectReviewId)) return;
+
         var match = _reviews.FirstOrDefault(r => r.Id == PreSelectReviewId);
+
+        if (match is null && PreSelectClientId.HasValue)
+        {
+            try
+            {
+                var extra = await ReviewsService.GetReviewsPageAsync(
+                    pageSize: 50,
+                    status: null,
+                    marketplaceClientId: PreSelectClientId);
+                match = extra.Reviews.FirstOrDefault(r => r.Id == PreSelectReviewId);
+                if (match is not null && !_reviews.Any(r => r.Id == match.Id))
+                    _reviews.Insert(0, match);
+            }
+            catch { /* non-critical */ }
+        }
+
+        // Last resort: review not found in paginated results (e.g. old review ranked beyond page 50).
+        // Borrow API credentials from any loaded review for this client — they all share the same ApiId/ApiKey.
+        if (match is null && PreSelectClientId.HasValue)
+        {
+            var credSource = _reviews.FirstOrDefault();
+            var clientName = _clientOptions.FirstOrDefault(c => c.Id == PreSelectClientId)?.Name ?? string.Empty;
+            match = new OzonReviewViewModelDto
+            {
+                Id = PreSelectReviewId,
+                MarketplaceClientId = PreSelectClientId.Value,
+                MarketplaceClientName = clientName,
+                ApiId = credSource?.ApiId ?? string.Empty,
+                ApiKey = credSource?.ApiKey ?? string.Empty
+            };
+            _reviews.Insert(0, match);
+        }
+
         if (match is not null)
             SelectReview(match);
     }
@@ -747,6 +800,14 @@ else
         {
             _detail = await ReviewsService.GetReviewDetailAsync(r);
             _selectedReview = _detail.Review;
+
+            // Sync full API data back into the list entry so the sidebar card
+            // shows correct Rating, Text, Sku, Status, PublishedAt etc.
+            // (important when the item was opened via URL last-resort fallback with a minimal DTO)
+            var idx = _reviews.FindIndex(x => x.Id == _selectedReview.Id &&
+                                              x.MarketplaceClientId == _selectedReview.MarketplaceClientId);
+            if (idx >= 0)
+                _reviews[idx] = _selectedReview;
         }
         catch (Exception ex)
         {

@@ -51,58 +51,69 @@ public class CommunicationTaskService : ICommunicationTaskService
     {
         _db.ChangeTracker.Clear();
 
-        var query = _db.CommunicationTasks
-            .Include(t => t.MarketplaceClient)
-            .Include(t => t.AssignedToUser)
-            .Include(t => t.TimeEntries)
+        // Base predicate (no entity loads, no joins via Include)
+        var baseQuery = _db.CommunicationTasks
             .AsNoTracking()
             .Where(t => !t.IsDeleted &&
-                        // Only show BUYER_SELLER chats (or legacy tasks with no ChatType set)
                         (t.TaskType != CommunicationTaskType.Chat ||
                          t.ChatType == null ||
                          t.ChatType == "BUYER_SELLER"));
 
         if (filter.TaskType.HasValue)
-            query = query.Where(t => t.TaskType == filter.TaskType.Value);
-        if (filter.Status.HasValue)
-            query = query.Where(t => t.Status == filter.Status.Value);
+            baseQuery = baseQuery.Where(t => t.TaskType == filter.TaskType.Value);
         if (filter.AssignedToUserId.HasValue)
-            query = query.Where(t => t.AssignedToUserId == filter.AssignedToUserId.Value);
+            baseQuery = baseQuery.Where(t => t.AssignedToUserId == filter.AssignedToUserId.Value);
         if (filter.MarketplaceClientId.HasValue)
-            query = query.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
+            baseQuery = baseQuery.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
+
+        // Projection: only the columns the board cards actually need.
+        // HasActiveTimer uses a correlated EXISTS — no TimeEntries rows transferred.
+        var activeItems = await baseQuery
+            .Where(t => t.Status == CommunicationTaskStatus.New ||
+                        t.Status == CommunicationTaskStatus.InProgress)
+            .OrderByDescending(t => t.CreatedAt)
+            .Select(ProjectToCardDto())
+            .ToListAsync(ct);
+
+        var doneQuery = baseQuery
+            .Where(t => t.Status == CommunicationTaskStatus.Done ||
+                        t.Status == CommunicationTaskStatus.Cancelled);
+
         if (filter.From.HasValue)
-            query = query.Where(t => t.CreatedAt >= filter.From.Value);
+            doneQuery = doneQuery.Where(t => t.CreatedAt >= filter.From.Value);
         if (filter.To.HasValue)
-            query = query.Where(t => t.CreatedAt <= filter.To.Value);
+            doneQuery = doneQuery.Where(t => t.CreatedAt <= filter.To.Value);
 
-        var tasks = await query.OrderByDescending(t => t.CreatedAt).ToListAsync(ct);
+        var doneTotalCount = await doneQuery.CountAsync(ct);
+        var doneItems = await doneQuery
+            .OrderByDescending(t => t.CreatedAt)
+            .Take(filter.DoneTake)
+            .Select(ProjectToCardDto())
+            .ToListAsync(ct);
 
-        var result = new TaskBoardDto();
+        // TypeCounts: a single GROUP BY COUNT — no row transfer
+        var typeCounts = await baseQuery
+            .GroupBy(t => t.TaskType)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync(ct);
 
-        foreach (var t in tasks)
+        var result = new TaskBoardDto
         {
-            var dto = MapToDto(t);
+            DoneTotalCount = doneTotalCount,
+            TypeCounts = typeCounts.ToDictionary(x => x.Key, x => x.Count)
+        };
 
-            switch (t.Status)
-            {
-                case CommunicationTaskStatus.New:
-                    result.NewTasks.Add(dto);
-                    break;
-                case CommunicationTaskStatus.InProgress:
-                    result.InProgressTasks.Add(dto);
-                    break;
-                case CommunicationTaskStatus.Done:
-                case CommunicationTaskStatus.Cancelled:
-                    result.DoneTasks.Add(dto);
-                    break;
-            }
+        foreach (var dto in activeItems)
+        {
+            if (dto.Status == CommunicationTaskStatus.New)
+                result.NewTasks.Add(dto);
+            else
+                result.InProgressTasks.Add(dto);
         }
 
-        result.TypeCounts = tasks
-            .GroupBy(t => t.TaskType)
-            .ToDictionary(g => g.Key, g => g.Count());
+        result.DoneTasks.AddRange(doneItems);
 
-        // Compute payment estimates from active global (non-user-specific) rates
+        // Payment estimates from active global (non-user-specific) rates
         var activeRates = await _db.CommunicationPaymentRates
             .AsNoTracking()
             .Where(r => r.IsActive && r.UserId == null)
@@ -110,7 +121,8 @@ public class CommunicationTaskService : ICommunicationTaskService
 
         foreach (var type in new[] { CommunicationTaskType.Chat, CommunicationTaskType.Question, CommunicationTaskType.Review })
         {
-            var matching = activeRates.Where(r => r.TaskType == null || r.TaskType == type);
+            var matching = activeRates.Where(r => r.TaskType == null || r.TaskType == type).ToList();
+
             var perTask = matching
                 .Where(r => r.PaymentMode == PaymentMode.PerTask && !r.MinDurationMinutes.HasValue)
                 .Sum(r => r.Rate);
@@ -123,6 +135,77 @@ public class CommunicationTaskService : ICommunicationTaskService
         }
 
         return result;
+    }
+
+    public async Task<(List<CommunicationTaskDto> Items, int TotalCount)> GetDoneTasksPageAsync(
+        CommunicationTaskFilter filter, int skip, int take, CancellationToken ct = default)
+    {
+        _db.ChangeTracker.Clear();
+
+        var query = _db.CommunicationTasks
+            .AsNoTracking()
+            .Where(t => !t.IsDeleted &&
+                        (t.TaskType != CommunicationTaskType.Chat ||
+                         t.ChatType == null ||
+                         t.ChatType == "BUYER_SELLER") &&
+                        (t.Status == CommunicationTaskStatus.Done ||
+                         t.Status == CommunicationTaskStatus.Cancelled));
+
+        if (filter.TaskType.HasValue)
+            query = query.Where(t => t.TaskType == filter.TaskType.Value);
+        if (filter.AssignedToUserId.HasValue)
+            query = query.Where(t => t.AssignedToUserId == filter.AssignedToUserId.Value);
+        if (filter.MarketplaceClientId.HasValue)
+            query = query.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
+        if (filter.From.HasValue)
+            query = query.Where(t => t.CreatedAt >= filter.From.Value);
+        if (filter.To.HasValue)
+            query = query.Where(t => t.CreatedAt <= filter.To.Value);
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .OrderByDescending(t => t.CreatedAt)
+            .Skip(skip)
+            .Take(take)
+            .Select(ProjectToCardDto())
+            .ToListAsync(ct);
+
+        return (items, total);
+    }
+
+    /// <summary>
+    /// Projection expression used in board queries.
+    /// Avoids loading related entities; computes HasActiveTimer via a correlated EXISTS.
+    /// </summary>
+    private static System.Linq.Expressions.Expression<Func<CommunicationTask, CommunicationTaskDto>> ProjectToCardDto()
+    {
+        return t => new CommunicationTaskDto
+        {
+            Id = t.Id,
+            TaskType = t.TaskType,
+            ExternalId = t.ExternalId,
+            MarketplaceClientId = t.MarketplaceClientId,
+            MarketplaceClientName = t.MarketplaceClient != null ? t.MarketplaceClient.Name : "—",
+            Status = t.Status,
+            AssignedToUserId = t.AssignedToUserId,
+            AssignedToUserName = t.AssignedToUser != null
+                ? t.AssignedToUser.FirstName + " " + t.AssignedToUser.LastName
+                : null,
+            AssignedAt = t.AssignedAt,
+            StartedAt = t.StartedAt,
+            CompletedAt = t.CompletedAt,
+            TotalTimeSpentTicks = t.TotalTimeSpentTicks,
+            Title = t.Title,
+            PreviewText = t.PreviewText,
+            ExternalStatus = t.ExternalStatus,
+            ChatType = t.ChatType,
+            UnreadCount = t.UnreadCount,
+            ExternalUrl = t.ExternalUrl,
+            PaymentAmount = t.PaymentAmount,
+            CreatedAt = t.CreatedAt,
+            UpdatedAt = t.UpdatedAt,
+            HasActiveTimer = t.TimeEntries.Any(e => e.EndedAt == null)
+        };
     }
 
     public async Task<CommunicationTaskDetailDto?> GetTaskDetailAsync(Guid taskId, CancellationToken ct = default)

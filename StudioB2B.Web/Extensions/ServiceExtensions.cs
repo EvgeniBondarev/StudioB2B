@@ -34,6 +34,15 @@ public static class ServiceExtensions
 
         services.AddInfrastructure(configuration);
 
+        // Специальный клиент для скачивания файлов из Ozon Chat API.
+        // AllowAutoRedirect = false: следуем редиректам вручную в ChatFileProxyController,
+        // иначе HttpClient теряет кастомные заголовки Client-Id / Api-Key при редиректе.
+        services.AddHttpClient("OzonFileProxy")
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = false
+            });
+
         services.AddSignalR();
         services.AddScoped<ISyncNotificationSender, SyncNotificationSender>();
         services.AddScoped<ITaskBoardNotificationSender, TaskBoardNotificationSender>();
@@ -43,6 +52,7 @@ public static class ServiceExtensions
         services.AddScoped<TooltipService>();
         services.AddScoped<ContextMenuService>();
         services.AddScoped<TabService>();
+        services.AddScoped<TaskBoardStateService>();
         services.AddSingleton<NavService>();
         services.AddSingleton<PageRegistry>();
 

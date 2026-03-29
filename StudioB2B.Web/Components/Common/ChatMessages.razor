@@ -51,16 +51,19 @@
                     <div class="chat-message-bubble @(isSeller ? "from-seller" : "from-customer")">
                         @if (msg.IsImage)
                         {
-                            @foreach (var d in msg.Data)
+                            @for (var imgI = 0; imgI < msg.Data.Count; imgI++)
                             {
-                                @if (!string.IsNullOrWhiteSpace(d))
+                                var dataItem = msg.Data[imgI];
+                                if (!string.IsNullOrWhiteSpace(dataItem))
                                 {
-                                    var imgSrc = GetImageSrc(d);
+                                    var imgSrc = GetImageSrc(dataItem);
+                                    var capturedMsg = msg;
+                                    var capturedItem = dataItem;
                                     <img class="chat-message-image"
                                          src="@imgSrc"
                                          alt="изображение"
-                                         loading="lazy"
-                                         @onclick="@(() => OpenLightbox.InvokeAsync(imgSrc))"
+                                         loading="@(EagerImages ? "eager" : "lazy")"
+                                         @onclick="@(() => OnImageClick(capturedMsg, capturedItem))"
                                          title="Нажмите для просмотра"/>
                                 }
                             }
@@ -119,6 +122,36 @@
     [Parameter] public OzonChatViewModelDto? SelectedChat { get; set; }
 
     [Parameter] public EventCallback<string> OpenLightbox { get; set; }
+
+    [Parameter] public EventCallback<(List<string> Items, int Index)> OpenGallery { get; set; }
+
+    /// <summary>
+    /// Если true — картинки загружаются немедленно (eager), иначе — лениво (lazy).
+    /// Передавайте true, когда компонент находится внутри CSS-анимированного контейнера
+    /// (например, task-detail-overlay), чтобы браузер не пропустил момент пересечения.
+    /// </summary>
+    [Parameter] public bool EagerImages { get; set; } = false;
+
+    private void OnImageClick(OzonChatMessageDto msg, string clickedData)
+    {
+        var items = msg.Data
+            .Where(d => !string.IsNullOrWhiteSpace(d))
+            .Select(GetImageSrc)
+            .ToList();
+
+        var clickedSrc = GetImageSrc(clickedData);
+        var index = items.IndexOf(clickedSrc);
+        if (index < 0) index = 0;
+
+        if (OpenGallery.HasDelegate)
+        {
+            _ = OpenGallery.InvokeAsync((items, index));
+            return;
+        }
+
+        if (OpenLightbox.HasDelegate)
+            _ = OpenLightbox.InvokeAsync(clickedSrc);
+    }
 
     private static bool IsSellerMessage(OzonChatMessageDto msg) =>
         msg.User?.Type is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT";
@@ -220,10 +253,14 @@
     {
         if (string.IsNullOrWhiteSpace(data)) return string.Empty;
 
+        // 1. Markdown-wrapped Ozon URL: [text](https://api-seller.ozon.ru/v2/chat/file/...)
         var url = ExtractOzonFileUrl(data);
         if (url is not null) return GetProxyUrl(url);
 
-        // Pure base64
+        // 2. Plain Ozon URL (no markdown wrapper)
+        if (IsOzonChatFileUrl(data)) return GetProxyUrl(data);
+
+        // 3. Pure base64
         var mime = data.Length > 10 && data[0] == '/' ? "image/jpeg"
             : data.Length > 10 && data.StartsWith("iVBOR") ? "image/png"
             : "image/jpeg";
