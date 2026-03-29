@@ -67,11 +67,19 @@ public class CommunicationTimeEntryDto
 public class CommunicationTaskFilter
 {
     public CommunicationTaskType? TaskType { get; set; }
+
     public CommunicationTaskStatus? Status { get; set; }
+
     public Guid? AssignedToUserId { get; set; }
+
     public Guid? MarketplaceClientId { get; set; }
+
     public DateTime? From { get; set; }
+
     public DateTime? To { get; set; }
+
+    /// <summary>How many Done/Cancelled tasks to return in GetBoardAsync.</summary>
+    public int DoneTake { get; set; } = 25;
 }
 
 public class UserTaskStatsDto
@@ -180,13 +188,19 @@ public class CommunicationPaymentRateDto
 public class TaskBoardDto
 {
     public List<CommunicationTaskDto> NewTasks { get; set; } = new();
+
     public List<CommunicationTaskDto> InProgressTasks { get; set; } = new();
+
     public List<CommunicationTaskDto> DoneTasks { get; set; } = new();
+
+    /// <summary>Total Done/Cancelled count in the DB (for infinite scroll).</summary>
+    public int DoneTotalCount { get; set; }
 
     public Dictionary<CommunicationTaskType, int> TypeCounts { get; set; } = new();
 
     /// <summary>Estimated flat PerTask payment per task type (global rates, no min duration).</summary>
     public Dictionary<CommunicationTaskType, decimal> PaymentEstimates { get; set; } = new();
+
     /// <summary>Hourly rate per task type (global rates, no min duration).</summary>
     public Dictionary<CommunicationTaskType, decimal> HourlyEstimates { get; set; } = new();
 }
