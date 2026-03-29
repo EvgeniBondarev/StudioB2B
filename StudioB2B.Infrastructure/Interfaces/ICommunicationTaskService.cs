@@ -5,6 +5,11 @@ namespace StudioB2B.Infrastructure.Interfaces;
 public interface ICommunicationTaskService
 {
     Task<TaskBoardDto> GetBoardAsync(CommunicationTaskFilter filter, CancellationToken ct = default);
+
+    /// <summary>Returns a paginated page of Done/Cancelled tasks projected directly to DTOs.</summary>
+    Task<(List<CommunicationTaskDto> Items, int TotalCount)> GetDoneTasksPageAsync(
+        CommunicationTaskFilter filter, int skip, int take, CancellationToken ct = default);
+
     Task<CommunicationTaskDetailDto?> GetTaskDetailAsync(Guid taskId, CancellationToken ct = default);
 
     /// <summary>Atomic claim: assigns task to user and starts timer. Returns false if already claimed.</summary>

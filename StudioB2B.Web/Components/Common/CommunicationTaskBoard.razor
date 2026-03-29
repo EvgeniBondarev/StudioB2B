@@ -16,13 +16,18 @@
 @inject ICurrentUserProvider CurrentUser
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject TaskBoardStateService BoardState
+@inject UserContext UserContext
 
 @implements IAsyncDisposable
 
 <link rel="stylesheet" href="css/taskboard.css" />
 <link rel="stylesheet" href="css/chats/chatMessages.css" />
+<script src="js/taskboard.js"></script>
 
 <div class="taskboard-root">
+
 
     <div class="taskboard-filters">
         <div class="taskboard-filters-row">
@@ -31,7 +36,7 @@
                   style="background:@(allActive ? "var(--rz-primary)" : "var(--rz-base-200)"); color:@(allActive ? "#fff" : "var(--rz-text-color)");"
                   @onclick="@(() => SetFilter(null))">
                 Все
-                <span class="q-pill-count">@(_board.NewTasks.Count + _board.InProgressTasks.Count + _board.DoneTasks.Count)</span>
+                <span class="q-pill-count">@(_board.NewTasks.Count + _board.InProgressTasks.Count + _board.DoneTotalCount)</span>
             </span>
             <span class="q-pill type-chat @(_filterType == CommunicationTaskType.Chat ? "active" : "")"
                   @onclick="@(() => SetFilter(CommunicationTaskType.Chat))">
@@ -51,10 +56,6 @@
 
             <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 4px;"></span>
 
-            @if (_syncing)
-            {
-                <RadzenBadge BadgeStyle="BadgeStyle.Info" Text="Синхронизация..." IsPill="true" Style="font-size:0.75rem;" />
-            }
             <RadzenButton Icon="cloud_sync" ButtonStyle="ButtonStyle.Light"
                           Size="ButtonSize.ExtraSmall" Click="@FullSyncAndReloadAsync"
                           IsBusy="@_syncing" title="Полная синхронизация" />
@@ -72,6 +73,37 @@
     </div>
 
     <div class="taskboard-columns">
+
+        @if (_loading || _syncing)
+        {
+            @for (var col = 0; col < 3; col++)
+            {
+                <div class="taskboard-column">
+                    <div class="taskboard-column-header" style="opacity:0.5;">
+                        <div class="skeleton-line title"></div>
+                        <div class="skeleton-line short"></div>
+                    </div>
+                    <div class="taskboard-column-body">
+                        @for (var i = 0; i < 4; i++)
+                        {
+                            <div class="skeleton-card">
+                                <div style="display:flex;gap:0.5rem;align-items:center;">
+                                    <div class="skeleton-line short" style="width:48px;height:18px;border-radius:10px;"></div>
+                                    <div class="skeleton-line title"></div>
+                                </div>
+                                <div class="skeleton-line long"></div>
+                                <div style="display:flex;justify-content:space-between;margin-top:0.1rem;">
+                                    <div class="skeleton-line short"></div>
+                                    <div class="skeleton-line short" style="width:30%;"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
 
         <!-- NEW -->
         <div class="taskboard-column col-new">
@@ -212,16 +244,16 @@
         <div class="taskboard-column col-done">
             <div class="taskboard-column-header">
                 <span>Выполненные</span>
-                <span class="taskboard-column-count">@FilteredDone.Count</span>
+                <span class="taskboard-column-count">@_board.DoneTotalCount</span>
             </div>
             <div class="taskboard-column-body">
-                @if (FilteredDone.Count == 0)
+                @if (FilteredDone.Count == 0 && !_loadingMore)
                 {
                     <div class="taskboard-empty"><RadzenIcon Icon="check_circle_outline" /><span>Пока нет выполненных</span></div>
                 }
                 else
                 {
-                    @foreach (var task in FilteredDone.Take(50))
+                    @foreach (var task in FilteredDone)
                     {
                         <div class="task-card" @onclick="@(() => OnCardClick(task))">
                             <div class="task-card-header">
@@ -249,9 +281,23 @@
                             </div>
                         </div>
                     }
+
+                    @if (_loadingMore)
+                    {
+                        <div style="display:flex;justify-content:center;padding:0.75rem;gap:0.4rem;color:var(--rz-text-secondary-color);font-size:0.82rem;">
+                            <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate" Size="ProgressBarCircularSize.ExtraSmall" />
+                            Загрузка...
+                        </div>
+                    }
+                    else if (_board.DoneTasks.Count < _board.DoneTotalCount)
+                    {
+                        <div @ref="_doneSentinel" style="height:1px;"></div>
+                    }
                 }
             </div>
         </div>
+
+        } @* end else !_loading *@
     </div>
 </div>
 
@@ -289,7 +335,7 @@
             <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="ClosePreview" />
         </div>
-        <div class="task-detail-body" style="max-height:70vh; overflow-y:auto;">
+        <div class="task-detail-body" style="@(_previewTask.TaskType == CommunicationTaskType.Chat ? "overflow:hidden;" : "overflow-y:auto;")">
 
             @if (_previewLoading)
             {
@@ -407,39 +453,14 @@
                 }
 
                 @* ── Chat preview ── *@
-                @if (_previewTask.TaskType == CommunicationTaskType.Chat && _chatMessages.Count > 0)
+                @if (_previewTask.TaskType == CommunicationTaskType.Chat)
                 {
-                    <div class="chat-messages-area" style="max-height:55vh;overflow-y:auto;padding:0.5rem;">
-                        @foreach (var msg in _chatMessages)
-                        {
-                            var isSeller = IsSellerMessage(msg);
-                            <div class="chat-message-row @(isSeller ? "from-seller" : "from-customer")">
-                                <div class="chat-avatar @(isSeller ? "seller" : "customer")" title="@GetSenderLabel(msg)">
-                                    @(isSeller ? "П" : "К")
-                                </div>
-                                <div class="chat-bubble-wrap">
-                                    <div class="chat-message-sender">@GetSenderLabel(msg)</div>
-                                    @foreach (var text in msg.Data)
-                                    {
-                                        @if (msg.IsImage)
-                                        {
-                                            <div class="chat-message-bubble @(isSeller ? "from-seller" : "from-customer")" style="padding:4px;">
-                                                <img src="@text" alt="изображение" style="max-width:240px;border-radius:6px;" loading="lazy" />
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="chat-message-bubble @(isSeller ? "from-seller" : "from-customer")">
-                                                @text
-                                            </div>
-                                        }
-                                    }
-                                    <div class="chat-message-meta">
-                                        <span class="chat-message-time">@msg.CreatedAt.ToLocalTime().ToString("dd.MM HH:mm")</span>
-                                    </div>
-                                </div>
-                            </div>
-                        }
+                    <div style="flex:1;min-height:0;display:flex;flex-direction:column;margin:-1rem;">
+                        <ChatMessages Messages="_chatMessages"
+                                      SelectedChat="_previewChatVm"
+                                      EagerImages="true"
+                                      OpenGallery="OnOpenGallery"
+                                      LoadingHistory="false" />
                     </div>
                 }
 
@@ -563,7 +584,9 @@
                     </RadzenStack>
                 }
 
-                @if (!_previewLoading && _chatMessages.Count == 0 && _questionDetail is null && _reviewDetail is null)
+                @if (!_previewLoading &&
+                     _previewTask.TaskType != CommunicationTaskType.Chat &&
+                     _questionDetail is null && _reviewDetail is null)
                 {
                     <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false">
                         Не удалось загрузить предпросмотр
@@ -583,11 +606,49 @@
     </div>
 }
 
+@if (_galleryCurrentIndex >= 0 && _galleryItems.Any())
+{
+    <div class="lightbox-overlay" tabindex="0" @ref="_galleryDiv" @onkeydown="GalleryNavigate"
+         @onclick="GalleryClose">
+
+        @if (_galleryItems.Count > 1)
+        {
+            <RadzenButton Icon="chevron_left" ButtonStyle="ButtonStyle.Light"
+                          @onclick:stopPropagation="true"
+                          class="lightbox-arrow left"
+                          Click="GalleryPrev"/>
+        }
+
+        <img class="lightbox-image"
+             src="@_galleryItems[_galleryCurrentIndex]"
+             alt="изображение"
+             @onclick:stopPropagation="true"/>
+
+        @if (_galleryItems.Count > 1)
+        {
+            <RadzenButton Icon="chevron_right" ButtonStyle="ButtonStyle.Primary"
+                          @onclick:stopPropagation="true"
+                          class="lightbox-arrow right"
+                          Click="GalleryNext"/>
+        }
+
+        <button class="lightbox-close" @onclick:stopPropagation="true" @onclick="GalleryClose"
+                title="Закрыть (Esc)">
+            <RadzenIcon Icon="close"/>
+        </button>
+    </div>
+}
+
 @code {
     private TaskBoardDto _board = new();
     private CommunicationTaskType? _filterType;
     private bool _loading;
     private bool _syncing;
+    private bool _loadingMore;
+
+    private const int DonePageSize = 25;
+    private ElementReference _doneSentinel;
+    private DotNetObjectReference<CommunicationTaskBoard>? _dotNetRef;
 
     private HubConnection? _hubConnection;
     private Timer? _timerTick;
@@ -597,22 +658,59 @@
     private bool _previewLoading;
     private CommunicationTaskDetailDto? _taskDetail;
     private List<OzonChatMessageDto> _chatMessages = new();
+    private OzonChatViewModelDto? _previewChatVm;
     private OzonQuestionDetailDto? _questionDetail;
     private OzonReviewDetailDto? _reviewDetail;
+
+    // Gallery / lightbox state
+    private List<string> _galleryItems = new();
+    private int _galleryCurrentIndex = -1;
+    private ElementReference _galleryDiv;
 
     private List<CommunicationTaskDto> FilteredNew => ApplyTypeFilter(_board.NewTasks);
     private List<CommunicationTaskDto> FilteredInProgress => ApplyTypeFilter(_board.InProgressTasks);
     private List<CommunicationTaskDto> FilteredDone => ApplyTypeFilter(_board.DoneTasks);
 
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = null!;
+
     protected override async Task OnInitializedAsync()
     {
         if (!TenantProvider.IsResolved) return;
 
-        await QuickSyncAndReloadAsync();
-        await StartSignalRAsync();
+        var authState = await AuthState;
+        UserContext.SetUser(authState.User);
 
-        _timerTick = new Timer(_ => InvokeAsync(StateHasChanged), null,
-            TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        if (BoardState.HasData)
+        {
+            // Restore from cache instantly — no skeleton, no delay
+            _board = BoardState.Board!;
+            await StartSignalRAsync();
+            _timerTick = new Timer(_ => InvokeAsync(StateHasChanged), null,
+                TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+
+            // Silently refresh in background if data is stale
+            if (BoardState.IsStale)
+                _ = SilentReloadAsync();
+        }
+        else
+        {
+            // First visit: sync + load with skeleton
+            await QuickSyncAndReloadAsync();
+            await StartSignalRAsync();
+            _timerTick = new Timer(_ => InvokeAsync(StateHasChanged), null,
+                TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_board.DoneTasks.Count < _board.DoneTotalCount && !_loadingMore)
+        {
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+            try { await JS.InvokeVoidAsync("taskBoardInfiniteScroll.init", _doneSentinel, _dotNetRef); }
+            catch { /* JS not ready on first render */ }
+        }
     }
 
     // ───────── Sync / Load ─────────
@@ -645,9 +743,60 @@
     {
         _loading = true;
         StateHasChanged();
-        try { _board = await TaskService.GetBoardAsync(new CommunicationTaskFilter()); }
+        try
+        {
+            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter { DoneTake = DonePageSize });
+            _board = board;
+            BoardState.Set(board);
+        }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
         finally { _loading = false; StateHasChanged(); }
+    }
+
+    /// <summary>Background refresh that doesn't show skeleton — used on re-navigation when cache is stale.</summary>
+    private async Task SilentReloadAsync()
+    {
+        try
+        {
+            await SyncService.SyncRecentAsync();
+            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter { DoneTake = DonePageSize });
+            _board = board;
+            BoardState.Set(board);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch { /* silent — don't disturb the user */ }
+    }
+
+    [JSInvokable]
+    public async Task LoadMoreDoneAsync()
+    {
+        if (_loadingMore || _board.DoneTasks.Count >= _board.DoneTotalCount) return;
+
+        _loadingMore = true;
+        StateHasChanged();
+        try
+        {
+            var filter = new CommunicationTaskFilter { TaskType = _filterType };
+            var (items, total) = await TaskService.GetDoneTasksPageAsync(filter, _board.DoneTasks.Count, DonePageSize);
+            _board.DoneTasks.AddRange(items);
+            _board.DoneTotalCount = total;
+            BoardState.AppendDone(items, total);
+        }
+        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
+        finally { _loadingMore = false; StateHasChanged(); }
+    }
+
+    /// <summary>Refreshes board data from the server without triggering skeleton loading.</summary>
+    private async Task RefreshBoardSilentAsync()
+    {
+        try
+        {
+            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter { DoneTake = DonePageSize });
+            _board = board;
+            BoardState.Set(board);
+            StateHasChanged();
+        }
+        catch { /* silent */ }
     }
 
     private async Task StartSignalRAsync()
@@ -660,10 +809,10 @@
                 .WithAutomaticReconnect()
                 .Build();
 
-            _hubConnection.On<object>("TaskClaimed", async _ => await InvokeAsync(LoadBoardAsync));
-            _hubConnection.On<object>("TaskReleased", async _ => await InvokeAsync(LoadBoardAsync));
-            _hubConnection.On<object>("TaskCompleted", async _ => await InvokeAsync(LoadBoardAsync));
-            _hubConnection.On<object>("BoardUpdated", async _ => await InvokeAsync(LoadBoardAsync));
+            _hubConnection.On<object>("TaskClaimed", async _ => await InvokeAsync(RefreshBoardSilentAsync));
+            _hubConnection.On<object>("TaskReleased", async _ => await InvokeAsync(RefreshBoardSilentAsync));
+            _hubConnection.On<object>("TaskCompleted", async _ => await InvokeAsync(RefreshBoardSilentAsync));
+            _hubConnection.On<object>("BoardUpdated", async _ => await InvokeAsync(RefreshBoardSilentAsync));
 
             await _hubConnection.StartAsync();
             await _hubConnection.InvokeAsync("JoinTenantGroup", TenantProvider.TenantId.ToString());
@@ -673,9 +822,20 @@
 
     // ───────── Filters ─────────
 
-    private void SetFilter(CommunicationTaskType? type)
+    private async Task SetFilter(CommunicationTaskType? type)
     {
         _filterType = _filterType == type ? null : type;
+        _board.DoneTasks.Clear();
+        _board.DoneTotalCount = 0;
+        StateHasChanged();
+        try
+        {
+            var filter = new CommunicationTaskFilter { TaskType = _filterType };
+            var (items, total) = await TaskService.GetDoneTasksPageAsync(filter, 0, DonePageSize);
+            _board.DoneTasks.AddRange(items);
+            _board.DoneTotalCount = total;
+        }
+        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
         StateHasChanged();
     }
 
@@ -689,8 +849,7 @@
 
     private async Task OnCardClick(CommunicationTaskDto task)
     {
-        if (task.Status == CommunicationTaskStatus.InProgress &&
-            task.AssignedToUserId == CurrentUser.UserId)
+        if (task.Status == CommunicationTaskStatus.InProgress)
         {
             var tabIndex = task.TaskType switch
             {
@@ -715,6 +874,7 @@
         _previewLoading = true;
         _taskDetail = null;
         _chatMessages.Clear();
+        _previewChatVm = null;
         _questionDetail = null;
         _reviewDetail = null;
         StateHasChanged();
@@ -724,8 +884,14 @@
             switch (task.TaskType)
             {
                 case CommunicationTaskType.Chat:
+                    _previewChatVm = new OzonChatViewModelDto
+                    {
+                        MarketplaceClientId = task.MarketplaceClientId,
+                        MarketplaceClientName = task.MarketplaceClientName,
+                        ChatId = task.ExternalId
+                    };
                     var history = await ChatService.GetChatHistoryAsync(
-                        task.MarketplaceClientId, task.ExternalId, "Backward", limit: 30);
+                        task.MarketplaceClientId, task.ExternalId, "Backward", limit: 50);
                     if (history is not null)
                         _chatMessages = history.Messages.OrderBy(m => m.CreatedAt).ToList();
                     break;
@@ -780,55 +946,180 @@
         _previewTask = null;
         _taskDetail = null;
         _chatMessages.Clear();
+        _previewChatVm = null;
         _questionDetail = null;
         _reviewDetail = null;
+        GalleryClose();
+        StateHasChanged();
+    }
+
+    private void OnOpenGallery((List<string> Items, int Index) args)
+    {
+        _galleryItems = args.Items;
+        _galleryCurrentIndex = args.Index;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Yield();
+            await _galleryDiv.FocusAsync();
+        });
+    }
+
+    private void GalleryNext()
+    {
+        if (_galleryItems.Count == 0) return;
+        _galleryCurrentIndex = (_galleryCurrentIndex + 1) % _galleryItems.Count;
+    }
+
+    private void GalleryPrev()
+    {
+        if (_galleryItems.Count == 0) return;
+        _galleryCurrentIndex = (_galleryCurrentIndex - 1 + _galleryItems.Count) % _galleryItems.Count;
+    }
+
+    private void GalleryClose()
+    {
+        _galleryCurrentIndex = -1;
+    }
+
+    private void GalleryNavigate(KeyboardEventArgs e)
+    {
+        if (_galleryCurrentIndex < 0) return;
+        switch (e.Key)
+        {
+            case "ArrowLeft": GalleryPrev(); break;
+            case "ArrowRight": GalleryNext(); break;
+            case "Escape": GalleryClose(); break;
+        }
         StateHasChanged();
     }
 
     // ───────── Task actions ─────────
 
+    /// <summary>
+    /// Returns the current user's ID, re-syncing UserContext from the cascading AuthState
+    /// if it is temporarily null (can happen due to an auth-state refresh race).
+    /// Returns null and shows an error notification if the user cannot be resolved.
+    /// </summary>
+    private async Task<Guid?> GetUserIdAsync()
+    {
+        if (CurrentUser.UserId is not null)
+            return CurrentUser.UserId.Value;
+
+        // Re-sync from the cascading principal and retry once
+        var authState = await AuthState;
+        UserContext.SetUser(authState.User);
+
+        if (CurrentUser.UserId is not null)
+            return CurrentUser.UserId.Value;
+
+        NotificationService.Notify(NotificationSeverity.Error, "Ошибка",
+            "Не удалось определить текущего пользователя. Обновите страницу.", 5000);
+        return null;
+    }
+
     private async Task ClaimAsync(CommunicationTaskDto task)
     {
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+
+        // Optimistic: move card New → InProgress immediately
+        _board.NewTasks.RemoveAll(t => t.Id == task.Id);
+        task.Status = CommunicationTaskStatus.InProgress;
+        task.AssignedToUserId = userId;
+        task.HasActiveTimer = true;
+        task.StartedAt = DateTime.UtcNow;
+        _board.InProgressTasks.Insert(0, task);
+        StateHasChanged();
+
         try
         {
-            var ok = await TaskService.ClaimTaskAsync(task.Id, CurrentUser.UserId!.Value);
-            if (ok)
-                NotificationService.Notify(NotificationSeverity.Success, "Задача взята", task.Title, 2000);
-            else
+            var ok = await TaskService.ClaimTaskAsync(task.Id, userId.Value);
+            if (!ok)
                 NotificationService.Notify(NotificationSeverity.Warning, "Задача уже занята", "Кто-то успел взять раньше", 3000);
-            await LoadBoardAsync();
         }
         catch (Exception ex)
         {
-            var msg = ex.InnerException?.Message ?? ex.Message;
-            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", msg, 8000);
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.InnerException?.Message ?? ex.Message, 8000);
         }
+
+        // Silent refresh to get accurate server state (assignee name, timer start, etc.)
+        await RefreshBoardSilentAsync();
     }
 
     private async Task PauseAsync(CommunicationTaskDto task)
     {
-        await TaskService.PauseTaskAsync(task.Id, CurrentUser.UserId!.Value);
-        await LoadBoardAsync();
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+
+        // Optimistic: stop timer indicator immediately
+        var local = _board.InProgressTasks.FirstOrDefault(t => t.Id == task.Id);
+        if (local is not null) { local.HasActiveTimer = false; StateHasChanged(); }
+
+        try { await TaskService.PauseTaskAsync(task.Id, userId.Value); }
+        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
+
+        await RefreshBoardSilentAsync();
     }
 
     private async Task ResumeAsync(CommunicationTaskDto task)
     {
-        await TaskService.ResumeTaskAsync(task.Id, CurrentUser.UserId!.Value);
-        await LoadBoardAsync();
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+
+        // Optimistic: start timer indicator immediately
+        var local = _board.InProgressTasks.FirstOrDefault(t => t.Id == task.Id);
+        if (local is not null) { local.HasActiveTimer = true; local.StartedAt = DateTime.UtcNow; StateHasChanged(); }
+
+        try { await TaskService.ResumeTaskAsync(task.Id, userId.Value); }
+        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
+
+        await RefreshBoardSilentAsync();
     }
 
     private async Task CompleteAsync(CommunicationTaskDto task)
     {
-        var ok = await TaskService.CompleteTaskAsync(task.Id, CurrentUser.UserId!.Value);
-        if (ok)
-            NotificationService.Notify(NotificationSeverity.Success, "Задача выполнена", task.Title, 2000);
-        await LoadBoardAsync();
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+
+        // Optimistic: move card InProgress → Done immediately
+        _board.InProgressTasks.RemoveAll(t => t.Id == task.Id);
+        task.Status = CommunicationTaskStatus.Done;
+        task.HasActiveTimer = false;
+        task.CompletedAt = DateTime.UtcNow;
+        _board.DoneTasks.Insert(0, task);
+        _board.DoneTotalCount++;
+        StateHasChanged();
+
+        try
+        {
+            var ok = await TaskService.CompleteTaskAsync(task.Id, userId.Value);
+            if (ok) NotificationService.Notify(NotificationSeverity.Success, "Задача выполнена", task.Title, 2000);
+        }
+        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
+
+        // Refresh to get server-calculated PaymentAmount
+        await RefreshBoardSilentAsync();
     }
 
     private async Task ReleaseAsync(CommunicationTaskDto task)
     {
-        await TaskService.ReleaseTaskAsync(task.Id, CurrentUser.UserId!.Value);
-        await LoadBoardAsync();
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+
+        // Optimistic: move card InProgress → New immediately
+        _board.InProgressTasks.RemoveAll(t => t.Id == task.Id);
+        task.Status = CommunicationTaskStatus.New;
+        task.AssignedToUserId = null;
+        task.AssignedToUserName = null;
+        task.HasActiveTimer = false;
+        task.StartedAt = null;
+        _board.NewTasks.Insert(0, task);
+        StateHasChanged();
+
+        try { await TaskService.ReleaseTaskAsync(task.Id, userId.Value); }
+        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
+
+        await RefreshBoardSilentAsync();
     }
 
     // ───────── Credential lookup ─────────
@@ -846,17 +1137,6 @@
 
     // ───────── Helpers ─────────
 
-    private static bool IsSellerMessage(OzonChatMessageDto msg) =>
-        msg.User?.Type is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT";
-
-    private static string GetSenderLabel(OzonChatMessageDto msg) =>
-        msg.User?.Type switch
-        {
-            "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT" => "Продавец",
-            "Customer" or "customer" or "BUYER" => "Покупатель",
-            "Support" => "Поддержка Ozon",
-            _ => msg.User?.Type ?? "Система"
-        };
 
     private static string GetTypeClass(CommunicationTaskType type) => type switch
     {
@@ -911,6 +1191,9 @@
     public async ValueTask DisposeAsync()
     {
         _timerTick?.Dispose();
+        _dotNetRef?.Dispose();
+        try { await JS.InvokeVoidAsync("taskBoardInfiniteScroll.dispose"); }
+        catch { /* ignore */ }
         if (_hubConnection is not null)
             await _hubConnection.DisposeAsync();
     }
