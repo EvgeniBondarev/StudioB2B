@@ -4,7 +4,7 @@ using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
-using StudioB2B.Shared.DTOs;
+using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Services.Communication;
 
@@ -773,7 +773,7 @@ public class CommunicationTaskService : ICommunicationTaskService
             total += rate.PaymentMode switch
             {
                 PaymentMode.PerTask => rate.Rate,
-                PaymentMode.Hourly  => rate.Rate * (totalMinutes / 60m),
+                PaymentMode.Hourly => rate.Rate * (totalMinutes / 60m),
                 _ => 0m
             };
         }

@@ -371,7 +371,7 @@ else
                 Take:                args.Top is > 0 ? args.Top.Value : 20);
 
             var result = await ReturnsService.GetPageAsync(request);
-            _pageItems  = result.Items;
+            _pageItems = result.Items;
             _totalCount = result.TotalCount;
 
             _loading = false;

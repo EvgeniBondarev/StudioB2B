@@ -237,19 +237,19 @@ else
 
     private bool _loading = true;
 
-    private string _name       = string.Empty;
-    private string _resultKey  = string.Empty;
-    private string _formula    = string.Empty;
-    private int    _sortOrder;
-    private bool   _isActive   = true;
+    private string _name = string.Empty;
+    private string _resultKey = string.Empty;
+    private string _formula = string.Empty;
+    private int _sortOrder;
+    private bool _isActive = true;
 
-    private List<string>  _availableVariables  = [];
-    private OrderEntity?  _exampleOrder;
+    private List<string> _availableVariables = [];
+    private OrderEntity? _exampleOrder;
     private IReadOnlyDictionary<string, decimal>? _contextSnapshot;
     private decimal? _exampleResult;
-    private string?  _exampleError;
-    private string   _postingNumberFilter = string.Empty;
-    private string?  _exampleFormulaRendered;
+    private string? _exampleError;
+    private string _postingNumberFilter = string.Empty;
+    private string? _exampleFormulaRendered;
 
     private static readonly string[] _operatorTokens = ["+", "-", "*", "/", "(", ")"];
 
@@ -270,15 +270,15 @@ else
 
     private async Task LoadExampleOrderAsync()
     {
-        _exampleError           = null;
-        _exampleResult          = null;
+        _exampleError = null;
+        _exampleResult = null;
         _exampleFormulaRendered = null;
         await LoadExampleOrderCoreAsync();
     }
 
     private async Task LoadExampleOrderCoreAsync()
     {
-        _exampleOrder    = await CalculationRuleService.GetExampleOrderAsync(_postingNumberFilter);
+        _exampleOrder = await CalculationRuleService.GetExampleOrderAsync(_postingNumberFilter);
         _contextSnapshot = _exampleOrder != null
             ? CalculationEngine.GetContextSnapshot(_exampleOrder)
             : null;
@@ -286,7 +286,7 @@ else
 
     private void AppendToken(string token)
     {
-        _exampleError  = null;
+        _exampleError = null;
         _exampleResult = null;
 
         if (string.IsNullOrWhiteSpace(_formula))
@@ -301,7 +301,7 @@ else
 
     private async Task TestFormulaAsync()
     {
-        _exampleError  = null;
+        _exampleError = null;
         _exampleResult = null;
 
         if (_exampleOrder == null)           { _exampleError = "В базе пока нет заказов для примера."; return; }
@@ -315,12 +315,12 @@ else
 
             var tempRule = new CalculationRule
             {
-                Id        = Guid.NewGuid(),
-                Name      = _name == string.Empty ? "Черновик" : _name,
+                Id = Guid.NewGuid(),
+                Name = _name == string.Empty ? "Черновик" : _name,
                 ResultKey = key,
-                Formula   = _formula,
+                Formula = _formula,
                 SortOrder = 0,
-                IsActive  = true
+                IsActive = true
             };
             rules.Add(tempRule);
 
@@ -374,12 +374,12 @@ else
         {
             var entity = new CalculationRule
             {
-                Id        = Guid.NewGuid(),
-                Name      = _name.Trim(),
+                Id = Guid.NewGuid(),
+                Name = _name.Trim(),
                 ResultKey = _resultKey.Trim(),
-                Formula   = _formula.Trim(),
+                Formula = _formula.Trim(),
                 SortOrder = _sortOrder,
-                IsActive  = _isActive
+                IsActive = _isActive
             };
 
             await CalculationRuleService.CreateAsync(entity);

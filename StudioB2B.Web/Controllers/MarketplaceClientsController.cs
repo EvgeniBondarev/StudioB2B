@@ -1,9 +1,6 @@
-using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using StudioB2B.Infrastructure.Features;
 using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Infrastructure.Services;
 using StudioB2B.Shared;
 
 namespace StudioB2B.Web.Controllers;
@@ -13,16 +10,15 @@ namespace StudioB2B.Web.Controllers;
 [Authorize]
 public class MarketplaceClientsController : ControllerBase
 {
-    private readonly ITenantDbContextFactory _dbContextFactory;
+    private readonly IMarketplaceClientService _marketplaceClientService;
     private readonly ITenantProvider _tenantProvider;
-    private readonly IMapper _mapper;
 
-    public MarketplaceClientsController(ITenantDbContextFactory dbContextFactory, ITenantProvider tenantProvider,
-                                        IMapper mapper)
+    public MarketplaceClientsController(
+        IMarketplaceClientService marketplaceClientService,
+        ITenantProvider tenantProvider)
     {
-        _dbContextFactory = dbContextFactory;
+        _marketplaceClientService = marketplaceClientService;
         _tenantProvider = tenantProvider;
-        _mapper = mapper;
     }
 
     [HttpGet]
@@ -31,8 +27,7 @@ public class MarketplaceClientsController : ControllerBase
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
 
-        using var db = _dbContextFactory.CreateDbContext();
-        var list = await db.MarketplaceClients!.GetAllAsync(_mapper);
+        var list = await _marketplaceClientService.GetAllAsync();
         return Ok(list);
     }
 
@@ -42,8 +37,7 @@ public class MarketplaceClientsController : ControllerBase
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
 
-        using var db = _dbContextFactory.CreateDbContext();
-        var item = await db.MarketplaceClients!.GetByIdAsync(id, _mapper);
+        var item = await _marketplaceClientService.GetByIdAsync(id);
         if (item == null) return NotFound();
         return Ok(item);
     }
@@ -54,8 +48,7 @@ public class MarketplaceClientsController : ControllerBase
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
 
-        using var db = _dbContextFactory.CreateDbContext();
-        var dto = await db.CreateAsync(req, _mapper);
+        var dto = await _marketplaceClientService.CreateAsync(req);
         return CreatedAtAction(nameof(Get), new { id = dto.Id }, dto);
     }
 
@@ -66,8 +59,7 @@ public class MarketplaceClientsController : ControllerBase
             return BadRequest(new { error = "Tenant not resolved" });
         if (id != req.Id) return BadRequest();
 
-        using var db = _dbContextFactory.CreateDbContext();
-        var updated = await db.UpdateAsync(req, _mapper);
+        var updated = await _marketplaceClientService.UpdateAsync(req);
         if (updated == null) return NotFound();
         return NoContent();
     }
@@ -78,8 +70,7 @@ public class MarketplaceClientsController : ControllerBase
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
 
-        using var db = _dbContextFactory.CreateDbContext();
-        var deleted = await db.DeleteAsync(id);
+        var deleted = await _marketplaceClientService.DeleteAsync(id);
         if (!deleted) return NotFound();
         return NoContent();
     }

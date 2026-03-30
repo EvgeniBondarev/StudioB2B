@@ -428,11 +428,11 @@ else
         await EnsureInitializedAsync();
 
         var filter = new OrderStatusPageFilter(_filterType, _filterMarketplaceTypeId, _filterTerminal);
-        var skip   = args.Skip ?? 0;
-        var take   = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 20);
+        var skip = args.Skip ?? 0;
+        var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 20);
 
         var result = await StatusService.GetPagedAsync(filter, args.Filter, args.OrderBy, skip, take);
-        _pageItems  = result.Items;
+        _pageItems = result.Items;
         _totalCount = result.TotalCount;
         _loading = false;
     }
@@ -441,11 +441,11 @@ else
     {
         if (_initialized) return;
         var data = await StatusService.GetInitDataAsync();
-        _clientTypes         = data.ClientTypes;
-        _countInternal       = data.CountInternal;
-        _countMarketplace    = data.CountMarketplace;
-        _countTerminal       = data.CountTerminal;
-        _countNonTerminal    = data.CountNonTerminal;
+        _clientTypes = data.ClientTypes;
+        _countInternal = data.CountInternal;
+        _countMarketplace = data.CountMarketplace;
+        _countTerminal = data.CountTerminal;
+        _countNonTerminal = data.CountNonTerminal;
         _countByClientTypeId = data.CountByClientTypeId;
         _initialized = true;
     }

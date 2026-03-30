@@ -44,7 +44,7 @@
             EntityId,
             AuditDisplayHelper.GetEntityDisplayName(EntityName));
 
-        _logs    = await AuditLogService.GetByEntityAsync(EntityName, EntityId);
+        _logs = await AuditLogService.GetByEntityAsync(EntityName, EntityId);
         _loading = false;
     }
 }
