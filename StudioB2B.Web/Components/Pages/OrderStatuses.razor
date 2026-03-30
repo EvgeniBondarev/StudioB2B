@@ -1,5 +1,5 @@
 @page "/order-statuses"
-@attribute [Authorize(Roles = "OrderStatusesView")]
+@attribute [Authorize(Roles = nameof(PageEnum.OrderStatusesView))]
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
@@ -29,7 +29,7 @@ else
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
             <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ToggleDensity" Title="@GetDensityTitle()" />
-            <AuthorizeView Roles="OrderStatusesManage">
+            <AuthorizeView Roles="@nameof(FunctionEnum.OrderStatusesManage)">
                 <Authorized>
                     <RadzenButton Icon="add" Text="Добавить" Shade="Shade.Light" ButtonStyle="ButtonStyle.Primary"
                                   Click="@AddRow" />
@@ -140,7 +140,7 @@ else
         <Columns>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="Name"
-                                  Title="Название" Width="220px" Frozen="true" Visible="@Col("OStatusColName")">
+                                  Title="Название" Width="220px" Frozen="true" Visible="@Col(nameof(PageColumnEnum.OStatusColName))">
                 <EditTemplate Context="s">
                     <RadzenTextBox @bind-Value="s.Name" Style="width: 100%;" />
                 </EditTemplate>
@@ -148,7 +148,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="Color" Title="Цвет"
                                   Width="120px" TextAlign="TextAlign.Center"
-                                  Filterable="false" Sortable="false" Visible="@Col("OStatusColColor")">
+                                  Filterable="false" Sortable="false" Visible="@Col(nameof(PageColumnEnum.OStatusColColor))">
                 <Template Context="s">
                     @if (!string.IsNullOrEmpty(s.Color))
                     {
@@ -177,7 +177,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="IsTerminal" Title="Конечный"
-                                  Width="100px" TextAlign="TextAlign.Center" Filterable="false" Visible="@Col("OStatusColIsTerminal")">
+                                  Width="100px" TextAlign="TextAlign.Center" Filterable="false" Visible="@Col(nameof(PageColumnEnum.OStatusColIsTerminal))">
                 <Template Context="s">
                     @if (s.IsTerminal)
                     {
@@ -195,7 +195,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="IsInternal" Title="Системный"
-                                  Width="110px" TextAlign="TextAlign.Center" Filterable="true" Visible="@Col("OStatusColIsInternal")">
+                                  Width="110px" TextAlign="TextAlign.Center" Filterable="true" Visible="@Col(nameof(PageColumnEnum.OStatusColIsInternal))">
 
                 <FilterTemplate>
                     <div class="filter-all-item @( _filterType == null ? "active" : "" )"
@@ -228,7 +228,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="Synonym" Title="Синоним (API)"
-                                  Width="240px" Visible="@Col("OStatusColSynonym")">
+                                  Width="240px" Visible="@Col(nameof(PageColumnEnum.OStatusColSynonym))">
                 <Template Context="s">
                     @if (!string.IsNullOrEmpty(s.Synonym))
                     {
@@ -246,7 +246,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderStatus" Property="MarketplaceClientType.Name"
-                                  Title="Маркетплейс" Width="160px" Sortable="false" Filterable="true" Visible="@Col("OStatusColClientType")">
+                                  Title="Маркетплейс" Width="160px" Sortable="false" Filterable="true" Visible="@Col(nameof(PageColumnEnum.OStatusColClientType))">
                 <FilterTemplate>
                     <div class="filter-all-item @( _filterMarketplaceTypeId == null ? "active" : "" )"
                          @onclick="() => ClearFilter(() => _filterMarketplaceTypeId = null)">
@@ -354,7 +354,7 @@ else
         {
             var state = await AuthState;
             _user = state.User;
-            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("OrderStatusesManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.OrderStatusesManage));
             await LoadGridSettingsAsync();
             await LoadFiltersAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
