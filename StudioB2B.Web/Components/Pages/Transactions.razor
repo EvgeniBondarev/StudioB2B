@@ -1,5 +1,5 @@
 @page "/transactions"
-@attribute [Authorize(Roles = "TransactionsView")]
+@attribute [Authorize(Roles = nameof(PageEnum.TransactionsView))]
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Features
@@ -43,7 +43,7 @@ else
                           Click="@(() => SetViewMode("canvas"))" />
             @if (_viewMode == "table")
             {
-                <AuthorizeView Roles="TransactionsManage">
+                <AuthorizeView Roles="@nameof(FunctionEnum.TransactionsManage)">
                     <Authorized>
                         <RadzenButton Icon="add" Text="Добавить" ButtonStyle="ButtonStyle.Primary"
                                       Click="@OpenCreateDialog" />
@@ -151,7 +151,7 @@ else
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
-            <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Название" Width="220px" Frozen="true" Visible="@Col("TransColName")">
+            <RadzenDataGridColumn TItem="OrderTransaction" Property="Name" Title="Название" Width="220px" Frozen="true" Visible="@Col(nameof(PageColumnEnum.TransColName))">
                 <Template Context="t">
                     <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" AlignItems="AlignItems.Center">
                         @{
@@ -170,7 +170,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="OrderTransaction" Title="Иконка" Width="80px" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Visible="@Col("TransColIcon")">
+            <RadzenDataGridColumn TItem="OrderTransaction" Title="Иконка" Width="80px" Filterable="false" Sortable="false" TextAlign="TextAlign.Center" Visible="@Col(nameof(PageColumnEnum.TransColIcon))">
                 <Template Context="t">
                     @if (!string.IsNullOrEmpty(t.Icon))
                     {
@@ -191,7 +191,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="OrderTransaction" Property="FromSystemStatus.Name" Title="Исходный статус" Width="180px" Visible="@Col("TransColFromStatus")">
+            <RadzenDataGridColumn TItem="OrderTransaction" Property="FromSystemStatus.Name" Title="Исходный статус" Width="180px" Visible="@Col(nameof(PageColumnEnum.TransColFromStatus))">
                 <Template Context="t">
                     @if (t.FromSystemStatus != null)
                     {
@@ -200,7 +200,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="OrderTransaction" Property="ToSystemStatus.Name" Title="Целевой статус" Width="180px" Visible="@Col("TransColToStatus")">
+            <RadzenDataGridColumn TItem="OrderTransaction" Property="ToSystemStatus.Name" Title="Целевой статус" Width="180px" Visible="@Col(nameof(PageColumnEnum.TransColToStatus))">
                 <Template Context="t">
                     @if (t.ToSystemStatus != null)
                     {
@@ -209,13 +209,13 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="OrderTransaction" Title="Правил" Width="80px" TextAlign="TextAlign.Center" Filterable="false" Sortable="false" Visible="@Col("TransColRulesCount")">
+            <RadzenDataGridColumn TItem="OrderTransaction" Title="Правил" Width="80px" TextAlign="TextAlign.Center" Filterable="false" Sortable="false" Visible="@Col(nameof(PageColumnEnum.TransColRulesCount))">
                 <Template Context="t">
                     @(t.Rules?.Count ?? 0)
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="OrderTransaction" Property="IsEnabled" Title="Активна" Width="100px" TextAlign="TextAlign.Center" Visible="@Col("TransColIsEnabled")">
+            <RadzenDataGridColumn TItem="OrderTransaction" Property="IsEnabled" Title="Активна" Width="100px" TextAlign="TextAlign.Center" Visible="@Col(nameof(PageColumnEnum.TransColIsEnabled))">
                 <Template Context="t">
                     @if (t.IsEnabled)
                     {
@@ -302,7 +302,7 @@ else
         {
             var state = await AuthState;
             _user = state.User;
-            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("TransactionsManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.TransactionsManage));
             await LoadGridSettingsAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
                 await _grid.Reload();
