@@ -134,6 +134,7 @@ public static class DependencyInjection
         // No scoped registrations required for these extension methods.
 
         // Business logic services (wrapping Features for UI layer)
+        services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IAuditLogService, AuditLogService>();
         services.AddScoped<ICalculationRuleService, CalculationRuleService>();

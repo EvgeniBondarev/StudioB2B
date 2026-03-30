@@ -422,14 +422,14 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _order     = await OrderService.GetOrderDetailAsync(OrderId);
+        _order = await OrderService.GetOrderDetailAsync(OrderId);
         _calcRules = await CalculationRuleService.GetActiveRulesAsync();
 
         if (_order != null && _calcRules.Count > 0)
         {
-            var engine   = new CalculationEngine();
+            var engine = new CalculationEngine();
             var computed = engine.Calculate(_order, _calcRules);
-            var context  = CalculationEngine.GetContextSnapshot(_order);
+            var context = CalculationEngine.GetContextSnapshot(_order);
 
             _calcResults = _calcRules
                 .Where(r => computed.ContainsKey(r.ResultKey))

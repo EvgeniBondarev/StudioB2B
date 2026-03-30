@@ -89,8 +89,8 @@
         }
 
         _totalCount = allLogs.Count;
-        _resolver   = await AuditLogService.BuildValueResolverAsync(allLogs);
-        _loading    = false;
+        _resolver = await AuditLogService.BuildValueResolverAsync(allLogs);
+        _loading = false;
     }
 
     private List<FieldAuditLog> GetLogs(AuditSubject subject) =>

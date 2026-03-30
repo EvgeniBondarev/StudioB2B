@@ -158,8 +158,8 @@
     private async Task LoadDataAsync()
     {
         var data = await MasterUserService.GetInitDataAsync();
-        _allRoles   = data.Roles;
-        _users      = data.Users;
+        _allRoles = data.Roles;
+        _users = data.Users;
         _userRoleIds = data.UserRoleIds;
     }
 
@@ -173,7 +173,7 @@
             ? existing.ToHashSet()
             : new HashSet<Guid>();
 
-        var toAdd    = newIds.Except(oldIds).ToList();
+        var toAdd = newIds.Except(oldIds).ToList();
         var toRemove = oldIds.Except(newIds).ToList();
 
         // Нельзя снять с себя Admin
@@ -195,7 +195,7 @@
             // Обновляем локальный кеш
             _userRoleIds[user.Id] = newIds.ToList();
 
-            var addedNames   = _allRoles.Where(r => toAdd.Contains(r.Id)).Select(r => r.Name).ToList();
+            var addedNames = _allRoles.Where(r => toAdd.Contains(r.Id)).Select(r => r.Name).ToList();
             var removedNames = _allRoles.Where(r => toRemove.Contains(r.Id)).Select(r => r.Name).ToList();
 
             if (addedNames.Count > 0)

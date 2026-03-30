@@ -3,10 +3,8 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Infrastructure.Services;
 using StudioB2B.Shared;
 
 namespace StudioB2B.Web.Controllers;
@@ -15,16 +13,19 @@ namespace StudioB2B.Web.Controllers;
 [ApiController]
 public class AccountController : ControllerBase
 {
+    private readonly IAccountService _accountService;
     private readonly ITenantProvider _tenantProvider;
-    private readonly ITenantDbContextFactory _dbContextFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AccountController> _logger;
 
-    public AccountController(ITenantProvider tenantProvider, ITenantDbContextFactory dbContextFactory,
-                             IConfiguration configuration, ILogger<AccountController> logger)
+    public AccountController(
+        IAccountService accountService,
+        ITenantProvider tenantProvider,
+        IConfiguration configuration,
+        ILogger<AccountController> logger)
     {
+        _accountService = accountService;
         _tenantProvider = tenantProvider;
-        _dbContextFactory = dbContextFactory;
         _configuration = configuration;
         _logger = logger;
     }
@@ -38,35 +39,18 @@ public class AccountController : ControllerBase
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
 
-        await using var db = _dbContextFactory.CreateDbContext();
+        var result = await _accountService.LoginAsync(request.Email, request.Password, ct);
 
-        var email = request.Email.Trim().ToLowerInvariant();
-        var user = await db.Users.AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Email == email, ct);
-
-        if (user is null)
+        if (result is null)
         {
-            _logger.LogWarning("Login failed: user {Email} not found", email);
+            _logger.LogWarning("Login failed for {Email}", request.Email);
             return Unauthorized(new { error = "Неверный email или пароль" });
         }
 
-        if (!user.IsActive)
-        {
-            _logger.LogWarning("Login failed: user {Email} is inactive", email);
-            return Unauthorized(new { error = "Пользователь деактивирован" });
-        }
-
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.HashPassword))
-        {
-            _logger.LogWarning("Login failed: invalid password for {Email}", email);
-            return Unauthorized(new { error = "Неверный email или пароль" });
-        }
-
-        var roleClaims = await BuildRoleClaimsAsync(db, user.Id, ct);
-        var token = GenerateJwtToken(user.Id, user.Email, roleClaims);
+        var token = GenerateJwtToken(result.UserId, result.Email, result.IsFullAccess, result.RoleNames);
         var expiresMinutes = _configuration.GetSection("Jwt").GetValue<int?>("ExpiresMinutes") ?? 60;
 
-        _logger.LogInformation("User {Email} logged in successfully", email);
+        _logger.LogInformation("User {Email} logged in successfully", result.Email);
         return Ok(new { token, expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes) });
     }
 
@@ -87,59 +71,18 @@ public class AccountController : ControllerBase
         if (!Guid.TryParse(subClaim, out var userId))
             return Unauthorized(new { error = "Invalid token" });
 
-        await using var db = _dbContextFactory.CreateDbContext();
+        var result = await _accountService.RefreshAsync(userId, ct);
 
-        var user = await db.Users.AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == userId && u.IsActive && !u.IsDeleted, ct);
-
-        if (user is null)
+        if (result is null)
             return Unauthorized(new { error = "User not found or inactive" });
 
-        var roleClaims = await BuildRoleClaimsAsync(db, userId, ct);
-        var token = GenerateJwtToken(user.Id, user.Email, roleClaims);
+        var token = GenerateJwtToken(result.UserId, result.Email, result.IsFullAccess, result.RoleNames);
         var expiresMinutes = _configuration.GetSection("Jwt").GetValue<int?>("ExpiresMinutes") ?? 60;
 
         return Ok(new { token, expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes) });
     }
 
-    /// <summary>
-    /// Формирует набор claims из Permission'ов пользователя.
-    /// При IsFullAccess добавляет «Admin» role claim (для IsInRole("Admin") в компонентах)
-    /// и «full_access = true» claim (для AdminSatisfiesAllRolesHandler).
-    /// Иначе добавляет имена страниц, функций и колонок как role claims.
-    /// </summary>
-    private static async Task<(bool isFullAccess, IEnumerable<string> roleNames)> BuildRoleClaimsAsync(
-        StudioB2B.Infrastructure.Persistence.Tenant.TenantDbContext db, Guid userId, CancellationToken ct)
-    {
-        var userPermissions = await db.UserPermissions
-            .AsNoTracking()
-            .Where(up => up.UserId == userId)
-            .Include(up => up.Permission)
-                .ThenInclude(p => p.Pages)
-                    .ThenInclude(pp => pp.Page)
-            .Include(up => up.Permission)
-                .ThenInclude(p => p.Functions)
-                    .ThenInclude(pf => pf.Function)
-            .Include(up => up.Permission)
-                .ThenInclude(p => p.PageColumns)
-                    .ThenInclude(pc => pc.PageColumn)
-            .ToListAsync(ct);
-
-        bool isFullAccess = userPermissions.Any(up => up.Permission.IsFullAccess);
-        if (isFullAccess)
-            return (true, ["Admin"]);
-
-        var roleNames = userPermissions
-            .SelectMany(up => up.Permission.Pages.Select(pp => pp.Page.Name))
-            .Concat(userPermissions.SelectMany(up => up.Permission.Functions.Select(pf => pf.Function.Name)))
-            .Concat(userPermissions.SelectMany(up => up.Permission.PageColumns.Select(pc => pc.PageColumn.Name)))
-            .Distinct()
-            .ToList();
-
-        return (false, roleNames);
-    }
-
-    private string GenerateJwtToken(Guid userId, string email, (bool isFullAccess, IEnumerable<string> roleNames) permData)
+    private string GenerateJwtToken(Guid userId, string email, bool isFullAccess, IEnumerable<string> roleNames)
     {
         var jwtSection = _configuration.GetSection("Jwt");
         var secret = jwtSection["Secret"]!;
@@ -157,10 +100,10 @@ public class AccountController : ControllerBase
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        if (permData.isFullAccess)
+        if (isFullAccess)
             claims.Add(new Claim("full_access", "true"));
 
-        foreach (var role in permData.roleNames)
+        foreach (var role in roleNames)
             claims.Add(new Claim(ClaimTypes.Role, role));
 
         var token = new JwtSecurityToken(

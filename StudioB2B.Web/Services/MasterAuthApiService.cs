@@ -15,12 +15,12 @@ public class MasterAuthApiService : IMasterAuthApiService
     private readonly MasterAuthStateService        _masterAuthState;
 
     public MasterAuthApiService(
-        HttpClient                    http,
+        HttpClient http,
         JwtAuthenticationStateProvider authProvider,
-        MasterAuthStateService        masterAuthState)
+        MasterAuthStateService masterAuthState)
     {
-        _http            = http;
-        _authProvider    = authProvider;
+        _http = http;
+        _authProvider = authProvider;
         _masterAuthState = masterAuthState;
     }
 
@@ -55,20 +55,20 @@ public class MasterAuthApiService : IMasterAuthApiService
 
     /// <inheritdoc/>
     public async Task<string?> RegisterAsync(
-        string  email,
-        string  password,
-        string  firstName,
-        string  lastName,
+        string email,
+        string password,
+        string firstName,
+        string lastName,
         string? middleName)
     {
         try
         {
             var response = await _http.PostAsJsonAsync("/api/master/auth/register", new
             {
-                Email      = email,
-                Password   = password,
-                FirstName  = firstName,
-                LastName   = lastName,
+                Email = email,
+                Password = password,
+                FirstName = firstName,
+                LastName = lastName,
                 MiddleName = string.IsNullOrWhiteSpace(middleName) ? null : middleName
             });
 

@@ -9,6 +9,16 @@ namespace StudioB2B.Infrastructure.Interfaces;
 public interface IMarketplaceClientService
 {
     /// <summary>
+    /// Все клиенты маркетплейсов в виде DTO.
+    /// </summary>
+    Task<List<MarketplaceClientDto>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Клиент по идентификатору в виде DTO.
+    /// </summary>
+    Task<MarketplaceClientDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
     /// Начальные данные страницы и мастера: типы, режимы, счётчики.
     /// </summary>
     Task<MarketplaceClientInitData> GetInitDataAsync(CancellationToken ct = default);
@@ -28,9 +38,14 @@ public interface IMarketplaceClientService
     Task UpdateAsync(MarketplaceClient client, CancellationToken ct = default);
 
     /// <summary>
+    /// Обновить клиента из DTO.
+    /// </summary>
+    Task<MarketplaceClientDto?> UpdateAsync(UpdateMarketplaceClientDto dto, CancellationToken ct = default);
+
+    /// <summary>
     /// Удалить клиента по идентификатору.
     /// </summary>
-    Task DeleteAsync(Guid id, CancellationToken ct = default);
+    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
     /// Проверить: существует ли клиент с данным ApiId.
@@ -51,5 +66,11 @@ public interface IMarketplaceClientService
     /// Список клиентов для фильтра (Id + Name) с учётом ограничений пользователя.
     /// </summary>
     Task<List<ClientOptionDto>> GetClientOptionsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Возвращает ApiId и зашифрованный ключ клиента по его идентификатору.
+    /// Возвращает null, если клиент не найден или удалён.
+    /// </summary>
+    Task<(string ApiId, string Key)?> GetClientCredentialsAsync(Guid clientId, CancellationToken ct = default);
 }
 
