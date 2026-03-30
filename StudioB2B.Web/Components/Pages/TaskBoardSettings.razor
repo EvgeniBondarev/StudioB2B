@@ -2,7 +2,6 @@
 @attribute [Authorize(Roles = "TaskBoardAdmin")]
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Domain.Constants
-@using StudioB2B.Shared.DTOs
 
 @inject ICommunicationTaskService TaskService
 @inject IUserService UserService
@@ -94,7 +93,7 @@ else
                         @if (rate.MinDurationMinutes.HasValue || rate.MaxDurationMinutes.HasValue)
                         {
                             var from = rate.MinDurationMinutes.HasValue ? rate.MinDurationMinutes.Value.ToString() : "∅";
-                            var to   = rate.MaxDurationMinutes.HasValue ? rate.MaxDurationMinutes.Value.ToString() : "∞";
+                            var to = rate.MaxDurationMinutes.HasValue ? rate.MaxDurationMinutes.Value.ToString() : "∞";
                             <span style="font-size:0.82rem;">@from – @to</span>
                         }
                         else

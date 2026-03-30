@@ -234,9 +234,9 @@ else if (_step == 3)
                         t.Name.Equals("OZON", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        _modes        = data.Modes;
-        _fbsModeId    = _modes.FirstOrDefault(m => m.Name.Equals("FBS",     StringComparison.OrdinalIgnoreCase))?.Id;
-        _fboModeId    = _modes.FirstOrDefault(m => m.Name.Equals("FBO",     StringComparison.OrdinalIgnoreCase))?.Id;
+        _modes = data.Modes;
+        _fbsModeId = _modes.FirstOrDefault(m => m.Name.Equals("FBS", StringComparison.OrdinalIgnoreCase))?.Id;
+        _fboModeId = _modes.FirstOrDefault(m => m.Name.Equals("FBO", StringComparison.OrdinalIgnoreCase))?.Id;
         _expressModeId = _modes.FirstOrDefault(m => m.Name.Equals("Express", StringComparison.OrdinalIgnoreCase))?.Id;
 
         var modeIds = new List<Guid>(capacity: 2);
@@ -244,15 +244,15 @@ else if (_step == 3)
         if (_fboModeId is not null) modeIds.Add(_fboModeId.Value);
         if (modeIds.Count == 0 && _modes.Count > 0) modeIds.Add(_modes[0].Id);
 
-        _model.ModeIds      = modeIds;
+        _model.ModeIds = modeIds;
         _model.ClientTypeId = _ozonTypes.Count > 0 ? _ozonTypes[0].Id : _types.FirstOrDefault()?.Id;
     }
 
     private PointStyle StepStyle(int step) => step switch
     {
-        _ when step < _step  => PointStyle.Success,
+        _ when step < _step => PointStyle.Success,
         _ when step == _step => PointStyle.Primary,
-        _                    => PointStyle.Secondary
+        _ => PointStyle.Secondary
     };
 
     private string StepLabelStyle(int step) => step == _step

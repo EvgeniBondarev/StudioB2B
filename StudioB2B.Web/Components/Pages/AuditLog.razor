@@ -266,7 +266,7 @@ else
     private async Task LoadFilterDataAsync()
     {
         _entityNames = await AuditLogService.GetFilterEntityNamesAsync();
-        _userNames   = await AuditLogService.GetFilterUserNamesAsync();
+        _userNames = await AuditLogService.GetFilterUserNamesAsync();
     }
 
     private async Task LoadData(LoadDataArgs args)
@@ -284,7 +284,7 @@ else
                 args.Top ?? 30,
                 args.OrderBy);
 
-            _pageItems  = items;
+            _pageItems = items;
             _totalCount = total;
         }
         finally
@@ -297,20 +297,20 @@ else
     private AuditLogFilter BuildFilter() => new(
         EntityName: _filterEntity,
         ChangeType: _filterChangeType,
-        UserName:   _filterUser,
-        FromUtc:    _filterFrom?.ToUniversalTime(),
-        ToUtc:      _filterTo?.AddDays(1).ToUniversalTime());
+        UserName: _filterUser,
+        FromUtc: _filterFrom?.ToUniversalTime(),
+        ToUtc: _filterTo?.AddDays(1).ToUniversalTime());
 
-    private async Task OnFilterChange(object? _)   => await RefreshGrid();
+    private async Task OnFilterChange(object? _) => await RefreshGrid();
     private async Task OnDateFilterChange(DateTime? _) => await RefreshGrid();
 
     private async Task ResetFilters()
     {
-        _filterEntity     = null;
+        _filterEntity = null;
         _filterChangeType = null;
-        _filterUser       = null;
-        _filterFrom       = null;
-        _filterTo         = null;
+        _filterUser = null;
+        _filterFrom = null;
+        _filterTo = null;
         await RefreshGrid();
     }
 
@@ -358,15 +358,13 @@ else
             {
                 JsonValueKind.String => el.GetString() ?? "—",
                 JsonValueKind.Number => el.GetRawText(),
-                JsonValueKind.True   => "да",
-                JsonValueKind.False  => "нет",
-                JsonValueKind.Null   => "—",
-                _                    => raw
+                JsonValueKind.True => "да",
+                JsonValueKind.False => "нет",
+                JsonValueKind.Null => "—",
+                _ => raw
             };
         }
         catch { return raw; }
     }
 }
-
-
 

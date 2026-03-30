@@ -1,17 +1,15 @@
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
-@using StudioB2B.Infrastructure.Persistence.Tenant
 @using StudioB2B.Domain.Constants
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.EntityFrameworkCore
-@using StudioB2B.Shared.DTOs
 
 @inject ICommunicationTaskService TaskService
 @inject ICommunicationTaskSyncService SyncService
 @inject IOzonChatService ChatService
 @inject IOzonQuestionsService QuestionsService
 @inject IOzonReviewsService ReviewsService
-@inject TenantDbContext Db
+@inject IMarketplaceClientService MarketplaceClientService
 @inject ITenantProvider TenantProvider
 @inject ICurrentUserProvider CurrentUser
 @inject NotificationService NotificationService
@@ -351,7 +349,7 @@
                 {
 
                     var hasPerTaskEst = _board.PaymentEstimates.TryGetValue(_previewTask.TaskType, out var bodyEst) && bodyEst > 0;
-                    var hasHourlyEst  = _board.HourlyEstimates.TryGetValue(_previewTask.TaskType, out var bodyHr) && bodyHr > 0;
+                    var hasHourlyEst = _board.HourlyEstimates.TryGetValue(_previewTask.TaskType, out var bodyHr) && bodyHr > 0;
                     if (hasPerTaskEst || hasHourlyEst)
                     {
                         <div style="margin-bottom:0.75rem;padding:0.65rem 0.9rem;background:rgba(139,92,246,0.06);border-radius:8px;border:1px dashed rgba(139,92,246,0.3);">
@@ -713,7 +711,6 @@
         }
     }
 
-    // ───────── Sync / Load ─────────
 
     private async Task QuickSyncAndReloadAsync()
     {
@@ -820,7 +817,6 @@
         catch { NotificationService.Notify(NotificationSeverity.Warning, "SignalR", "Не удалось подключиться", 3000); }
     }
 
-    // ───────── Filters ─────────
 
     private async Task SetFilter(CommunicationTaskType? type)
     {
@@ -845,7 +841,6 @@
         return source.Where(t => t.TaskType == _filterType.Value).ToList();
     }
 
-    // ───────── Card click: preview vs redirect ─────────
 
     private async Task OnCardClick(CommunicationTaskDto task)
     {
@@ -993,7 +988,6 @@
         StateHasChanged();
     }
 
-    // ───────── Task actions ─────────
 
     /// <summary>
     /// Returns the current user's ID, re-syncing UserContext from the cascading AuthState
@@ -1122,20 +1116,11 @@
         await RefreshBoardSilentAsync();
     }
 
-    // ───────── Credential lookup ─────────
-
     private async Task<(string apiId, string apiKey)> GetClientCredsAsync(Guid marketplaceClientId)
     {
-        var client = await Db.MarketplaceClients!
-            .AsNoTracking()
-            .Where(c => c.Id == marketplaceClientId && !c.IsDeleted)
-            .Select(c => new { c.ApiId, c.Key })
-            .FirstOrDefaultAsync();
-
-        return client is not null ? (client.ApiId, client.Key) : ("", "");
+        var creds = await MarketplaceClientService.GetClientCredentialsAsync(marketplaceClientId);
+        return creds is not null ? (creds.Value.ApiId, creds.Value.Key) : ("", "");
     }
-
-    // ───────── Helpers ─────────
 
 
     private static string GetTypeClass(CommunicationTaskType type) => type switch

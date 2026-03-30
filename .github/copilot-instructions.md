@@ -2,40 +2,104 @@
 
 ## 1. No alignment spaces
 
-Use a single space only. Do **not** add extra spaces to align `=` signs, types, or identifiers in columns.
+Use a single space only. Do **not** add extra spaces anywhere to push symbols into columns. This applies **everywhere**: parameter lists, field declarations, constructor bodies, method bodies, object initialisers, expression-body members (`=>`), and switch expression arms.
 
-**Wrong:**
+**Wrong — parameter list:**
 ```csharp
 public record OrderPageRequest(
     Guid?   ClientId       = null,
     Guid?   StatusId       = null,
     Guid?   SystemStatusId = null,
-    Guid?   WarehouseId    = null,
     bool    HasReturn      = false,
-    string? SchemeType     = null,
-    string? SearchText     = null,
-    string? DynamicFilter  = null,
-    string? OrderBy        = null,
     int     Skip           = 0,
-    int     Take           = 15,
-    bool    FetchAll       = false);
+    int     Take           = 15);
 ```
 
-**Correct:**
+**Correct — parameter list:**
 ```csharp
 public record OrderPageRequest(
     Guid? ClientId = null,
     Guid? StatusId = null,
     Guid? SystemStatusId = null,
-    Guid? WarehouseId = null,
     bool HasReturn = false,
-    string? SchemeType = null,
-    string? SearchText = null,
-    string? DynamicFilter = null,
-    string? OrderBy = null,
     int Skip = 0,
-    int Take = 15,
-    bool FetchAll = false);
+    int Take = 15);
+```
+
+**Wrong — assignments in method body:**
+```csharp
+_filterEntity     = null;
+_filterChangeType = null;
+_filterUser       = null;
+_filterFrom       = null;
+_filterTo         = null;
+```
+
+**Correct — assignments in method body:**
+```csharp
+_filterEntity = null;
+_filterChangeType = null;
+_filterUser = null;
+_filterFrom = null;
+_filterTo = null;
+```
+
+**Wrong — object initialiser:**
+```csharp
+new CalculationRule
+{
+    Id        = Guid.NewGuid(),
+    Name      = _name,
+    Formula   = _formula,
+    IsActive  = true
+}
+```
+
+**Correct — object initialiser:**
+```csharp
+new CalculationRule
+{
+    Id = Guid.NewGuid(),
+    Name = _name,
+    Formula = _formula,
+    IsActive = true
+}
+```
+
+**Wrong — expression-body members:**
+```csharp
+private async Task OnFilterChange(object? _)   => await RefreshGrid();
+private async Task OnDateFilterChange(DateTime? _) => await RefreshGrid();
+private void      SaveRow(PriceType p)         => _grid?.UpdateRow(p);
+```
+
+**Correct — expression-body members:**
+```csharp
+private async Task OnFilterChange(object? _) => await RefreshGrid();
+private async Task OnDateFilterChange(DateTime? _) => await RefreshGrid();
+private void SaveRow(PriceType p) => _grid?.UpdateRow(p);
+```
+
+**Wrong — switch expression arms:**
+```csharp
+var label = type switch
+{
+    CommunicationTaskType.Chat     => "Чат",
+    CommunicationTaskType.Question => "Вопрос",
+    CommunicationTaskType.Review   => "Отзыв",
+    _                              => "—"
+};
+```
+
+**Correct — switch expression arms:**
+```csharp
+var label = type switch
+{
+    CommunicationTaskType.Chat => "Чат",
+    CommunicationTaskType.Question => "Вопрос",
+    CommunicationTaskType.Review => "Отзыв",
+    _ => "—"
+};
 ```
 
 ---
