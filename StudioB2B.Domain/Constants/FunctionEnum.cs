@@ -50,7 +50,6 @@ public enum FunctionEnum
     [Description("Права доступа: управление")]
     PermissionsManage = 14,
 
-    // ── Доска задач ──────────────────────────────────────────────────────
     [Description("Доска задач: управление задачами")]
     TaskBoardManage = 15,
 

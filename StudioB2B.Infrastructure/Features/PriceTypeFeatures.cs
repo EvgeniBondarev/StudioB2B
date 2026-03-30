@@ -58,7 +58,7 @@ public static class PriceTypeExtensions
         var entity = await db.PriceTypes.FindAsync(new object[] { updatedItem.Id }, ct);
         if (entity == null || !entity.IsUserDefined) return false;
 
-        entity.Name           = updatedItem.Name.Trim();
+        entity.Name = updatedItem.Name.Trim();
         entity.DeliveryScheme = string.IsNullOrWhiteSpace(updatedItem.DeliveryScheme)
             ? null
             : updatedItem.DeliveryScheme.Trim();

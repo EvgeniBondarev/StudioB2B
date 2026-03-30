@@ -201,7 +201,7 @@ else
         var skip = args.Skip ?? 0;
         var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 20);
         var result = await PriceTypeService.GetPagedAsync(args.Filter, args.OrderBy, skip, take);
-        _pageItems  = result.Items;
+        _pageItems = result.Items;
         _totalCount = result.TotalCount;
         _loading = false;
     }
@@ -210,8 +210,8 @@ else
     {
         _grid?.InsertRow(new PriceType
         {
-            Id            = Guid.NewGuid(),
-            Name          = string.Empty,
+            Id = Guid.NewGuid(),
+            Name = string.Empty,
             IsUserDefined = true
         });
     }
@@ -248,7 +248,7 @@ else
         await _grid!.Reload();
     }
 
-    private void SaveRow(PriceType p)   => _grid?.UpdateRow(p);
+    private void SaveRow(PriceType p) => _grid?.UpdateRow(p);
     private void CancelRow(PriceType p) => _grid?.CancelEditRow(p);
 
     private void ShowContextMenu(DataGridCellMouseEventArgs<PriceType> args)

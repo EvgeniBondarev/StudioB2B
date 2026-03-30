@@ -5,8 +5,8 @@ using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Infrastructure.Services.Ozon;
 using StudioB2B.Shared;
-using StudioB2B.Shared.DTOs;
 
 
 namespace StudioB2B.Infrastructure.Services.Communication;
@@ -77,7 +77,7 @@ public class CommunicationTaskSyncJob
     }
 
     private static async Task<bool> SyncChatsAsync(
-        TenantDbContext db, IOzonApiClient api,
+        TenantDbContext db, OzonApiClient api,
         List<OzonChatClientInfoDto> clients,
         ILogger logger, CancellationToken ct)
     {
@@ -170,7 +170,7 @@ public class CommunicationTaskSyncJob
     }
 
     private static async Task<bool> SyncQuestionsAsync(
-        TenantDbContext db, IOzonApiClient api,
+        TenantDbContext db, OzonApiClient api,
         List<OzonChatClientInfoDto> clients,
         ILogger logger, CancellationToken ct)
     {
@@ -258,7 +258,7 @@ public class CommunicationTaskSyncJob
     }
 
     private static async Task<bool> SyncReviewsAsync(
-        TenantDbContext db, IOzonApiClient api,
+        TenantDbContext db, OzonApiClient api,
         List<OzonChatClientInfoDto> clients,
         ILogger logger, CancellationToken ct)
     {

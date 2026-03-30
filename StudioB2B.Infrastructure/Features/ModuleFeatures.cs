@@ -29,9 +29,9 @@ public static class ModuleExtensions
         {
             db.TenantModules.Add(new TenantModule
             {
-                Id          = Guid.NewGuid(),
-                Code        = ModuleCodes.Manufacturers,
-                Name        = "Производители",
+                Id = Guid.NewGuid(),
+                Code = ModuleCodes.Manufacturers,
+                Name = "Производители",
                 Description = "Справочник производителей с привязкой к товарам по префиксу артикула."
             });
             await db.SaveChangesAsync(ct);

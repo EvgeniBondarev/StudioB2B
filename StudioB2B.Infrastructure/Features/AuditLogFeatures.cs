@@ -87,7 +87,7 @@ public static class AuditLogExtensions
         CancellationToken ct = default)
     {
         var entityNames = subjects.Select(s => s.EntityName).Distinct().ToList();
-        var entityIds   = subjects.Select(s => s.EntityId).Distinct().ToList();
+        var entityIds = subjects.Select(s => s.EntityId).Distinct().ToList();
 
         return await db.FieldAuditLogs
             .Where(x => entityNames.Contains(x.EntityName) && entityIds.Contains(x.EntityId))

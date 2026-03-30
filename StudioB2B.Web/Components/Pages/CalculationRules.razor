@@ -231,9 +231,9 @@ else
             skip,
             take);
 
-        _items      = items;
+        _items = items;
         _totalCount = total;
-        _loading    = false;
+        _loading = false;
     }
 
     /// <summary>
@@ -259,9 +259,9 @@ else
             await _grid.Reload();
     }
 
-    private async Task EditRow(CalculationRule r)  => await _grid!.EditRow(r);
-    private async Task SaveRow(CalculationRule r)  => await _grid!.UpdateRow(r);
-    private void      CancelRow(CalculationRule r) => _grid!.CancelEditRow(r);
+    private async Task EditRow(CalculationRule r) => await _grid!.EditRow(r);
+    private async Task SaveRow(CalculationRule r) => await _grid!.UpdateRow(r);
+    private void CancelRow(CalculationRule r) => _grid!.CancelEditRow(r);
 
     private async Task OnUpdate(CalculationRule r)
     {

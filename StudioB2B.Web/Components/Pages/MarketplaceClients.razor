@@ -331,9 +331,9 @@ else
 
         var (items, total) = await MarketplaceClientService.GetPagedAsync(filter, skip, take);
 
-        _pageItems  = items;
+        _pageItems = items;
         _totalCount = total;
-        _loading    = false;
+        _loading = false;
     }
 
     /// <summary>
@@ -344,11 +344,11 @@ else
         if (_initialized) return;
 
         var data = await MarketplaceClientService.GetInitDataAsync();
-        _types              = data.Types;
-        _modes              = data.Modes;
+        _types = data.Types;
+        _modes = data.Modes;
         _typeCountsByTypeId = data.CountsByTypeId;
         _modeCountsByModeId = data.CountsByModeId;
-        _initialized        = true;
+        _initialized = true;
     }
 
     private async Task OnPillFilter()
@@ -388,14 +388,14 @@ else
         catch { return encryptedKey; }
     }
 
-    private async Task EditRow(MarketplaceClient client)  => await _grid!.EditRow(client);
-    private async Task SaveRow(MarketplaceClient client)  => await _grid!.UpdateRow(client);
-    private void      CancelRow(MarketplaceClient client) => _grid!.CancelEditRow(client);
+    private async Task EditRow(MarketplaceClient client) => await _grid!.EditRow(client);
+    private async Task SaveRow(MarketplaceClient client) => await _grid!.UpdateRow(client);
+    private void CancelRow(MarketplaceClient client) => _grid!.CancelEditRow(client);
 
     private void OnClientModeChanged(MarketplaceClient client, Guid modeId, bool isChecked)
     {
         var ids = new List<Guid>(2);
-        if (client.ModeId.HasValue)  ids.Add(client.ModeId.Value);
+        if (client.ModeId.HasValue) ids.Add(client.ModeId.Value);
         if (client.ModeId2.HasValue) ids.Add(client.ModeId2.Value);
 
         if (isChecked)
@@ -414,7 +414,7 @@ else
             ids.Remove(modeId);
         }
 
-        client.ModeId  = ids.Count > 0 ? ids[0] : null;
+        client.ModeId = ids.Count > 0 ? ids[0] : null;
         client.ModeId2 = ids.Count > 1 ? ids[1] : null;
     }
 

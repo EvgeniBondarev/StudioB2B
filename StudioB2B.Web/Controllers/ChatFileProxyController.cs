@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using StudioB2B.Infrastructure.Interfaces;
 
 namespace StudioB2B.Web.Controllers;
@@ -15,18 +14,18 @@ public class ChatFileProxyController : ControllerBase
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IKeyEncryptionService _encryption;
-    private readonly ITenantDbContextFactory _dbFactory;
+    private readonly IMarketplaceClientService _marketplaceClientService;
     private readonly ITenantProvider _tenantProvider;
 
     public ChatFileProxyController(
         IHttpClientFactory httpClientFactory,
         IKeyEncryptionService encryption,
-        ITenantDbContextFactory dbFactory,
+        IMarketplaceClientService marketplaceClientService,
         ITenantProvider tenantProvider)
     {
         _httpClientFactory = httpClientFactory;
         _encryption = encryption;
-        _dbFactory = dbFactory;
+        _marketplaceClientService = marketplaceClientService;
         _tenantProvider = tenantProvider;
     }
 
@@ -55,19 +54,15 @@ public class ChatFileProxyController : ControllerBase
         if (!_tenantProvider.IsResolved)
             return BadRequest("Tenant not resolved");
 
-        await using var db = _dbFactory.CreateDbContext();
-        var client = await db.MarketplaceClients!
-            .Where(c => c.Id == clientId && !c.IsDeleted)
-            .Select(c => new { c.ApiId, c.Key })
-            .FirstOrDefaultAsync(ct);
+        var creds = await _marketplaceClientService.GetClientCredentialsAsync(clientId, ct);
 
-        if (client is null)
+        if (creds is null)
             return NotFound("Маркетплейс-клиент не найден");
 
-        var plainApiKey = _encryption.Decrypt(client.Key);
+        var plainApiKey = _encryption.Decrypt(creds.Value.Key);
 
         var (stream, contentType) = await DownloadWithAuthAsync(
-            url, client.ApiId, plainApiKey, ct);
+            url, creds.Value.ApiId, plainApiKey, ct);
 
         if (stream is null)
             return StatusCode(502, "Не удалось получить файл от Ozon");
@@ -148,22 +143,22 @@ public class ChatFileProxyController : ControllerBase
         return ext switch
         {
             ".jpg" or ".jpeg" => "image/jpeg",
-            ".png"            => "image/png",
-            ".gif"            => "image/gif",
-            ".webp"           => "image/webp",
-            ".pdf"            => "application/pdf",
-            ".mp4"            => "video/mp4",
-            ".mov"            => "video/quicktime",
-            ".avi"            => "video/x-msvideo",
-            ".webm"           => "video/webm",
-            ".mp3"            => "audio/mpeg",
-            ".ogg"            => "audio/ogg",
-            ".wav"            => "audio/wav",
-            ".doc"            => "application/msword",
-            ".docx"           => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            ".txt"            => "text/plain",
-            ".zip"            => "application/zip",
-            _                 => "application/octet-stream"
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".pdf" => "application/pdf",
+            ".mp4" => "video/mp4",
+            ".mov" => "video/quicktime",
+            ".avi" => "video/x-msvideo",
+            ".webm" => "video/webm",
+            ".mp3" => "audio/mpeg",
+            ".ogg" => "audio/ogg",
+            ".wav" => "audio/wav",
+            ".doc" => "application/msword",
+            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".txt" => "text/plain",
+            ".zip" => "application/zip",
+            _ => "application/octet-stream"
         };
     }
 

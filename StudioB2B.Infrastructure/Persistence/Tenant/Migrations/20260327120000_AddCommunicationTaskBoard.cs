@@ -8,6 +8,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
     /// <inheritdoc />
     public partial class AddCommunicationTaskBoard : Migration
     {
+        private static readonly string[] columns = new[] { "TaskType", "IsActive" };
+        private static readonly string[] columnsArray = new[] { "TaskType", "ExternalId", "MarketplaceClientId" };
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -137,12 +140,12 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_CommunicationPaymentRates_TaskType_IsActive",
                 table: "CommunicationPaymentRates",
-                columns: new[] { "TaskType", "IsActive" });
+                columns: columns);
 
             migrationBuilder.CreateIndex(
                 name: "IX_CommunicationTasks_TaskType_ExternalId_MarketplaceClientId",
                 table: "CommunicationTasks",
-                columns: new[] { "TaskType", "ExternalId", "MarketplaceClientId" },
+                columns: columnsArray,
                 unique: true);
 
             migrationBuilder.CreateIndex(

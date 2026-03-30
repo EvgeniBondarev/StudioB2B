@@ -28,11 +28,11 @@ public class OrderStatusService : IOrderStatusService
     /// <inheritdoc/>
     public async Task<(List<OrderStatus> Items, int TotalCount)> GetPagedAsync(
         OrderStatusPageFilter filter,
-        string?               dynamicFilter,
-        string?               orderBy,
-        int                   skip,
-        int                   take,
-        CancellationToken     ct = default)
+        string? dynamicFilter,
+        string? orderBy,
+        int skip,
+        int take,
+        CancellationToken ct = default)
     {
         using var db = _dbContextFactory.CreateDbContext();
         return await db.GetOrderStatusesPagedAsync(filter, dynamicFilter, orderBy, skip, take, ct);
