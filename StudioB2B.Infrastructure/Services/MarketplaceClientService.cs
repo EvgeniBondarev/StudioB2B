@@ -30,6 +30,20 @@ public class MarketplaceClientService : IMarketplaceClientService
     }
 
     /// <inheritdoc/>
+    public async Task<List<MarketplaceClientDto>> GetAllAsync(CancellationToken ct = default)
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        return await db.MarketplaceClients!.GetAllAsync(_mapper, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<MarketplaceClientDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        return await db.MarketplaceClients!.GetByIdAsync(id, _mapper, ct);
+    }
+
+    /// <inheritdoc/>
     public async Task<MarketplaceClientInitData> GetInitDataAsync(CancellationToken ct = default)
     {
         using var db = _dbContextFactory.CreateDbContext();
@@ -74,10 +88,17 @@ public class MarketplaceClientService : IMarketplaceClientService
     }
 
     /// <inheritdoc/>
-    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<MarketplaceClientDto?> UpdateAsync(UpdateMarketplaceClientDto dto, CancellationToken ct = default)
     {
         using var db = _dbContextFactory.CreateDbContext();
-        await db.DeleteAsync(id, ct);
+        return await db.UpdateAsync(dto, _mapper, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        return await db.DeleteAsync(id, ct);
     }
 
     /// <inheritdoc/>
@@ -111,5 +132,18 @@ public class MarketplaceClientService : IMarketplaceClientService
 
         using var db = _dbContextFactory.CreateDbContext();
         return await db.GetClientOptionsAsync(allowedIds, ct);
+    }
+
+    /// <inheritdoc/>
+    public async Task<(string ApiId, string Key)?> GetClientCredentialsAsync(Guid clientId, CancellationToken ct = default)
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        var client = await db.MarketplaceClients!
+            .AsNoTracking()
+            .Where(c => c.Id == clientId && !c.IsDeleted)
+            .Select(c => new { c.ApiId, c.Key })
+            .FirstOrDefaultAsync(ct);
+
+        return client is not null ? (client.ApiId, client.Key) : null;
     }
 }

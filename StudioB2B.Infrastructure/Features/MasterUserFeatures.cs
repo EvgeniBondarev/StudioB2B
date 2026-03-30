@@ -40,8 +40,8 @@ public static class MasterUserExtensions
     public static async Task<MasterUserInitData> GetMasterUserInitDataAsync(
         this MasterDbContext db, CancellationToken ct = default)
     {
-        var roles   = await db.GetAllMasterRolesAsync(ct);
-        var users   = await db.GetAllMasterUsersAsync(ct);
+        var roles = await db.GetAllMasterRolesAsync(ct);
+        var users = await db.GetAllMasterUsersAsync(ct);
         var roleIds = await db.GetUserRoleIdsAsync(users.Select(u => u.Id), ct);
         return new MasterUserInitData(users, roles, roleIds);
     }
@@ -57,7 +57,7 @@ public static class MasterUserExtensions
         IEnumerable<Guid> toRemove,
         CancellationToken ct = default)
     {
-        var addList    = toAdd.ToList();
+        var addList = toAdd.ToList();
         var removeList = toRemove.ToList();
 
         try

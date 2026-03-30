@@ -1114,13 +1114,13 @@ else
     {
         var refTypes = fieldRules.Select(f => f.ReferenceType).Distinct();
         var data = await TransactionService.GetReferenceDataAsync(refTypes);
-        _orderStatuses  = data.OrderStatuses;
-        _products       = data.Products;
-        _suppliers      = data.Suppliers;
-        _warehouses     = data.Warehouses;
+        _orderStatuses = data.OrderStatuses;
+        _products = data.Products;
+        _suppliers = data.Suppliers;
+        _warehouses = data.Warehouses;
         _deliveryMethods = data.DeliveryMethods;
-        _recipients     = data.Recipients;
-        _addresses      = data.Addresses;
+        _recipients = data.Recipients;
+        _addresses = data.Addresses;
         _warehouseInfos = data.WarehouseInfos;
         _orderProductInfos = data.OrderProductInfos;
     }

@@ -2,7 +2,6 @@
 @attribute [Authorize(Roles = "TaskBoardAdmin")]
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Domain.Constants
-@using StudioB2B.Shared.DTOs
 
 @inject ICommunicationTaskService TaskService
 @inject ITenantProvider TenantProvider
@@ -234,17 +233,17 @@ else
                                         var taskLink = GetTaskLink(task);
                                         var typeBadgeStyle = task.TaskType switch
                                         {
-                                            CommunicationTaskType.Chat     => BadgeStyle.Info,
+                                            CommunicationTaskType.Chat => BadgeStyle.Info,
                                             CommunicationTaskType.Question => BadgeStyle.Warning,
-                                            CommunicationTaskType.Review   => BadgeStyle.Danger,
-                                            _                              => BadgeStyle.Light
+                                            CommunicationTaskType.Review => BadgeStyle.Danger,
+                                            _ => BadgeStyle.Light
                                         };
                                         var typeLabel = task.TaskType switch
                                         {
-                                            CommunicationTaskType.Chat     => "Чат",
+                                            CommunicationTaskType.Chat => "Чат",
                                             CommunicationTaskType.Question => "Вопрос",
-                                            CommunicationTaskType.Review   => "Отзыв",
-                                            _                              => "—"
+                                            CommunicationTaskType.Review => "Отзыв",
+                                            _ => "—"
                                         };
                                         var totalMin = TimeSpan.FromTicks(task.TotalTimeSpentTicks).TotalMinutes;
                                         var isTaskExpanded = _expandedTaskId == task.Id;
@@ -341,14 +340,14 @@ else
 
 @code {
     private DateTime _from = DateTime.UtcNow.Date.AddDays(-30);
-    private DateTime _to   = DateTime.UtcNow.Date.AddDays(1);
+    private DateTime _to = DateTime.UtcNow.Date.AddDays(1);
     private PaymentReportDto? _report;
     private bool _loading;
 
     private Guid? _expandedUserId;
     private Guid? _loadingDetailUserId;
     private Dictionary<Guid, UserTaskDetailsDto?> _detailCache = new();
-    private Dictionary<Guid, PersonalStatsDto?>   _statsCache  = new();
+    private Dictionary<Guid, PersonalStatsDto?> _statsCache = new();
     private Guid? _expandedTaskId;
     private Guid? _filterUserId;
 
@@ -400,7 +399,7 @@ else
         _expandedUserId = u.UserId;
 
         var needDetail = !_detailCache.ContainsKey(u.UserId);
-        var needStats  = !_statsCache.ContainsKey(u.UserId);
+        var needStats = !_statsCache.ContainsKey(u.UserId);
 
         if (!needDetail && !needStats) return;
 
@@ -408,8 +407,8 @@ else
         StateHasChanged();
         try
         {
-            if (needDetail) await LoadDetailAsync(u.UserId);
-            if (needStats)  await LoadStatsAsync(u.UserId);
+        if (needDetail) await LoadDetailAsync(u.UserId);
+        if (needStats) await LoadStatsAsync(u.UserId);
         }
         finally
         {
@@ -456,10 +455,10 @@ else
 
         var tab = task.TaskType switch
         {
-            CommunicationTaskType.Chat     => 1,
-            CommunicationTaskType.Review   => 2,
+            CommunicationTaskType.Chat => 1,
+            CommunicationTaskType.Review => 2,
             CommunicationTaskType.Question => 3,
-            _                             => 1
+            _ => 1
         };
         return $"/communication?tab={tab}&id={Uri.EscapeDataString(task.ExternalId)}&clientId={task.MarketplaceClientId}";
     }
@@ -482,10 +481,10 @@ else
                 {
                     var typeLabel = t.TaskType switch
                     {
-                        CommunicationTaskType.Chat     => "Чат",
+                        CommunicationTaskType.Chat => "Чат",
                         CommunicationTaskType.Question => "Вопрос",
-                        CommunicationTaskType.Review   => "Отзыв",
-                        _                             => "—"
+                        CommunicationTaskType.Review => "Отзыв",
+                        _ => "—"
                     };
                     var minutes = TimeSpan.FromTicks(t.TotalTimeSpentTicks).TotalMinutes;
                     lines.Add($"{CsvEscape(u.UserName)};{typeLabel};{CsvEscape(t.ExternalStatus ?? "")};{CsvEscape(t.Title)};{CsvEscape(t.MarketplaceClientName)};{t.CompletedAt?.ToLocalTime():dd.MM.yyyy HH:mm};{minutes:F1};{t.PaymentAmount:F0}");
@@ -500,7 +499,7 @@ else
         lines.Add("");
         lines.Add($"ИТОГО;;;;;;{visibleUsers.Sum(u => u.TotalHours):F1};{visibleUsers.Sum(u => u.TotalPayment):F0}");
 
-        var csv   = string.Join("\n", lines);
+        var csv = string.Join("\n", lines);
         var bytes = System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv)).ToArray();
         var base64 = Convert.ToBase64String(bytes);
         var fileName = $"payment_report_{_from:yyyyMMdd}_{_to:yyyyMMdd}.csv";
