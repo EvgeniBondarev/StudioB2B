@@ -1,6 +1,5 @@
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Domain.Constants
-@using StudioB2B.Shared.DTOs
 @using StudioB2B.Web.Components.Pages
 
 @inject ICommunicationTaskService TaskService
@@ -144,9 +143,9 @@
 
         var rangeStr = (Rate.MinDurationMinutes, Rate.MaxDurationMinutes) switch
         {
-            (null, null)     => "любая длительность",
-            (var min, null)  => $"от {min} мин.",
-            (null, var max)  => $"до {max} мин.",
+            (null, null) => "любая длительность",
+            (var min, null) => $"от {min} мин.",
+            (null, var max) => $"до {max} мин.",
             (var min, var max) => $"{min}–{max} мин."
         };
 

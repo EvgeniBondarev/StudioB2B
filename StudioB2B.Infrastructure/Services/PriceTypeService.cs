@@ -19,10 +19,10 @@ public class PriceTypeService : IPriceTypeService
 
     /// <inheritdoc/>
     public async Task<(List<PriceType> Items, int TotalCount)> GetPagedAsync(
-        string?           dynamicFilter,
-        string?           orderBy,
-        int               skip,
-        int               take,
+        string? dynamicFilter,
+        string? orderBy,
+        int skip,
+        int take,
         CancellationToken ct = default)
     {
         using var db = _dbContextFactory.CreateDbContext();

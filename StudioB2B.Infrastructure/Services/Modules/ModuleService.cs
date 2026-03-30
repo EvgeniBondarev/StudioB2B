@@ -55,7 +55,7 @@ public class ModuleService : IModuleService
         var module = await _db.TenantModules.FirstOrDefaultAsync(m => m.Code == moduleCode, ct);
         if (module == null) { _logger.LogWarning("Module {Code} not found", moduleCode); return; }
 
-        module.IsEnabled  = false;
+        module.IsEnabled = false;
         module.DisabledAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         _logger.LogInformation("Module {Code} disabled", moduleCode);

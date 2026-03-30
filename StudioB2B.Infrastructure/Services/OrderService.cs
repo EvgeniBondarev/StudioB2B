@@ -14,22 +14,22 @@ namespace StudioB2B.Infrastructure.Services;
 public class OrderService : IOrderService
 {
     private readonly ITenantDbContextFactory _dbContextFactory;
-    private readonly IEntityFilterService    _entityFilterService;
+    private readonly IEntityFilterService _entityFilterService;
 
     public OrderService(
         ITenantDbContextFactory dbContextFactory,
-        IEntityFilterService    entityFilterService)
+        IEntityFilterService entityFilterService)
     {
-        _dbContextFactory    = dbContextFactory;
+        _dbContextFactory = dbContextFactory;
         _entityFilterService = entityFilterService;
     }
 
     /// <inheritdoc/>
     public async Task<OrderInitData> GetInitDataAsync(CancellationToken ct = default)
     {
-        var allowedClients    = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient, ct);
-        var allowedWarehouses = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.Warehouse,         ct);
-        var allowedStatuses   = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.OrderStatus,       ct);
+        var allowedClients = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient, ct);
+        var allowedWarehouses = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.Warehouse, ct);
+        var allowedStatuses = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.OrderStatus, ct);
 
         using var db = _dbContextFactory.CreateDbContext();
         return await db.GetOrderInitDataAsync(allowedClients, allowedWarehouses, allowedStatuses, ct);
@@ -38,10 +38,10 @@ public class OrderService : IOrderService
     /// <inheritdoc/>
     public async Task<OrderPageResult> GetOrderPageAsync(OrderPageRequest request, CancellationToken ct = default)
     {
-        var allowedClients    = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient, ct);
-        var allowedWarehouses = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.Warehouse,         ct);
-        var allowedStatuses   = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.OrderStatus,       ct);
-        var allowedDelivery   = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.DeliveryMethod,    ct);
+        var allowedClients = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.MarketplaceClient, ct);
+        var allowedWarehouses = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.Warehouse, ct);
+        var allowedStatuses = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.OrderStatus, ct);
+        var allowedDelivery = await _entityFilterService.GetAllowedIdsAsync(BlockedEntityTypeEnum.DeliveryMethod, ct);
 
         using var db = _dbContextFactory.CreateDbContext();
         return await db.GetOrderPageResultAsync(
