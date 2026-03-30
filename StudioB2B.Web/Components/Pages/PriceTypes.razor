@@ -1,5 +1,5 @@
 @page "/price-types"
-@attribute [Authorize(Roles = "PriceTypesView")]
+@attribute [Authorize(Roles = nameof(PageEnum.PriceTypesView))]
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
 
@@ -25,7 +25,7 @@ else
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
             <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ToggleDensity" Title="@GetDensityTitle()" />
-            <AuthorizeView Roles="PriceTypesManage">
+            <AuthorizeView Roles="@nameof(FunctionEnum.PriceTypesManage)">
                 <Authorized>
                     <RadzenButton Icon="add" Text="Добавить" ButtonStyle="ButtonStyle.Primary"
                                   Click="@AddRow" />
@@ -85,13 +85,13 @@ else
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
-            <RadzenDataGridColumn TItem="PriceType" Property="Name" Title="Название" Width="220px" Frozen="true" Visible="@Col("PriceTypesColName")">
+            <RadzenDataGridColumn TItem="PriceType" Property="Name" Title="Название" Width="220px" Frozen="true" Visible="@Col(nameof(PageColumnEnum.PriceTypesColName))">
                 <EditTemplate Context="p">
                     <RadzenTextBox @bind-Value="p.Name" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="PriceType" Property="DeliveryScheme" Title="Схема доставки" Width="160px" Visible="@Col("PriceTypesColDeliveryScheme")">
+            <RadzenDataGridColumn TItem="PriceType" Property="DeliveryScheme" Title="Схема доставки" Width="160px" Visible="@Col(nameof(PageColumnEnum.PriceTypesColDeliveryScheme))">
                 <Template Context="p">
                     @(p.DeliveryScheme ?? "—")
                 </Template>
@@ -101,7 +101,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="PriceType" Property="IsUserDefined" Title="Пользовательский"
-                                 Width="140px" TextAlign="TextAlign.Center" Filterable="false" Visible="@Col("PriceTypesColIsUserDefined")">
+                                 Width="140px" TextAlign="TextAlign.Center" Filterable="false" Visible="@Col(nameof(PageColumnEnum.PriceTypesColIsUserDefined))">
                 <Template Context="p">
                     @if (p.IsUserDefined)
                     {
@@ -158,7 +158,7 @@ else
         {
             var state = await AuthState;
             _user = state.User;
-            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("PriceTypesManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.PriceTypesManage));
             await LoadGridSettingsAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
                 await _grid.Reload();
