@@ -1,5 +1,5 @@
 @page "/permissions"
-@attribute [Authorize(Roles = "PermissionsView")]
+@attribute [Authorize(Roles = nameof(PageEnum.PermissionsView))]
 @using StudioB2B.Infrastructure.Interfaces
 @inject ITenantProvider TenantProvider
 @inject IPermissionService PermissionService
@@ -21,7 +21,7 @@ else
     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                  JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
         <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Права доступа</RadzenText>
-        <AuthorizeView Roles="PermissionsManage">
+        <AuthorizeView Roles="@nameof(FunctionEnum.PermissionsManage)">
             <Authorized>
                 <RadzenButton Icon="add" Text="Создать право" Shade="Shade.Light"
                               ButtonStyle="ButtonStyle.Primary" Click="@OpenCreateDialog" />
@@ -112,7 +112,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthState;
-        _canManage = state.User.HasClaim("full_access", "true") || state.User.IsInRole("PermissionsManage");
+        _canManage = state.User.HasClaim("full_access", "true") || state.User.IsInRole(nameof(FunctionEnum.PermissionsManage));
 
         if (TenantProvider.IsResolved)
             await LoadAsync();

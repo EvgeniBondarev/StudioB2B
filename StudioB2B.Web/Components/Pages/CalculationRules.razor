@@ -1,5 +1,5 @@
 @page "/calculation-rules"
-@attribute [Authorize(Roles = "CalculationRulesView")]
+@attribute [Authorize(Roles = nameof(PageEnum.CalculationRulesView))]
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
@@ -29,7 +29,7 @@ else
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
             <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ToggleDensity" Title="@GetDensityTitle()" />
-            <AuthorizeView Roles="CalculationRulesManage">
+            <AuthorizeView Roles="@nameof(FunctionEnum.CalculationRulesManage)">
                 <Authorized>
                     <RadzenButton Icon="add" Text="Добавить" Shade="Shade.Light" ButtonStyle="ButtonStyle.Primary"
                                   Click="@AddRow" />
@@ -84,19 +84,19 @@ else
         <Columns>
 
             <RadzenDataGridColumn TItem="CalculationRule" Property="SortOrder" Title="#"
-                                  Width="60px" TextAlign="TextAlign.Center" Filterable="false" Visible="@Col("CalcRulesColSortOrder")">
+                                  Width="60px" TextAlign="TextAlign.Center" Filterable="false" Visible="@Col(nameof(PageColumnEnum.CalcRulesColSortOrder))">
                 <EditTemplate Context="r">
                     <RadzenNumeric @bind-Value="r.SortOrder" Style="width: 100%;" Min="0" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="CalculationRule" Property="Name" Title="Название" Width="200px" Visible="@Col("CalcRulesColName")">
+            <RadzenDataGridColumn TItem="CalculationRule" Property="Name" Title="Название" Width="200px" Visible="@Col(nameof(PageColumnEnum.CalcRulesColName))">
                 <EditTemplate Context="r">
                     <RadzenTextBox @bind-Value="r.Name" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="CalculationRule" Property="ResultKey" Title="Ключ результата" Width="180px" Visible="@Col("CalcRulesColResultKey")">
+            <RadzenDataGridColumn TItem="CalculationRule" Property="ResultKey" Title="Ключ результата" Width="180px" Visible="@Col(nameof(PageColumnEnum.CalcRulesColResultKey))">
                 <Template Context="r">
                     <span style="font-family: monospace; font-size: 0.82rem; color: var(--rz-primary);">@r.ResultKey</span>
                 </Template>
@@ -105,7 +105,7 @@ else
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="CalculationRule" Property="Formula" Title="Формула" Width="360px" Visible="@Col("CalcRulesColFormula")">
+            <RadzenDataGridColumn TItem="CalculationRule" Property="Formula" Title="Формула" Width="360px" Visible="@Col(nameof(PageColumnEnum.CalcRulesColFormula))">
                 <Template Context="r">
                     <span style="font-family: monospace; font-size: 0.82rem;">@r.Formula</span>
                 </Template>
@@ -122,7 +122,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="CalculationRule" Property="IsActive" Title="Активно"
-                                  Width="90px" TextAlign="TextAlign.Center" Filterable="false" Visible="@Col("CalcRulesColIsActive")">
+                                  Width="90px" TextAlign="TextAlign.Center" Filterable="false" Visible="@Col(nameof(PageColumnEnum.CalcRulesColIsActive))">
                 <Template Context="r">
                     @if (r.IsActive)
                     {
@@ -180,7 +180,7 @@ else
         {
             var state = await AuthState;
             _user = state.User;
-            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("CalculationRulesManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.CalculationRulesManage));
             await LoadGridSettingsAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
                 await _grid.Reload();

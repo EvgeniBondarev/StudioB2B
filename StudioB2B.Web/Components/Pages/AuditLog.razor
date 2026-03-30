@@ -1,5 +1,5 @@
 @page "/audit"
-@attribute [Authorize(Roles = "AuditView")]
+@attribute [Authorize(Roles = nameof(PageEnum.AuditView))]
 @using System.Text.Json
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features
@@ -110,7 +110,7 @@ else
         <Columns>
 
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="ChangedAtUtc"
-                                  Title="Дата" Width="150px" Sortable="true" Visible="@Col("AuditColDate")">
+                                  Title="Дата" Width="150px" Sortable="true" Visible="@Col(nameof(PageColumnEnum.AuditColDate))">
                 <Template Context="log">
                     <span title="@log.ChangedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")">
                         @log.ChangedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
@@ -119,7 +119,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="ChangeType"
-                                  Title="Операция" Width="110px" Sortable="true" Visible="@Col("AuditColChangeType")">
+                                  Title="Операция" Width="110px" Sortable="true" Visible="@Col(nameof(PageColumnEnum.AuditColChangeType))">
                 <Template Context="log">
                     @{
                         var (icon, color, label) = log.ChangeType switch
@@ -138,14 +138,14 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="EntityName"
-                                  Title="Сущность" Width="150px" Sortable="true" Visible="@Col("AuditColEntity")">
+                                  Title="Сущность" Width="150px" Sortable="true" Visible="@Col(nameof(PageColumnEnum.AuditColEntity))">
                 <Template Context="log">
                     <span style="font-size: 0.85rem; font-weight: 500;">@AuditDisplayHelper.GetEntityDisplayName(log.EntityName)</span>
                 </Template>
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="EntityId"
-                                  Title="ID записи" Width="130px" Sortable="false" Visible="@Col("AuditColEntityId")">
+                                  Title="ID записи" Width="130px" Sortable="false" Visible="@Col(nameof(PageColumnEnum.AuditColEntityId))">
                 <Template Context="log">
                     <span style="font-family: monospace; font-size: 0.75rem; color: var(--rz-text-secondary-color);"
                           title="@log.EntityId">
@@ -155,13 +155,13 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="FieldName"
-                                  Title="Поле" Width="160px" Sortable="true" Visible="@Col("AuditColField")">
+                                  Title="Поле" Width="160px" Sortable="true" Visible="@Col(nameof(PageColumnEnum.AuditColField))">
                 <Template Context="log">
                     <span style="font-size: 0.8rem;">@AuditDisplayHelper.GetFieldDisplayName(log.EntityName, log.FieldName)</span>
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="FieldAuditLog" Title="Было" Width="220px" Sortable="false" Visible="@Col("AuditColOldValue")">
+            <RadzenDataGridColumn TItem="FieldAuditLog" Title="Было" Width="220px" Sortable="false" Visible="@Col(nameof(PageColumnEnum.AuditColOldValue))">
                 <Template Context="log">
                     <span style="color: var(--rz-danger); font-size: 0.85rem; word-break: break-word;">
                         @FormatValue(log.OldValue)
@@ -169,7 +169,7 @@ else
                 </Template>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="FieldAuditLog" Title="Стало" Width="220px" Sortable="false" Visible="@Col("AuditColNewValue")">
+            <RadzenDataGridColumn TItem="FieldAuditLog" Title="Стало" Width="220px" Sortable="false" Visible="@Col(nameof(PageColumnEnum.AuditColNewValue))">
                 <Template Context="log">
                     <span style="color: var(--rz-success); font-size: 0.85rem; word-break: break-word;">
                         @FormatValue(log.NewValue)
@@ -178,7 +178,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="FieldAuditLog" Property="ChangedByUserName"
-                                  Title="Кто изменил" Width="180px" Sortable="true" Visible="@Col("AuditColUser")">
+                                  Title="Кто изменил" Width="180px" Sortable="true" Visible="@Col(nameof(PageColumnEnum.AuditColUser))">
                 <Template Context="log">
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.3rem">
                         <RadzenIcon Icon="@(log.ChangedByUserName == SystemUser.RobotEmail ? "smart_toy" : "person")"

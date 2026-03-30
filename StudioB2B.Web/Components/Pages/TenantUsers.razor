@@ -1,5 +1,5 @@
 @page "/users"
-@attribute [Authorize(Roles = "UsersView")]
+@attribute [Authorize(Roles = nameof(PageEnum.UsersView))]
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject IUserService UserService
@@ -26,7 +26,7 @@ else
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
             <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ToggleDensity" Title="@GetDensityTitle()" />
-            <AuthorizeView Roles="UsersManage">
+            <AuthorizeView Roles="@nameof(FunctionEnum.UsersManage)">
                 <Authorized>
                     <RadzenButton Icon="person_add" Text="Добавить пользователя" Shade="Shade.Light"
                                   ButtonStyle="ButtonStyle.Primary" Click="@OpenCreateDialog" />
@@ -99,14 +99,14 @@ else
                     PagingSummaryFormat="@RadzenRuStrings.PagingSummaryFormat"
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
-            <RadzenDataGridColumn TItem="UserListDto" Property="LastName" Title="Фамилия" Width="180px" Frozen="true" Visible="@Col("UsersColLastName")" />
-            <RadzenDataGridColumn TItem="UserListDto" Property="FirstName" Title="Имя" Width="160px" Visible="@Col("UsersColFirstName")" />
-            <RadzenDataGridColumn TItem="UserListDto" Property="MiddleName" Title="Отчество" Width="160px" Visible="@Col("UsersColMiddleName")" />
-            <RadzenDataGridColumn TItem="UserListDto" Property="Email" Title="Email" Width="240px" Visible="@Col("UsersColEmail")" />
+            <RadzenDataGridColumn TItem="UserListDto" Property="LastName" Title="Фамилия" Width="180px" Frozen="true" Visible="@Col(nameof(PageColumnEnum.UsersColLastName))" />
+            <RadzenDataGridColumn TItem="UserListDto" Property="FirstName" Title="Имя" Width="160px" Visible="@Col(nameof(PageColumnEnum.UsersColFirstName))" />
+            <RadzenDataGridColumn TItem="UserListDto" Property="MiddleName" Title="Отчество" Width="160px" Visible="@Col(nameof(PageColumnEnum.UsersColMiddleName))" />
+            <RadzenDataGridColumn TItem="UserListDto" Property="Email" Title="Email" Width="240px" Visible="@Col(nameof(PageColumnEnum.UsersColEmail))" />
 
             <RadzenDataGridColumn TItem="UserListDto" Property="IsActive" Title="Активен"
                                   Width="110px" TextAlign="TextAlign.Center" Filterable="false"
-                                  Visible="@Col("UsersColIsActive")">
+                                  Visible="@Col(nameof(PageColumnEnum.UsersColIsActive))">
                 <Template Context="u">
                     <RadzenCheckBox TValue="bool" Value="@u.IsActive" Disabled="true" />
                 </Template>
@@ -114,7 +114,7 @@ else
 
             <RadzenDataGridColumn TItem="UserListDto" Title="Права" Width="260px"
                                   Sortable="false" Filterable="false"
-                                  Visible="@Col("UsersColPermissions")">
+                                  Visible="@Col(nameof(PageColumnEnum.UsersColPermissions))">
                 <Template Context="u">
                     @string.Join(", ", u.Permissions)
                 </Template>
@@ -149,7 +149,7 @@ else
     {
         var state = await AuthState;
         _user = state.User;
-        _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("UsersManage");
+        _canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.UsersManage));
 
         if (TenantProvider.IsResolved)
             await LoadAsync();
@@ -214,7 +214,7 @@ else
         {
             await LoadAsync();                              // data first
             var state = await AuthState;
-            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("UsersManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.UsersManage));
         }
     }
 
@@ -234,7 +234,7 @@ else
         {
             await LoadAsync();                              // data first
             var state = await AuthState;
-            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("UsersManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.UsersManage));
         }
     }
 
