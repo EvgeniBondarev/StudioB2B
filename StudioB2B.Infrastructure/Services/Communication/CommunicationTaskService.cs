@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Shared;
+using System.Runtime.CompilerServices;
 
 namespace StudioB2B.Infrastructure.Services.Communication;
 
@@ -16,6 +18,8 @@ public class CommunicationTaskService : ICommunicationTaskService
     private readonly IOzonChatService _chatService;
     private readonly IOzonQuestionsService _questionsService;
     private readonly IOzonReviewsService _reviewsService;
+    private readonly IMemoryCache _cache;
+    private readonly ITenantProvider _tenantProvider;
 
     public CommunicationTaskService(
         TenantDbContext db,
@@ -23,7 +27,9 @@ public class CommunicationTaskService : ICommunicationTaskService
         ICurrentUserProvider currentUser,
         IOzonChatService chatService,
         IOzonQuestionsService questionsService,
-        IOzonReviewsService reviewsService)
+        IOzonReviewsService reviewsService,
+        IMemoryCache cache,
+        ITenantProvider tenantProvider)
     {
         _db = db;
         _logger = logger;
@@ -31,6 +37,8 @@ public class CommunicationTaskService : ICommunicationTaskService
         _chatService = chatService;
         _questionsService = questionsService;
         _reviewsService = reviewsService;
+        _cache = cache;
+        _tenantProvider = tenantProvider;
     }
 
     /// <summary>
@@ -175,6 +183,168 @@ public class CommunicationTaskService : ICommunicationTaskService
         }));
 
         return result;
+    }
+
+    public async Task<TaskBoardDto> GetDbBoardAsync(CommunicationTaskFilter filter, CancellationToken ct = default)
+    {
+        _db.ChangeTracker.Clear();
+
+        var dbQuery = _db.CommunicationTasks
+            .AsNoTracking()
+            .Where(t => !t.IsDeleted &&
+                        (t.TaskType != CommunicationTaskType.Chat ||
+                         t.ChatType == null ||
+                         t.ChatType == "BUYER_SELLER"));
+
+        if (filter.TaskType.HasValue)
+            dbQuery = dbQuery.Where(t => t.TaskType == filter.TaskType.Value);
+        if (filter.AssignedToUserId.HasValue)
+            dbQuery = dbQuery.Where(t => t.AssignedToUserId == filter.AssignedToUserId.Value);
+        if (filter.MarketplaceClientId.HasValue)
+            dbQuery = dbQuery.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
+
+        var inProgressItems = await dbQuery
+            .Where(t => t.Status == CommunicationTaskStatus.InProgress)
+            .OrderByDescending(t => t.CreatedAt)
+            .Select(ProjectToCardDto())
+            .ToListAsync(ct);
+
+        var doneQuery = dbQuery
+            .Where(t => t.Status == CommunicationTaskStatus.Done ||
+                        t.Status == CommunicationTaskStatus.Cancelled);
+
+        if (filter.From.HasValue)
+            doneQuery = doneQuery.Where(t => t.CreatedAt >= filter.From.Value);
+        if (filter.To.HasValue)
+            doneQuery = doneQuery.Where(t => t.CreatedAt <= filter.To.Value);
+
+        var doneTotalCount = await doneQuery.CountAsync(ct);
+        var doneItems = await doneQuery
+            .OrderByDescending(t => t.CreatedAt)
+            .Take(filter.DoneTake)
+            .Select(ProjectToCardDto())
+            .ToListAsync(ct);
+
+        var doneTypeCounts = await doneQuery
+            .GroupBy(t => t.TaskType)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var typeCounts = new Dictionary<CommunicationTaskType, int>();
+        foreach (var tc in doneTypeCounts)
+            typeCounts[tc.Key] = tc.Count;
+        foreach (var t in inProgressItems)
+            typeCounts[t.TaskType] = typeCounts.GetValueOrDefault(t.TaskType) + 1;
+
+        var result = new TaskBoardDto { DoneTotalCount = doneTotalCount, TypeCounts = typeCounts };
+        result.InProgressTasks.AddRange(inProgressItems);
+        result.DoneTasks.AddRange(doneItems);
+
+        var activeRates = await _db.CommunicationPaymentRates
+            .Include(r => r.User)
+            .AsNoTracking()
+            .Where(r => r.IsActive)
+            .ToListAsync(ct);
+
+        var globalRates = activeRates.Where(r => r.UserId == null).ToList();
+        foreach (var type in new[] { CommunicationTaskType.Chat, CommunicationTaskType.Question, CommunicationTaskType.Review })
+        {
+            var matching = globalRates.Where(r => r.TaskType == null || r.TaskType == type).ToList();
+            var perTask = matching.Where(r => r.PaymentMode == PaymentMode.PerTask && !r.MinDurationMinutes.HasValue).Sum(r => r.Rate);
+            if (perTask > 0) result.PaymentEstimates[type] = Math.Round(perTask, 2);
+            var hourly = matching.Where(r => r.PaymentMode == PaymentMode.Hourly && !r.MinDurationMinutes.HasValue).Sum(r => r.Rate);
+            if (hourly > 0) result.HourlyEstimates[type] = Math.Round(hourly, 2);
+        }
+        result.ActiveRates.AddRange(activeRates.Select(r => new CommunicationPaymentRateDto
+        {
+            Id = r.Id,
+            TaskType = r.TaskType,
+            PaymentMode = r.PaymentMode,
+            UserId = r.UserId,
+            Rate = r.Rate,
+            MinDurationMinutes = r.MinDurationMinutes,
+            MaxDurationMinutes = r.MaxDurationMinutes,
+            IsActive = r.IsActive,
+            Description = r.Description
+        }));
+
+        return result;
+    }
+
+    public async Task<List<CommunicationTaskDto>> GetNewTasksAsync(CommunicationTaskFilter filter, CancellationToken ct = default)
+    {
+        if (filter.AssignedToUserId.HasValue) return new List<CommunicationTaskDto>();
+
+        _db.ChangeTracker.Clear();
+
+        var inProgressQuery = _db.CommunicationTasks
+            .AsNoTracking()
+            .Where(t => !t.IsDeleted && t.Status == CommunicationTaskStatus.InProgress);
+
+        if (filter.TaskType.HasValue)
+            inProgressQuery = inProgressQuery.Where(t => t.TaskType == filter.TaskType.Value);
+        if (filter.MarketplaceClientId.HasValue)
+            inProgressQuery = inProgressQuery.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
+
+        var inProgressRaw = await inProgressQuery
+            .Select(t => new { t.TaskType, t.ExternalId, t.MarketplaceClientId })
+            .ToListAsync(ct);
+        var inProgressSet = inProgressRaw
+            .Select(t => (t.TaskType, t.ExternalId, t.MarketplaceClientId))
+            .ToHashSet();
+
+        var newItems = new List<CommunicationTaskDto>();
+        if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Chat)
+            newItems.AddRange(await FetchLiveChatsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct));
+        if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Question)
+            newItems.AddRange(await FetchLiveQuestionsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct));
+        if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Review)
+            newItems.AddRange(await FetchLiveReviewsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct));
+
+        return newItems;
+    }
+
+    public async IAsyncEnumerable<List<CommunicationTaskDto>> StreamNewTasksAsync(
+        CommunicationTaskFilter filter,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        if (filter.AssignedToUserId.HasValue) yield break;
+
+        _db.ChangeTracker.Clear();
+
+        var inProgressQuery = _db.CommunicationTasks
+            .AsNoTracking()
+            .Where(t => !t.IsDeleted && t.Status == CommunicationTaskStatus.InProgress);
+
+        if (filter.TaskType.HasValue)
+            inProgressQuery = inProgressQuery.Where(t => t.TaskType == filter.TaskType.Value);
+        if (filter.MarketplaceClientId.HasValue)
+            inProgressQuery = inProgressQuery.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
+
+        var inProgressRaw = await inProgressQuery
+            .Select(t => new { t.TaskType, t.ExternalId, t.MarketplaceClientId })
+            .ToListAsync(ct);
+        var inProgressSet = inProgressRaw
+            .Select(t => (t.TaskType, t.ExternalId, t.MarketplaceClientId))
+            .ToHashSet();
+
+        if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Chat)
+        {
+            var batch = await FetchLiveChatsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct);
+            if (batch.Count > 0) yield return batch;
+        }
+
+        if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Question)
+        {
+            var batch = await FetchLiveQuestionsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct);
+            if (batch.Count > 0) yield return batch;
+        }
+
+        if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Review)
+        {
+            var batch = await FetchLiveReviewsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct);
+            if (batch.Count > 0) yield return batch;
+        }
     }
 
     public async Task<(List<CommunicationTaskDto> Items, int TotalCount)> GetDoneTasksPageAsync(
@@ -980,9 +1150,17 @@ public class CommunicationTaskService : ICommunicationTaskService
                     .Select(c => c.Id)
                     .ToArrayAsync(ct);
 
-            var pageTasks = clientIds.Select(id => _chatService.GetChatsPageAsync(
-                pageSize: 50, chatStatus: "OPENED", chatType: "BUYER_SELLER",
-                marketplaceClientId: id, ct: ct));
+            var pageTasks = clientIds.Select(async id =>
+            {
+                var cacheKey = $"ozon_chats:{_tenantProvider.TenantId}:{id}";
+                return await _cache.GetOrCreateAsync(cacheKey, async entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+                    return await _chatService.GetChatsPageAsync(
+                        pageSize: 50, chatStatus: "OPENED", chatType: "BUYER_SELLER",
+                        marketplaceClientId: id, unreadOnly: true, withLastMessageInfo: false, ct: ct);
+                }) ?? new OzonChatPageDto();
+            });
             var pages = await Task.WhenAll(pageTasks);
 
             var toExclusive = to.HasValue ? to.Value.Date.AddDays(1) : DateTime.MaxValue;
@@ -995,12 +1173,6 @@ public class CommunicationTaskService : ICommunicationTaskService
                 if (from.HasValue && chat.LastMessageAt < from.Value)
                     continue;
                 if (chat.LastMessageAt >= toExclusive)
-                    continue;
-                // Only show chats where the last message is from the buyer (seller hasn't replied yet).
-                if (chat.LastMessageUserType is not null &&
-                    (chat.LastMessageUserType.Equals("Seller", StringComparison.OrdinalIgnoreCase) ||
-                     chat.LastMessageUserType.Equals("Seller_Support", StringComparison.OrdinalIgnoreCase) ||
-                     chat.LastMessageUserType.Equals("SELLER_SUPPORT", StringComparison.OrdinalIgnoreCase)))
                     continue;
 
                 result.Add(new CommunicationTaskDto
@@ -1046,9 +1218,19 @@ public class CommunicationTaskService : ICommunicationTaskService
                     .Select(c => c.Id)
                     .ToArrayAsync(ct);
 
-            var pageTasks = clientIds.Select(id => _questionsService.GetQuestionsPageAsync(
-                pageSize: 50, cursor: null, dateFrom: from, dateTo: toExclusive,
-                marketplaceClientId: id, ct: ct));
+            var fromKey = from?.ToString("yyyyMMdd") ?? "null";
+            var toKey = toExclusive?.ToString("yyyyMMdd") ?? "null";
+            var pageTasks = clientIds.Select(async id =>
+            {
+                var cacheKey = $"ozon_questions:{_tenantProvider.TenantId}:{id}:{fromKey}:{toKey}";
+                return await _cache.GetOrCreateAsync(cacheKey, async entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+                    return await _questionsService.GetQuestionsPageAsync(
+                        pageSize: 50, cursor: null, dateFrom: from, dateTo: toExclusive,
+                        marketplaceClientId: id, ct: ct);
+                }) ?? new OzonQuestionPageDto();
+            });
             var pages = await Task.WhenAll(pageTasks);
 
             var result = new List<CommunicationTaskDto>();
@@ -1100,8 +1282,16 @@ public class CommunicationTaskService : ICommunicationTaskService
                     .Select(c => c.Id)
                     .ToArrayAsync(ct);
 
-            var pageTasks = clientIds.Select(id => _reviewsService.GetReviewsPageAsync(
-                pageSize: 50, cursor: null, marketplaceClientId: id, ct: ct));
+            var pageTasks = clientIds.Select(async id =>
+            {
+                var cacheKey = $"ozon_reviews:{_tenantProvider.TenantId}:{id}";
+                return await _cache.GetOrCreateAsync(cacheKey, async entry =>
+                {
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+                    return await _reviewsService.GetReviewsPageAsync(
+                        pageSize: 50, cursor: null, marketplaceClientId: id, ct: ct);
+                }) ?? new OzonReviewPageDto();
+            });
             var pages = await Task.WhenAll(pageTasks);
 
             var toExclusive = to.HasValue ? to.Value.Date.AddDays(1) : DateTime.MaxValue;

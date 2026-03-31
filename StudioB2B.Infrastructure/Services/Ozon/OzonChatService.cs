@@ -24,7 +24,8 @@ public class OzonChatService : IOzonChatService
 
     public async Task<OzonChatPageDto> GetChatsPageAsync(int pageSize = 20, string? cursor = null, string? chatStatus = null,
                                                          string? chatType = null, bool unreadOnly = false,
-                                                         Guid? marketplaceClientId = null, CancellationToken ct = default)
+                                                         Guid? marketplaceClientId = null, bool withLastMessageInfo = true,
+                                                         CancellationToken ct = default)
     {
         var clients = await GetOzonClientsAsync(marketplaceClientId, ct);
         var viewModels = new List<OzonChatViewModelDto>();
@@ -76,10 +77,18 @@ public class OzonChatService : IOzonChatService
                                 string.Equals(i.Chat!.ChatType, chatType, StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
-                // Параллельно получаем время и тип отправителя последнего сообщения
-                var historyTasks = items.Select(item => GetLastMessageInfoAsync(
-                    client.ApiId, client.EncryptedApiKey, item.Chat!.ChatId, item.Chat.CreatedAt, ct));
-                var lastInfos = await Task.WhenAll(historyTasks);
+                // Параллельно получаем время и тип отправителя последнего сообщения (только когда нужно для просмотра)
+                (DateTime Time, string? UserType)[] lastInfos;
+                if (withLastMessageInfo)
+                {
+                    var historyTasks = items.Select(item => GetLastMessageInfoAsync(
+                        client.ApiId, client.EncryptedApiKey, item.Chat!.ChatId, item.Chat.CreatedAt, ct));
+                    lastInfos = await Task.WhenAll(historyTasks);
+                }
+                else
+                {
+                    lastInfos = items.Select(item => (item.Chat!.CreatedAt, (string?)null)).ToArray();
+                }
 
                 for (int i = 0; i < items.Count; i++)
                 {
@@ -247,6 +256,9 @@ public class OzonChatService : IOzonChatService
         if (!result.IsSuccess)
         {
             _logger.LogWarning("GetChatHistory failed for chat {ChatId}: {Error}", chatId, result.ErrorMessage);
+            if (result.StatusCode == 403)
+                throw new UnauthorizedAccessException(
+                    $"Не удалось загрузить историю чата: {result.ErrorMessage ?? "нет доступа"}");
             throw new InvalidOperationException(
                 $"Не удалось загрузить историю чата: {result.ErrorMessage ?? "неизвестная ошибка"}");
         }

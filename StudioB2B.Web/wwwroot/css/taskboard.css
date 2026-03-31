@@ -81,6 +81,12 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.taskboard-column-body::-webkit-scrollbar {
+    display: none;
 }
 
 /* Task cards */
