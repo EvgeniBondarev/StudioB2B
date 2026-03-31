@@ -10,4 +10,8 @@
       <ProjectReference Include="..\StudioB2B.Domain\StudioB2B.Domain.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="DTOs\Ozon\ProductInfoList\" />
+    </ItemGroup>
+
 </Project>

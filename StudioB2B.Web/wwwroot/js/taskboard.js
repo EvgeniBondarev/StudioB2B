@@ -24,3 +24,8 @@ window.taskBoardInfiniteScroll = {
     }
 };
 
+window.scrollChatOverlayToBottom = function () {
+    const el = document.querySelector('.task-detail-overlay .chat-messages-area');
+    if (el) el.scrollTop = el.scrollHeight;
+};
+
