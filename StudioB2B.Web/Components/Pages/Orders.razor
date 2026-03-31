@@ -1,5 +1,5 @@
 @page "/orders"
-@attribute [Authorize(Roles = "OrdersView")]
+@attribute [Authorize(Roles = nameof(PageEnum.OrdersView))]
 @using Radzen
 @using Radzen.Blazor.Rendering
 
@@ -1065,22 +1065,22 @@ window.gridResize = {
             UserContext.SetUser(user);
             bool Col(string role) => user.IsInRole("Admin") || user.IsInRole(role);
 
-            _canViewPrice = Col("OrdersViewPrice");
-            _canViewCalculations = Col("OrdersViewCalculations");
+            _canViewPrice = Col(nameof(PageColumnEnum.OrdersViewPrice));
+            _canViewCalculations = Col(nameof(PageColumnEnum.OrdersViewCalculations));
 
-            GetColumn(OrderGridColumns.ShipmentNumber).RoleVisible = Col("OrdersColShipmentNumber");
-            GetColumn(OrderGridColumns.Client).RoleVisible = Col("OrdersColClient");
-            GetColumn(OrderGridColumns.AcceptedDate).RoleVisible = Col("OrdersColAcceptedDate");
-            GetColumn(OrderGridColumns.ShippingDate).RoleVisible = Col("OrdersColShippingDate");
-            GetColumn(OrderGridColumns.DeliveryTerm).RoleVisible = Col("OrdersColDeliveryTerm");
-            GetColumn(OrderGridColumns.Article).RoleVisible = Col("OrdersColArticle");
-            GetColumn(OrderGridColumns.Product).RoleVisible = Col("OrdersColProduct");
-            GetColumn(OrderGridColumns.Manufacturer).RoleVisible = Col("OrdersColManufacturer");
-            GetColumn(OrderGridColumns.Quantity).RoleVisible = Col("OrdersColQuantity");
-            GetColumn(OrderGridColumns.MarketplaceStatus).RoleVisible = Col("OrdersColMarketplaceStatus");
-            GetColumn(OrderGridColumns.AppStatus).RoleVisible = Col("OrdersColAppStatus");
-            GetColumn(OrderGridColumns.DeliveryMethod).RoleVisible = Col("OrdersColDeliveryMethod");
-            GetColumn(OrderGridColumns.Warehouse).RoleVisible = Col("OrdersColWarehouse");
+            GetColumn(OrderGridColumns.ShipmentNumber).RoleVisible = Col(nameof(PageColumnEnum.OrdersColShipmentNumber));
+            GetColumn(OrderGridColumns.Client).RoleVisible = Col(nameof(PageColumnEnum.OrdersColClient));
+            GetColumn(OrderGridColumns.AcceptedDate).RoleVisible = Col(nameof(PageColumnEnum.OrdersColAcceptedDate));
+            GetColumn(OrderGridColumns.ShippingDate).RoleVisible = Col(nameof(PageColumnEnum.OrdersColShippingDate));
+            GetColumn(OrderGridColumns.DeliveryTerm).RoleVisible = Col(nameof(PageColumnEnum.OrdersColDeliveryTerm));
+            GetColumn(OrderGridColumns.Article).RoleVisible = Col(nameof(PageColumnEnum.OrdersColArticle));
+            GetColumn(OrderGridColumns.Product).RoleVisible = Col(nameof(PageColumnEnum.OrdersColProduct));
+            GetColumn(OrderGridColumns.Manufacturer).RoleVisible = Col(nameof(PageColumnEnum.OrdersColManufacturer));
+            GetColumn(OrderGridColumns.Quantity).RoleVisible = Col(nameof(PageColumnEnum.OrdersColQuantity));
+            GetColumn(OrderGridColumns.MarketplaceStatus).RoleVisible = Col(nameof(PageColumnEnum.OrdersColMarketplaceStatus));
+            GetColumn(OrderGridColumns.AppStatus).RoleVisible = Col(nameof(PageColumnEnum.OrdersColAppStatus));
+            GetColumn(OrderGridColumns.DeliveryMethod).RoleVisible = Col(nameof(PageColumnEnum.OrdersColDeliveryMethod));
+            GetColumn(OrderGridColumns.Warehouse).RoleVisible = Col(nameof(PageColumnEnum.OrdersColWarehouse));
             GetColumn(OrderGridColumns.Price).RoleVisible = _canViewPrice;
             GetColumn(OrderGridColumns.ExtraCalculations).RoleVisible = _canViewCalculations;
 
