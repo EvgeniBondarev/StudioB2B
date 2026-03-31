@@ -1,3 +1,4 @@
+using StudioB2B.Domain.Constants;
 using StudioB2B.Shared;
 
 namespace StudioB2B.Web.Services;
@@ -34,6 +35,26 @@ public class TaskBoardStateService
     {
         Board = null;
         LoadedAt = null;
+    }
+
+    public string? ActivePreviewExternalId { get; private set; }
+
+    public Guid? ActivePreviewClientId { get; private set; }
+
+    public CommunicationTaskType? ActivePreviewType { get; private set; }
+
+    public void SetActivePreview(string externalId, Guid clientId, CommunicationTaskType type)
+    {
+        ActivePreviewExternalId = externalId;
+        ActivePreviewClientId = clientId;
+        ActivePreviewType = type;
+    }
+
+    public void ClearActivePreview()
+    {
+        ActivePreviewExternalId = null;
+        ActivePreviewClientId = null;
+        ActivePreviewType = null;
     }
 }
 
