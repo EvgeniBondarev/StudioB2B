@@ -6,6 +6,16 @@ public interface ICommunicationTaskService
 {
     Task<TaskBoardDto> GetBoardAsync(CommunicationTaskFilter filter, CancellationToken ct = default);
 
+    /// <summary>Fast DB-only board: loads InProgress + Done + rates without calling Ozon. NewTasks will be empty.</summary>
+    Task<TaskBoardDto> GetDbBoardAsync(CommunicationTaskFilter filter, CancellationToken ct = default);
+
+    /// <summary>Fetches live New tasks from Ozon APIs, deduplicating against current InProgress in DB.</summary>
+    Task<List<CommunicationTaskDto>> GetNewTasksAsync(CommunicationTaskFilter filter, CancellationToken ct = default);
+
+    /// <summary>Streams live New tasks from Ozon one batch at a time (chats → questions → reviews).
+    /// Each yielded batch can be appended to the board immediately for progressive rendering.</summary>
+    IAsyncEnumerable<List<CommunicationTaskDto>> StreamNewTasksAsync(CommunicationTaskFilter filter, CancellationToken ct = default);
+
     /// <summary>Returns a paginated page of Done/Cancelled tasks projected directly to DTOs.</summary>
     Task<(List<CommunicationTaskDto> Items, int TotalCount)> GetDoneTasksPageAsync(
         CommunicationTaskFilter filter, int skip, int take, CancellationToken ct = default);
