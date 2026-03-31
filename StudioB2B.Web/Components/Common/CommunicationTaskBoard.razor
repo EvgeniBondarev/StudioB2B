@@ -54,6 +54,27 @@
 
             <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 4px;"></span>
 
+            <span style="font-size:0.78rem;color:var(--rz-text-color-secondary);">С</span>
+            <RadzenDatePicker TValue="DateTime?" @bind-Value="_filterFrom"
+                              DateFormat="dd.MM.yy" ShowCalendarWeek="false"
+                              Placeholder="дд.мм.гг" Style="width:100px;"
+                              Change="@OnDateFilterChange" />
+            <span style="font-size:0.78rem;color:var(--rz-text-color-secondary);">По</span>
+            <RadzenDatePicker TValue="DateTime?" @bind-Value="_filterTo"
+                              DateFormat="dd.MM.yy" ShowCalendarWeek="false"
+                              Placeholder="дд.мм.гг" Style="width:100px;"
+                              Change="@OnDateFilterChange" />
+
+            <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 4px;"></span>
+
+            <RadzenDropDown TValue="Guid?" Value="_filterClientId"
+                            Data="@_clientOptions" TextProperty="Name" ValueProperty="Id"
+                            Placeholder="Все кабинеты" AllowClear="true"
+                            Style="width:160px;"
+                            Change="@OnClientFilterChange" />
+
+            <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 4px;"></span>
+
             <RadzenButton Icon="cloud_sync" ButtonStyle="ButtonStyle.Light"
                           Size="ButtonSize.ExtraSmall" Click="@FullSyncAndReloadAsync"
                           IsBusy="@_syncing" title="Полная синхронизация" />
@@ -203,6 +224,11 @@
                                 @if (!string.IsNullOrEmpty(task.ExternalStatus))
                                 {
                                     <span class="task-external-status">@task.ExternalStatus</span>
+                                }
+                                @{ var inProgressEst = ComputeEstimate(task); }
+                                @if (inProgressEst > 0)
+                                {
+                                    <span class="task-estimate-badge" title="Ожидаемая оплата по текущим тарифам">~@inProgressEst.ToString("F0") ₽</span>
                                 }
                             </div>
                             @if (task.AssignedToUserId == CurrentUser.UserId)
@@ -640,6 +666,10 @@
 @code {
     private TaskBoardDto _board = new();
     private CommunicationTaskType? _filterType;
+    private DateTime? _filterFrom = DateTime.Today.AddDays(-30);
+    private DateTime? _filterTo;
+    private Guid? _filterClientId;
+    private List<ClientOptionDto> _clientOptions = new();
     private bool _loading;
     private bool _syncing;
     private bool _loadingMore;
@@ -679,6 +709,8 @@
         var authState = await AuthState;
         UserContext.SetUser(authState.User);
 
+        _ = LoadClientOptionsAsync();
+
         if (BoardState.HasData)
         {
             // Restore from cache instantly — no skeleton, no delay
@@ -714,16 +746,16 @@
 
     private async Task QuickSyncAndReloadAsync()
     {
-        _syncing = true;
-        StateHasChanged();
-        try { await SyncService.SyncRecentAsync(); }
-        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Warning, "Синхронизация", ex.Message, 4000); }
-        finally { _syncing = false; }
+        // GetBoardAsync fetches live New tasks directly from Ozon — no separate sync step needed.
         await LoadBoardAsync();
     }
 
     private async Task FullSyncAndReloadAsync()
     {
+        // Show skeleton immediately — don't wait for SyncAsync to complete before rendering.
+        await LoadBoardAsync();
+
+        // Run full sync in background; silently refresh board once done.
         _syncing = true;
         StateHasChanged();
         try
@@ -733,7 +765,8 @@
         }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Warning, "Синхронизация", ex.Message, 4000); }
         finally { _syncing = false; }
-        await LoadBoardAsync();
+
+        await SilentReloadAsync();
     }
 
     private async Task LoadBoardAsync()
@@ -742,7 +775,14 @@
         StateHasChanged();
         try
         {
-            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter { DoneTake = DonePageSize });
+            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter
+            {
+                DoneTake = DonePageSize,
+                From = _filterFrom,
+                To = _filterTo,
+                TaskType = _filterType,
+                MarketplaceClientId = _filterClientId
+            });
             _board = board;
             BoardState.Set(board);
         }
@@ -755,8 +795,14 @@
     {
         try
         {
-            await SyncService.SyncRecentAsync();
-            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter { DoneTake = DonePageSize });
+            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter
+            {
+                DoneTake = DonePageSize,
+                From = _filterFrom,
+                To = _filterTo,
+                TaskType = _filterType,
+                MarketplaceClientId = _filterClientId
+            });
             _board = board;
             BoardState.Set(board);
             await InvokeAsync(StateHasChanged);
@@ -773,7 +819,7 @@
         StateHasChanged();
         try
         {
-            var filter = new CommunicationTaskFilter { TaskType = _filterType };
+            var filter = new CommunicationTaskFilter { TaskType = _filterType, From = _filterFrom, To = _filterTo, MarketplaceClientId = _filterClientId };
             var (items, total) = await TaskService.GetDoneTasksPageAsync(filter, _board.DoneTasks.Count, DonePageSize);
             _board.DoneTasks.AddRange(items);
             _board.DoneTotalCount = total;
@@ -788,7 +834,14 @@
     {
         try
         {
-            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter { DoneTake = DonePageSize });
+            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter
+            {
+                DoneTake = DonePageSize,
+                From = _filterFrom,
+                To = _filterTo,
+                TaskType = _filterType,
+                MarketplaceClientId = _filterClientId
+            });
             _board = board;
             BoardState.Set(board);
             StateHasChanged();
@@ -826,13 +879,27 @@
         StateHasChanged();
         try
         {
-            var filter = new CommunicationTaskFilter { TaskType = _filterType };
+            var filter = new CommunicationTaskFilter { TaskType = _filterType, From = _filterFrom, To = _filterTo, MarketplaceClientId = _filterClientId };
             var (items, total) = await TaskService.GetDoneTasksPageAsync(filter, 0, DonePageSize);
             _board.DoneTasks.AddRange(items);
             _board.DoneTotalCount = total;
         }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
         StateHasChanged();
+    }
+
+    private async Task OnDateFilterChange(DateTime? _) => await LoadBoardAsync();
+
+    private async Task OnClientFilterChange(object value)
+    {
+        _filterClientId = value is Guid g ? g : (Guid?)null;
+        await LoadBoardAsync();
+    }
+
+    private async Task LoadClientOptionsAsync()
+    {
+        try { _clientOptions = await MarketplaceClientService.GetClientOptionsAsync(); StateHasChanged(); }
+        catch { /* non-critical */ }
     }
 
     private List<CommunicationTaskDto> ApplyTypeFilter(List<CommunicationTaskDto> source)
@@ -922,8 +989,9 @@
                 }
             }
 
-            // Load time entries / payment detail after the switch to avoid DbContext concurrency
-            _taskDetail = await TaskService.GetTaskDetailAsync(task.Id);
+            // Load time entries / payment detail — only if the task already exists in DB.
+            if (task.Id != Guid.Empty)
+                _taskDetail = await TaskService.GetTaskDetailAsync(task.Id);
         }
         catch (Exception ex)
         {
@@ -1016,8 +1084,12 @@
         var userId = await GetUserIdAsync();
         if (userId is null) return;
 
-        // Optimistic: move card New → InProgress immediately
-        _board.NewTasks.RemoveAll(t => t.Id == task.Id);
+        // Optimistic: move card New → InProgress immediately.
+        // Live New tasks have Id==Guid.Empty, so match by ExternalId+Type+Client.
+        _board.NewTasks.RemoveAll(t =>
+            t.TaskType == task.TaskType &&
+            t.ExternalId == task.ExternalId &&
+            t.MarketplaceClientId == task.MarketplaceClientId);
         task.Status = CommunicationTaskStatus.InProgress;
         task.AssignedToUserId = userId;
         task.HasActiveTimer = true;
@@ -1027,9 +1099,20 @@
 
         try
         {
-            var ok = await TaskService.ClaimTaskAsync(task.Id, userId.Value);
-            if (!ok)
-                NotificationService.Notify(NotificationSeverity.Warning, "Задача уже занята", "Кто-то успел взять раньше", 3000);
+            if (task.Id == Guid.Empty)
+            {
+                var newId = await TaskService.CreateAndClaimAsync(task, userId.Value);
+                if (newId is null)
+                    NotificationService.Notify(NotificationSeverity.Warning, "Задача уже занята", "Кто-то успел взять раньше", 3000);
+                else
+                    task.Id = newId.Value;
+            }
+            else
+            {
+                var ok = await TaskService.ClaimTaskAsync(task.Id, userId.Value);
+                if (!ok)
+                    NotificationService.Notify(NotificationSeverity.Warning, "Задача уже занята", "Кто-то успел взять раньше", 3000);
+            }
         }
         catch (Exception ex)
         {
@@ -1100,14 +1183,8 @@
         var userId = await GetUserIdAsync();
         if (userId is null) return;
 
-        // Optimistic: move card InProgress → New immediately
+        // Optimistic: remove from InProgress. Task will reappear in New via live Ozon feed on next board refresh.
         _board.InProgressTasks.RemoveAll(t => t.Id == task.Id);
-        task.Status = CommunicationTaskStatus.New;
-        task.AssignedToUserId = null;
-        task.AssignedToUserName = null;
-        task.HasActiveTimer = false;
-        task.StartedAt = null;
-        _board.NewTasks.Insert(0, task);
         StateHasChanged();
 
         try { await TaskService.ReleaseTaskAsync(task.Id, userId.Value); }
@@ -1138,6 +1215,35 @@
         CommunicationTaskType.Review => "Отзыв",
         _ => "—"
     };
+
+    private decimal ComputeEstimate(CommunicationTaskDto task)
+    {
+        if (_board.ActiveRates.Count == 0) return 0m;
+
+        var liveTicks = task.TotalTimeSpentTicks;
+        if (task.HasActiveTimer && task.StartedAt.HasValue)
+            liveTicks += (DateTime.UtcNow - task.StartedAt.Value).Ticks;
+
+        var totalMinutes = (decimal)TimeSpan.FromTicks(liveTicks).TotalMinutes;
+        var total = 0m;
+
+        foreach (var rate in _board.ActiveRates)
+        {
+            if (rate.TaskType.HasValue && rate.TaskType != task.TaskType) continue;
+            if (rate.UserId.HasValue && rate.UserId != task.AssignedToUserId) continue;
+            if (rate.MinDurationMinutes.HasValue && totalMinutes < rate.MinDurationMinutes.Value) continue;
+            if (rate.MaxDurationMinutes.HasValue && totalMinutes > rate.MaxDurationMinutes.Value) continue;
+
+            total += rate.PaymentMode switch
+            {
+                PaymentMode.PerTask => rate.Rate,
+                PaymentMode.Hourly => rate.Rate * (totalMinutes / 60m),
+                _ => 0m
+            };
+        }
+
+        return Math.Round(total, 2);
+    }
 
     private static string GetStatusLabel(CommunicationTaskStatus status) => status switch
     {

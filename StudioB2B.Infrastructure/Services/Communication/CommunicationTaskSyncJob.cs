@@ -116,57 +116,23 @@ public class CommunicationTaskSyncJob
             .Where(t => t.TaskType == CommunicationTaskType.Chat && chatIds.Contains(t.ExternalId))
             .ToDictionaryAsync(t => t.ExternalId, ct);
 
-        var added = 0;
-        foreach (var (clientId, clientName, chat) in allChats)
+        if (existing.Count == 0)
         {
-            var externalId = chat.ChatId;
-            var status = chat.ChatStatus ?? "";
-
-            if (existing.TryGetValue(externalId, out var task))
-            {
-                task.ExternalStatus = status;
-                task.UpdatedAt = DateTime.UtcNow;
-
-                if (IsTerminalChat(status) && task.Status == CommunicationTaskStatus.New)
-                {
-                    task.Status = CommunicationTaskStatus.Done;
-                    task.CompletedAt = DateTime.UtcNow;
-                }
-            }
-            else
-            {
-                var newTask = new CommunicationTask
-                {
-                    Id = Guid.NewGuid(),
-                    TaskType = CommunicationTaskType.Chat,
-                    ExternalId = externalId,
-                    MarketplaceClientId = clientId,
-                    Status = IsTerminalChat(status)
-                        ? CommunicationTaskStatus.Done
-                        : CommunicationTaskStatus.New,
-                    Title = $"Чат — {clientName}",
-                    ExternalStatus = status,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                    CompletedAt = IsTerminalChat(status) ? DateTime.UtcNow : null
-                };
-
-                newTask.Logs.Add(new CommunicationTaskLog
-                {
-                    Id = Guid.NewGuid(),
-                    Action = "Created",
-                    Details = $"Auto-sync from Ozon chat {externalId}",
-                    CreatedAt = DateTime.UtcNow
-                });
-
-                db.CommunicationTasks.Add(newTask);
-                added++;
-            }
+            logger.LogDebug("TaskBoardSync: no existing chat tasks to update");
+            return false;
         }
 
-        if (added > 0) await db.SaveChangesAsync(ct);
-        logger.LogInformation("TaskBoardSync: chats fetched={Total}, new={Added}", allChats.Count, added);
-        return added > 0;
+        foreach (var (_, _, chat) in allChats)
+        {
+            if (!existing.TryGetValue(chat.ChatId, out var task)) continue;
+
+            task.ExternalStatus = chat.ChatStatus ?? "";
+            task.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("TaskBoardSync: updated {Count} existing chat tasks", existing.Count);
+        return true;
     }
 
     private static async Task<bool> SyncQuestionsAsync(
@@ -202,59 +168,23 @@ public class CommunicationTaskSyncJob
             .Where(t => t.TaskType == CommunicationTaskType.Question && questionIds.Contains(t.ExternalId))
             .ToDictionaryAsync(t => t.ExternalId, ct);
 
-        var added = 0;
-        foreach (var (clientId, clientName, q) in allQuestions)
+        if (existing.Count == 0)
         {
-            var externalId = q.Id;
-            var status = q.Status.ToString();
-
-            if (existing.TryGetValue(externalId, out var task))
-            {
-                task.ExternalStatus = status;
-                task.UpdatedAt = DateTime.UtcNow;
-
-                if (IsTerminalQuestion(status) && task.Status == CommunicationTaskStatus.New)
-                {
-                    task.Status = CommunicationTaskStatus.Done;
-                    task.CompletedAt = DateTime.UtcNow;
-                }
-            }
-            else
-            {
-                var preview = q.Text?.Length > 200 ? q.Text[..200] + "..." : q.Text;
-                var newTask = new CommunicationTask
-                {
-                    Id = Guid.NewGuid(),
-                    TaskType = CommunicationTaskType.Question,
-                    ExternalId = externalId,
-                    MarketplaceClientId = clientId,
-                    Status = IsTerminalQuestion(status)
-                        ? CommunicationTaskStatus.Done
-                        : CommunicationTaskStatus.New,
-                    Title = $"Вопрос — {clientName}",
-                    PreviewText = preview,
-                    ExternalStatus = status,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                    CompletedAt = IsTerminalQuestion(status) ? DateTime.UtcNow : null
-                };
-
-                newTask.Logs.Add(new CommunicationTaskLog
-                {
-                    Id = Guid.NewGuid(),
-                    Action = "Created",
-                    Details = $"Auto-sync from Ozon question {externalId}",
-                    CreatedAt = DateTime.UtcNow
-                });
-
-                db.CommunicationTasks.Add(newTask);
-                added++;
-            }
+            logger.LogDebug("TaskBoardSync: no existing question tasks to update");
+            return false;
         }
 
-        if (added > 0) await db.SaveChangesAsync(ct);
-        logger.LogInformation("TaskBoardSync: questions fetched={Total}, new={Added}", allQuestions.Count, added);
-        return added > 0;
+        foreach (var (_, _, q) in allQuestions)
+        {
+            if (!existing.TryGetValue(q.Id, out var task)) continue;
+
+            task.ExternalStatus = q.Status.ToString();
+            task.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("TaskBoardSync: updated {Count} existing question tasks", existing.Count);
+        return true;
     }
 
     private static async Task<bool> SyncReviewsAsync(
@@ -295,59 +225,23 @@ public class CommunicationTaskSyncJob
             .Where(t => t.TaskType == CommunicationTaskType.Review && reviewIds.Contains(t.ExternalId))
             .ToDictionaryAsync(t => t.ExternalId, ct);
 
-        var added = 0;
-        foreach (var (clientId, clientName, r) in allReviews)
+        if (existing.Count == 0)
         {
-            var externalId = r.Id;
-            var status = r.Status ?? "";
-
-            if (existing.TryGetValue(externalId, out var task))
-            {
-                task.ExternalStatus = status;
-                task.UpdatedAt = DateTime.UtcNow;
-
-                if (IsTerminalReview(status) && task.Status == CommunicationTaskStatus.New)
-                {
-                    task.Status = CommunicationTaskStatus.Done;
-                    task.CompletedAt = DateTime.UtcNow;
-                }
-            }
-            else
-            {
-                var preview = r.Text?.Length > 200 ? r.Text[..200] + "..." : r.Text;
-                var newTask = new CommunicationTask
-                {
-                    Id = Guid.NewGuid(),
-                    TaskType = CommunicationTaskType.Review,
-                    ExternalId = externalId,
-                    MarketplaceClientId = clientId,
-                    Status = IsTerminalReview(status)
-                        ? CommunicationTaskStatus.Done
-                        : CommunicationTaskStatus.New,
-                    Title = $"Отзыв ({r.Rating}★) — {clientName}",
-                    PreviewText = preview,
-                    ExternalStatus = status,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                    CompletedAt = IsTerminalReview(status) ? DateTime.UtcNow : null
-                };
-
-                newTask.Logs.Add(new CommunicationTaskLog
-                {
-                    Id = Guid.NewGuid(),
-                    Action = "Created",
-                    Details = $"Auto-sync from Ozon review {externalId}",
-                    CreatedAt = DateTime.UtcNow
-                });
-
-                db.CommunicationTasks.Add(newTask);
-                added++;
-            }
+            logger.LogDebug("TaskBoardSync: no existing review tasks to update");
+            return false;
         }
 
-        if (added > 0) await db.SaveChangesAsync(ct);
-        logger.LogInformation("TaskBoardSync: reviews fetched={Total}, new={Added}", allReviews.Count, added);
-        return added > 0;
+        foreach (var (_, _, r) in allReviews)
+        {
+            if (!existing.TryGetValue(r.Id, out var task)) continue;
+
+            task.ExternalStatus = r.Status ?? "";
+            task.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("TaskBoardSync: updated {Count} existing review tasks", existing.Count);
+        return true;
     }
 
     private static TenantDbContext CreateDbContext(string connectionString)

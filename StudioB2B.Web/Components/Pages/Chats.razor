@@ -7,6 +7,7 @@
 @inject ITenantProvider TenantProvider
 @inject IMarketplaceClientService MarketplaceClientService
 @inject IOzonChatService ChatService
+@inject ICommunicationTaskService TaskService
 @inject NotificationService NotificationService
 @inject IJSRuntime JsRuntime
 @inject UserContext UserContext
@@ -163,7 +164,9 @@ else
                     {
                         var isSelected = _selectedChat?.ChatId == chat.ChatId &&
                                          _selectedChat?.MarketplaceClientId == chat.MarketplaceClientId;
-                        var cardClass = isSelected ? "chat-item-card selected" : "chat-item-card";
+                        var chatActiveTask = GetActiveTask(chat.ChatId, chat.MarketplaceClientId);
+                        var chatDoneTask = GetDoneTask(chat.ChatId, chat.MarketplaceClientId);
+                        var cardClass = isSelected ? "chat-item-card selected" : chatActiveTask is not null ? "chat-item-card busy" : chatDoneTask is not null ? "chat-item-card done" : "chat-item-card";
                         <RadzenCard @key="@(chat.MarketplaceClientId + "_" + chat.ChatId)"
                                     Class="@cardClass"
                                     @onclick="@(() => SelectChatAsync(chat))">
@@ -200,6 +203,28 @@ else
                                                  Style="font-size: 0.65rem; padding: 2px 6px;" />
                                 }
                             </div>
+                            @if (chatActiveTask is not null)
+                            {
+                                <div class="task-activity-row">
+                                    <span class="timer-dot"></span>
+                                    <span class="task-activity-timer">@FormatLiveDuration(chatActiveTask)</span>
+                                    @if (!string.IsNullOrEmpty(chatActiveTask.AssignedToUserName))
+                                    {
+                                        <span class="task-activity-user">· @chatActiveTask.AssignedToUserName</span>
+                                    }
+                                </div>
+                            }
+                            else if (chatDoneTask is not null)
+                            {
+                                <div class="task-activity-row done">
+                                    <span class="task-done-icon">✓</span>
+                                    <span class="task-activity-timer">@FormatLiveDuration(chatDoneTask)</span>
+                                    @if (!string.IsNullOrEmpty(chatDoneTask.AssignedToUserName))
+                                    {
+                                        <span class="task-activity-user">· @chatDoneTask.AssignedToUserName</span>
+                                    }
+                                </div>
+                            }
                         </RadzenCard>
                     }
 
@@ -258,6 +283,11 @@ else
                     </RadzenStack>
 
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                        <TaskActionPanel ExternalId="@_selectedChat.ChatId"
+                                         MarketplaceClientId="@_selectedChat.MarketplaceClientId"
+                                         TaskType="@CommunicationTaskType.Chat"
+                                         Title="@($"Чат — {_selectedChat.MarketplaceClientName}")"
+                                         ChatType="@_selectedChat.ChatType" />
                         <RadzenButton Icon="refresh" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                                       Click="@RefreshHistoryAsync" IsBusy="@_loadingHistory" />
                     </RadzenStack>
@@ -419,7 +449,10 @@ else
     private bool _isRefreshingHistory;
 
     private Timer? _pollingTimer;
+    private Timer? _tickTimer;
     private int _totalUnread;
+    private Dictionary<(string, Guid), CommunicationTaskDto> _activeTasks = new();
+    private Dictionary<(string, Guid), CommunicationTaskDto> _doneTasks = new();
 
     // Filters
     private Guid? _filterClientId;
@@ -558,6 +591,7 @@ else
     public void Dispose()
     {
         _pollingTimer?.Dispose();
+        _tickTimer?.Dispose();
         _dotNetRef?.Dispose();
     }
 
@@ -623,6 +657,8 @@ else
                 _chatStatusCounts = _chats.GroupBy(c => c.ChatStatus).ToDictionary(g => g.Key, g => g.Count());
                 _chatTypeCounts = _chats.GroupBy(c => c.ChatType).ToDictionary(g => g.Key, g => g.Count());
             }
+
+            await RefreshActiveTasksAsync();
         }
         catch (Exception ex)
         {
@@ -924,6 +960,45 @@ else
             "Support" => "Поддержка Ozon",
             _ => msg.User?.Type ?? "Система"
         };
+
+    private async Task RefreshActiveTasksAsync()
+    {
+        try
+        {
+            var tasks = await TaskService.GetInProgressTasksAsync();
+            _activeTasks = tasks.ToDictionary(t => (t.ExternalId, t.MarketplaceClientId));
+            var doneTasks = await TaskService.GetDoneTasksTodayAsync();
+            _doneTasks = doneTasks.ToDictionary(t => (t.ExternalId, t.MarketplaceClientId));
+            if (_activeTasks.Count > 0)
+            {
+                _tickTimer ??= new Timer(_ => InvokeAsync(StateHasChanged), null,
+                    TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+            }
+            else
+            {
+                _tickTimer?.Dispose();
+                _tickTimer = null;
+            }
+        }
+        catch { /* non-critical */ }
+    }
+
+    private CommunicationTaskDto? GetActiveTask(string externalId, Guid clientId) =>
+        _activeTasks.GetValueOrDefault((externalId, clientId));
+
+    private CommunicationTaskDto? GetDoneTask(string externalId, Guid clientId) =>
+        _doneTasks.GetValueOrDefault((externalId, clientId));
+
+    private static string FormatLiveDuration(CommunicationTaskDto task)
+    {
+        var ticks = task.TotalTimeSpentTicks;
+        if (task.HasActiveTimer && task.StartedAt.HasValue)
+            ticks += (DateTime.UtcNow - task.StartedAt.Value).Ticks;
+        var ts = TimeSpan.FromTicks(ticks);
+        if (ts.TotalHours >= 1) return $"{(int)ts.TotalHours}ч {ts.Minutes:D2}м {ts.Seconds:D2}с";
+        if (ts.TotalMinutes >= 1) return $"{(int)ts.TotalMinutes}м {ts.Seconds:D2}с";
+        return $"{(int)ts.TotalSeconds}с";
+    }
 
     private static string FormatTimeAgo(DateTime utcTime)
     {
