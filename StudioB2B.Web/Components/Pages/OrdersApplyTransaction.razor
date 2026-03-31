@@ -1,5 +1,5 @@
 @page "/orders/apply-transaction"
-@attribute [Authorize(Roles = "OrdersView")]
+@attribute [Authorize(Roles = nameof(PageEnum.OrdersView))]
 @using Radzen.Blazor.Rendering
 @using StudioB2B.Domain.Constants
 @using StudioB2B.Domain.Entities
