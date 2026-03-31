@@ -42,6 +42,8 @@ public static class DependencyInjection
 
         services.AddHostedService<DatabaseMigrationService>();
 
+        services.AddMemoryCache();
+
         services.AddSingleton<IKeyEncryptionService, KeyEncryptionService>();
 
         services.AddTransient<LoggingHandler>();
