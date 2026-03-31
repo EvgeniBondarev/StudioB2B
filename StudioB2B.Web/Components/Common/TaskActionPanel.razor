@@ -1,0 +1,240 @@
+@using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Infrastructure.Services
+@using StudioB2B.Domain.Constants
+
+@inject ICommunicationTaskService TaskService
+@inject ICurrentUserProvider CurrentUser
+@inject NotificationService NotificationService
+@inject UserContext UserContext
+
+@implements IDisposable
+
+@if (_loading)
+{
+    <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate"
+                               Size="ProgressBarCircularSize.ExtraSmall" />
+}
+else if (_task is null || _task.Status == CommunicationTaskStatus.Done)
+{
+    <RadzenButton Text="Взять в работу" Icon="play_arrow"
+                  ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
+                  Click="@ClaimAsync" IsBusy="@_busy" />
+}
+else
+{
+    <div style="display:inline-flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">
+        <div class="task-timer-active" style="display:inline-flex;align-items:center;gap:0.3rem;">
+            @if (_task.HasActiveTimer)
+            {
+                <span class="timer-dot"></span>
+            }
+            <span style="font-size:0.82rem;font-variant-numeric:tabular-nums;min-width:4rem;">
+                @FormatLiveDuration(_task)
+            </span>
+        </div>
+        @if (_task.AssignedToUserId == CurrentUser.UserId)
+        {
+            @if (_task.HasActiveTimer)
+            {
+                <RadzenButton Text="Пауза" Icon="pause"
+                              ButtonStyle="ButtonStyle.Warning" Size="ButtonSize.ExtraSmall"
+                              Click="@PauseAsync" IsBusy="@_busy" />
+            }
+            else
+            {
+                <RadzenButton Text="Продолжить" Icon="play_arrow"
+                              ButtonStyle="ButtonStyle.Info" Size="ButtonSize.ExtraSmall"
+                              Click="@ResumeAsync" IsBusy="@_busy" />
+            }
+            <RadzenButton Text="Готово" Icon="check"
+                          ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall"
+                          Click="@CompleteAsync" IsBusy="@_busy" />
+            <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                          Click="@ReleaseAsync" IsBusy="@_busy"
+                          title="Снять с себя" />
+        }
+        else
+        {
+            <span style="font-size:0.8rem;color:var(--rz-text-secondary-color);display:inline-flex;align-items:center;gap:0.2rem;">
+                <RadzenIcon Icon="person" Style="font-size:0.85rem;" />
+                @_task.AssignedToUserName
+            </span>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public string ExternalId { get; set; } = "";
+
+    [Parameter, EditorRequired] public Guid MarketplaceClientId { get; set; }
+
+    [Parameter, EditorRequired] public CommunicationTaskType TaskType { get; set; }
+
+    [Parameter] public string Title { get; set; } = "";
+
+    [Parameter] public string? PreviewText { get; set; }
+
+    [Parameter] public string? ChatType { get; set; }
+
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = null!;
+
+    private CommunicationTaskDto? _task;
+    private bool _loading;
+    private bool _busy;
+    private Timer? _timer;
+    private string? _lastExternalId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState;
+        UserContext.SetUser(authState.User);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrEmpty(ExternalId) || ExternalId == _lastExternalId) return;
+        _lastExternalId = ExternalId;
+        await LoadTaskAsync();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+        _timer = new Timer(_ => InvokeAsync(StateHasChanged), null,
+            TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    private async Task LoadTaskAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        try
+        {
+            _task = await TaskService.FindActiveTaskAsync(ExternalId, MarketplaceClientId);
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<Guid?> GetUserIdAsync()
+    {
+        if (CurrentUser.UserId is not null) return CurrentUser.UserId.Value;
+        var authState = await AuthState;
+        UserContext.SetUser(authState.User);
+        if (CurrentUser.UserId is not null) return CurrentUser.UserId.Value;
+        NotificationService.Notify(NotificationSeverity.Error, "Ошибка",
+            "Не удалось определить пользователя. Обновите страницу.", 5000);
+        return null;
+    }
+
+    private async Task ClaimAsync()
+    {
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+
+        _busy = true;
+        try
+        {
+            var dto = new CommunicationTaskDto
+            {
+                Id = Guid.Empty,
+                ExternalId = ExternalId,
+                MarketplaceClientId = MarketplaceClientId,
+                TaskType = TaskType,
+                Title = Title,
+                PreviewText = PreviewText,
+                ChatType = ChatType
+            };
+            var newId = await TaskService.CreateAndClaimAsync(dto, userId.Value);
+            if (newId is null)
+                NotificationService.Notify(NotificationSeverity.Warning, "Задача уже занята",
+                    "Кто-то успел взять раньше.", 3000);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000);
+        }
+        finally
+        {
+            _busy = false;
+        }
+        await LoadTaskAsync();
+    }
+
+    private async Task PauseAsync()
+    {
+        if (_task is null) return;
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+
+        _busy = true;
+        _task.HasActiveTimer = false;
+        StateHasChanged();
+        try { await TaskService.PauseTaskAsync(_task.Id, userId.Value); }
+        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
+        finally { _busy = false; }
+        await LoadTaskAsync();
+    }
+
+    private async Task ResumeAsync()
+    {
+        if (_task is null) return;
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+
+        _busy = true;
+        _task.HasActiveTimer = true;
+        _task.StartedAt = DateTime.UtcNow;
+        StateHasChanged();
+        try { await TaskService.ResumeTaskAsync(_task.Id, userId.Value); }
+        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
+        finally { _busy = false; }
+        await LoadTaskAsync();
+    }
+
+    private async Task CompleteAsync()
+    {
+        if (_task is null) return;
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+
+        _busy = true;
+        try
+        {
+            var ok = await TaskService.CompleteTaskAsync(_task.Id, userId.Value);
+            if (ok) NotificationService.Notify(NotificationSeverity.Success, "Задача выполнена", _task.Title, 2000);
+        }
+        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
+        finally { _busy = false; }
+        await LoadTaskAsync();
+    }
+
+    private async Task ReleaseAsync()
+    {
+        if (_task is null) return;
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+
+        _busy = true;
+        try { await TaskService.ReleaseTaskAsync(_task.Id, userId.Value); }
+        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
+        finally { _busy = false; }
+        await LoadTaskAsync();
+    }
+
+    private static string FormatLiveDuration(CommunicationTaskDto task)
+    {
+        var ticks = task.TotalTimeSpentTicks;
+        if (task.HasActiveTimer && task.StartedAt.HasValue)
+            ticks += (DateTime.UtcNow - task.StartedAt.Value).Ticks;
+        var ts = TimeSpan.FromTicks(ticks);
+        if (ts.TotalHours >= 1) return $"{(int)ts.TotalHours}ч {ts.Minutes:D2}м {ts.Seconds:D2}с";
+        if (ts.TotalMinutes >= 1) return $"{(int)ts.TotalMinutes}м {ts.Seconds:D2}с";
+        return $"{(int)ts.TotalSeconds}с";
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

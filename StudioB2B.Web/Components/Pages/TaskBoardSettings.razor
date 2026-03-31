@@ -21,7 +21,7 @@
 }
 else
 {
-    <RadzenStack Gap="1rem" Style="max-width:1000px;">
+    <RadzenStack Gap="1rem" Style="width:100%;">
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
                      JustifyContent="JustifyContent.SpaceBetween">
             <RadzenText TextStyle="TextStyle.H5" Style="margin:0;">Настройки тарифов</RadzenText>
@@ -43,7 +43,7 @@ else
         </RadzenAlert>
 
         <RadzenDataGrid TItem="CommunicationPaymentRateDto" @ref="_grid"
-                        Data="@_rates" AllowColumnResize="true"
+                        Data="@_rates" AllowColumnResize="true" Style="width:100%;"
                         Density="Density.Compact" AllowSorting="true">
             <Columns>
                 <RadzenDataGridColumn TItem="CommunicationPaymentRateDto" Property="Description" Title="Описание" Width="200px">

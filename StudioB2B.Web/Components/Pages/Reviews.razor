@@ -7,9 +7,12 @@
 @inject ITenantProvider TenantProvider
 @inject IMarketplaceClientService MarketplaceClientService
 @inject IOzonReviewsService ReviewsService
+@inject ICommunicationTaskService TaskService
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
 @inject UserContext UserContext
+
+@implements IDisposable
 
 <link rel="stylesheet" href="css/reviews.css"/>
 <link rel="stylesheet" href="css/questions.css"/>
@@ -133,7 +136,9 @@ else
                         {
                             var isSelected = _selectedReview?.Id == r.Id &&
                                              _selectedReview?.MarketplaceClientId == r.MarketplaceClientId;
-                            var cardClass = isSelected ? "review-item-card selected" : "review-item-card";
+                            var rActiveTask = GetActiveTask(r.Id, r.MarketplaceClientId);
+                            var rDoneTask = GetDoneTask(r.Id, r.MarketplaceClientId);
+                            var cardClass = isSelected ? "review-item-card selected" : rActiveTask is not null ? "review-item-card busy" : rDoneTask is not null ? "review-item-card done" : "review-item-card";
                             <RadzenCard @key="@(r.MarketplaceClientId + "_" + r.Id)"
                                         Class="@cardClass"
                                         @onclick="@(() => SelectReview(r))">
@@ -170,6 +175,28 @@ else
                                         <RadzenBadge Text="@($"📷 {r.PhotosAmount}")" BadgeStyle="BadgeStyle.Info"/>
                                     }
                                 </div>
+                                @if (rActiveTask is not null)
+                                {
+                                    <div class="task-activity-row">
+                                        <span class="timer-dot"></span>
+                                        <span class="task-activity-timer">@FormatLiveDuration(rActiveTask)</span>
+                                        @if (!string.IsNullOrEmpty(rActiveTask.AssignedToUserName))
+                                        {
+                                            <span class="task-activity-user">· @rActiveTask.AssignedToUserName</span>
+                                        }
+                                    </div>
+                                }
+                                else if (rDoneTask is not null)
+                                {
+                                    <div class="task-activity-row done">
+                                        <span class="task-done-icon">✓</span>
+                                        <span class="task-activity-timer">@FormatLiveDuration(rDoneTask)</span>
+                                        @if (!string.IsNullOrEmpty(rDoneTask.AssignedToUserName))
+                                        {
+                                            <span class="task-activity-user">· @rDoneTask.AssignedToUserName</span>
+                                        }
+                                    </div>
+                                }
                             </RadzenCard>
                         }
 
@@ -234,6 +261,11 @@ else
                             </RadzenText>
                         </RadzenStack>
                         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                            <TaskActionPanel ExternalId="@_selectedReview.Id"
+                                             MarketplaceClientId="@_selectedReview.MarketplaceClientId"
+                                             TaskType="@CommunicationTaskType.Review"
+                                             Title="@($"Отзыв ({_selectedReview.Rating}★) — {_selectedReview.MarketplaceClientName}")"
+                                             PreviewText="@_selectedReview.Text" />
                             <RadzenBadge Text="@GetStatusLabel(_selectedReview.Status)"
                                          BadgeStyle="@GetStatusBadgeStyle(_selectedReview.Status)" />
                             @if (_selectedReview.Status == "UNPROCESSED")
@@ -619,6 +651,9 @@ else
     private string? _deletingCommentId;
     private string? _lightboxSrc;
     private bool _descriptionExpanded;
+    private Dictionary<(string, Guid), CommunicationTaskDto> _activeTasks = new();
+    private Dictionary<(string, Guid), CommunicationTaskDto> _doneTasks = new();
+    private Timer? _tickTimer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -761,6 +796,8 @@ else
             _loadingMore = false;
             StateHasChanged();
         }
+
+        await RefreshActiveTasksAsync();
     }
 
     private Task LoadMoreAsync()
@@ -1042,6 +1079,47 @@ else
 
         StateHasChanged();
     }
+
+    private async Task RefreshActiveTasksAsync()
+    {
+        try
+        {
+            var tasks = await TaskService.GetInProgressTasksAsync();
+            _activeTasks = tasks.ToDictionary(t => (t.ExternalId, t.MarketplaceClientId));
+            var doneTasks = await TaskService.GetDoneTasksTodayAsync();
+            _doneTasks = doneTasks.ToDictionary(t => (t.ExternalId, t.MarketplaceClientId));
+            if (_activeTasks.Count > 0)
+            {
+                _tickTimer ??= new Timer(_ => InvokeAsync(StateHasChanged), null,
+                    TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+            }
+            else
+            {
+                _tickTimer?.Dispose();
+                _tickTimer = null;
+            }
+        }
+        catch { /* non-critical */ }
+    }
+
+    private CommunicationTaskDto? GetActiveTask(string externalId, Guid clientId) =>
+        _activeTasks.GetValueOrDefault((externalId, clientId));
+
+    private CommunicationTaskDto? GetDoneTask(string externalId, Guid clientId) =>
+        _doneTasks.GetValueOrDefault((externalId, clientId));
+
+    private static string FormatLiveDuration(CommunicationTaskDto task)
+    {
+        var ticks = task.TotalTimeSpentTicks;
+        if (task.HasActiveTimer && task.StartedAt.HasValue)
+            ticks += (DateTime.UtcNow - task.StartedAt.Value).Ticks;
+        var ts = TimeSpan.FromTicks(ticks);
+        if (ts.TotalHours >= 1) return $"{(int)ts.TotalHours}ч {ts.Minutes:D2}м {ts.Seconds:D2}с";
+        if (ts.TotalMinutes >= 1) return $"{(int)ts.TotalMinutes}м {ts.Seconds:D2}с";
+        return $"{(int)ts.TotalSeconds}с";
+    }
+
+    public void Dispose() => _tickTimer?.Dispose();
 
 }
 

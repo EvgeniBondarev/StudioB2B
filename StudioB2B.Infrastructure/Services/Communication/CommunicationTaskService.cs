@@ -13,13 +13,24 @@ public class CommunicationTaskService : ICommunicationTaskService
     private readonly TenantDbContext _db;
     private readonly ILogger<CommunicationTaskService> _logger;
     private readonly ICurrentUserProvider _currentUser;
+    private readonly IOzonChatService _chatService;
+    private readonly IOzonQuestionsService _questionsService;
+    private readonly IOzonReviewsService _reviewsService;
 
-    public CommunicationTaskService(TenantDbContext db, ILogger<CommunicationTaskService> logger,
-        ICurrentUserProvider currentUser)
+    public CommunicationTaskService(
+        TenantDbContext db,
+        ILogger<CommunicationTaskService> logger,
+        ICurrentUserProvider currentUser,
+        IOzonChatService chatService,
+        IOzonQuestionsService questionsService,
+        IOzonReviewsService reviewsService)
     {
         _db = db;
         _logger = logger;
         _currentUser = currentUser;
+        _chatService = chatService;
+        _questionsService = questionsService;
+        _reviewsService = reviewsService;
     }
 
     /// <summary>
@@ -51,8 +62,7 @@ public class CommunicationTaskService : ICommunicationTaskService
     {
         _db.ChangeTracker.Clear();
 
-        // Base predicate (no entity loads, no joins via Include)
-        var baseQuery = _db.CommunicationTasks
+        var dbQuery = _db.CommunicationTasks
             .AsNoTracking()
             .Where(t => !t.IsDeleted &&
                         (t.TaskType != CommunicationTaskType.Chat ||
@@ -60,22 +70,19 @@ public class CommunicationTaskService : ICommunicationTaskService
                          t.ChatType == "BUYER_SELLER"));
 
         if (filter.TaskType.HasValue)
-            baseQuery = baseQuery.Where(t => t.TaskType == filter.TaskType.Value);
+            dbQuery = dbQuery.Where(t => t.TaskType == filter.TaskType.Value);
         if (filter.AssignedToUserId.HasValue)
-            baseQuery = baseQuery.Where(t => t.AssignedToUserId == filter.AssignedToUserId.Value);
+            dbQuery = dbQuery.Where(t => t.AssignedToUserId == filter.AssignedToUserId.Value);
         if (filter.MarketplaceClientId.HasValue)
-            baseQuery = baseQuery.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
+            dbQuery = dbQuery.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
 
-        // Projection: only the columns the board cards actually need.
-        // HasActiveTimer uses a correlated EXISTS — no TimeEntries rows transferred.
-        var activeItems = await baseQuery
-            .Where(t => t.Status == CommunicationTaskStatus.New ||
-                        t.Status == CommunicationTaskStatus.InProgress)
+        var inProgressItems = await dbQuery
+            .Where(t => t.Status == CommunicationTaskStatus.InProgress)
             .OrderByDescending(t => t.CreatedAt)
             .Select(ProjectToCardDto())
             .ToListAsync(ct);
 
-        var doneQuery = baseQuery
+        var doneQuery = dbQuery
             .Where(t => t.Status == CommunicationTaskStatus.Done ||
                         t.Status == CommunicationTaskStatus.Cancelled);
 
@@ -91,37 +98,57 @@ public class CommunicationTaskService : ICommunicationTaskService
             .Select(ProjectToCardDto())
             .ToListAsync(ct);
 
-        // TypeCounts: a single GROUP BY COUNT — no row transfer
-        var typeCounts = await baseQuery
+        // New tasks come live from Ozon — not stored in DB.
+        // Skip when filtering by specific user (live tasks are unassigned).
+        var newItems = new List<CommunicationTaskDto>();
+        if (!filter.AssignedToUserId.HasValue)
+        {
+            var inProgressSet = inProgressItems
+                .Select(t => (t.TaskType, t.ExternalId, t.MarketplaceClientId))
+                .ToHashSet();
+
+            if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Chat)
+                newItems.AddRange(await FetchLiveChatsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct));
+            if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Question)
+                newItems.AddRange(await FetchLiveQuestionsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct));
+            if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Review)
+                newItems.AddRange(await FetchLiveReviewsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct));
+        }
+
+        var doneTypeCounts = await doneQuery
             .GroupBy(t => t.TaskType)
             .Select(g => new { g.Key, Count = g.Count() })
             .ToListAsync(ct);
 
+        var typeCounts = new Dictionary<CommunicationTaskType, int>();
+        foreach (var tc in doneTypeCounts)
+            typeCounts[tc.Key] = tc.Count;
+        foreach (var t in inProgressItems)
+            typeCounts[t.TaskType] = typeCounts.GetValueOrDefault(t.TaskType) + 1;
+        foreach (var t in newItems)
+            typeCounts[t.TaskType] = typeCounts.GetValueOrDefault(t.TaskType) + 1;
+
         var result = new TaskBoardDto
         {
             DoneTotalCount = doneTotalCount,
-            TypeCounts = typeCounts.ToDictionary(x => x.Key, x => x.Count)
+            TypeCounts = typeCounts
         };
 
-        foreach (var dto in activeItems)
-        {
-            if (dto.Status == CommunicationTaskStatus.New)
-                result.NewTasks.Add(dto);
-            else
-                result.InProgressTasks.Add(dto);
-        }
-
+        result.NewTasks.AddRange(newItems);
+        result.InProgressTasks.AddRange(inProgressItems);
         result.DoneTasks.AddRange(doneItems);
 
-        // Payment estimates from active global (non-user-specific) rates
         var activeRates = await _db.CommunicationPaymentRates
+            .Include(r => r.User)
             .AsNoTracking()
-            .Where(r => r.IsActive && r.UserId == null)
+            .Where(r => r.IsActive)
             .ToListAsync(ct);
+
+        var globalRates = activeRates.Where(r => r.UserId == null).ToList();
 
         foreach (var type in new[] { CommunicationTaskType.Chat, CommunicationTaskType.Question, CommunicationTaskType.Review })
         {
-            var matching = activeRates.Where(r => r.TaskType == null || r.TaskType == type).ToList();
+            var matching = globalRates.Where(r => r.TaskType == null || r.TaskType == type).ToList();
 
             var perTask = matching
                 .Where(r => r.PaymentMode == PaymentMode.PerTask && !r.MinDurationMinutes.HasValue)
@@ -133,6 +160,19 @@ public class CommunicationTaskService : ICommunicationTaskService
                 .Sum(r => r.Rate);
             if (hourly > 0) result.HourlyEstimates[type] = Math.Round(hourly, 2);
         }
+
+        result.ActiveRates.AddRange(activeRates.Select(r => new CommunicationPaymentRateDto
+        {
+            Id = r.Id,
+            TaskType = r.TaskType,
+            PaymentMode = r.PaymentMode,
+            UserId = r.UserId,
+            Rate = r.Rate,
+            MinDurationMinutes = r.MinDurationMinutes,
+            MaxDurationMinutes = r.MaxDurationMinutes,
+            IsActive = r.IsActive,
+            Description = r.Description
+        }));
 
         return result;
     }
@@ -208,6 +248,45 @@ public class CommunicationTaskService : ICommunicationTaskService
         };
     }
 
+    public async Task<CommunicationTaskDto?> FindActiveTaskAsync(string externalId, Guid marketplaceClientId, CancellationToken ct = default)
+    {
+        _db.ChangeTracker.Clear();
+
+        return await _db.CommunicationTasks
+            .AsNoTracking()
+            .Where(t => !t.IsDeleted &&
+                        t.Status == CommunicationTaskStatus.InProgress &&
+                        t.ExternalId == externalId &&
+                        t.MarketplaceClientId == marketplaceClientId)
+            .Select(ProjectToCardDto())
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<List<CommunicationTaskDto>> GetInProgressTasksAsync(CancellationToken ct = default)
+    {
+        _db.ChangeTracker.Clear();
+
+        return await _db.CommunicationTasks
+            .AsNoTracking()
+            .Where(t => !t.IsDeleted && t.Status == CommunicationTaskStatus.InProgress)
+            .Select(ProjectToCardDto())
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<CommunicationTaskDto>> GetDoneTasksTodayAsync(CancellationToken ct = default)
+    {
+        _db.ChangeTracker.Clear();
+        var todayUtc = DateTime.UtcNow.Date;
+
+        return await _db.CommunicationTasks
+            .AsNoTracking()
+            .Where(t => !t.IsDeleted &&
+                        t.Status == CommunicationTaskStatus.Done &&
+                        t.CompletedAt >= todayUtc)
+            .Select(ProjectToCardDto())
+            .ToListAsync(ct);
+    }
+
     public async Task<CommunicationTaskDetailDto?> GetTaskDetailAsync(Guid taskId, CancellationToken ct = default)
     {
         _db.ChangeTracker.Clear();
@@ -247,6 +326,114 @@ public class CommunicationTaskService : ICommunicationTaskService
         }).ToList();
 
         return dto;
+    }
+
+    public async Task<Guid?> CreateAndClaimAsync(CommunicationTaskDto liveTask, Guid userId, CancellationToken ct = default)
+    {
+        _db.ChangeTracker.Clear();
+        _db.SuppressAudit = true;
+        try
+        {
+            await EnsureUserExistsAsync(userId, ct);
+
+            // Race guard: another user may have already claimed this Ozon item.
+            var existing = await _db.CommunicationTasks
+                .Include(t => t.TimeEntries)
+                .FirstOrDefaultAsync(t =>
+                    t.TaskType == liveTask.TaskType &&
+                    t.ExternalId == liveTask.ExternalId &&
+                    t.MarketplaceClientId == liveTask.MarketplaceClientId &&
+                    !t.IsDeleted, ct);
+
+            if (existing is not null)
+            {
+                if (existing.AssignedToUserId is not null && existing.AssignedToUserId != userId)
+                    return null; // already claimed by someone else
+
+                // Already our task — ensure timer is running
+                existing.AssignedToUserId = userId;
+                existing.AssignedAt = DateTime.UtcNow;
+                existing.Status = CommunicationTaskStatus.InProgress;
+                existing.StartedAt ??= DateTime.UtcNow;
+                existing.UpdatedAt = DateTime.UtcNow;
+
+                if (!existing.TimeEntries.Any(e => e.EndedAt == null))
+                {
+                    _db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
+                    {
+                        Id = Guid.NewGuid(),
+                        TaskId = existing.Id,
+                        UserId = userId,
+                        StartedAt = DateTime.UtcNow
+                    });
+                }
+
+                await _db.SaveChangesAsync(ct);
+                return existing.Id;
+            }
+
+            var task = new CommunicationTask
+            {
+                Id = Guid.NewGuid(),
+                TaskType = liveTask.TaskType,
+                ExternalId = liveTask.ExternalId,
+                MarketplaceClientId = liveTask.MarketplaceClientId,
+                Status = CommunicationTaskStatus.InProgress,
+                AssignedToUserId = userId,
+                AssignedAt = DateTime.UtcNow,
+                StartedAt = DateTime.UtcNow,
+                Title = liveTask.Title,
+                PreviewText = liveTask.PreviewText,
+                ExternalStatus = liveTask.ExternalStatus,
+                ChatType = liveTask.ChatType,
+                UnreadCount = liveTask.UnreadCount,
+                ExternalUrl = liveTask.ExternalUrl,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _db.CommunicationTasks.Add(task);
+
+            _db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
+            {
+                Id = Guid.NewGuid(),
+                TaskId = task.Id,
+                UserId = userId,
+                StartedAt = DateTime.UtcNow
+            });
+
+            task.Logs.Add(new CommunicationTaskLog
+            {
+                Id = Guid.NewGuid(),
+                TaskId = task.Id,
+                UserId = userId,
+                Action = "Assigned",
+                CreatedAt = DateTime.UtcNow
+            });
+            task.Logs.Add(new CommunicationTaskLog
+            {
+                Id = Guid.NewGuid(),
+                TaskId = task.Id,
+                UserId = userId,
+                Action = "Started",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation("Task {ExternalId} ({Type}) created and claimed by user {UserId}",
+                liveTask.ExternalId, liveTask.TaskType, userId);
+            return task.Id;
+        }
+        catch (Exception ex)
+        {
+            _db.ChangeTracker.Clear();
+            _logger.LogError(ex, "CreateAndClaimAsync failed for {ExternalId}", liveTask.ExternalId);
+            return null;
+        }
+        finally
+        {
+            _db.SuppressAudit = false;
+        }
     }
 
     public async Task<bool> ClaimTaskAsync(Guid taskId, Guid userId, CancellationToken ct = default)
@@ -311,31 +498,17 @@ public class CommunicationTaskService : ICommunicationTaskService
         _db.SuppressAudit = true;
         try
         {
-            await EnsureUserExistsAsync(userId, ct);
-
             var task = await _db.CommunicationTasks
                 .Include(t => t.TimeEntries)
+                .Include(t => t.Logs)
                 .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted, ct);
 
             if (task is null || task.AssignedToUserId != userId) return false;
 
-            StopActiveTimers(task, userId);
-
-            task.AssignedToUserId = null;
-            task.AssignedAt = null;
-            task.Status = CommunicationTaskStatus.New;
-            task.UpdatedAt = DateTime.UtcNow;
-
-            _db.CommunicationTaskLogs.Add(new CommunicationTaskLog
-            {
-                Id = Guid.NewGuid(),
-                TaskId = taskId,
-                UserId = userId,
-                Action = "Released",
-                CreatedAt = DateTime.UtcNow
-            });
-
+            // Delete the record so the task returns to the live Ozon feed.
+            _db.CommunicationTasks.Remove(task);
             await _db.SaveChangesAsync(ct);
+            _logger.LogInformation("Task {TaskId} released and removed from DB by user {UserId}", taskId, userId);
             return true;
         }
         finally
@@ -448,6 +621,9 @@ public class CommunicationTaskService : ICommunicationTaskService
             task.Status = CommunicationTaskStatus.Done;
             task.CompletedAt = DateTime.UtcNow;
             task.UpdatedAt = DateTime.UtcNow;
+
+            // Ensure AssignedToUserId is set so personal payment rates are applied correctly.
+            task.AssignedToUserId ??= userId;
 
             task.PaymentAmount = await CalculatePaymentAsync(task, ct);
 
@@ -747,24 +923,30 @@ public class CommunicationTaskService : ICommunicationTaskService
     /// A rate matches when: (TaskType is null OR == task.TaskType) AND (UserId is null OR == task.AssignedToUserId)
     /// AND task duration falls within [MinDurationMinutes, MaxDurationMinutes] (inclusive, null = unbounded).
     /// Hourly rates are multiplied by time spent; PerTask rates are added as-is.
+    /// All matching rules are applied simultaneously — e.g. a base 50₽ rule + a conditional 40₽ rule both apply.
     /// </summary>
     private async Task<decimal> CalculatePaymentAsync(CommunicationTask task, CancellationToken ct)
     {
+        // Extract to local variables so EF Core doesn't try to translate
+        // entity property access inside the query expression tree.
+        var taskType = task.TaskType;
+        var assignedUserId = task.AssignedToUserId;
+        var totalMinutes = (decimal)TimeSpan.FromTicks(task.TotalTimeSpentTicks).TotalMinutes;
+
         var rates = await _db.CommunicationPaymentRates
             .AsNoTracking()
             .Where(r => r.IsActive &&
-                        (r.TaskType == null || r.TaskType == task.TaskType) &&
-                        (r.UserId == null || r.UserId == task.AssignedToUserId))
+                        (r.TaskType == null || r.TaskType == taskType) &&
+                        (r.UserId == null || r.UserId == assignedUserId))
             .ToListAsync(ct);
 
         if (rates.Count == 0) return 0m;
 
-        var totalMinutes = (decimal)TimeSpan.FromTicks(task.TotalTimeSpentTicks).TotalMinutes;
         var total = 0m;
 
         foreach (var rate in rates)
         {
-            // Skip if duration is outside the configured range
+            // Each rule is evaluated independently — skip only if duration is outside this rule's range.
             if (rate.MinDurationMinutes.HasValue && totalMinutes < rate.MinDurationMinutes.Value)
                 continue;
             if (rate.MaxDurationMinutes.HasValue && totalMinutes > rate.MaxDurationMinutes.Value)
@@ -779,6 +961,185 @@ public class CommunicationTaskService : ICommunicationTaskService
         }
 
         return Math.Round(total, 2);
+    }
+
+    private async Task<List<CommunicationTaskDto>> FetchLiveChatsAsync(
+        Guid? marketplaceClientId,
+        HashSet<(CommunicationTaskType, string, Guid)> inProgressSet,
+        DateTime? from, DateTime? to,
+        CancellationToken ct)
+    {
+        try
+        {
+            // Fan out per client so every client's chats are queried (not just the first one
+            // filling up the shared page-size quota).
+            var clientIds = marketplaceClientId.HasValue
+                ? [marketplaceClientId.Value]
+                : await _db.MarketplaceClients.AsNoTracking()
+                    .Where(c => !c.IsDeleted)
+                    .Select(c => c.Id)
+                    .ToArrayAsync(ct);
+
+            var pageTasks = clientIds.Select(id => _chatService.GetChatsPageAsync(
+                pageSize: 50, chatStatus: "OPENED", chatType: "BUYER_SELLER",
+                marketplaceClientId: id, ct: ct));
+            var pages = await Task.WhenAll(pageTasks);
+
+            var toExclusive = to.HasValue ? to.Value.Date.AddDays(1) : DateTime.MaxValue;
+
+            var result = new List<CommunicationTaskDto>();
+            foreach (var chat in pages.SelectMany(p => p.Chats))
+            {
+                if (inProgressSet.Contains((CommunicationTaskType.Chat, chat.ChatId, chat.MarketplaceClientId)))
+                    continue;
+                if (from.HasValue && chat.LastMessageAt < from.Value)
+                    continue;
+                if (chat.LastMessageAt >= toExclusive)
+                    continue;
+                // Only show chats where the last message is from the buyer (seller hasn't replied yet).
+                if (chat.LastMessageUserType is not null &&
+                    (chat.LastMessageUserType.Equals("Seller", StringComparison.OrdinalIgnoreCase) ||
+                     chat.LastMessageUserType.Equals("Seller_Support", StringComparison.OrdinalIgnoreCase) ||
+                     chat.LastMessageUserType.Equals("SELLER_SUPPORT", StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                result.Add(new CommunicationTaskDto
+                {
+                    Id = Guid.Empty,
+                    TaskType = CommunicationTaskType.Chat,
+                    ExternalId = chat.ChatId,
+                    MarketplaceClientId = chat.MarketplaceClientId,
+                    MarketplaceClientName = chat.MarketplaceClientName,
+                    Status = CommunicationTaskStatus.New,
+                    Title = $"Чат — {chat.MarketplaceClientName}",
+                    ExternalStatus = chat.ChatStatus,
+                    ChatType = chat.ChatType,
+                    UnreadCount = chat.UnreadCount,
+                    CreatedAt = chat.LastMessageAt,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GetBoardAsync: failed to fetch live chats from Ozon");
+            return [];
+        }
+    }
+
+    private async Task<List<CommunicationTaskDto>> FetchLiveQuestionsAsync(
+        Guid? marketplaceClientId,
+        HashSet<(CommunicationTaskType, string, Guid)> inProgressSet,
+        DateTime? from, DateTime? to,
+        CancellationToken ct)
+    {
+        try
+        {
+            var toExclusive = to.HasValue ? (DateTime?)to.Value.Date.AddDays(1) : null;
+
+            // Fan out per client.
+            var clientIds = marketplaceClientId.HasValue
+                ? [marketplaceClientId.Value]
+                : await _db.MarketplaceClients.AsNoTracking()
+                    .Where(c => !c.IsDeleted)
+                    .Select(c => c.Id)
+                    .ToArrayAsync(ct);
+
+            var pageTasks = clientIds.Select(id => _questionsService.GetQuestionsPageAsync(
+                pageSize: 50, cursor: null, dateFrom: from, dateTo: toExclusive,
+                marketplaceClientId: id, ct: ct));
+            var pages = await Task.WhenAll(pageTasks);
+
+            var result = new List<CommunicationTaskDto>();
+            foreach (var q in pages.SelectMany(p => p.Questions))
+            {
+                if (string.Equals(q.Status, "PROCESSED", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (inProgressSet.Contains((CommunicationTaskType.Question, q.Id, q.MarketplaceClientId)))
+                    continue;
+
+                result.Add(new CommunicationTaskDto
+                {
+                    Id = Guid.Empty,
+                    TaskType = CommunicationTaskType.Question,
+                    ExternalId = q.Id,
+                    MarketplaceClientId = q.MarketplaceClientId,
+                    MarketplaceClientName = q.MarketplaceClientName,
+                    Status = CommunicationTaskStatus.New,
+                    Title = $"Вопрос — {q.MarketplaceClientName}",
+                    PreviewText = q.Text.Length > 200 ? q.Text[..200] + "..." : q.Text,
+                    ExternalStatus = q.Status,
+                    ExternalUrl = q.QuestionLink,
+                    CreatedAt = q.PublishedAt,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GetBoardAsync: failed to fetch live questions from Ozon");
+            return [];
+        }
+    }
+
+    private async Task<List<CommunicationTaskDto>> FetchLiveReviewsAsync(
+        Guid? marketplaceClientId,
+        HashSet<(CommunicationTaskType, string, Guid)> inProgressSet,
+        DateTime? from, DateTime? to,
+        CancellationToken ct)
+    {
+        try
+        {
+            // Fan out per client.
+            var clientIds = marketplaceClientId.HasValue
+                ? [marketplaceClientId.Value]
+                : await _db.MarketplaceClients.AsNoTracking()
+                    .Where(c => !c.IsDeleted)
+                    .Select(c => c.Id)
+                    .ToArrayAsync(ct);
+
+            var pageTasks = clientIds.Select(id => _reviewsService.GetReviewsPageAsync(
+                pageSize: 50, cursor: null, marketplaceClientId: id, ct: ct));
+            var pages = await Task.WhenAll(pageTasks);
+
+            var toExclusive = to.HasValue ? to.Value.Date.AddDays(1) : DateTime.MaxValue;
+
+            var result = new List<CommunicationTaskDto>();
+            foreach (var r in pages.SelectMany(p => p.Reviews))
+            {
+                if (string.Equals(r.Status, "PROCESSED", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (inProgressSet.Contains((CommunicationTaskType.Review, r.Id, r.MarketplaceClientId)))
+                    continue;
+                if (from.HasValue && r.PublishedAt < from.Value)
+                    continue;
+                if (r.PublishedAt >= toExclusive)
+                    continue;
+
+                result.Add(new CommunicationTaskDto
+                {
+                    Id = Guid.Empty,
+                    TaskType = CommunicationTaskType.Review,
+                    ExternalId = r.Id,
+                    MarketplaceClientId = r.MarketplaceClientId,
+                    MarketplaceClientName = r.MarketplaceClientName,
+                    Status = CommunicationTaskStatus.New,
+                    Title = $"Отзыв ({r.Rating}★) — {r.MarketplaceClientName}",
+                    PreviewText = r.Text.Length > 200 ? r.Text[..200] + "..." : r.Text,
+                    ExternalStatus = r.Status,
+                    CreatedAt = r.PublishedAt,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GetBoardAsync: failed to fetch live reviews from Ozon");
+            return [];
+        }
     }
 
     private static void StopActiveTimers(CommunicationTask task, Guid userId)

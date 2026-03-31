@@ -7,8 +7,11 @@
 @inject ITenantProvider TenantProvider
 @inject IMarketplaceClientService MarketplaceClientService
 @inject IOzonQuestionsService QuestionsService
+@inject ICommunicationTaskService TaskService
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
+
+@implements IDisposable
 @inject UserContext UserContext
 
 <link rel="stylesheet" href="css/questions.css" />
@@ -143,7 +146,9 @@ else
                         {
                             var isSelected = _selectedQuestion?.Id == q.Id &&
                                              _selectedQuestion?.MarketplaceClientId == q.MarketplaceClientId;
-                            var cardClass = isSelected ? "question-item-card selected" : "question-item-card";
+                            var qActiveTask = GetActiveTask(q.Id, q.MarketplaceClientId);
+                            var qDoneTask = GetDoneTask(q.Id, q.MarketplaceClientId);
+                            var cardClass = isSelected ? "question-item-card selected" : qActiveTask is not null ? "question-item-card busy" : qDoneTask is not null ? "question-item-card done" : "question-item-card";
                             <RadzenCard @key="q.Id"
                                         Class="@cardClass"
                                         @onclick="@(() => SelectQuestion(q))">
@@ -172,6 +177,28 @@ else
                                                      BadgeStyle="BadgeStyle.Secondary" />
                                     }
                                 </div>
+                                @if (qActiveTask is not null)
+                                {
+                                    <div class="task-activity-row">
+                                        <span class="timer-dot"></span>
+                                        <span class="task-activity-timer">@FormatLiveDuration(qActiveTask)</span>
+                                        @if (!string.IsNullOrEmpty(qActiveTask.AssignedToUserName))
+                                        {
+                                            <span class="task-activity-user">· @qActiveTask.AssignedToUserName</span>
+                                        }
+                                    </div>
+                                }
+                                else if (qDoneTask is not null)
+                                {
+                                    <div class="task-activity-row done">
+                                        <span class="task-done-icon">✓</span>
+                                        <span class="task-activity-timer">@FormatLiveDuration(qDoneTask)</span>
+                                        @if (!string.IsNullOrEmpty(qDoneTask.AssignedToUserName))
+                                        {
+                                            <span class="task-activity-user">· @qDoneTask.AssignedToUserName</span>
+                                        }
+                                    </div>
+                                }
                             </RadzenCard>
                         }
 
@@ -230,6 +257,11 @@ else
                             </RadzenText>
                         </RadzenStack>
                         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                            <TaskActionPanel ExternalId="@_selectedQuestion.Id"
+                                             MarketplaceClientId="@_selectedQuestion.MarketplaceClientId"
+                                             TaskType="@CommunicationTaskType.Question"
+                                             Title="@($"Вопрос — {_selectedQuestion.MarketplaceClientName}")"
+                                             PreviewText="@_selectedQuestion.Text" />
                             <RadzenBadge Text="@GetStatusLabel(_selectedQuestion.Status)"
                                          BadgeStyle="@GetStatusBadgeStyle(_selectedQuestion.Status)" />
                             <RadzenButton Icon="open_in_new"
@@ -580,6 +612,9 @@ else
     private bool _topSkuPremiumRequired;
     private Guid? _topSkuClientId;
     private int _topSkuVisibleCount = 20;
+    private Dictionary<(string, Guid), CommunicationTaskDto> _activeTasks = new();
+    private Dictionary<(string, Guid), CommunicationTaskDto> _doneTasks = new();
+    private Timer? _tickTimer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -730,6 +765,8 @@ else
             _loadingMore = false;
             StateHasChanged();
         }
+
+        await RefreshActiveTasksAsync();
     }
 
     private Task LoadMoreAsync()
@@ -942,6 +979,47 @@ else
         if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} дн. назад";
         return utcTime.ToLocalTime().ToString("dd.MM.yyyy");
     }
+
+    private async Task RefreshActiveTasksAsync()
+    {
+        try
+        {
+            var tasks = await TaskService.GetInProgressTasksAsync();
+            _activeTasks = tasks.ToDictionary(t => (t.ExternalId, t.MarketplaceClientId));
+            var doneTasks = await TaskService.GetDoneTasksTodayAsync();
+            _doneTasks = doneTasks.ToDictionary(t => (t.ExternalId, t.MarketplaceClientId));
+            if (_activeTasks.Count > 0)
+            {
+                _tickTimer ??= new Timer(_ => InvokeAsync(StateHasChanged), null,
+                    TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+            }
+            else
+            {
+                _tickTimer?.Dispose();
+                _tickTimer = null;
+            }
+        }
+        catch { /* non-critical */ }
+    }
+
+    private CommunicationTaskDto? GetActiveTask(string externalId, Guid clientId) =>
+        _activeTasks.GetValueOrDefault((externalId, clientId));
+
+    private CommunicationTaskDto? GetDoneTask(string externalId, Guid clientId) =>
+        _doneTasks.GetValueOrDefault((externalId, clientId));
+
+    private static string FormatLiveDuration(CommunicationTaskDto task)
+    {
+        var ticks = task.TotalTimeSpentTicks;
+        if (task.HasActiveTimer && task.StartedAt.HasValue)
+            ticks += (DateTime.UtcNow - task.StartedAt.Value).Ticks;
+        var ts = TimeSpan.FromTicks(ticks);
+        if (ts.TotalHours >= 1) return $"{(int)ts.TotalHours}ч {ts.Minutes:D2}м {ts.Seconds:D2}с";
+        if (ts.TotalMinutes >= 1) return $"{(int)ts.TotalMinutes}м {ts.Seconds:D2}с";
+        return $"{(int)ts.TotalSeconds}с";
+    }
+
+    public void Dispose() => _tickTimer?.Dispose();
 
     private static string GetStatusLabel(string? status) => status switch
     {

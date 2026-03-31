@@ -20,5 +20,8 @@ public class TaskBoardDto
 
     /// <summary>Hourly rate per task type (global rates, no min duration).</summary>
     public Dictionary<CommunicationTaskType, decimal> HourlyEstimates { get; set; } = new();
+
+    /// <summary>All active payment rates — used client-side to compute per-task conditional estimates.</summary>
+    public List<CommunicationPaymentRateDto> ActiveRates { get; set; } = new();
 }
 

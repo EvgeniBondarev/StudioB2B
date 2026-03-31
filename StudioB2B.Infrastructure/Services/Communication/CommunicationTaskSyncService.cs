@@ -77,15 +77,8 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             else
             {
                 var page = await _chatService.GetChatsPageAsync(
-                    pageSize: 30, unreadOnly: true, chatType: BuyerSellerType, ct: ct);
+                    pageSize: 50, chatStatus: "OPENED", chatType: BuyerSellerType, ct: ct);
                 chats = page.Chats;
-
-                if (chats.Count == 0)
-                {
-                    var openPage = await _chatService.GetChatsPageAsync(
-                        pageSize: 30, chatStatus: "OPENED", chatType: BuyerSellerType, ct: ct);
-                    chats = openPage.Chats;
-                }
             }
 
             if (chats.Count == 0) return;
@@ -95,58 +88,20 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                 .Where(t => t.TaskType == CommunicationTaskType.Chat && externalIds.Contains(t.ExternalId))
                 .ToDictionaryAsync(t => t.ExternalId, ct);
 
+            if (existing.Count == 0) return;
+
             foreach (var chat in chats)
             {
-                if (existing.TryGetValue(chat.ChatId, out var task))
-                {
-                    task.ExternalStatus = chat.ChatStatus;
-                    task.ChatType = chat.ChatType;
-                    task.UnreadCount = chat.UnreadCount;
-                    task.UpdatedAt = DateTime.UtcNow;
-                    task.Title = $"Чат — {chat.MarketplaceClientName}";
+                if (!existing.TryGetValue(chat.ChatId, out var task)) continue;
 
-                    if (IsTerminalChatStatus(chat.ChatStatus) &&
-                        task.Status == CommunicationTaskStatus.New)
-                    {
-                        task.Status = CommunicationTaskStatus.Done;
-                        task.CompletedAt = DateTime.UtcNow;
-                    }
-                }
-                else
-                {
-                    var newTask = new CommunicationTask
-                    {
-                        Id = Guid.NewGuid(),
-                        TaskType = CommunicationTaskType.Chat,
-                        ExternalId = chat.ChatId,
-                        MarketplaceClientId = chat.MarketplaceClientId,
-                        Status = IsTerminalChatStatus(chat.ChatStatus)
-                            ? CommunicationTaskStatus.Done
-                            : CommunicationTaskStatus.New,
-                        Title = $"Чат — {chat.MarketplaceClientName}",
-                        PreviewText = null,
-                        ExternalStatus = chat.ChatStatus,
-                        ChatType = chat.ChatType,
-                        UnreadCount = chat.UnreadCount,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
-                        CompletedAt = IsTerminalChatStatus(chat.ChatStatus) ? DateTime.UtcNow : null
-                    };
-
-                    newTask.Logs.Add(new CommunicationTaskLog
-                    {
-                        Id = Guid.NewGuid(),
-                        Action = "Created",
-                        Details = $"Auto-created from Ozon chat {chat.ChatId}",
-                        CreatedAt = DateTime.UtcNow
-                    });
-
-                    _db.CommunicationTasks.Add(newTask);
-                }
+                task.ExternalStatus = chat.ChatStatus;
+                task.ChatType ??= chat.ChatType;
+                task.UnreadCount = chat.UnreadCount;
+                task.UpdatedAt = DateTime.UtcNow;
             }
 
             await _db.SaveChangesAsync(ct);
-            _logger.LogInformation("Synced {Count} chats to task board (full={Full})", chats.Count, fullSync);
+            _logger.LogInformation("Synced {Count} existing chat tasks (full={Full})", existing.Count, fullSync);
         }
         catch (Exception ex)
         {
@@ -162,7 +117,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             var allQuestions = new List<OzonQuestionViewModelDto>();
             string? cursor = null;
             var maxPages = fullSync ? 10 : 1;
-            var pageSize = fullSync ? 100 : 30;
+            var pageSize = fullSync ? 100 : 50;
 
             for (var i = 0; i < maxPages; i++)
             {
@@ -182,54 +137,18 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                 .Where(t => t.TaskType == CommunicationTaskType.Question && externalIds.Contains(t.ExternalId))
                 .ToDictionaryAsync(t => t.ExternalId, ct);
 
+            if (existing.Count == 0) return;
+
             foreach (var q in allQuestions)
             {
-                if (existing.TryGetValue(q.Id, out var task))
-                {
-                    task.ExternalStatus = q.Status;
-                    task.UpdatedAt = DateTime.UtcNow;
+                if (!existing.TryGetValue(q.Id, out var task)) continue;
 
-                    if (IsTerminalQuestionStatus(q.Status) &&
-                        task.Status == CommunicationTaskStatus.New)
-                    {
-                        task.Status = CommunicationTaskStatus.Done;
-                        task.CompletedAt = DateTime.UtcNow;
-                    }
-                }
-                else
-                {
-                    var newTask = new CommunicationTask
-                    {
-                        Id = Guid.NewGuid(),
-                        TaskType = CommunicationTaskType.Question,
-                        ExternalId = q.Id,
-                        MarketplaceClientId = q.MarketplaceClientId,
-                        Status = IsTerminalQuestionStatus(q.Status)
-                            ? CommunicationTaskStatus.Done
-                            : CommunicationTaskStatus.New,
-                        Title = $"Вопрос — {q.MarketplaceClientName}",
-                        PreviewText = q.Text.Length > 200 ? q.Text[..200] + "..." : q.Text,
-                        ExternalStatus = q.Status,
-                        ExternalUrl = q.QuestionLink,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
-                        CompletedAt = IsTerminalQuestionStatus(q.Status) ? DateTime.UtcNow : null
-                    };
-
-                    newTask.Logs.Add(new CommunicationTaskLog
-                    {
-                        Id = Guid.NewGuid(),
-                        Action = "Created",
-                        Details = $"Auto-created from Ozon question {q.Id}",
-                        CreatedAt = DateTime.UtcNow
-                    });
-
-                    _db.CommunicationTasks.Add(newTask);
-                }
+                task.ExternalStatus = q.Status;
+                task.UpdatedAt = DateTime.UtcNow;
             }
 
             await _db.SaveChangesAsync(ct);
-            _logger.LogInformation("Synced {Count} questions to task board (full={Full})", allQuestions.Count, fullSync);
+            _logger.LogInformation("Synced {Count} existing question tasks (full={Full})", existing.Count, fullSync);
         }
         catch (Exception ex)
         {
@@ -245,7 +164,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             var allReviews = new List<OzonReviewViewModelDto>();
             string? cursor = null;
             var maxPages = fullSync ? 10 : 1;
-            var pageSize = fullSync ? 100 : 30;
+            var pageSize = fullSync ? 100 : 50;
 
             for (var i = 0; i < maxPages; i++)
             {
@@ -265,53 +184,18 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                 .Where(t => t.TaskType == CommunicationTaskType.Review && externalIds.Contains(t.ExternalId))
                 .ToDictionaryAsync(t => t.ExternalId, ct);
 
+            if (existing.Count == 0) return;
+
             foreach (var r in allReviews)
             {
-                if (existing.TryGetValue(r.Id, out var task))
-                {
-                    task.ExternalStatus = r.Status;
-                    task.UpdatedAt = DateTime.UtcNow;
+                if (!existing.TryGetValue(r.Id, out var task)) continue;
 
-                    if (IsTerminalReviewStatus(r.Status) &&
-                        task.Status == CommunicationTaskStatus.New)
-                    {
-                        task.Status = CommunicationTaskStatus.Done;
-                        task.CompletedAt = DateTime.UtcNow;
-                    }
-                }
-                else
-                {
-                    var newTask = new CommunicationTask
-                    {
-                        Id = Guid.NewGuid(),
-                        TaskType = CommunicationTaskType.Review,
-                        ExternalId = r.Id,
-                        MarketplaceClientId = r.MarketplaceClientId,
-                        Status = IsTerminalReviewStatus(r.Status)
-                            ? CommunicationTaskStatus.Done
-                            : CommunicationTaskStatus.New,
-                        Title = $"Отзыв ({r.Rating}★) — {r.MarketplaceClientName}",
-                        PreviewText = r.Text.Length > 200 ? r.Text[..200] + "..." : r.Text,
-                        ExternalStatus = r.Status,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
-                        CompletedAt = IsTerminalReviewStatus(r.Status) ? DateTime.UtcNow : null
-                    };
-
-                    newTask.Logs.Add(new CommunicationTaskLog
-                    {
-                        Id = Guid.NewGuid(),
-                        Action = "Created",
-                        Details = $"Auto-created from Ozon review {r.Id}",
-                        CreatedAt = DateTime.UtcNow
-                    });
-
-                    _db.CommunicationTasks.Add(newTask);
-                }
+                task.ExternalStatus = r.Status;
+                task.UpdatedAt = DateTime.UtcNow;
             }
 
             await _db.SaveChangesAsync(ct);
-            _logger.LogInformation("Synced {Count} reviews to task board (full={Full})", allReviews.Count, fullSync);
+            _logger.LogInformation("Synced {Count} existing review tasks (full={Full})", existing.Count, fullSync);
         }
         catch (Exception ex)
         {
