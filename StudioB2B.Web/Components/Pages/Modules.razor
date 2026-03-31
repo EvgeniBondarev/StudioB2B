@@ -1,5 +1,5 @@
 @page "/modules"
-@attribute [Authorize(Roles = "ModulesView")]
+@attribute [Authorize(Roles = nameof(PageEnum.ModulesView))]
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
 
@@ -45,7 +45,7 @@ else
                                 <RadzenText TextStyle="TextStyle.H6" Style="margin: 0;">
                                     @module.Name
                                 </RadzenText>
-                                <AuthorizeView Roles="ModulesManage">
+                                <AuthorizeView Roles="@nameof(FunctionEnum.ModulesManage)">
                                     <Authorized>
                                         <RadzenSwitch Value="@module.IsEnabled"
                                                       Change="@(v => OnToggle(module, (bool)v))"

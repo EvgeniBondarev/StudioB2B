@@ -1,5 +1,5 @@
 @page "/orders-sync"
-@attribute [Authorize(Roles = "SyncView")]
+@attribute [Authorize(Roles = nameof(PageEnum.SyncView))]
 @using System.Text.Json
 @using Microsoft.AspNetCore.SignalR.Client
 @using StudioB2B.Domain.Entities
@@ -235,7 +235,7 @@ else
                     Style="width: 100%;">
         <Columns>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="JobType" Title="Тип" Width="210px"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColType")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.SyncColType))">
                 <Template Context="h">
                     <RadzenBadge BadgeStyle="@JobTypeBadgeStyle(h.JobType)"
                                  Text="@JobTypeLabel(h.JobType)" />
@@ -250,7 +250,7 @@ else
                 </FilterTemplate>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="Status" Title="Статус" Width="200px"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColStatus")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.SyncColStatus))">
                 <Template Context="h">
                     <div style="display:flex;flex-direction:column;gap:2px;">
                         <RadzenBadge BadgeStyle="@StatusBadgeStyle(h.Status)" Text="@StatusLabel(h.Status)" />
@@ -270,7 +270,7 @@ else
                 </FilterTemplate>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Title="Параметры" Width="260px"
-                                  Filterable="false" HeaderCssClass="half-painted-header" Visible="@Col("SyncColParams")">
+                                  Filterable="false" HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.SyncColParams))">
                 <Template Context="h">
                     <RadzenText TextStyle="TextStyle.Body2" Class="rz-text-truncate" title="@FormatParameters(h)">
                         @FormatParameters(h)
@@ -278,13 +278,13 @@ else
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="StartedAtUtc" Title="Запуск" Width="160px"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColStartedAt")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.SyncColStartedAt))">
                 <Template Context="h">
                     <RadzenText TextStyle="TextStyle.Body2">@($"{h.StartedAtUtc.ToLocalTime():g}")</RadzenText>
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="FinishedAtUtc" Title="Завершено" Width="160px"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColFinishedAt")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.SyncColFinishedAt))">
                 <Template Context="h">
                     @if (h.FinishedAtUtc.HasValue)
                     { <RadzenText TextStyle="TextStyle.Body2">@($"{h.FinishedAtUtc.Value.ToLocalTime():g}")</RadzenText> }
@@ -293,13 +293,13 @@ else
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Title="Продолжительность" Width="240px"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColDuration")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.SyncColDuration))">
                 <Template Context="h">
                     <RadzenText TextStyle="TextStyle.Body2">@FormatDuration(h)</RadzenText>
                 </Template>
             </RadzenDataGridColumn>
             <RadzenDataGridColumn TItem="SyncJobHistory" Property="InitiatedByEmail" Title="Запустил"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("SyncColInitiatedBy")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.SyncColInitiatedBy))">
                 <Template Context="h">
                     @if (!string.IsNullOrEmpty(h.InitiatedByEmail))
                     { <RadzenText TextStyle="TextStyle.Body2" Class="rz-text-truncate" title="@h.InitiatedByEmail">@h.InitiatedByEmail</RadzenText> }
@@ -415,11 +415,11 @@ else
         var state = await AuthState;
         var user = state.User;
         _syncUser = user;
-        _canRunOrders = user.IsInRole("Admin") || user.IsInRole("SyncRunOrders");
-        _canRunStatusUpdate = user.IsInRole("Admin") || user.IsInRole("SyncRunStatusUpdate");
-        _canRunReturns = user.IsInRole("Admin") || user.IsInRole("SyncRunReturns");
+        _canRunOrders = user.IsInRole("Admin") || user.IsInRole(nameof(FunctionEnum.SyncRunOrders));
+        _canRunStatusUpdate = user.IsInRole("Admin") || user.IsInRole(nameof(FunctionEnum.SyncRunStatusUpdate));
+        _canRunReturns = user.IsInRole("Admin") || user.IsInRole(nameof(FunctionEnum.SyncRunReturns));
         _canRunAny = _canRunOrders || _canRunStatusUpdate || _canRunReturns;
-        _canManageSchedules = user.IsInRole("Admin") || user.IsInRole("SyncManageSchedules");
+        _canManageSchedules = user.IsInRole("Admin") || user.IsInRole(nameof(FunctionEnum.SyncManageSchedules));
 
         if (!TenantProvider.IsResolved) return;
 

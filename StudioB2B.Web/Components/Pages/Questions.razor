@@ -1,5 +1,5 @@
 @page "/questions"
-@attribute [Authorize(Roles = "QuestionsView")]
+@attribute [Authorize(Roles = nameof(PageEnum.QuestionsView))]
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Shared

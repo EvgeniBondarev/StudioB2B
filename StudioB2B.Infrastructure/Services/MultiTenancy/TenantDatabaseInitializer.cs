@@ -7,7 +7,6 @@ using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Shared;
-using System.Reflection;
 
 namespace StudioB2B.Infrastructure.Services.MultiTenancy;
 
