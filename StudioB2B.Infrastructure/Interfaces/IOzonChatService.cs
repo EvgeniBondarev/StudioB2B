@@ -16,7 +16,7 @@ public interface IOzonChatService
     /// </summary>
     Task<OzonChatPageDto> GetChatsPageAsync(int pageSize = 20, string? cursor = null, string? chatStatus = null,
                                             string? chatType = null, bool unreadOnly = false, Guid? marketplaceClientId = null,
-                                            CancellationToken ct = default);
+                                            bool withLastMessageInfo = true, CancellationToken ct = default);
 
     Task<OzonChatHistoryResponseDto?> GetChatHistoryAsync(Guid marketplaceClientId, string chatId, string direction = "Backward",
                                                        ulong? fromMessageId = null, int limit = 50, CancellationToken ct = default);

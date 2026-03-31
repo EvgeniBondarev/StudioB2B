@@ -24,7 +24,7 @@
 <link rel="stylesheet" href="css/chats/chatMessages.css" />
 <script src="js/taskboard.js"></script>
 
-<div class="taskboard-root">
+<div class="taskboard-root" @onclick="@(() => { _clientDropdownOpen = false; _dateDropdownOpen = false; })">
 
 
     <div class="taskboard-filters">
@@ -51,6 +51,90 @@
                 Отзывы
                 <span class="q-pill-count">@(_board.TypeCounts.GetValueOrDefault(CommunicationTaskType.Review))</span>
             </span>
+
+            <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 4px;"></span>
+
+            <div style="position:relative;" @onclick:stopPropagation="true">
+                @{ var dateActive = _filterFrom.HasValue || _filterTo.HasValue; }
+                <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px 3px 8px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;white-space:nowrap;
+                             background:@(dateActive ? "var(--rz-primary)" : "var(--rz-base-200)");
+                             color:@(dateActive ? "#fff" : "var(--rz-text-color)");
+                             border:2px solid @(dateActive ? "var(--rz-primary)" : "transparent");"
+                      @onclick="@(() => _dateDropdownOpen = !_dateDropdownOpen)">
+                    <span class="rzi" style="font-size:1.1rem;line-height:1;">date_range</span>
+                    @if (dateActive)
+                    {
+                        <span>@(_filterFrom.HasValue ? _filterFrom.Value.ToString("dd.MM") : "...") — @(_filterTo.HasValue ? _filterTo.Value.ToString("dd.MM") : "...")</span>
+                    }
+                    <span class="rzi" style="font-size:1rem;line-height:1;">@(_dateDropdownOpen ? "expand_less" : "expand_more")</span>
+                </span>
+                @if (_dateDropdownOpen)
+                {
+                    <div style="position:absolute;top:calc(100% + 4px);left:0;z-index:500;
+                                background:var(--rz-base-background-color);border:1px solid var(--rz-base-300);
+                                border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.14);
+                                padding:12px;display:flex;flex-direction:column;gap:0.6rem;min-width:220px;"
+                         @onclick:stopPropagation="true">
+                        <div style="display:flex;flex-direction:column;gap:4px;">
+                            <span style="font-size:0.75rem;font-weight:600;color:var(--rz-text-secondary-color);">С</span>
+                            <RadzenDatePicker TValue="DateTime?" @bind-Value="_filterFrom"
+                                              DateFormat="dd.MM.yyyy" ShowCalendarWeek="false"
+                                              Placeholder="дд.мм.гггг" Style="width:100%;" />
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:4px;">
+                            <span style="font-size:0.75rem;font-weight:600;color:var(--rz-text-secondary-color);">По</span>
+                            <RadzenDatePicker TValue="DateTime?" @bind-Value="_filterTo"
+                                              DateFormat="dd.MM.yyyy" ShowCalendarWeek="false"
+                                              Placeholder="дд.мм.гггг" Style="width:100%;" />
+                        </div>
+                        <div style="display:flex;gap:0.4rem;">
+                            <RadzenButton Text="Применить" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Style="flex:1;"
+                                          Click="@(async () => { _dateDropdownOpen = false; await LoadBoardAsync(); })" />
+                            @if (dateActive)
+                            {
+                                <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                              title="Сбросить"
+                                              Click="@(async () => { _filterFrom = null; _filterTo = null; _dateDropdownOpen = false; await LoadBoardAsync(); })" />
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 4px;"></span>
+
+            <div style="position:relative;" @onclick:stopPropagation="true">
+                <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px 3px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;white-space:nowrap;
+                             background:@(_filterClientId != null ? "var(--rz-primary)" : "var(--rz-base-200)");
+                             color:@(_filterClientId != null ? "#fff" : "var(--rz-text-color)");
+                             border:2px solid @(_filterClientId != null ? "var(--rz-primary)" : "transparent");"
+                      @onclick="@(() => _clientDropdownOpen = !_clientDropdownOpen)">
+                    @(_clientOptions.FirstOrDefault(c => c.Id == _filterClientId)?.Name ?? "Все кабинеты")
+                    <span class="rzi" style="font-size:1rem;line-height:1;">@(_clientDropdownOpen ? "expand_less" : "expand_more")</span>
+                </span>
+                @if (_clientDropdownOpen)
+                {
+                    <div style="position:absolute;top:calc(100% + 4px);left:0;z-index:500;
+                                background:var(--rz-base-background-color);border:1px solid var(--rz-base-300);
+                                border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.14);
+                                display:flex;flex-direction:column;gap:0.25rem;
+                                padding:6px;min-width:160px;max-height:370px;overflow-y:auto;"
+                         @onclick:stopPropagation="true">
+                        <span style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;white-space:nowrap;
+                                     background:@(_filterClientId == null ? "var(--rz-primary)" : "var(--rz-base-200)");
+                                     color:@(_filterClientId == null ? "#fff" : "var(--rz-text-color)");"
+                              @onclick="@(async () => { _clientDropdownOpen = false; await SetClientFilter(null); })">Все</span>
+                        @foreach (var c in _clientOptions)
+                        {
+                            var cCopy = c;
+                            <span style="display:inline-flex;align-items:center;padding:4px 12px;border-radius:20px;cursor:pointer;font-size:0.82rem;font-weight:500;white-space:nowrap;
+                                         background:@(_filterClientId == cCopy.Id ? "var(--rz-primary)" : "var(--rz-base-200)");
+                                         color:@(_filterClientId == cCopy.Id ? "#fff" : "var(--rz-text-color)");"
+                                  @onclick="@(async () => { _clientDropdownOpen = false; await SetClientFilter(cCopy.Id); })">@cCopy.Name</span>
+                        }
+                    </div>
+                }
+            </div>
 
             <span style="display:inline-block;width:1px;height:18px;background:var(--rz-base-300);margin:0 4px;"></span>
 
@@ -108,9 +192,32 @@
             <div class="taskboard-column-header">
                 <span>Новые</span>
                 <span class="taskboard-column-count">@FilteredNew.Count</span>
+                @if (_loadingNew)
+                {
+                    <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate"
+                                              Size="ProgressBarCircularSize.ExtraSmall"
+                                              Style="margin-left:auto;" />
+                }
             </div>
             <div class="taskboard-column-body">
-                @if (FilteredNew.Count == 0)
+                @if (_loadingNew && FilteredNew.Count == 0)
+                {
+                    @for (var i = 0; i < 3; i++)
+                    {
+                        <div class="skeleton-card">
+                            <div style="display:flex;gap:0.5rem;align-items:center;">
+                                <div class="skeleton-line short" style="width:48px;height:18px;border-radius:10px;"></div>
+                                <div class="skeleton-line title"></div>
+                            </div>
+                            <div class="skeleton-line long"></div>
+                            <div style="display:flex;justify-content:space-between;margin-top:0.1rem;">
+                                <div class="skeleton-line short"></div>
+                                <div class="skeleton-line short" style="width:30%;"></div>
+                            </div>
+                        </div>
+                    }
+                }
+                else if (FilteredNew.Count == 0)
                 {
                     <div class="taskboard-empty"><RadzenIcon Icon="inbox" /><span>Задач нет</span></div>
                 }
@@ -203,6 +310,11 @@
                                 @if (!string.IsNullOrEmpty(task.ExternalStatus))
                                 {
                                     <span class="task-external-status">@task.ExternalStatus</span>
+                                }
+                                @{ var inProgressEst = ComputeEstimate(task); }
+                                @if (inProgressEst > 0)
+                                {
+                                    <span class="task-estimate-badge" title="Ожидаемая оплата по текущим тарифам">~@inProgressEst.ToString("F0") ₽</span>
                                 }
                             </div>
                             @if (task.AssignedToUserId == CurrentUser.UserId)
@@ -453,13 +565,31 @@
                 @* ── Chat preview ── *@
                 @if (_previewTask.TaskType == CommunicationTaskType.Chat)
                 {
-                    <div style="flex:1;min-height:0;display:flex;flex-direction:column;margin:-1rem;">
-                        <ChatMessages Messages="_chatMessages"
-                                      SelectedChat="_previewChatVm"
-                                      EagerImages="true"
-                                      OpenGallery="OnOpenGallery"
-                                      LoadingHistory="false" />
-                    </div>
+                    @if (_chatFallbackUrl is not null)
+                    {
+                        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;text-align:center;">
+                            <span class="rzi" style="font-size:2.5rem;color:var(--rz-warning)">lock</span>
+                            <RadzenText TextStyle="TextStyle.Body1" Style="color:var(--rz-text-secondary-color);">
+                                История чата недоступна через API для этого клиента.<br />
+                                Откройте чат напрямую на сайте Ozon Seller.
+                            </RadzenText>
+                            <RadzenButton Text="Открыть в Ozon Seller"
+                                          Icon="open_in_new"
+                                          ButtonStyle="ButtonStyle.Primary"
+                                          Size="ButtonSize.Medium"
+                                          Click="@(_ => JS.InvokeVoidAsync("open", _chatFallbackUrl, "_blank"))" />
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="flex:1;min-height:0;display:flex;flex-direction:column;margin:-1rem;">
+                            <ChatMessages Messages="_chatMessages"
+                                          SelectedChat="_previewChatVm"
+                                          EagerImages="true"
+                                          OpenGallery="OnOpenGallery"
+                                          LoadingHistory="false" />
+                        </div>
+                    }
                 }
 
                 @* ── Question preview ── *@
@@ -640,7 +770,14 @@
 @code {
     private TaskBoardDto _board = new();
     private CommunicationTaskType? _filterType;
+    private DateTime? _filterFrom = DateTime.Today.AddDays(-30);
+    private DateTime? _filterTo;
+    private Guid? _filterClientId;
+    private List<ClientOptionDto> _clientOptions = new();
+    private bool _clientDropdownOpen;
+    private bool _dateDropdownOpen;
     private bool _loading;
+    private bool _loadingNew;
     private bool _syncing;
     private bool _loadingMore;
 
@@ -657,6 +794,7 @@
     private CommunicationTaskDetailDto? _taskDetail;
     private List<OzonChatMessageDto> _chatMessages = new();
     private OzonChatViewModelDto? _previewChatVm;
+    private string? _chatFallbackUrl;
     private OzonQuestionDetailDto? _questionDetail;
     private OzonReviewDetailDto? _reviewDetail;
 
@@ -678,6 +816,8 @@
 
         var authState = await AuthState;
         UserContext.SetUser(authState.User);
+
+        _ = LoadClientOptionsAsync();
 
         if (BoardState.HasData)
         {
@@ -714,16 +854,16 @@
 
     private async Task QuickSyncAndReloadAsync()
     {
-        _syncing = true;
-        StateHasChanged();
-        try { await SyncService.SyncRecentAsync(); }
-        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Warning, "Синхронизация", ex.Message, 4000); }
-        finally { _syncing = false; }
+        // GetBoardAsync fetches live New tasks directly from Ozon — no separate sync step needed.
         await LoadBoardAsync();
     }
 
     private async Task FullSyncAndReloadAsync()
     {
+        // Show skeleton immediately — don't wait for SyncAsync to complete before rendering.
+        await LoadBoardAsync();
+
+        // Run full sync in background; silently refresh board once done.
         _syncing = true;
         StateHasChanged();
         try
@@ -733,21 +873,44 @@
         }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Warning, "Синхронизация", ex.Message, 4000); }
         finally { _syncing = false; }
-        await LoadBoardAsync();
+
+        await SilentReloadAsync();
     }
 
     private async Task LoadBoardAsync()
     {
         _loading = true;
+        _loadingNew = false;
         StateHasChanged();
         try
         {
-            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter { DoneTake = DonePageSize });
-            _board = board;
-            BoardState.Set(board);
+            var filter = new CommunicationTaskFilter
+            {
+                DoneTake = DonePageSize,
+                From = _filterFrom,
+                To = _filterTo,
+                TaskType = _filterType,
+                MarketplaceClientId = _filterClientId
+            };
+
+            // Phase 1: fast DB load — show InProgress + Done immediately
+            _board = await TaskService.GetDbBoardAsync(filter);
+            _loading = false;
+            _loadingNew = true;
+            StateHasChanged();
+
+            // Phase 2: stream live Ozon new tasks — each batch (chats, questions, reviews) renders immediately
+            await foreach (var batch in TaskService.StreamNewTasksAsync(filter))
+            {
+                _board.NewTasks.AddRange(batch);
+                foreach (var t in batch)
+                    _board.TypeCounts[t.TaskType] = _board.TypeCounts.GetValueOrDefault(t.TaskType) + 1;
+                await InvokeAsync(StateHasChanged);
+            }
+            BoardState.Set(_board);
         }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
-        finally { _loading = false; StateHasChanged(); }
+        finally { _loading = false; _loadingNew = false; StateHasChanged(); }
     }
 
     /// <summary>Background refresh that doesn't show skeleton — used on re-navigation when cache is stale.</summary>
@@ -755,10 +918,28 @@
     {
         try
         {
-            await SyncService.SyncRecentAsync();
-            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter { DoneTake = DonePageSize });
-            _board = board;
-            BoardState.Set(board);
+            var filter = new CommunicationTaskFilter
+            {
+                DoneTake = DonePageSize,
+                From = _filterFrom,
+                To = _filterTo,
+                TaskType = _filterType,
+                MarketplaceClientId = _filterClientId
+            };
+
+            // Load DB part first, then Ozon new tasks silently
+            var dbBoard = await TaskService.GetDbBoardAsync(filter);
+            _board = dbBoard;
+            await InvokeAsync(StateHasChanged);
+
+            await foreach (var batch in TaskService.StreamNewTasksAsync(filter))
+            {
+                _board.NewTasks.AddRange(batch);
+                foreach (var t in batch)
+                    _board.TypeCounts[t.TaskType] = _board.TypeCounts.GetValueOrDefault(t.TaskType) + 1;
+                await InvokeAsync(StateHasChanged);
+            }
+            BoardState.Set(_board);
             await InvokeAsync(StateHasChanged);
         }
         catch { /* silent — don't disturb the user */ }
@@ -773,7 +954,7 @@
         StateHasChanged();
         try
         {
-            var filter = new CommunicationTaskFilter { TaskType = _filterType };
+            var filter = new CommunicationTaskFilter { TaskType = _filterType, From = _filterFrom, To = _filterTo, MarketplaceClientId = _filterClientId };
             var (items, total) = await TaskService.GetDoneTasksPageAsync(filter, _board.DoneTasks.Count, DonePageSize);
             _board.DoneTasks.AddRange(items);
             _board.DoneTotalCount = total;
@@ -788,7 +969,14 @@
     {
         try
         {
-            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter { DoneTake = DonePageSize });
+            var board = await TaskService.GetBoardAsync(new CommunicationTaskFilter
+            {
+                DoneTake = DonePageSize,
+                From = _filterFrom,
+                To = _filterTo,
+                TaskType = _filterType,
+                MarketplaceClientId = _filterClientId
+            });
             _board = board;
             BoardState.Set(board);
             StateHasChanged();
@@ -826,13 +1014,34 @@
         StateHasChanged();
         try
         {
-            var filter = new CommunicationTaskFilter { TaskType = _filterType };
+            var filter = new CommunicationTaskFilter { TaskType = _filterType, From = _filterFrom, To = _filterTo, MarketplaceClientId = _filterClientId };
             var (items, total) = await TaskService.GetDoneTasksPageAsync(filter, 0, DonePageSize);
             _board.DoneTasks.AddRange(items);
             _board.DoneTotalCount = total;
         }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
         StateHasChanged();
+    }
+
+    private async Task OnDateFilterChange(DateTime? _) => await LoadBoardAsync();
+
+    private async Task OnClientFilterChange(object value)
+    {
+        _filterClientId = value is Guid g ? g : (Guid?)null;
+        await LoadBoardAsync();
+    }
+
+    private async Task SetClientFilter(Guid? id)
+    {
+        if (_filterClientId == id) return;
+        _filterClientId = id;
+        await LoadBoardAsync();
+    }
+
+    private async Task LoadClientOptionsAsync()
+    {
+        try { _clientOptions = await MarketplaceClientService.GetClientOptionsAsync(); StateHasChanged(); }
+        catch { /* non-critical */ }
     }
 
     private List<CommunicationTaskDto> ApplyTypeFilter(List<CommunicationTaskDto> source)
@@ -870,6 +1079,7 @@
         _taskDetail = null;
         _chatMessages.Clear();
         _previewChatVm = null;
+        _chatFallbackUrl = null;
         _questionDetail = null;
         _reviewDetail = null;
         StateHasChanged();
@@ -885,10 +1095,17 @@
                         MarketplaceClientName = task.MarketplaceClientName,
                         ChatId = task.ExternalId
                     };
-                    var history = await ChatService.GetChatHistoryAsync(
-                        task.MarketplaceClientId, task.ExternalId, "Backward", limit: 50);
-                    if (history is not null)
-                        _chatMessages = history.Messages.OrderBy(m => m.CreatedAt).ToList();
+                    try
+                    {
+                        var history = await ChatService.GetChatHistoryAsync(
+                            task.MarketplaceClientId, task.ExternalId, "Backward", limit: 50);
+                        if (history is not null)
+                            _chatMessages = history.Messages.OrderBy(m => m.CreatedAt).ToList();
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        _chatFallbackUrl = $"https://seller.ozon.ru/app/messenger/?group=customers_v2&id={task.ExternalId}";
+                    }
                     break;
 
                 case CommunicationTaskType.Question:
@@ -922,8 +1139,9 @@
                 }
             }
 
-            // Load time entries / payment detail after the switch to avoid DbContext concurrency
-            _taskDetail = await TaskService.GetTaskDetailAsync(task.Id);
+            // Load time entries / payment detail — only if the task already exists in DB.
+            if (task.Id != Guid.Empty)
+                _taskDetail = await TaskService.GetTaskDetailAsync(task.Id);
         }
         catch (Exception ex)
         {
@@ -942,6 +1160,7 @@
         _taskDetail = null;
         _chatMessages.Clear();
         _previewChatVm = null;
+        _chatFallbackUrl = null;
         _questionDetail = null;
         _reviewDetail = null;
         GalleryClose();
@@ -1016,8 +1235,12 @@
         var userId = await GetUserIdAsync();
         if (userId is null) return;
 
-        // Optimistic: move card New → InProgress immediately
-        _board.NewTasks.RemoveAll(t => t.Id == task.Id);
+        // Optimistic: move card New → InProgress immediately.
+        // Live New tasks have Id==Guid.Empty, so match by ExternalId+Type+Client.
+        _board.NewTasks.RemoveAll(t =>
+            t.TaskType == task.TaskType &&
+            t.ExternalId == task.ExternalId &&
+            t.MarketplaceClientId == task.MarketplaceClientId);
         task.Status = CommunicationTaskStatus.InProgress;
         task.AssignedToUserId = userId;
         task.HasActiveTimer = true;
@@ -1027,9 +1250,20 @@
 
         try
         {
-            var ok = await TaskService.ClaimTaskAsync(task.Id, userId.Value);
-            if (!ok)
-                NotificationService.Notify(NotificationSeverity.Warning, "Задача уже занята", "Кто-то успел взять раньше", 3000);
+            if (task.Id == Guid.Empty)
+            {
+                var newId = await TaskService.CreateAndClaimAsync(task, userId.Value);
+                if (newId is null)
+                    NotificationService.Notify(NotificationSeverity.Warning, "Задача уже занята", "Кто-то успел взять раньше", 3000);
+                else
+                    task.Id = newId.Value;
+            }
+            else
+            {
+                var ok = await TaskService.ClaimTaskAsync(task.Id, userId.Value);
+                if (!ok)
+                    NotificationService.Notify(NotificationSeverity.Warning, "Задача уже занята", "Кто-то успел взять раньше", 3000);
+            }
         }
         catch (Exception ex)
         {
@@ -1100,14 +1334,8 @@
         var userId = await GetUserIdAsync();
         if (userId is null) return;
 
-        // Optimistic: move card InProgress → New immediately
+        // Optimistic: remove from InProgress. Task will reappear in New via live Ozon feed on next board refresh.
         _board.InProgressTasks.RemoveAll(t => t.Id == task.Id);
-        task.Status = CommunicationTaskStatus.New;
-        task.AssignedToUserId = null;
-        task.AssignedToUserName = null;
-        task.HasActiveTimer = false;
-        task.StartedAt = null;
-        _board.NewTasks.Insert(0, task);
         StateHasChanged();
 
         try { await TaskService.ReleaseTaskAsync(task.Id, userId.Value); }
@@ -1138,6 +1366,35 @@
         CommunicationTaskType.Review => "Отзыв",
         _ => "—"
     };
+
+    private decimal ComputeEstimate(CommunicationTaskDto task)
+    {
+        if (_board.ActiveRates.Count == 0) return 0m;
+
+        var liveTicks = task.TotalTimeSpentTicks;
+        if (task.HasActiveTimer && task.StartedAt.HasValue)
+            liveTicks += (DateTime.UtcNow - task.StartedAt.Value).Ticks;
+
+        var totalMinutes = (decimal)TimeSpan.FromTicks(liveTicks).TotalMinutes;
+        var total = 0m;
+
+        foreach (var rate in _board.ActiveRates)
+        {
+            if (rate.TaskType.HasValue && rate.TaskType != task.TaskType) continue;
+            if (rate.UserId.HasValue && rate.UserId != task.AssignedToUserId) continue;
+            if (rate.MinDurationMinutes.HasValue && totalMinutes < rate.MinDurationMinutes.Value) continue;
+            if (rate.MaxDurationMinutes.HasValue && totalMinutes > rate.MaxDurationMinutes.Value) continue;
+
+            total += rate.PaymentMode switch
+            {
+                PaymentMode.PerTask => rate.Rate,
+                PaymentMode.Hourly => rate.Rate * (totalMinutes / 60m),
+                _ => 0m
+            };
+        }
+
+        return Math.Round(total, 2);
+    }
 
     private static string GetStatusLabel(CommunicationTaskStatus status) => status switch
     {

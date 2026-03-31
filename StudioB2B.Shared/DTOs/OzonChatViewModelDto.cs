@@ -25,4 +25,7 @@ public class OzonChatViewModelDto
     public int UnreadCount { get; set; }
 
     public DateTime LastMessageAt { get; set; }
+
+    /// <summary>Type of the user who sent the last message ("Seller", "Customer", etc.). Null if unknown.</summary>
+    public string? LastMessageUserType { get; set; }
 }
