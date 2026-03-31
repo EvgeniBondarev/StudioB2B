@@ -1,3 +1,5 @@
+using StudioB2B.Domain.Constants;
+
 namespace StudioB2B.Web.Services;
 
 public class NavItem
@@ -29,11 +31,11 @@ public class NavService
             Icon = "receipt_long",
             Items = new()
             {
-                new NavItem { Path = "/orders", Role = "OrdersView" },
-                new NavItem { Path = "/returns", Role = "ReturnsView" },
-                new NavItem { Path = "/transactions", Role = "TransactionsView" },
-                new NavItem { Path = "/orders/apply-transaction", Role = "TransactionsView" },
-                new NavItem { Path = "/transactions-history", Role = "TransactionsView" }
+                new NavItem { Path = "/orders", Role = nameof(PageEnum.OrdersView) },
+                new NavItem { Path = "/returns", Role = nameof(PageEnum.ReturnsView) },
+                new NavItem { Path = "/transactions", Role = nameof(PageEnum.TransactionsView) },
+                new NavItem { Path = "/orders/apply-transaction", Role = nameof(PageEnum.TransactionsView) },
+                new NavItem { Path = "/transactions-history", Role = nameof(PageEnum.TransactionsView) }
             }
         },
         new NavGroup
@@ -42,10 +44,10 @@ public class NavService
             Icon = "storefront",
             Items = new()
             {
-                new NavItem { Path = "/marketplace-clients", Role = "MarketplaceClientsView" },
-                new NavItem { Path = "/price-types", Role = "PriceTypesView" },
-                new NavItem { Path = "/calculation-rules", Role = "CalculationRulesView" },
-                new NavItem { Path = "/order-statuses", Role = "OrderStatusesView" }
+                new NavItem { Path = "/marketplace-clients", Role = nameof(PageEnum.MarketplaceClientsView) },
+                new NavItem { Path = "/price-types", Role = nameof(PageEnum.PriceTypesView) },
+                new NavItem { Path = "/calculation-rules", Role = nameof(PageEnum.CalculationRulesView) },
+                new NavItem { Path = "/order-statuses", Role = nameof(PageEnum.OrderStatusesView) }
             }
         },
         new NavGroup
@@ -54,10 +56,10 @@ public class NavService
             Icon = "forum",
             Items = new()
             {
-                new NavItem { Path = "/communication", Role = "ChatsView" },
-                new NavItem { Path = "/chats", Role = "ChatsView" },
-                new NavItem { Path = "/questions", Role = "ChatsView" },
-                new NavItem { Path = "/reviews", Role = "ChatsView" }
+                new NavItem { Path = "/communication", Role = nameof(PageEnum.ChatsView) },
+                new NavItem { Path = "/chats", Role = nameof(PageEnum.ChatsView) },
+                new NavItem { Path = "/questions", Role = nameof(PageEnum.ChatsView) },
+                new NavItem { Path = "/reviews", Role = nameof(PageEnum.ChatsView) }
             }
         },
         new NavGroup
@@ -66,9 +68,9 @@ public class NavService
             Icon = "view_kanban",
             Items = new()
             {
-                new NavItem { Path = "/task-board", Role = "TaskBoardView" },
-                new NavItem { Path = "/task-board-settings", Role = "TaskBoardAdmin" },
-                new NavItem { Path = "/task-board-report", Role = "TaskBoardAdmin" }
+                new NavItem { Path = "/task-board", Role = nameof(PageEnum.TaskBoardView) },
+                new NavItem { Path = "/task-board-settings", Role = nameof(PageEnum.TaskBoardAdmin) },
+                new NavItem { Path = "/task-board-report", Role = nameof(PageEnum.TaskBoardAdmin) }
             }
         },
         new NavGroup
@@ -77,11 +79,11 @@ public class NavService
             Icon = "settings",
             Items = new()
             {
-                new NavItem { Path = "/users", Role = "UsersView" },
-                new NavItem { Path = "/audit", Role = "AuditView" },
-                new NavItem { Path = "/roles", Role = "ModulesView" },
-                new NavItem { Path = "/orders-sync", Role = "OrdersView" },
-                new NavItem { Path = "/modules", Role = "ModulesView" }
+                new NavItem { Path = "/users", Role = nameof(PageEnum.UsersView) },
+                new NavItem { Path = "/audit", Role = nameof(PageEnum.AuditView) },
+                new NavItem { Path = "/permissions", Role = nameof(PageEnum.ModulesView) },
+                new NavItem { Path = "/orders-sync", Role = nameof(PageEnum.OrdersView) },
+                new NavItem { Path = "/modules", Role = nameof(PageEnum.ModulesView) }
             }
         }
     };

@@ -314,3 +314,172 @@ Files in `StudioB2B.Infrastructure/Features/` contain extension methods on `Tena
     → db.[Module]s.GetAllAsync(_mapper, ct)   // extension method in [Module]Features.cs
 ```
 
+---
+
+## 9. Role & Permission System
+
+### Overview
+
+The project uses three enums to control access. All three live in `StudioB2B.Domain/Constants/`.
+
+| Enum | Controls | JWT role claim source |
+|---|---|---|
+| `PageEnum` | Which pages a user can open | `nameof(PageEnum.*)` |
+| `FunctionEnum` | Which actions a user can perform | `nameof(FunctionEnum.*)` |
+| `PageColumnEnum` | Which grid columns a user can see | `nameof(PageColumnEnum.*)` |
+
+The **enum member name** (not the int value, not the description) is used verbatim as the JWT role claim and must match exactly everywhere in the code.
+
+Every enum value **must** have a `[Description("...")]` attribute — this text is shown to the user in the Permissions UI.
+
+---
+
+### How TenantDatabaseInitializer seeds the data
+
+`SeedPagesColumnsAndFunctionsAsync` in `TenantDatabaseInitializer.cs` iterates all three enums and automatically creates or updates rows in the `Page`, `PageColumn`, and `Function` tables. **No manual SQL or migration data is needed.**
+
+However, `PageColumnEnum` and `FunctionEnum` also require entries in two static maps in the same file:
+
+- **`ColumnPageMap`** — maps each `PageColumnEnum` value to its parent `PageEnum`
+- **`FunctionPageMap`** — maps each `FunctionEnum` value to its parent `PageEnum`
+
+If you add an enum value without updating the map, the new item **will not be seeded** and will not appear in the Permissions UI.
+
+---
+
+### Adding a new page
+
+**Step 1 — Add to `PageEnum`**
+
+```csharp
+// StudioB2B.Domain/Constants/PageEnum.cs
+[Description("Название страницы для UI")]
+NewPageView = 18,   // next sequential integer
+```
+
+**Step 2 — Add to `NavService.cs`**
+
+```csharp
+new NavItem { Path = "/new-page", Role = nameof(PageEnum.NewPageView) }
+```
+
+**Step 3 — Create the Razor page**
+
+```razor
+@page "/new-page"
+@attribute [Authorize(Roles = nameof(PageEnum.NewPageView))]
+```
+
+---
+
+### Adding a new function (action)
+
+**Step 1 — Add to `FunctionEnum`**
+
+```csharp
+// StudioB2B.Domain/Constants/FunctionEnum.cs
+[Description("Страница: действие")]
+NewPageManage = 17,   // next sequential integer
+```
+
+**Step 2 — Add to `FunctionPageMap` in `TenantDatabaseInitializer.cs`**
+
+```csharp
+[FunctionEnum.NewPageManage] = PageEnum.NewPageView,
+```
+
+**Step 3 — Use in the Razor page**
+
+Declarative (hide/show a button or section):
+
+```razor
+<AuthorizeView Roles="@nameof(FunctionEnum.NewPageManage)">
+    <Authorized>
+        <RadzenButton Text="Создать" Click="@OpenCreateDialog" />
+    </Authorized>
+</AuthorizeView>
+```
+
+Imperative (in a C# code block):
+
+```csharp
+_canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.NewPageManage));
+```
+
+---
+
+### Adding a new grid column
+
+**Step 1 — Add to `PageColumnEnum`**
+
+```csharp
+// StudioB2B.Domain/Constants/PageColumnEnum.cs
+[Description("Страница: колонка «Название»")]
+NewPageColName = 95,   // next sequential integer
+```
+
+**Step 2 — Add to `ColumnPageMap` in `TenantDatabaseInitializer.cs`**
+
+```csharp
+[PageColumnEnum.NewPageColName] = PageEnum.NewPageView,
+```
+
+**Step 3 — Use on the grid column**
+
+```razor
+<RadzenDataGridColumn ... Visible="@Col(nameof(PageColumnEnum.NewPageColName))">
+```
+
+---
+
+### Always use `nameof` — never raw strings
+
+**Wrong:**
+```csharp
+@attribute [Authorize(Roles = "OrdersView")]
+<AuthorizeView Roles="UsersManage">
+IsInRole("UsersManage")
+Col("OrdersColProduct")
+new NavItem { Role = "ReturnsView" }
+```
+
+**Correct:**
+```csharp
+@attribute [Authorize(Roles = nameof(PageEnum.OrdersView))]
+<AuthorizeView Roles="@nameof(FunctionEnum.UsersManage)">
+IsInRole(nameof(FunctionEnum.UsersManage))
+Col(nameof(PageColumnEnum.OrdersColProduct))
+new NavItem { Role = nameof(PageEnum.ReturnsView) }
+```
+
+Note: inside a Razor HTML attribute use `"@nameof(...)"` (with `@`); inside a C# code block use `nameof(...)` without quotes.
+
+---
+
+### The special "Admin" role
+
+`"Admin"` is a built-in role that bypasses all permission checks. It is **not** in any enum. Always keep it as a plain string literal:
+
+```csharp
+// Correct — Admin is always a plain string
+_canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.UsersManage));
+```
+
+---
+
+### Complete checklist
+
+#### New page
+- [ ] `PageEnum` — new value with `[Description]`
+- [ ] `NavService.cs` — `NavItem` with `Role = nameof(PageEnum.*)`
+- [ ] `.razor` file — `@attribute [Authorize(Roles = nameof(PageEnum.*))]`
+
+#### New function
+- [ ] `FunctionEnum` — new value with `[Description]`
+- [ ] `TenantDatabaseInitializer.cs → FunctionPageMap` — new entry
+- [ ] Razor — `<AuthorizeView Roles="@nameof(FunctionEnum.*)">` and/or `IsInRole(nameof(FunctionEnum.*))`
+
+#### New grid column
+- [ ] `PageColumnEnum` — new value with `[Description]`
+- [ ] `TenantDatabaseInitializer.cs → ColumnPageMap` — new entry
+- [ ] Razor — `Visible="@Col(nameof(PageColumnEnum.*))"`

@@ -1,5 +1,5 @@
 @page "/marketplace-clients"
-@attribute [Authorize(Roles = "MarketplaceClientsView")]
+@attribute [Authorize(Roles = nameof(PageEnum.MarketplaceClientsView))]
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
@@ -31,7 +31,7 @@ else
         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
             <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="@ToggleDensity" Title="@GetDensityTitle()" />
-            <AuthorizeView Roles="MarketplaceClientsManage">
+            <AuthorizeView Roles="@nameof(FunctionEnum.MarketplaceClientsManage)">
                 <Authorized>
                     <RadzenButton Icon="add" Text="Добавить" Shade="Shade.Light" ButtonStyle="ButtonStyle.Primary"
                                   Click="@OpenCreateWizard" />
@@ -131,13 +131,13 @@ else
                     EmptyText="@RadzenRuStrings.EmptyText">
         <Columns>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Name" Title="Название" Width="220px" Frozen="true" Visible="@Col("MktClientsColName")">
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Name" Title="Название" Width="220px" Frozen="true" Visible="@Col(nameof(PageColumnEnum.MktClientsColName))">
                 <EditTemplate Context="c">
                     <RadzenTextBox @bind-Value="c.Name" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="ApiId" Title="API ID" Width="180px" Visible="@Col("MktClientsColApiId")">
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="ApiId" Title="API ID" Width="180px" Visible="@Col(nameof(PageColumnEnum.MktClientsColApiId))">
                 <EditTemplate Context="c">
                     <RadzenTextBox @bind-Value="c.ApiId" Style="width: 100%;" />
                 </EditTemplate>
@@ -145,7 +145,7 @@ else
 
             <!-- Masked key column with show/hide toggle -->
             <RadzenDataGridColumn TItem="MarketplaceClient" Property="Key" Title="API ключ" Width="240px"
-                                  Filterable="false" Sortable="false" Visible="@Col("MktClientsColApiKey")">
+                                  Filterable="false" Sortable="false" Visible="@Col(nameof(PageColumnEnum.MktClientsColApiKey))">
                 <Template Context="c">
                     <div @key="c.Id" style="display:flex; align-items:center; gap:4px;"
                          @onclick:stopPropagation="true">
@@ -176,7 +176,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="MarketplaceClient" Property="ClientType.Name" Title="Тип" Width="180px"
-                                  Sortable="false" Filterable="false" Visible="@Col("MktClientsColType")">
+                                  Sortable="false" Filterable="false" Visible="@Col(nameof(PageColumnEnum.MktClientsColType))">
                 <EditTemplate Context="c">
                     <RadzenDropDown Data="@_types"
                                     TextProperty="@nameof(MarketplaceClientType.Name)"
@@ -187,7 +187,7 @@ else
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="MarketplaceClient" Title="Режим (моды)" Width="180px"
-                                  Sortable="false" Filterable="false" Visible="@Col("MktClientsColMode")">
+                                  Sortable="false" Filterable="false" Visible="@Col(nameof(PageColumnEnum.MktClientsColMode))">
                 <Template Context="c">
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.25rem">
                         @foreach (var modeName in new[] { c.Mode?.Name, c.Mode2?.Name }.Where(n => !string.IsNullOrWhiteSpace(n)))
@@ -213,13 +213,13 @@ else
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Company" Title="Компания" Width="200px" Visible="@Col("MktClientsColCompany")">
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="Company" Title="Компания" Width="200px" Visible="@Col(nameof(PageColumnEnum.MktClientsColCompany))">
                 <EditTemplate Context="c">
                     <RadzenTextBox @bind-Value="c.Company" Style="width: 100%;" />
                 </EditTemplate>
             </RadzenDataGridColumn>
 
-            <RadzenDataGridColumn TItem="MarketplaceClient" Property="INN" Title="ИНН" Width="160px" Visible="@Col("MktClientsColINN")">
+            <RadzenDataGridColumn TItem="MarketplaceClient" Property="INN" Title="ИНН" Width="160px" Visible="@Col(nameof(PageColumnEnum.MktClientsColINN))">
                 <EditTemplate Context="c">
                     <RadzenTextBox @bind-Value="c.INN" Style="width: 100%;" />
                 </EditTemplate>
@@ -278,7 +278,7 @@ else
         {
             var state = await AuthState;
             _user = state.User;
-            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole("MarketplaceClientsManage");
+            _canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.MarketplaceClientsManage));
             await LoadGridSettingsAsync();
             if (TenantProvider.IsResolved && _grid != null && _gridSettings == null)
                 await _grid.Reload();

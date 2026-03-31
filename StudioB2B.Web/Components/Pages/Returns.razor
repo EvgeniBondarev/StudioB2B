@@ -1,5 +1,5 @@
 @page "/returns"
-@attribute [Authorize(Roles = "ReturnsView")]
+@attribute [Authorize(Roles = nameof(PageEnum.ReturnsView))]
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
@@ -129,7 +129,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="OzonReturnId"
                                   Title="ID возврата" Width="150px" Frozen="true"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColReturnId")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColReturnId))">
                 <Template Context="r">
                     <span class="rz-monospace rz-text-sm">@r.OzonReturnId</span>
                 </Template>
@@ -137,7 +137,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="PostingNumber"
                                   Title="Отправление" Width="200px"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColPostingNumber")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColPostingNumber))">
                 <Template Context="r">
                     <span class="rz-monospace rz-text-sm" title="@r.PostingNumber">@(r.PostingNumber ?? "—")</span>
                 </Template>
@@ -145,7 +145,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ReturnDate"
                                   Title="Дата возврата" Width="130px"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColReturnDate")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColReturnDate))">
                 <Template Context="r">
                     @(r.ReturnDate.HasValue ? r.ReturnDate.Value.ToLocalTime().ToString("dd.MM.yyyy") : "—")
                 </Template>
@@ -153,7 +153,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ProductName"
                                   Title="Товар" Width="280px" Sortable="false"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColProduct")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColProduct))">
                 <Template Context="r">
                     <RadzenStack Gap="0.1rem">
                         <span class="rz-text-sm rz-text-truncate" title="@r.ProductName"
@@ -170,12 +170,12 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ProductQuantity"
                                   Title="Кол-во" Width="80px" TextAlign="TextAlign.Center"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColQuantity")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColQuantity))">
             </RadzenDataGridColumn>
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="Type"
                                   Title="Тип" Width="170px"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColType")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColType))">
                 <Template Context="r">
                     @{ var (tbg, tfg) = GetTypeColors(r.Type); }
                     <span style="@($"display:inline-flex;align-items:center;padding:2px 10px;border-radius:20px;font-size:0.82rem;font-weight:500;background:{tbg};color:{tfg};")" >
@@ -186,7 +186,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="Schema"
                                   Title="Схема" Width="70px" TextAlign="TextAlign.Center"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColSchema")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColSchema))">
                 <FilterTemplate>
                     <div class="filter-all-item @(_filterSchema == null ? "active" : "")"
                          @onclick="@(async () => await ClearFilter(() => _filterSchema = null))">Все</div>
@@ -201,7 +201,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="VisualStatusDisplayName"
                                   Title="Статус возврата" Width="220px"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColVisualStatus")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColVisualStatus))">
                 <Template Context="r">
                     @if (!string.IsNullOrEmpty(r.VisualStatusDisplayName))
                     {
@@ -213,7 +213,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ReturnReasonName"
                                   Title="Причина" Width="280px" Sortable="false"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColReason")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColReason))">
                 <Template Context="r">
                     <span class="rz-text-sm" title="@r.ReturnReasonName"
                           style="display:block;max-width:270px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
@@ -224,7 +224,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="ProductPrice"
                                   Title="Цена" Width="120px" TextAlign="TextAlign.Right"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColPrice")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColPrice))">
                 <Template Context="r">
                     @if (r.ProductPrice.HasValue)
                     {
@@ -236,7 +236,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="CommissionPercent"
                                   Title="Комиссия %" Width="110px" TextAlign="TextAlign.Right"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColCommission")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColCommission))">
                 <Template Context="r">
                     @(r.CommissionPercent.HasValue ? $"{r.CommissionPercent:N1}%" : "—")
                 </Template>
@@ -244,7 +244,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="CompensationStatusDisplayName"
                                   Title="Компенсация" Width="200px" Sortable="false"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColCompensation")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColCompensation))">
                 <Template Context="r">
                     @if (!string.IsNullOrEmpty(r.CompensationStatusDisplayName))
                     {
@@ -256,7 +256,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Title="Заказ" Width="100px"
                                   TextAlign="TextAlign.Center" Sortable="false" Filterable="false"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColOrder")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColOrder))">
                 <Template Context="r">
                     @if (r.OrderId.HasValue)
                     {
@@ -273,7 +273,7 @@ else
 
             <RadzenDataGridColumn TItem="OrderReturn" Property="SyncedAt"
                                   Title="Синхронизирован" Width="150px"
-                                  HeaderCssClass="half-painted-header" Visible="@Col("ReturnsColSyncedAt")">
+                                  HeaderCssClass="half-painted-header" Visible="@Col(nameof(PageColumnEnum.ReturnsColSyncedAt))">
                 <Template Context="r">
                     <span style="font-size:0.8rem;color:var(--rz-text-secondary-color);">
                         @r.SyncedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
