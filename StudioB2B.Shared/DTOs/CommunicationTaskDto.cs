@@ -50,5 +50,8 @@ public class CommunicationTaskDto
 
     /// <summary>True if a time entry with EndedAt == null exists for this task.</summary>
     public bool HasActiveTimer { get; set; }
+
+    /// <summary>Чат: последнее сообщение в переписке от покупателя (нужен ответ продавца). Для остальных типов — false.</summary>
+    public bool LastMessageFromCustomer { get; set; }
 }
 

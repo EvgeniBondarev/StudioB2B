@@ -21,7 +21,9 @@
 @implements IAsyncDisposable
 
 <link rel="stylesheet" href="css/taskboard.css" />
+<link rel="stylesheet" href="css/questions.css" />
 <link rel="stylesheet" href="css/chats/chatMessages.css" />
+<link rel="stylesheet" href="css/chats/chatComposer.css" />
 <script src="js/taskboard.js"></script>
 
 <div class="taskboard-root" @onclick="@(() => { _clientDropdownOpen = false; _dateDropdownOpen = false; })">
@@ -291,7 +293,15 @@
                                 {
                                     <span class="task-unread-badge" title="Непрочитанных сообщений">@task.UnreadCount</span>
                                 }
+                                @if (task.TaskType == CommunicationTaskType.Chat && task.LastMessageFromCustomer)
+                                {
+                                    <span class="task-last-from-customer-badge" title="Есть новое сообщение от покупателя">есть новое сообщение</span>
+                                }
                             </div>
+                            @if (!string.IsNullOrEmpty(task.PreviewText))
+                            {
+                                <div class="task-card-preview">@task.PreviewText</div>
+                            }
                             @if (task.HasActiveTimer)
                             {
                                 <div class="task-timer-active">
@@ -369,7 +379,15 @@
                             <div class="task-card-header">
                                 <span class="task-type-badge @GetTypeClass(task.TaskType)">@GetTypeLabel(task.TaskType)</span>
                                 <span class="task-card-title" title="@task.Title">@task.Title</span>
+                                @if (task.TaskType == CommunicationTaskType.Chat && task.LastMessageFromCustomer)
+                                {
+                                    <span class="task-last-from-customer-badge" title="Есть новое сообщение от покупателя">есть новое сообщение</span>
+                                }
                             </div>
+                            @if (!string.IsNullOrEmpty(task.PreviewText))
+                            {
+                                <div class="task-card-preview">@task.PreviewText</div>
+                            }
                             <div class="task-card-footer">
                                 @if (task.AssignedToUserName is not null)
                                 {
@@ -429,6 +447,15 @@
                     {
                         <span class="task-unread-badge">@_previewTask.UnreadCount непрочит.</span>
                     }
+                    @if (_previewTask.TaskType == CommunicationTaskType.Chat && _previewTask.LastMessageFromCustomer
+                         && (_previewTask.Status == CommunicationTaskStatus.InProgress || _previewTask.Status == CommunicationTaskStatus.Done))
+                    {
+                        <span class="task-last-from-customer-badge" title="Есть новое сообщение от покупателя">есть новое сообщение</span>
+                    }
+                    @if (_previewTask.TaskType == CommunicationTaskType.Chat && _previewTask.ChatType == "BUYER_SELLER" && !string.IsNullOrEmpty(_previewTask.ExternalId))
+                    {
+                        <span style="font-size:0.72rem;color:var(--rz-text-secondary-color);font-family:monospace;">ID: @_previewTask.ExternalId</span>
+                    }
                     @if (_previewTask.Status != CommunicationTaskStatus.Done)
                     {
                         @if (_board.PaymentEstimates.TryGetValue(_previewTask.TaskType, out var hdrEst) && hdrEst > 0)
@@ -445,7 +472,8 @@
             <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
                           Click="ClosePreview" />
         </div>
-        <div class="task-detail-body" style="@(_previewTask.TaskType == CommunicationTaskType.Chat ? "overflow:hidden;" : "overflow-y:auto;")">
+        <div class="task-detail-body @(_previewTask.TaskType == CommunicationTaskType.Question ? "task-detail-body-question" : null)"
+             style="@(_previewTask.TaskType == CommunicationTaskType.Chat || _previewTask.TaskType == CommunicationTaskType.Question ? "overflow:hidden;" : "overflow-y:auto;")">
 
             @if (_previewLoading)
             {
@@ -588,128 +616,280 @@
                                           EagerImages="true"
                                           OpenGallery="OnOpenGallery"
                                           LoadingHistory="false" />
+                            @if (_previewTask.Status == CommunicationTaskStatus.InProgress)
+                            {
+                                <div style="border-top:1px solid var(--rz-base-300);padding:0.5rem 1rem 0.75rem;background:var(--rz-base-background-color);flex-shrink:0;">
+                                    <ChatComposer
+                                        QuickReplies="TaskBoardChatQuickReplies"
+                                        OnSendWithFile="OverlaySendChatMessageAsync"
+                                        PlaceHolder="Написать сообщение..."
+                                        EnableAttachments="true" />
+                                </div>
+                            }
+                            else
+                            {
+                                <div style="border-top:1px solid var(--rz-base-300);padding:0.75rem 1.25rem;background:var(--rz-base-50);flex-shrink:0;
+                                           display:flex;align-items:center;gap:0.6rem;color:var(--rz-text-secondary-color);">
+                                    <span class="rzi" style="font-size:1.2rem;opacity:0.5;">lock</span>
+                                    <span style="font-size:0.82rem;">Чтобы отправлять сообщения, нажмите «Взять задачу»</span>
+                                </div>
+                            }
                         </div>
                     }
                 }
 
-                @* ── Question preview ── *@
+                @* ── Question preview (как чат: скролл контента + ChatComposer снизу) ── *@
                 @if (_previewTask.TaskType == CommunicationTaskType.Question && _questionDetail is not null)
                 {
-                    <RadzenStack Gap="0.75rem">
-                        <RadzenCard>
-                            <RadzenText TextStyle="TextStyle.Body1" Style="white-space:pre-wrap;">@_questionDetail.Question.Text</RadzenText>
-                            <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);margin-top:0.4rem;">
-                                @_questionDetail.Question.AuthorName • SKU: @_questionDetail.Question.Sku •
-                                @_questionDetail.Question.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
-                            </RadzenText>
-                        </RadzenCard>
+                    <div class="task-question-overlay-root">
+                        <div class="task-question-scroll">
+                            <div class="task-question-thread">
+                                <div class="task-question-bubble task-question-bubble-buyer">
+                                    <div class="task-question-bubble-meta">
+                                        <span class="task-question-author">@_questionDetail.Question.AuthorName</span>
+                                        <span class="task-question-sku">SKU @_questionDetail.Question.Sku</span>
+                                        <span class="task-question-when">@_questionDetail.Question.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                    </div>
+                                    <div class="task-question-bubble-text">@_questionDetail.Question.Text</div>
+                                </div>
 
-                        @if (_questionDetail.Product is not null)
-                        {
-                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.75rem" AlignItems="AlignItems.Start">
-                                @if (!string.IsNullOrWhiteSpace(_questionDetail.Product.PrimaryImage))
+                                @if (_questionDetail.Product is not null)
                                 {
-                                    <img src="@_questionDetail.Product.PrimaryImage" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:6px;" />
+                                    <div class="task-question-product-card">
+                                        @if (!string.IsNullOrWhiteSpace(_questionDetail.Product.PrimaryImage))
+                                        {
+                                            <img src="@_questionDetail.Product.PrimaryImage"
+                                                 alt=""
+                                                 class="task-question-product-thumb"
+                                                 width="56"
+                                                 height="56"
+                                                 loading="lazy"
+                                                 @onclick="@(() => OpenOverlayGallery(new List<string> { _questionDetail.Product!.PrimaryImage }, 0))" />
+                                        }
+                                        <div class="task-question-product-text">
+                                            <div class="task-question-product-name" title="@_questionDetail.Product.Name">@_questionDetail.Product.Name</div>
+                                            <div class="task-question-product-props">
+                                                <span>SKU @_questionDetail.Product.Sku</span>
+                                                @if (!string.IsNullOrWhiteSpace(_questionDetail.Product.OfferId))
+                                                {
+                                                    <span>· @_questionDetail.Product.OfferId</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
                                 }
-                                <RadzenStack Gap="0.15rem">
-                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600;">@_questionDetail.Product.Name</RadzenText>
-                                    <RadzenText TextStyle="TextStyle.Caption">Артикул: @_questionDetail.Product.OfferId</RadzenText>
-                                </RadzenStack>
-                            </RadzenStack>
-                        }
 
-                        @if (_questionDetail.Answers.Count > 0)
+                                @if (_questionDetail.Answers.Count > 0)
+                                {
+                                    <div class="task-question-answers-label">Ответы (@_questionDetail.Answers.Count)</div>
+                                    @foreach (var ans in _questionDetail.Answers)
+                                    {
+                                        <div class="task-question-bubble task-question-bubble-seller">
+                                            <div class="task-question-bubble-meta">
+                                                <span class="task-question-author">@ans.AuthorName</span>
+                                                <span class="task-question-when">@ans.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                                <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter"
+                                                              Variant="Variant.Text" Size="ButtonSize.ExtraSmall"
+                                                              Style="margin-left:auto;padding:0 4px;min-width:auto;" Title="Удалить ответ"
+                                                              IsBusy="@(_overlayDeletingAnswerId == ans.Id)"
+                                                              Click="@(() => DeleteOverlayAnswerAsync(ans))" />
+                                            </div>
+                                            <div class="task-question-bubble-text">@ans.Text</div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        @if (_previewTask.Status == CommunicationTaskStatus.InProgress)
                         {
-                            <RadzenText TextStyle="TextStyle.Overline">Ответы (@_questionDetail.Answers.Count)</RadzenText>
-                            @foreach (var ans in _questionDetail.Answers)
-                            {
-                                <RadzenCard Style="padding:0.5rem 0.75rem;">
-                                    <RadzenText TextStyle="TextStyle.Body2" Style="white-space:pre-wrap;">@ans.Text</RadzenText>
-                                    <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);margin-top:0.25rem;">
-                                        @ans.AuthorName • @ans.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
-                                    </RadzenText>
-                                </RadzenCard>
-                            }
+                            <div class="task-question-composer-wrap">
+                                <ChatComposer QuickReplies="TaskBoardChatQuickReplies"
+                                              OnSendTextOnly="SendOverlayAnswerTextAsync"
+                                              EnableAttachments="false"
+                                              MaxLength="3000"
+                                              PlaceHolder="Написать ответ…" />
+                            </div>
                         }
                         else
                         {
-                            <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false" Style="font-size:0.85rem;">
-                                Ответов пока нет
-                            </RadzenAlert>
+                            <div class="task-question-locked-bar">
+                                <span class="rzi" style="font-size:1.2rem;opacity:0.5;">lock</span>
+                                <span style="font-size:0.82rem;">Чтобы ответить, нажмите «Взять задачу»</span>
+                            </div>
                         }
-                    </RadzenStack>
+                    </div>
                 }
 
                 @* ── Review preview ── *@
                 @if (_previewTask.TaskType == CommunicationTaskType.Review && _reviewDetail is not null)
                 {
-                    <RadzenStack Gap="0.75rem">
-                        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.25rem" AlignItems="AlignItems.Center">
-                            <div style="font-size:1.1rem;">
-                                @for (var i = 1; i <= 5; i++)
-                                {
-                                    <span style="color:@(i <= _reviewDetail.Review.Rating ? "#f59e0b" : "#d1d5db");">★</span>
-                                }
-                            </div>
-                            <RadzenBadge Text="@(_reviewDetail.Review.Status == "PROCESSED" ? "Обработан" : "Не обработан")"
-                                         BadgeStyle="@(_reviewDetail.Review.Status == "PROCESSED" ? BadgeStyle.Success : BadgeStyle.Warning)" />
-                        </RadzenStack>
+                    @* Stars + status *@
+                    <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.5rem;">
+                        <div class="review-stars" style="font-size:1.1rem;">
+                            @for (var i = 1; i <= 5; i++)
+                            {
+                                var starIdx = i;
+                                var starCls = starIdx <= _reviewDetail.Review.Rating ? "star-filled" : "star-empty";
+                                <span class="@starCls">★</span>
+                            }
+                        </div>
+                        <RadzenBadge Text="@(_reviewDetail.Review.Status == "PROCESSED" ? "Обработан" : "Не обработан")"
+                                     BadgeStyle="@(_reviewDetail.Review.Status == "PROCESSED" ? BadgeStyle.Success : BadgeStyle.Warning)" />
+                    </div>
 
-                        @if (!string.IsNullOrWhiteSpace(_reviewDetail.Review.Text))
-                        {
-                            <RadzenCard>
-                                <RadzenText TextStyle="TextStyle.Body2" Style="white-space:pre-wrap;">@_reviewDetail.Review.Text</RadzenText>
-                                <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);margin-top:0.25rem;">
-                                    Покупатель • @_reviewDetail.Review.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
-                                </RadzenText>
-                            </RadzenCard>
-                        }
+                    @* Meta stats *@
+                    @if (_reviewDetail.LikesAmount > 0 || _reviewDetail.DislikesAmount > 0 || _reviewDetail.Review.IsRatingParticipant)
+                    {
+                        <div class="review-meta-row" style="margin-bottom:0.5rem;">
+                            @if (_reviewDetail.LikesAmount > 0) { <span><strong>👍</strong> @_reviewDetail.LikesAmount</span> }
+                            @if (_reviewDetail.DislikesAmount > 0) { <span><strong>👎</strong> @_reviewDetail.DislikesAmount</span> }
+                            @if (_reviewDetail.Review.IsRatingParticipant) { <span style="color:#10b981;"><strong>✓</strong> Учитывается в рейтинге</span> }
+                        </div>
+                    }
 
-                        @if (_reviewDetail.Product is not null)
-                        {
-                            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.75rem" AlignItems="AlignItems.Start">
+                    @* Product card *@
+                    @if (_reviewDetail.Product is not null)
+                    {
+                        <div class="question-product-card">
+                            <RadzenText TextStyle="TextStyle.Subtitle2"
+                                        Style="font-weight:600;margin-bottom:0.5rem;color:var(--rz-text-secondary-color);">Товар</RadzenText>
+                            <div class="question-product-layout">
                                 @if (!string.IsNullOrWhiteSpace(_reviewDetail.Product.PrimaryImage))
                                 {
-                                    <img src="@_reviewDetail.Product.PrimaryImage" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:6px;" />
+                                    <img src="@_reviewDetail.Product.PrimaryImage"
+                                         alt="@_reviewDetail.Product.Name"
+                                         class="question-product-image"
+                                         @onclick="@(() => OpenOverlayGallery(new List<string> { _reviewDetail.Product.PrimaryImage }, 0))"
+                                         title="Нажмите для просмотра" />
                                 }
-                                <RadzenStack Gap="0.15rem">
-                                    <RadzenText TextStyle="TextStyle.Body2" Style="font-weight:600;">@_reviewDetail.Product.Name</RadzenText>
-                                    <RadzenText TextStyle="TextStyle.Caption">SKU: @_reviewDetail.Review.Sku</RadzenText>
-                                </RadzenStack>
-                            </RadzenStack>
+                                <div class="question-product-info">
+                                    <RadzenText TextStyle="TextStyle.Body1" Style="font-weight:600;margin:0;">@_reviewDetail.Product.Name</RadzenText>
+                                    <div class="question-product-props">
+                                        <span><strong>SKU:</strong> @_reviewDetail.Product.Sku</span>
+                                        @if (!string.IsNullOrWhiteSpace(_reviewDetail.Product.OfferId))
+                                        {
+                                            <span><strong>Артикул:</strong> @_reviewDetail.Product.OfferId</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @* Chat-bubble display *@
+                    <div class="chat-messages-area">
+                        @if (!string.IsNullOrWhiteSpace(_reviewDetail.Review.Text))
+                        {
+                            <div class="chat-message-row from-customer">
+                                <div class="chat-avatar customer" title="Покупатель">К</div>
+                                <div class="chat-bubble-wrap">
+                                    <div class="chat-message-sender">Покупатель</div>
+                                    <div class="chat-message-bubble from-customer">@_reviewDetail.Review.Text</div>
+                                    <div class="chat-message-meta">
+                                        <span class="chat-message-time">@_reviewDetail.Review.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                    </div>
+                                </div>
+                            </div>
                         }
 
                         @if (_reviewDetail.Photos.Count > 0)
                         {
-                            <RadzenText TextStyle="TextStyle.Overline">Фото (@_reviewDetail.Photos.Count)</RadzenText>
-                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                                @foreach (var p in _reviewDetail.Photos)
-                                {
-                                    <img src="@p.Url" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:6px;cursor:pointer;" loading="lazy" />
-                                }
+                            <div class="chat-message-row from-customer">
+                                <div class="chat-avatar customer" title="Покупатель">К</div>
+                                <div class="chat-bubble-wrap">
+                                    <div class="chat-message-sender">Покупатель</div>
+                                    <div class="chat-message-bubble from-customer review-photos-grid">
+                                        @foreach (var item in _reviewDetail.Photos.Select((p, i) => new { Photo = p, Index = i }))
+                                        {
+                                            <img src="@item.Photo.Url"
+                                                 alt="Фото отзыва"
+                                                 class="review-photo-thumb"
+                                                 loading="lazy"
+                                                 @onclick="@(() => OpenOverlayGallery(_reviewDetail.Photos.Select(x => x.Url).ToList(), item.Index))"
+                                                 title="Нажмите для просмотра" />
+                                        }
+                                    </div>
+                                    <div class="chat-message-meta">
+                                        <span class="chat-message-time">@_reviewDetail.Review.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                    </div>
+                                </div>
                             </div>
                         }
 
-                        @if (_reviewDetail.Comments.Count > 0)
+                        @if (_reviewDetail.Videos.Count > 0)
                         {
-                            <RadzenText TextStyle="TextStyle.Overline">Комментарии (@_reviewDetail.Comments.Count)</RadzenText>
-                            @foreach (var c in _reviewDetail.Comments)
-                            {
-                                <RadzenCard Style="padding:0.5rem 0.75rem;">
-                                    <RadzenText TextStyle="TextStyle.Body2" Style="white-space:pre-wrap;">@c.Text</RadzenText>
-                                    <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);margin-top:0.25rem;">
-                                        @(c.IsOfficial ? "Продавец" : "Покупатель") • @c.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
-                                    </RadzenText>
-                                </RadzenCard>
-                            }
+                            <div class="chat-message-row from-customer">
+                                <div class="chat-avatar customer" title="Покупатель">К</div>
+                                <div class="chat-bubble-wrap">
+                                    <div class="chat-message-sender">Покупатель</div>
+                                    <div class="chat-message-bubble from-customer review-videos-grid">
+                                        @foreach (var item in _reviewDetail.Videos.Select((v, i) => new { Video = v, Index = i }))
+                                        {
+                                            <div class="review-video-thumb"
+                                                 @onclick="@(() => OpenOverlayGallery(_reviewDetail.Videos.Select(v => v.Url).ToList(), item.Index, isVideo: true))"
+                                                 title="Нажмите для просмотра">
+                                                @if (!string.IsNullOrWhiteSpace(item.Video.PreviewUrl))
+                                                {
+                                                    <img src="@item.Video.PreviewUrl" alt="Видео" loading="lazy" />
+                                                }
+                                                else
+                                                {
+                                                    <div style="width:100%;height:100%;background:#1a1a2e;"></div>
+                                                }
+                                                <div class="review-video-play"><RadzenIcon Icon="play_circle_filled" /></div>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="chat-message-meta">
+                                        <span class="chat-message-time">@_reviewDetail.Review.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                    </div>
+                                </div>
+                            </div>
                         }
-                        else
+
+                        @foreach (var comment in _reviewDetail.Comments)
                         {
-                            <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false" Style="font-size:0.85rem;">
-                                Комментариев пока нет
-                            </RadzenAlert>
+                            <div class="chat-message-row from-seller">
+                                <div class="chat-avatar seller" title="Продавец">П</div>
+                                <div class="chat-bubble-wrap">
+                                    <div class="chat-message-sender">Продавец</div>
+                                    <div class="chat-message-bubble from-seller">@comment.Text</div>
+                                    <div class="chat-message-meta" style="display:flex;align-items:center;gap:0.5rem;">
+                                        @if (comment.IsOwner || comment.IsOfficial)
+                                        {
+                                            <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter"
+                                                          Variant="Variant.Text" Size="ButtonSize.ExtraSmall"
+                                                          Style="margin-left:auto;padding:0 2px;" Title="Удалить комментарий"
+                                                          IsBusy="@(_overlayDeletingCommentId == comment.Id)"
+                                                          Click="@(() => DeleteOverlayCommentAsync(comment))" />
+                                        }
+                                        <span>@comment.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                    </div>
+                                </div>
+                            </div>
                         }
-                    </RadzenStack>
+                    </div>
+
+                    @* Comment composer or locked placeholder *@
+                    @if (_previewTask.Status == CommunicationTaskStatus.InProgress)
+                    {
+                        <ChatComposer
+                            QuickReplies="TaskBoardReviewQuickReplies"
+                            OnSendTextOnly="SendOverlayCommentAsync"
+                            EnableAttachments="false"
+                            PlaceHolder="Написать комментарий к отзыву..."
+                            MaxLength="3000" />
+                    }
+                    else
+                    {
+                        <div style="padding:0.6rem 0.9rem;border-radius:8px;
+                                   background:var(--rz-base-100);border:1px dashed var(--rz-base-300);
+                                   display:flex;align-items:center;gap:0.6rem;color:var(--rz-text-secondary-color);">
+                            <span class="rzi" style="font-size:1.15rem;opacity:0.45;">edit_off</span>
+                            <span style="font-size:0.82rem;">Чтобы оставить комментарий, нажмите «Взять задачу»</span>
+                        </div>
+                    }
                 }
 
                 @if (!_previewLoading &&
@@ -724,13 +904,57 @@
         </div>
 
         @* Action bar at bottom *@
-        @if (_previewTask.Status == CommunicationTaskStatus.New)
-        {
-            <div style="padding:0.5rem 1rem;border-top:1px solid var(--rz-base-300);display:flex;gap:0.5rem;justify-content:flex-end;">
+        <div style="padding:0.5rem 1rem;border-top:1px solid var(--rz-base-300);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;min-height:3rem;">
+            @if (_previewTask.Status == CommunicationTaskStatus.New)
+            {
                 <RadzenButton Text="Взять задачу" Icon="play_arrow" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
-                              Click="@(async () => { await ClaimAsync(_previewTask); ClosePreview(); })" />
-            </div>
-        }
+                              Click="OverlayClaimAsync" IsBusy="@_overlayBusy" Style="margin-left:auto;" />
+            }
+            else if (_previewTask.Status == CommunicationTaskStatus.InProgress)
+            {
+                @if (_previewTask.AssignedToUserId == CurrentUser.UserId)
+                {
+                    <div class="task-timer-active" style="display:inline-flex;align-items:center;gap:0.3rem;margin-right:auto;">
+                        @if (_previewTask.HasActiveTimer)
+                        {
+                            <span class="timer-dot"></span>
+                        }
+                        <span style="font-size:0.85rem;font-variant-numeric:tabular-nums;min-width:5rem;">
+                            @FormatOverlayDuration(_previewTask)
+                        </span>
+                    </div>
+                    @if (_previewTask.HasActiveTimer)
+                    {
+                        <RadzenButton Text="Пауза" Icon="pause" ButtonStyle="ButtonStyle.Warning" Size="ButtonSize.Small"
+                                      Click="OverlayPauseAsync" IsBusy="@_overlayBusy" />
+                    }
+                    else
+                    {
+                        <RadzenButton Text="Продолжить" Icon="play_arrow" ButtonStyle="ButtonStyle.Info" Size="ButtonSize.Small"
+                                      Click="OverlayResumeAsync" IsBusy="@_overlayBusy" />
+                    }
+                    <RadzenButton Text="Готово" Icon="check" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small"
+                                  Click="OverlayCompleteAsync" IsBusy="@_overlayBusy" />
+                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                  title="Снять с себя" Click="OverlayReleaseAsync" IsBusy="@_overlayBusy" />
+                }
+                else
+                {
+                    <span style="font-size:0.85rem;color:var(--rz-text-secondary-color);display:inline-flex;align-items:center;gap:0.3rem;">
+                        <RadzenIcon Icon="person" Style="font-size:0.9rem;" />
+                        Занято: @(_previewTask.AssignedToUserName ?? "другой пользователь")
+                    </span>
+                }
+            }
+            else if (_previewTask.Status == CommunicationTaskStatus.Done)
+            {
+                @if (_previewTask.AssignedToUserId == CurrentUser.UserId)
+                {
+                    <RadzenButton Text="Вернуть в работу" Icon="replay" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
+                                  Click="OverlayReopenAsync" IsBusy="@_overlayBusy" Style="margin-left:auto;" />
+                }
+            }
+        </div>
     </div>
 }
 
@@ -747,10 +971,20 @@
                           Click="GalleryPrev"/>
         }
 
-        <img class="lightbox-image"
-             src="@_galleryItems[_galleryCurrentIndex]"
-             alt="изображение"
-             @onclick:stopPropagation="true"/>
+        @if (_galleryIsVideo)
+        {
+            <video class="lightbox-image"
+                   src="@_galleryItems[_galleryCurrentIndex]"
+                   controls autoplay
+                   @onclick:stopPropagation="true" />
+        }
+        else
+        {
+            <img class="lightbox-image"
+                 src="@_galleryItems[_galleryCurrentIndex]"
+                 alt="изображение"
+                 @onclick:stopPropagation="true"/>
+        }
 
         @if (_galleryItems.Count > 1)
         {
@@ -782,11 +1016,31 @@
     private bool _loadingMore;
 
     private const int DonePageSize = 25;
+
+    private static readonly string[] TaskBoardChatQuickReplies =
+    [
+        "Здравствуйте!",
+        "Здравствуйте, для проверки необходим VIN номер Вашего авто",
+        "Заявка на рассмотрении, ожидайте",
+        "Оформите возврат"
+    ];
+
+    private static readonly string[] TaskBoardReviewQuickReplies =
+    [
+        "Здравствуйте!",
+        "Здравствуйте! Спасибо за ваш отзыв.",
+        "Здравствуйте! Приносим извинения за доставленные неудобства.",
+        "Спасибо за обратную связь, мы обязательно учтём ваше мнение.",
+        "Пожалуйста, напишите нам в личные сообщения, мы поможем решить вопрос.",
+        "Мы рады, что вам понравился товар!"
+    ];
     private ElementReference _doneSentinel;
     private DotNetObjectReference<CommunicationTaskBoard>? _dotNetRef;
 
     private HubConnection? _hubConnection;
     private Timer? _timerTick;
+    private Timer? _chatPollTimer;
+    private bool _isPollingChat;
 
     // Preview state
     private CommunicationTaskDto? _previewTask;
@@ -798,9 +1052,15 @@
     private OzonQuestionDetailDto? _questionDetail;
     private OzonReviewDetailDto? _reviewDetail;
 
+    // Overlay compose state
+    private bool _overlayBusy;
+    private string? _overlayDeletingAnswerId;
+    private string? _overlayDeletingCommentId;
+
     // Gallery / lightbox state
     private List<string> _galleryItems = new();
     private int _galleryCurrentIndex = -1;
+    private bool _galleryIsVideo;
     private ElementReference _galleryDiv;
 
     private List<CommunicationTaskDto> FilteredNew => ApplyTypeFilter(_board.NewTasks);
@@ -838,6 +1098,16 @@
             await StartSignalRAsync();
             _timerTick = new Timer(_ => InvokeAsync(StateHasChanged), null,
                 TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        }
+
+        // Restore active preview if user navigated away and back
+        if (BoardState.ActivePreviewExternalId is not null)
+        {
+            var savedTask = FindTaskInBoard(BoardState.ActivePreviewExternalId, BoardState.ActivePreviewClientId);
+            if (savedTask is not null)
+                await ShowPreviewAsync(savedTask);
+            else
+                BoardState.ClearActivePreview();
         }
     }
 
@@ -1053,22 +1323,6 @@
 
     private async Task OnCardClick(CommunicationTaskDto task)
     {
-        if (task.Status == CommunicationTaskStatus.InProgress)
-        {
-            var tabIndex = task.TaskType switch
-            {
-                CommunicationTaskType.Chat => 1,
-                CommunicationTaskType.Review => 2,
-                CommunicationTaskType.Question => 3,
-                _ => 0
-            };
-            var encodedId = Uri.EscapeDataString(task.ExternalId);
-            Navigation.NavigateTo(
-                $"/communication?tab={tabIndex}&id={encodedId}&clientId={task.MarketplaceClientId}",
-                forceLoad: false);
-            return;
-        }
-
         await ShowPreviewAsync(task);
     }
 
@@ -1151,11 +1405,19 @@
         {
             _previewLoading = false;
             StateHasChanged();
+            if (_previewTask?.TaskType == CommunicationTaskType.Chat)
+            {
+                await JS.InvokeVoidAsync("scrollChatOverlayToBottom");
+                StartChatPolling();
+            }
         }
+
+        BoardState.SetActivePreview(task.ExternalId, task.MarketplaceClientId, task.TaskType);
     }
 
     private void ClosePreview()
     {
+        StopChatPolling();
         _previewTask = null;
         _taskDetail = null;
         _chatMessages.Clear();
@@ -1163,14 +1425,78 @@
         _chatFallbackUrl = null;
         _questionDetail = null;
         _reviewDetail = null;
+        _overlayBusy = false;
+        _overlayDeletingAnswerId = null;
+        _overlayDeletingCommentId = null;
         GalleryClose();
+        BoardState.ClearActivePreview();
         StateHasChanged();
+    }
+
+    private void StartChatPolling()
+    {
+        StopChatPolling();
+        _chatPollTimer = new Timer(_ => InvokeAsync(PollChatHistoryAsync), null,
+            TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
+    }
+
+    private void StopChatPolling()
+    {
+        _chatPollTimer?.Dispose();
+        _chatPollTimer = null;
+    }
+
+    private async Task PollChatHistoryAsync()
+    {
+        if (_isPollingChat || _previewChatVm is null || _previewTask?.TaskType != CommunicationTaskType.Chat)
+            return;
+        _isPollingChat = true;
+        try
+        {
+            ulong? fromId = _chatMessages.Count > 0 ? _chatMessages[^1].MessageId : null;
+            var direction = fromId.HasValue ? "Forward" : "Backward";
+            var result = await ChatService.GetChatHistoryAsync(
+                _previewChatVm.MarketplaceClientId,
+                _previewChatVm.ChatId,
+                direction: direction,
+                fromMessageId: fromId,
+                limit: 50);
+            if (result?.Messages is { Count: > 0 } newMessages)
+            {
+                var existingIds = _chatMessages.Select(m => m.MessageId).ToHashSet();
+                var toAdd = newMessages
+                    .Where(m => !existingIds.Contains(m.MessageId))
+                    .OrderBy(m => m.CreatedAt)
+                    .ToList();
+                if (toAdd.Count > 0)
+                {
+                    _chatMessages.AddRange(toAdd);
+                    StateHasChanged();
+                    await JS.InvokeVoidAsync("scrollChatOverlayToBottom");
+                }
+            }
+        }
+        catch { /* silently ignore polling errors */ }
+        finally { _isPollingChat = false; }
     }
 
     private void OnOpenGallery((List<string> Items, int Index) args)
     {
         _galleryItems = args.Items;
         _galleryCurrentIndex = args.Index;
+        _galleryIsVideo = false;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Yield();
+            await _galleryDiv.FocusAsync();
+        });
+    }
+
+    private void OpenOverlayGallery(List<string> items, int index, bool isVideo = false)
+    {
+        _galleryItems = items;
+        _galleryCurrentIndex = index;
+        _galleryIsVideo = isVideo;
         _ = InvokeAsync(async () =>
         {
             await Task.Yield();
@@ -1193,6 +1519,7 @@
     private void GalleryClose()
     {
         _galleryCurrentIndex = -1;
+        _galleryIsVideo = false;
     }
 
     private void GalleryNavigate(KeyboardEventArgs e)
@@ -1289,6 +1616,17 @@
         await RefreshBoardSilentAsync();
     }
 
+    private async Task PausePreviewAfterSuccessfulSendAsync()
+    {
+        if (_previewTask is null) return;
+        if (_previewTask.Status != CommunicationTaskStatus.InProgress) return;
+        if (_previewTask.Id == Guid.Empty) return;
+        if (!_previewTask.HasActiveTimer) return;
+
+        await PauseAsync(_previewTask);
+        RefreshPreviewTaskFromBoard();
+    }
+
     private async Task ResumeAsync(CommunicationTaskDto task)
     {
         var userId = await GetUserIdAsync();
@@ -1329,6 +1667,37 @@
         await RefreshBoardSilentAsync();
     }
 
+    private async Task ReopenAsync(CommunicationTaskDto task)
+    {
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+
+        _board.DoneTasks.RemoveAll(t => t.Id == task.Id);
+        _board.DoneTotalCount = Math.Max(0, _board.DoneTotalCount - 1);
+        task.Status = CommunicationTaskStatus.InProgress;
+        task.HasActiveTimer = true;
+        task.CompletedAt = null;
+        task.PaymentAmount = null;
+        task.StartedAt = DateTime.UtcNow;
+        _board.InProgressTasks.Insert(0, task);
+        StateHasChanged();
+
+        try
+        {
+            var ok = await TaskService.ReopenTaskAsync(task.Id, userId.Value);
+            if (ok)
+                NotificationService.Notify(NotificationSeverity.Success, "Задача снова в работе", task.Title, 2000);
+            else
+                NotificationService.Notify(NotificationSeverity.Error, "Не удалось вернуть задачу", "", 3000);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000);
+        }
+
+        await RefreshBoardSilentAsync();
+    }
+
     private async Task ReleaseAsync(CommunicationTaskDto task)
     {
         var userId = await GetUserIdAsync();
@@ -1348,6 +1717,321 @@
     {
         var creds = await MarketplaceClientService.GetClientCredentialsAsync(marketplaceClientId);
         return creds is not null ? (creds.Value.ApiId, creds.Value.Key) : ("", "");
+    }
+
+    private void RefreshPreviewTaskFromBoard()
+    {
+        if (_previewTask is null) return;
+        var found = _board.NewTasks
+            .Concat(_board.InProgressTasks)
+            .Concat(_board.DoneTasks)
+            .FirstOrDefault(t =>
+                t.Id == _previewTask.Id
+                || (t.ExternalId == _previewTask.ExternalId && t.MarketplaceClientId == _previewTask.MarketplaceClientId));
+        if (found is not null)
+            _previewTask = found;
+    }
+
+    private CommunicationTaskDto? FindTaskInBoard(string externalId, Guid? clientId)
+    {
+        return _board.InProgressTasks
+            .Concat(_board.NewTasks)
+            .FirstOrDefault(t =>
+                t.ExternalId == externalId &&
+                (!clientId.HasValue || t.MarketplaceClientId == clientId.Value));
+    }
+
+    private async Task OverlayClaimAsync()
+    {
+        if (_previewTask is null) return;
+        _overlayBusy = true;
+        StateHasChanged();
+        try
+        {
+            await ClaimAsync(_previewTask);
+            RefreshPreviewTaskFromBoard();
+            if (_previewTask?.Id != Guid.Empty && _previewTask?.Id is not null)
+                _taskDetail = await TaskService.GetTaskDetailAsync(_previewTask.Id);
+        }
+        finally { _overlayBusy = false; StateHasChanged(); }
+    }
+
+    private async Task OverlayPauseAsync()
+    {
+        if (_previewTask is null) return;
+        _overlayBusy = true;
+        StateHasChanged();
+        try
+        {
+            await PauseAsync(_previewTask);
+            RefreshPreviewTaskFromBoard();
+        }
+        finally { _overlayBusy = false; StateHasChanged(); }
+    }
+
+    private async Task OverlayResumeAsync()
+    {
+        if (_previewTask is null) return;
+        _overlayBusy = true;
+        StateHasChanged();
+        try
+        {
+            await ResumeAsync(_previewTask);
+            RefreshPreviewTaskFromBoard();
+        }
+        finally { _overlayBusy = false; StateHasChanged(); }
+    }
+
+    private async Task OverlayCompleteAsync()
+    {
+        if (_previewTask is null) return;
+        _overlayBusy = true;
+        StateHasChanged();
+        try
+        {
+            await CompleteAsync(_previewTask);
+            ClosePreview();
+        }
+        finally { _overlayBusy = false; }
+    }
+
+    private async Task OverlayReopenAsync()
+    {
+        if (_previewTask is null) return;
+        _overlayBusy = true;
+        StateHasChanged();
+        try
+        {
+            await ReopenAsync(_previewTask);
+            RefreshPreviewTaskFromBoard();
+        }
+        finally { _overlayBusy = false; StateHasChanged(); }
+    }
+
+    private async Task OverlayReleaseAsync()
+    {
+        if (_previewTask is null) return;
+        _overlayBusy = true;
+        StateHasChanged();
+        try
+        {
+            await ReleaseAsync(_previewTask);
+            ClosePreview();
+        }
+        finally { _overlayBusy = false; }
+    }
+
+    private async Task<bool> OverlaySendChatMessageAsync(string text, IBrowserFile? file, string? base64)
+    {
+        if (_previewChatVm is null) return false;
+        try
+        {
+            var didSend = false;
+            if (file is not null && base64 is not null)
+            {
+                var (ok, err) = await ChatService.SendFileAsync(
+                    _previewChatVm.MarketplaceClientId, _previewChatVm.ChatId, base64, file.Name);
+                if (!ok)
+                {
+                    NotificationService.Notify(NotificationSeverity.Error, "Ошибка", err ?? "Не удалось отправить файл", 5000);
+                    return false;
+                }
+                didSend = true;
+            }
+            else if (!string.IsNullOrWhiteSpace(text))
+            {
+                var (ok, err) = await ChatService.SendMessageAsync(
+                    _previewChatVm.MarketplaceClientId, _previewChatVm.ChatId, text);
+                if (!ok)
+                {
+                    NotificationService.Notify(NotificationSeverity.Error, "Ошибка", err ?? "Не удалось отправить сообщение", 5000);
+                    return false;
+                }
+                didSend = true;
+            }
+
+            if (!didSend) return false;
+
+            await Task.Delay(600);
+            try
+            {
+                var history = await ChatService.GetChatHistoryAsync(
+                    _previewChatVm.MarketplaceClientId, _previewChatVm.ChatId, "Backward", limit: 50);
+                if (history is not null)
+                    _chatMessages = history.Messages.OrderBy(m => m.CreatedAt).ToList();
+                StateHasChanged();
+                await Task.Delay(50);
+                await JS.InvokeVoidAsync("scrollChatOverlayToBottom");
+            }
+            catch { /* ignore history reload failure */ }
+
+            await PausePreviewAfterSuccessfulSendAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000);
+            return false;
+        }
+    }
+
+    private async Task<bool> SendOverlayAnswerTextAsync(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || _previewTask is null)
+            return false;
+        try
+        {
+            var creds = await GetClientCredsAsync(_previewTask.MarketplaceClientId);
+            var qVm = new OzonQuestionViewModelDto
+            {
+                Id = _previewTask.ExternalId,
+                MarketplaceClientId = _previewTask.MarketplaceClientId,
+                MarketplaceClientName = _previewTask.MarketplaceClientName,
+                ApiId = creds.apiId,
+                ApiKey = creds.apiKey
+            };
+            var answerId = await QuestionsService.CreateQuestionAnswerAsync(qVm, text.Trim());
+            if (answerId is not null)
+            {
+                NotificationService.Notify(NotificationSeverity.Success, "Ответ отправлен", "", 2000);
+                _questionDetail = await QuestionsService.GetQuestionDetailAsync(qVm);
+                StateHasChanged();
+                await PausePreviewAfterSuccessfulSendAsync();
+                return true;
+            }
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось отправить ответ", 5000);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000);
+            return false;
+        }
+    }
+
+    private async Task<bool> SendOverlayCommentAsync(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || _previewTask is null) return false;
+        try
+        {
+            var creds = await GetClientCredsAsync(_previewTask.MarketplaceClientId);
+            var rVm = new OzonReviewViewModelDto
+            {
+                Id = _previewTask.ExternalId,
+                MarketplaceClientId = _previewTask.MarketplaceClientId,
+                MarketplaceClientName = _previewTask.MarketplaceClientName,
+                ApiId = creds.apiId,
+                ApiKey = creds.apiKey
+            };
+            var commentId = await ReviewsService.CreateReviewCommentAsync(rVm, text);
+            if (commentId is not null)
+            {
+                NotificationService.Notify(NotificationSeverity.Success, "Комментарий отправлен", "", 2000);
+                _reviewDetail = await ReviewsService.GetReviewDetailAsync(rVm);
+                StateHasChanged();
+                await PausePreviewAfterSuccessfulSendAsync();
+                return true;
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось отправить комментарий", 5000);
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000);
+            return false;
+        }
+    }
+
+    private async Task DeleteOverlayAnswerAsync(OzonQuestionAnswerDto ans)
+    {
+        if (_previewTask is null) return;
+        _overlayDeletingAnswerId = ans.Id;
+        StateHasChanged();
+        try
+        {
+            var creds = await GetClientCredsAsync(_previewTask.MarketplaceClientId);
+            var qVm = new OzonQuestionViewModelDto
+            {
+                Id = _previewTask.ExternalId,
+                MarketplaceClientId = _previewTask.MarketplaceClientId,
+                MarketplaceClientName = _previewTask.MarketplaceClientName,
+                ApiId = creds.apiId,
+                ApiKey = creds.apiKey
+            };
+            var ok = await QuestionsService.DeleteQuestionAnswerAsync(qVm, ans.Id);
+            if (ok)
+            {
+                _questionDetail?.Answers.Remove(ans);
+                NotificationService.Notify(NotificationSeverity.Success, "Ответ удалён", "", 3000);
+                StateHasChanged();
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось удалить ответ", 4000);
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000);
+        }
+        finally
+        {
+            _overlayDeletingAnswerId = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteOverlayCommentAsync(OzonReviewCommentDto comment)
+    {
+        if (_previewTask is null) return;
+        _overlayDeletingCommentId = comment.Id;
+        StateHasChanged();
+        try
+        {
+            var creds = await GetClientCredsAsync(_previewTask.MarketplaceClientId);
+            var rVm = new OzonReviewViewModelDto
+            {
+                Id = _previewTask.ExternalId,
+                MarketplaceClientId = _previewTask.MarketplaceClientId,
+                MarketplaceClientName = _previewTask.MarketplaceClientName,
+                ApiId = creds.apiId,
+                ApiKey = creds.apiKey
+            };
+            var ok = await ReviewsService.DeleteReviewCommentAsync(rVm, comment.Id);
+            if (ok)
+            {
+                _reviewDetail?.Comments.Remove(comment);
+                NotificationService.Notify(NotificationSeverity.Success, "Комментарий удалён", "", 3000);
+                StateHasChanged();
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось удалить комментарий", 4000);
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000);
+        }
+        finally
+        {
+            _overlayDeletingCommentId = null;
+            StateHasChanged();
+        }
+    }
+
+    private string FormatOverlayDuration(CommunicationTaskDto task)
+    {
+        var ticks = task.TotalTimeSpentTicks;
+        if (task.HasActiveTimer && task.StartedAt.HasValue)
+            ticks += (DateTime.UtcNow - task.StartedAt.Value).Ticks;
+        var ts = TimeSpan.FromTicks(ticks);
+        if (ts.TotalHours >= 1) return $"{(int)ts.TotalHours}ч {ts.Minutes:D2}м {ts.Seconds:D2}с";
+        if (ts.TotalMinutes >= 1) return $"{(int)ts.TotalMinutes}м {ts.Seconds:D2}с";
+        return $"{(int)ts.TotalSeconds}с";
     }
 
 
@@ -1433,6 +2117,7 @@
     public async ValueTask DisposeAsync()
     {
         _timerTick?.Dispose();
+        StopChatPolling();
         _dotNetRef?.Dispose();
         try { await JS.InvokeVoidAsync("taskBoardInfiniteScroll.dispose"); }
         catch { /* ignore */ }
