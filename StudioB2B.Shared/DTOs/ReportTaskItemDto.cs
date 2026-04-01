@@ -31,7 +31,11 @@ public class ReportTaskItemDto
 
     public decimal? PaymentAmount { get; set; }
 
+    /// <summary>Строки расшифровки начисления по тарифам (текущие активные правила).</summary>
+    public List<PaymentBreakdownLineDto> PaymentBreakdown { get; set; } = new();
+
     /// <summary>Individual time entry segments.</summary>
     public List<ReportTimeEntryDto> TimeEntries { get; set; } = new();
 }
+
 
