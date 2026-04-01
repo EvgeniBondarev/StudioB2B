@@ -513,83 +513,6 @@
                     }
                 }
 
-                @* ── Time & Payment breakdown (shown when detail loaded) ── *@
-                @if (_taskDetail is not null && (_taskDetail.TimeEntries.Count > 0 || (_previewTask.PaymentAmount.HasValue && _previewTask.PaymentAmount > 0)))
-                {
-                    <div style="margin-bottom:0.75rem;padding:0.6rem 0.85rem;background:var(--rz-base-50);border-radius:8px;border:1px solid var(--rz-base-200);">
-                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;">
-                            <span style="font-size:0.8rem;font-weight:600;color:var(--rz-text-color);">
-                                <RadzenIcon Icon="schedule" Style="font-size:0.9rem;vertical-align:middle;margin-right:3px;" />
-                                Время и оплата
-                            </span>
-                            @if (_previewTask.PaymentAmount.HasValue && _previewTask.PaymentAmount > 0)
-                            {
-                                <span class="task-payment-badge" style="font-size:0.82rem;padding:2px 10px;">
-                                    +@_previewTask.PaymentAmount.Value.ToString("F0") ₽
-                                </span>
-                            }
-                            else if (_previewTask.TotalTimeSpentTicks > 0)
-                            {
-                                <span style="font-size:0.8rem;font-weight:600;color:var(--rz-text-secondary-color);">
-                                    @FormatTimeSpan(TimeSpan.FromTicks(_previewTask.TotalTimeSpentTicks))
-                                </span>
-                            }
-                        </div>
-                        @if (_taskDetail.TimeEntries.Count > 0)
-                        {
-                            <table style="width:100%;font-size:0.75rem;border-collapse:collapse;">
-                                <thead>
-                                    <tr style="color:var(--rz-text-secondary-color);">
-                                        <th style="text-align:left;padding:2px 4px;font-weight:500;">Начало</th>
-                                        <th style="text-align:left;padding:2px 4px;font-weight:500;">Конец</th>
-                                        <th style="text-align:right;padding:2px 4px;font-weight:500;">Длит.</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var e in _taskDetail.TimeEntries.OrderBy(x => x.StartedAt))
-                                    {
-                                        <tr style="border-top:1px solid var(--rz-base-200);">
-                                            <td style="padding:3px 4px;">@e.StartedAt.ToLocalTime().ToString("dd.MM HH:mm")</td>
-                                            <td style="padding:3px 4px;">@(e.EndedAt.HasValue ? e.EndedAt.Value.ToLocalTime().ToString("dd.MM HH:mm") : "⏱ в процессе")</td>
-                                            <td style="padding:3px 4px;text-align:right;font-variant-numeric:tabular-nums;">
-                                                @if (e.DurationMinutes >= 60)
-                                                {
-                                                    @($"{(int)(e.DurationMinutes / 60)}ч {(int)(e.DurationMinutes % 60)}м")
-                                                }
-                                                else
-                                                {
-                                                    @($"{(int)e.DurationMinutes}м")
-                                                }
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                            @if (_taskDetail.TimeEntries.Count > 1)
-                            {
-                                var totalMin = _taskDetail.TimeEntries
-                                    .Where(e => e.EndedAt.HasValue)
-                                    .Sum(e => e.DurationMinutes);
-                                <div style="text-align:right;font-size:0.75rem;color:var(--rz-text-secondary-color);margin-top:3px;padding-right:4px;">
-                                    Итого:
-                                    @if (totalMin >= 60)
-                                    {
-                                        @($"{(int)(totalMin / 60)}ч {(int)(totalMin % 60)}м")
-                                    }
-                                    else
-                                    {
-                                        @($"{(int)totalMin}м")
-                                    }
-                                    @if (_previewTask.PaymentAmount.HasValue && _previewTask.PaymentAmount > 0)
-                                    {
-                                        <span style="margin-left:8px;font-weight:700;color:#065f46;">= +@_previewTask.PaymentAmount.Value.ToString("F0") ₽</span>
-                                    }
-                                </div>
-                            }
-                        }
-                    </div>
-                }
-
                 @* ── Chat preview ── *@
                 @if (_previewTask.TaskType == CommunicationTaskType.Chat)
                 {
@@ -614,6 +537,7 @@
                             <ChatMessages Messages="_chatMessages"
                                           SelectedChat="_previewChatVm"
                                           EagerImages="true"
+                                          ShowShipmentCopyBar="true"
                                           OpenGallery="OnOpenGallery"
                                           LoadingHistory="false" />
                             @if (_previewTask.Status == CommunicationTaskStatus.InProgress)
@@ -1045,7 +969,6 @@
     // Preview state
     private CommunicationTaskDto? _previewTask;
     private bool _previewLoading;
-    private CommunicationTaskDetailDto? _taskDetail;
     private List<OzonChatMessageDto> _chatMessages = new();
     private OzonChatViewModelDto? _previewChatVm;
     private string? _chatFallbackUrl;
@@ -1330,7 +1253,6 @@
     {
         _previewTask = task;
         _previewLoading = true;
-        _taskDetail = null;
         _chatMessages.Clear();
         _previewChatVm = null;
         _chatFallbackUrl = null;
@@ -1392,10 +1314,6 @@
                     break;
                 }
             }
-
-            // Load time entries / payment detail — only if the task already exists in DB.
-            if (task.Id != Guid.Empty)
-                _taskDetail = await TaskService.GetTaskDetailAsync(task.Id);
         }
         catch (Exception ex)
         {
@@ -1419,7 +1337,6 @@
     {
         StopChatPolling();
         _previewTask = null;
-        _taskDetail = null;
         _chatMessages.Clear();
         _previewChatVm = null;
         _chatFallbackUrl = null;
@@ -1647,11 +1564,18 @@
         var userId = await GetUserIdAsync();
         if (userId is null) return;
 
+        var optimisticTotalTicks = task.TotalTimeSpentTicks;
+        if (task.HasActiveTimer && task.StartedAt.HasValue)
+            optimisticTotalTicks += (DateTime.UtcNow - task.StartedAt.Value).Ticks;
+        task.TotalTimeSpentTicks = optimisticTotalTicks;
+        var optimisticPayment = ComputeEstimate(task);
+
         // Optimistic: move card InProgress → Done immediately
         _board.InProgressTasks.RemoveAll(t => t.Id == task.Id);
         task.Status = CommunicationTaskStatus.Done;
         task.HasActiveTimer = false;
         task.CompletedAt = DateTime.UtcNow;
+        task.PaymentAmount = optimisticPayment > 0 ? optimisticPayment : null;
         _board.DoneTasks.Insert(0, task);
         _board.DoneTotalCount++;
         StateHasChanged();
@@ -1750,8 +1674,6 @@
         {
             await ClaimAsync(_previewTask);
             RefreshPreviewTaskFromBoard();
-            if (_previewTask?.Id != Guid.Empty && _previewTask?.Id is not null)
-                _taskDetail = await TaskService.GetTaskDetailAsync(_previewTask.Id);
         }
         finally { _overlayBusy = false; StateHasChanged(); }
     }
