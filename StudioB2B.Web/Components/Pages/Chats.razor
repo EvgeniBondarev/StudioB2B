@@ -279,6 +279,10 @@ else
                             <RadzenBadge BadgeStyle="@GetTypeBadgeStyle(_selectedChat.ChatType)"
                                          Text="@GetTypeLabel(_selectedChat.ChatType)"
                                          Style="font-size: 0.65rem;" />
+                            @if (_selectedChat.ChatType == "BUYER_SELLER")
+                            {
+                                <span style="font-size:0.72rem;color:var(--rz-text-secondary-color);font-family:monospace;">ID: @_selectedChat.ChatId</span>
+                            }
                         </RadzenStack>
                     </RadzenStack>
 
