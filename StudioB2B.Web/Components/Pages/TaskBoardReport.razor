@@ -297,6 +297,58 @@ else
                                                 }
                                             </div>
 
+                                            @if (task.PaymentBreakdown.Count > 0)
+                                            {
+                                                var breakdownSum = task.PaymentBreakdown.Sum(x => x.Amount);
+                                                var mismatch = task.PaymentAmount.HasValue &&
+                                                               Math.Abs(breakdownSum - task.PaymentAmount.Value) > 0.02m;
+                                                <div style="padding:0.35rem 0.75rem 0.55rem;border-top:1px solid var(--rz-base-100);background:rgba(139,92,246,0.04);">
+                                                    <div style="font-size:0.75rem;font-weight:600;color:var(--rz-text-secondary-color);margin-bottom:0.35rem;">
+                                                        Расшифровка начисления
+                                                    </div>
+                                                    <table style="width:100%;font-size:0.76rem;border-collapse:collapse;">
+                                                        <tbody>
+                                                            @foreach (var line in task.PaymentBreakdown)
+                                                            {
+                                                                <tr style="border-top:1px solid var(--rz-base-200);">
+                                                                    <td style="padding:4px 6px 4px 0;vertical-align:top;color:var(--rz-text-color);">
+                                                                        @line.Caption
+                                                                    </td>
+                                                                    <td style="padding:4px 0;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:600;">
+                                                                        @line.Amount.ToString("F2") ₽
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                        <tfoot>
+                                                            <tr style="font-weight:700;">
+                                                                <td style="padding:6px 6px 2px 0;">Итого по правилам</td>
+                                                                <td style="padding:6px 0 2px 0;text-align:right;">@breakdownSum.ToString("F2") ₽</td>
+                                                            </tr>
+                                                            @if (task.PaymentAmount.HasValue)
+                                                            {
+                                                                <tr style="color:var(--rz-text-secondary-color);font-size:0.72rem;">
+                                                                    <td style="padding:0 6px 4px 0;">В задаче сохранено</td>
+                                                                    <td style="padding:0 0 4px 0;text-align:right;">@task.PaymentAmount.Value.ToString("F2") ₽</td>
+                                                                </tr>
+                                                            }
+                                                        </tfoot>
+                                                    </table>
+                                                    @if (mismatch)
+                                                    {
+                                                        <RadzenAlert AlertStyle="AlertStyle.Info" Size="AlertSize.Small" AllowClose="false" Style="margin-top:0.45rem;padding:0.35rem 0.5rem;">
+                                                            Сумма по текущим тарифам отличается от сохранённой при завершении — возможно, правила менялись после закрытия задачи.
+                                                        </RadzenAlert>
+                                                    }
+                                                </div>
+                                            }
+                                            else if (task.PaymentAmount.HasValue && task.PaymentAmount.Value > 0)
+                                            {
+                                                <div style="padding:0.35rem 0.75rem 0.5rem;font-size:0.74rem;color:var(--rz-text-secondary-color);border-top:1px solid var(--rz-base-100);">
+                                                    Расшифровка по активным тарифам недоступна (нет совпадающих правил). Сохранённая выплата: @task.PaymentAmount.Value.ToString("F2") ₽
+                                                </div>
+                                            }
+
                                             <!-- Time entries -->
                                             @if (isTaskExpanded && task.TimeEntries.Count > 0)
                                             {

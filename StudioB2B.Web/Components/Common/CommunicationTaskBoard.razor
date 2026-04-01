@@ -2069,12 +2069,9 @@
             if (rate.MinDurationMinutes.HasValue && totalMinutes < rate.MinDurationMinutes.Value) continue;
             if (rate.MaxDurationMinutes.HasValue && totalMinutes > rate.MaxDurationMinutes.Value) continue;
 
-            total += rate.PaymentMode switch
-            {
-                PaymentMode.PerTask => rate.Rate,
-                PaymentMode.Hourly => rate.Rate * (totalMinutes / 60m),
-                _ => 0m
-            };
+            var hasDurationBounds = rate.MinDurationMinutes.HasValue || rate.MaxDurationMinutes.HasValue;
+            total += CommunicationPaymentCalculator.ComputeRateContribution(
+                totalMinutes, rate.PaymentMode, rate.Rate, hasDurationBounds);
         }
 
         return Math.Round(total, 2);
