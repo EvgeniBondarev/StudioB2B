@@ -955,6 +955,30 @@ public class CommunicationTaskService : ICommunicationTaskService
                 }).ToList()
         }).ToList();
 
+        var rateDtos = await _db.CommunicationPaymentRates
+            .AsNoTracking()
+            .Where(r => r.IsActive)
+            .Select(r => new CommunicationPaymentRateDto
+            {
+                Id = r.Id,
+                TaskType = r.TaskType,
+                PaymentMode = r.PaymentMode,
+                UserId = r.UserId,
+                Rate = r.Rate,
+                MinDurationMinutes = r.MinDurationMinutes,
+                MaxDurationMinutes = r.MaxDurationMinutes,
+                IsActive = r.IsActive,
+                Description = r.Description
+            })
+            .ToListAsync(ct);
+
+        foreach (var item in items)
+        {
+            var totalMinutes = (decimal)TimeSpan.FromTicks(item.TotalTimeSpentTicks).TotalMinutes;
+            item.PaymentBreakdown = CommunicationPaymentCalculator.ComputeBreakdownLines(
+                totalMinutes, item.TaskType, userId, rateDtos);
+        }
+
         return new UserTaskDetailsDto { UserId = userId, UserName = userName, Tasks = items };
     }
 
@@ -1149,8 +1173,9 @@ public class CommunicationTaskService : ICommunicationTaskService
     /// Sums ALL matching active rates for the completed task.
     /// A rate matches when: (TaskType is null OR == task.TaskType) AND (UserId is null OR == task.AssignedToUserId)
     /// AND task duration falls within [MinDurationMinutes, MaxDurationMinutes] (inclusive, null = unbounded).
-    /// Hourly rates are multiplied by time spent; PerTask rates are added as-is.
-    /// All matching rules are applied simultaneously — e.g. a base 50₽ rule + a conditional 40₽ rule both apply.
+    /// PerTask — полная ставка. Hourly без Min/Max — пропорционально времени (₽/час × часы).
+    /// Hourly с Min или Max — при попадании в диапазон выплачивается полная сумма ставки (не доля часа).
+    /// Все подошедшие правила суммируются (например 50₽ за чат + 10₽ за задачу от 4 мин).
     /// </summary>
     private async Task<decimal> CalculatePaymentAsync(CommunicationTask task, CancellationToken ct)
     {
@@ -1179,12 +1204,9 @@ public class CommunicationTaskService : ICommunicationTaskService
             if (rate.MaxDurationMinutes.HasValue && totalMinutes > rate.MaxDurationMinutes.Value)
                 continue;
 
-            total += rate.PaymentMode switch
-            {
-                PaymentMode.PerTask => rate.Rate,
-                PaymentMode.Hourly => rate.Rate * (totalMinutes / 60m),
-                _ => 0m
-            };
+            var hasDurationBounds = rate.MinDurationMinutes.HasValue || rate.MaxDurationMinutes.HasValue;
+            total += CommunicationPaymentCalculator.ComputeRateContribution(
+                totalMinutes, rate.PaymentMode, rate.Rate, hasDurationBounds);
         }
 
         return Math.Round(total, 2);
