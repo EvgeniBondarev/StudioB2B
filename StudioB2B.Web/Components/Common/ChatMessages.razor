@@ -1,6 +1,9 @@
 @using StudioB2B.Web.Helpers
 @using StudioB2B.Shared
 
+@inject IJSRuntime JS
+@inject NotificationService NotificationService
+
 <div class="chat-messages-area" id="chat-messages-container">
     @if (LoadingHistory && !Messages.Any())
     {
@@ -22,6 +25,41 @@
     }
     else
     {
+        @if (ShowShipmentCopyBar && (_shipmentNumbers.Count > 0 || _articleCodes.Count > 0))
+        {
+            <div class="chat-shipment-ids-bar">
+                @if (_shipmentNumbers.Count > 0)
+                {
+                    <span class="chat-shipment-ids-label">Номера отправлений</span>
+                    <div class="chat-shipment-ids-chips">
+                        @foreach (var id in _shipmentNumbers)
+                        {
+                            var captured = id;
+                            <button type="button" class="chat-shipment-id-chip" title="Нажмите, чтобы скопировать"
+                                    @onclick="@(() => CopyCodeAsync(captured))">
+                                <span class="rzi" style="font-size:0.95rem;">content_copy</span>
+                                <span class="chat-shipment-id-text">@id</span>
+                            </button>
+                        }
+                    </div>
+                }
+                @if (_articleCodes.Count > 0)
+                {
+                    <span class="chat-shipment-ids-label @( _shipmentNumbers.Count > 0 ? "chat-copybar-second" : null)">Артикулы</span>
+                    <div class="chat-shipment-ids-chips">
+                        @foreach (var code1 in _articleCodes)
+                        {
+                            var captured = code1;
+                            <button type="button" class="chat-shipment-id-chip chat-article-chip" title="Нажмите, чтобы скопировать"
+                                    @onclick="@(() => CopyCodeAsync(captured))">
+                                <span class="rzi" style="font-size:0.95rem;">content_copy</span>
+                                <span class="chat-shipment-id-text">@code1</span>
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+        }
         @foreach (var msg in Messages)
         {
             @if (FirstUnreadOnOpen == msg.MessageId)
@@ -131,6 +169,40 @@
     /// (например, task-detail-overlay), чтобы браузер не пропустил момент пересечения.
     /// </summary>
     [Parameter] public bool EagerImages { get; set; } = false;
+
+    /// <summary>Показать панель: номера отправлений (цифры-цифры[-N]) и артикулы (код=код, в т.ч. с [n]).</summary>
+    [Parameter] public bool ShowShipmentCopyBar { get; set; }
+
+    private List<string> _shipmentNumbers = new();
+
+    private List<string> _articleCodes = new();
+
+    protected override void OnParametersSet()
+    {
+        if (ShowShipmentCopyBar && Messages.Count > 0)
+        {
+            _shipmentNumbers = OzonChatShipmentNumberExtractor.ExtractShipmentsDistinctOrdered(Messages, IsFileData);
+            _articleCodes = OzonChatShipmentNumberExtractor.ExtractArticlesDistinctOrdered(Messages, IsFileData);
+        }
+        else
+        {
+            _shipmentNumbers = new List<string>();
+            _articleCodes = new List<string>();
+        }
+    }
+
+    private async Task CopyCodeAsync(string id)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", id);
+            NotificationService.Notify(NotificationSeverity.Success, "Скопировано", id, 2000);
+        }
+        catch
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Не удалось скопировать", "", 3000);
+        }
+    }
 
     private void OnImageClick(OzonChatMessageDto msg, string clickedData)
     {

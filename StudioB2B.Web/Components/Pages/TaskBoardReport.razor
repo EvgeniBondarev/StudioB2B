@@ -79,7 +79,7 @@ else
                     <span class="taskboard-stat-label">Отзывы</span>
                 </div>
                 <div class="taskboard-stat">
-                    <span class="taskboard-stat-value">@visibleUsers.Sum(u => u.TotalHours).ToString("F1") ч</span>
+                    <span class="taskboard-stat-value">@FormatHoursAndMinutes(visibleUsers.Sum(u => u.TotalHours))</span>
                     <span class="taskboard-stat-label">Всего часов</span>
                 </div>
                 <div class="taskboard-stat">
@@ -110,7 +110,7 @@ else
                         <RadzenBadge BadgeStyle="BadgeStyle.Warning" Text="@($"Вопросы: {u.QuestionsDone}")" Style="font-size:0.72rem;" />
                         <RadzenBadge BadgeStyle="BadgeStyle.Danger"  Text="@($"Отзывы: {u.ReviewsDone}")"  Style="font-size:0.72rem;" />
                         <span style="margin-left:auto; color:var(--rz-text-secondary-color); font-size:0.85rem; white-space:nowrap;">
-                            @u.TotalHours.ToString("F1") ч
+                            @FormatHoursAndMinutes(u.TotalHours)
                         </span>
                         <span style="font-weight:700; min-width:80px; text-align:right; white-space:nowrap;">
                             @u.TotalPayment.ToString("F0") ₽
@@ -153,7 +153,7 @@ else
                                             <div style="font-size:0.75rem;color:var(--rz-text-secondary-color);">Отзывы</div>
                                         </div>
                                         <div style="background:var(--rz-base-100);border-radius:6px;padding:0.5rem 0.75rem;text-align:center;">
-                                            <div style="font-size:1.3rem;font-weight:700;color:#10b981;">@stats.TotalHours.ToString("F1")</div>
+                                            <div style="font-size:1.1rem;font-weight:700;color:#10b981;">@FormatHoursAndMinutes(stats.TotalHours)</div>
                                             <div style="font-size:0.75rem;color:var(--rz-text-secondary-color);">Часов</div>
                                         </div>
                                         <div style="background:var(--rz-base-100);border-radius:6px;padding:0.5rem 0.75rem;text-align:center;">
@@ -208,6 +208,35 @@ else
                                                     <RadzenAxisTitle Text="Дата" />
                                                 </RadzenCategoryAxis>
                                                 <RadzenValueAxis Min="0">
+                                                    <RadzenGridLines Visible="true" />
+                                                </RadzenValueAxis>
+                                            </RadzenChart>
+                                        </div>
+
+                                        <div style="margin-bottom:0.75rem;">
+                                            @{
+                                                var dailyTime = stats.DailyActivity
+                                                    .Select(d => new DailyTimeChartPoint(
+                                                        d.DateStr,
+                                                        (int)Math.Round(d.TotalHours * 60, MidpointRounding.AwayFromZero)))
+                                                    .ToList();
+                                            }
+                                            <RadzenText TextStyle="TextStyle.Subtitle2" Style="margin-bottom:0.35rem;font-weight:600;">
+                                                Затраченное время по дням
+                                            </RadzenText>
+                                            <RadzenChart Style="height:160px;">
+                                                <RadzenColumnSeries Data="@dailyTime"
+                                                                  CategoryProperty="DateStr"
+                                                                  ValueProperty="Minutes"
+                                                                  Title="Минуты"
+                                                                  Fill="#10b981">
+                                                    <RadzenSeriesDataLabels />
+                                                </RadzenColumnSeries>
+                                                <RadzenCategoryAxis>
+                                                    <RadzenAxisTitle Text="Дата" />
+                                                </RadzenCategoryAxis>
+                                                <RadzenValueAxis Min="0">
+                                                    <RadzenAxisTitle Text="Минуты" />
                                                     <RadzenGridLines Visible="true" />
                                                 </RadzenValueAxis>
                                             </RadzenChart>
@@ -277,7 +306,7 @@ else
                                                 {
                                                     <span style="color:var(--rz-text-secondary-color);">· @task.ExternalStatus</span>
                                                 }
-                                                <span style="white-space:nowrap;">⏱ @totalMin.ToString("F0") мин.</span>
+                                                <span style="white-space:nowrap;">⏱ @FormatMinutesAsHoursMinutes(totalMin)</span>
                                                 @if (task.PaymentAmount.HasValue && task.PaymentAmount > 0)
                                                 {
                                                     <span style="font-weight:600;white-space:nowrap;">
@@ -564,6 +593,25 @@ else
         s.Contains(';') || s.Contains('"') || s.Contains('\n')
             ? $"\"{s.Replace("\"", "\"\"")}\""
             : s;
+
+    private static string FormatHoursAndMinutes(double hours)
+    {
+        var totalMinutes = (int)Math.Round(hours * 60, MidpointRounding.AwayFromZero);
+        var hh = totalMinutes / 60;
+        var mm = totalMinutes % 60;
+        var hoursStr = hours.ToString("F1", System.Globalization.CultureInfo.GetCultureInfo("ru-RU"));
+        return $"{hoursStr} ч ({hh} ч {mm} мин)";
+    }
+
+    private static string FormatMinutesAsHoursMinutes(double minutes)
+    {
+        var totalMinutes = (int)Math.Round(minutes, MidpointRounding.AwayFromZero);
+        var hh = totalMinutes / 60;
+        var mm = totalMinutes % 60;
+        return $"{hh} ч {mm} мин";
+    }
+
+    private sealed record DailyTimeChartPoint(string DateStr, int Minutes);
 
     private sealed record UserFilterOption(string Text, Guid Value);
 }

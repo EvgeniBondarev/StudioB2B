@@ -592,6 +592,11 @@ h1:focus {
   z-index: 2000;
 }
 
+/* Radzen: по умолчанию z-index:1002 — тосты оказываются под модалкой доски (.task-detail-overlay 1100) и под лайтбоксом */
+.rz-notification {
+  z-index: 8000 !important;
+}
+
 /* шапка кастомных колонкох в таблице Транзакций  */
 .header-bg-full {
   position: absolute !important;
