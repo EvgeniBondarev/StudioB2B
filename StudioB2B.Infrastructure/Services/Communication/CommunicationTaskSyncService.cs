@@ -66,20 +66,17 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
     {
         try
         {
-            List<OzonChatViewModelDto> chats;
-
-            const string BuyerSellerType = "BUYER_SELLER";
-
-            if (fullSync)
-            {
-                chats = await _chatService.GetAllChatsAsync(chatType: BuyerSellerType, ct: ct);
-            }
-            else
-            {
-                var page = await _chatService.GetChatsPageAsync(
-                    pageSize: 50, chatStatus: "OPENED", chatType: BuyerSellerType, ct: ct);
-                chats = page.Chats;
-            }
+            // Как первая страница «Чаты» с типом «Покупатель — Продавец».
+            var page = await _chatService.GetChatsPageAsync(
+                pageSize: 20,
+                cursor: null,
+                chatStatus: null,
+                chatType: "BUYER_SELLER",
+                unreadOnly: false,
+                marketplaceClientId: null,
+                withLastMessageInfo: true,
+                ct: ct);
+            var chats = page.Chats;
 
             if (chats.Count == 0) return;
 
@@ -114,21 +111,16 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
     {
         try
         {
-            var allQuestions = new List<OzonQuestionViewModelDto>();
-            string? cursor = null;
-            var maxPages = fullSync ? 10 : 1;
-            var pageSize = fullSync ? 100 : 50;
-
-            for (var i = 0; i < maxPages; i++)
-            {
-                var page = await _questionsService.GetQuestionsPageAsync(
-                    pageSize: pageSize, cursor: cursor, ct: ct);
-
-                allQuestions.AddRange(page.Questions);
-
-                if (string.IsNullOrEmpty(page.NextCursor)) break;
-                cursor = page.NextCursor;
-            }
+            // Как Questions.razor LoadPageAsync: первая страница (20), без статуса и без обхода курсора.
+            var page = await _questionsService.GetQuestionsPageAsync(
+                pageSize: 20,
+                cursor: null,
+                dateFrom: null,
+                dateTo: null,
+                status: null,
+                marketplaceClientId: null,
+                ct: ct);
+            var allQuestions = page.Questions;
 
             if (allQuestions.Count == 0) return;
 
@@ -161,21 +153,14 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
     {
         try
         {
-            var allReviews = new List<OzonReviewViewModelDto>();
-            string? cursor = null;
-            var maxPages = fullSync ? 10 : 1;
-            var pageSize = fullSync ? 100 : 50;
-
-            for (var i = 0; i < maxPages; i++)
-            {
-                var page = await _reviewsService.GetReviewsPageAsync(
-                    pageSize: pageSize, cursor: cursor, ct: ct);
-
-                allReviews.AddRange(page.Reviews);
-
-                if (!page.HasNext) break;
-                cursor = page.NextCursor;
-            }
+            // Как Reviews.razor LoadPageAsync: первая страница (20), статус по умолчанию.
+            var page = await _reviewsService.GetReviewsPageAsync(
+                pageSize: 20,
+                cursor: null,
+                status: null,
+                marketplaceClientId: null,
+                ct: ct);
+            var allReviews = page.Reviews;
 
             if (allReviews.Count == 0) return;
 

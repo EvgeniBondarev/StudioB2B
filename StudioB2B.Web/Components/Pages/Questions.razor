@@ -15,6 +15,7 @@
 @inject UserContext UserContext
 
 <link rel="stylesheet" href="css/questions.css" />
+<link rel="stylesheet" href="css/chats/chatComposer.css" />
 
 <PageTitle>Вопросы покупателей</PageTitle>
 
@@ -418,26 +419,11 @@ else
                             </div>
                         }
 
-                        <div class="question-answer-composer">
-                            <div class="question-answer-input-row">
-                                <RadzenTextArea @bind-Value="_answerText"
-                                                Rows="1"
-                                                Placeholder="Напишите ответ…"
-                                                Style="flex: 1; resize: none; padding: 2px 10px; max-height: 140px;"
-                                                Disabled="@_sendingAnswer"
-                                                oninput="this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,200)+'px';" />
-                                <RadzenButton Icon="send"
-                                              ButtonStyle="ButtonStyle.Primary"
-                                              Size="ButtonSize.Small"
-                                              IsBusy="@_sendingAnswer"
-                                              Disabled="@(string.IsNullOrWhiteSpace(_answerText) || (_answerText?.Length ?? 0) < 2 || (_answerText?.Length ?? 0) > 3000)"
-                                              Click="@SendAnswerAsync"
-                                              Title="Ответить" />
-                            </div>
-                            <div class="question-answer-char-counter @((_answerText?.Length ?? 0) > 3000 ? "over-limit" : "")">
-                                @(_answerText?.Length ?? 0) / 3000
-                            </div>
-                        </div>
+                        <ChatComposer QuickReplies="QuickReplies"
+                                      OnSendTextOnly="SendAnswerFromComposerAsync"
+                                      EnableAttachments="false"
+                                      MaxLength="3000"
+                                      PlaceHolder="Напишите ответ…" />
 
                         @if (_lightboxSrc is not null)
                         {
@@ -593,8 +579,6 @@ else
     private string? _lightboxSrc;
     private bool _descriptionExpanded;
     private string? _deletingAnswerId;
-    private string? _answerText;
-    private bool _sendingAnswer;
 
     private bool _loading;
     private bool _loadingMore;
@@ -615,6 +599,14 @@ else
     private Dictionary<(string, Guid), CommunicationTaskDto> _activeTasks = new();
     private Dictionary<(string, Guid), CommunicationTaskDto> _doneTasks = new();
     private Timer? _tickTimer;
+
+    private static readonly string[] QuickReplies =
+    [
+        "Здравствуйте!",
+        "Здравствуйте, для проверки необходим VIN номер Вашего авто",
+        "Заявка на рассмотрении, ожидайте",
+        "Оформите возврат"
+    ];
 
     protected override async Task OnInitializedAsync()
     {
@@ -853,7 +845,6 @@ else
         _detailLoading = true;
         _lightboxSrc = null;
         _descriptionExpanded = false;
-        _answerText = null;
         StateHasChanged();
         _ = LoadDetailAsync(q);
     }
@@ -917,15 +908,17 @@ else
         }
     }
 
-    private async Task SendAnswerAsync()
+    private async Task<bool> SendAnswerFromComposerAsync(string text)
     {
-        if (_selectedQuestion is null || _detail is null) return;
-        if (string.IsNullOrWhiteSpace(_answerText)) return;
+        if (_selectedQuestion is null || _detail is null)
+            return false;
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
 
-        _sendingAnswer = true;
         try
         {
-            var answerId = await QuestionsService.CreateQuestionAnswerAsync(_selectedQuestion, _answerText.Trim());
+            var trimmed = text.Trim();
+            var answerId = await QuestionsService.CreateQuestionAnswerAsync(_selectedQuestion, trimmed);
             if (answerId is not null)
             {
                 _detail.Answers.Add(new OzonQuestionAnswerDto
@@ -934,29 +927,24 @@ else
                     QuestionId = _selectedQuestion.Id,
                     Sku = _selectedQuestion.Sku,
                     AuthorName = "Продавец",
-                    Text = _answerText.Trim(),
+                    Text = trimmed,
                     PublishedAt = DateTime.UtcNow
                 });
-                _answerText = null;
                 NotificationService.Notify(NotificationSeverity.Success, "Ответ опубликован", duration: 3000);
                 _ = QuestionsService.ChangeQuestionStatusAsync(_selectedQuestion, "PROCESSED");
                 _selectedQuestion.Status = "PROCESSED";
                 if (_questionCounts is not null)
                     _ = LoadQuestionCountsAsync();
+                StateHasChanged();
+                return true;
             }
-            else
-            {
-                NotificationService.Notify(NotificationSeverity.Error, "Не удалось отправить ответ", duration: 4000);
-            }
+            NotificationService.Notify(NotificationSeverity.Error, "Не удалось отправить ответ", duration: 4000);
+            return false;
         }
         catch (Exception ex)
         {
             NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 4000);
-        }
-        finally
-        {
-            _sendingAnswer = false;
-            StateHasChanged();
+            return false;
         }
     }
 

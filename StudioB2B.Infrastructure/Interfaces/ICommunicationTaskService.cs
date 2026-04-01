@@ -40,6 +40,9 @@ public interface ICommunicationTaskService
     /// <summary>Complete: stops timer, calculates payment, marks as done.</summary>
     Task<bool> CompleteTaskAsync(Guid taskId, Guid userId, CancellationToken ct = default);
 
+    /// <summary>Возвращает выполненную задачу в «В работе» и продолжает учёт времени (новый интервал).</summary>
+    Task<bool> ReopenTaskAsync(Guid taskId, Guid userId, CancellationToken ct = default);
+
     Task<PaymentReportDto> GetPaymentReportAsync(DateTime from, DateTime to, CancellationToken ct = default);
 
     /// <summary>Returns the current InProgress task for the given Ozon item (by ExternalId + client), or null if none.</summary>
@@ -62,4 +65,7 @@ public interface ICommunicationTaskService
 
     /// <summary>Recalculates PaymentAmount for all Done tasks using current rates. Returns count of tasks updated.</summary>
     Task<int> RecalculatePaymentsAsync(CancellationToken ct = default);
+
+    /// <summary>Invalidates the in-memory cache for live Ozon data (chats, questions, reviews).</summary>
+    void InvalidateLiveCache();
 }

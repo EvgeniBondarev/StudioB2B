@@ -7,6 +7,7 @@ using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Shared;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace StudioB2B.Infrastructure.Services.Communication;
 
@@ -20,6 +21,7 @@ public class CommunicationTaskService : ICommunicationTaskService
     private readonly IOzonReviewsService _reviewsService;
     private readonly IMemoryCache _cache;
     private readonly ITenantProvider _tenantProvider;
+    private readonly HashSet<string> _liveCacheKeys = new();
 
     public CommunicationTaskService(
         TenantDbContext db,
@@ -41,22 +43,39 @@ public class CommunicationTaskService : ICommunicationTaskService
         _tenantProvider = tenantProvider;
     }
 
-    /// <summary>
-    /// Ensures the user exists in the tenant Users table (required by FK constraints).
-    /// Creates a stub record if missing.
-    /// </summary>
-    private async Task EnsureUserExistsAsync(Guid userId, CancellationToken ct)
+    public void InvalidateLiveCache()
     {
-        var exists = await _db.Users.AnyAsync(u => u.Id == userId, ct);
-        if (exists) return;
+        foreach (var key in _liveCacheKeys)
+            _cache.Remove(key);
+        _liveCacheKeys.Clear();
+    }
+
+    /// <summary>
+    /// Resolves <paramref name="userId"/> to an existing tenant Users.Id.
+    /// If the exact ID exists — returns it. Otherwise looks up by email.
+    /// If nothing found — creates a stub user record. Returns the usable FK-safe Id.
+    /// </summary>
+    private async Task<Guid> ResolveUserIdAsync(Guid userId, CancellationToken ct)
+    {
+        if (await _db.Users.AnyAsync(u => u.Id == userId, ct))
+            return userId;
 
         var email = _currentUser.Email;
-        var emailTaken = email is not null && await _db.Users.AnyAsync(u => u.Email == email, ct);
+        if (email is not null)
+        {
+            var existingId = await _db.Users
+                .Where(u => u.Email == email)
+                .Select(u => u.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (existingId != Guid.Empty)
+                return existingId;
+        }
 
         _db.Users.Add(new TenantUser
         {
             Id = userId,
-            Email = !emailTaken && email is not null ? email : $"{userId}@stub",
+            Email = email ?? $"{userId}@stub",
             FirstName = email?.Split('@').FirstOrDefault() ?? "User",
             LastName = "",
             HashPassword = "",
@@ -64,6 +83,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         });
         await _db.SaveChangesAsync(ct);
         _logger.LogInformation("Created stub tenant user {UserId} for task board FK", userId);
+        return userId;
     }
 
     public async Task<TaskBoardDto> GetBoardAsync(CommunicationTaskFilter filter, CancellationToken ct = default)
@@ -111,17 +131,19 @@ public class CommunicationTaskService : ICommunicationTaskService
         var newItems = new List<CommunicationTaskDto>();
         if (!filter.AssignedToUserId.HasValue)
         {
-            var inProgressSet = inProgressItems
-                .Select(t => (t.TaskType, t.ExternalId, t.MarketplaceClientId))
-                .ToHashSet();
+            var existingKeys = await LoadExistingTaskKeysForNewExclusionAsync(filter, ct);
 
             if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Chat)
-                newItems.AddRange(await FetchLiveChatsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct));
+                newItems.AddRange(await FetchLiveChatsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct));
             if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Question)
-                newItems.AddRange(await FetchLiveQuestionsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct));
+                newItems.AddRange(await FetchLiveQuestionsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct));
             if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Review)
-                newItems.AddRange(await FetchLiveReviewsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct));
+                newItems.AddRange(await FetchLiveReviewsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct));
         }
+
+        await EnrichChatCardsFromHistoryAsync(newItems, ct);
+        await EnrichChatCardsFromHistoryAsync(inProgressItems, ct);
+        await EnrichChatCardsFromHistoryAsync(doneItems, ct);
 
         var doneTypeCounts = await doneQuery
             .GroupBy(t => t.TaskType)
@@ -225,6 +247,9 @@ public class CommunicationTaskService : ICommunicationTaskService
             .Select(ProjectToCardDto())
             .ToListAsync(ct);
 
+        await EnrichChatCardsFromHistoryAsync(inProgressItems, ct);
+        await EnrichChatCardsFromHistoryAsync(doneItems, ct);
+
         var doneTypeCounts = await doneQuery
             .GroupBy(t => t.TaskType)
             .Select(g => new { g.Key, Count = g.Count() })
@@ -277,30 +302,17 @@ public class CommunicationTaskService : ICommunicationTaskService
 
         _db.ChangeTracker.Clear();
 
-        var inProgressQuery = _db.CommunicationTasks
-            .AsNoTracking()
-            .Where(t => !t.IsDeleted && t.Status == CommunicationTaskStatus.InProgress);
-
-        if (filter.TaskType.HasValue)
-            inProgressQuery = inProgressQuery.Where(t => t.TaskType == filter.TaskType.Value);
-        if (filter.MarketplaceClientId.HasValue)
-            inProgressQuery = inProgressQuery.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
-
-        var inProgressRaw = await inProgressQuery
-            .Select(t => new { t.TaskType, t.ExternalId, t.MarketplaceClientId })
-            .ToListAsync(ct);
-        var inProgressSet = inProgressRaw
-            .Select(t => (t.TaskType, t.ExternalId, t.MarketplaceClientId))
-            .ToHashSet();
+        var existingKeys = await LoadExistingTaskKeysForNewExclusionAsync(filter, ct);
 
         var newItems = new List<CommunicationTaskDto>();
         if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Chat)
-            newItems.AddRange(await FetchLiveChatsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct));
+            newItems.AddRange(await FetchLiveChatsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct));
         if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Question)
-            newItems.AddRange(await FetchLiveQuestionsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct));
+            newItems.AddRange(await FetchLiveQuestionsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct));
         if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Review)
-            newItems.AddRange(await FetchLiveReviewsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct));
+            newItems.AddRange(await FetchLiveReviewsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct));
 
+        await EnrichChatCardsFromHistoryAsync(newItems, ct);
         return newItems;
     }
 
@@ -312,37 +324,27 @@ public class CommunicationTaskService : ICommunicationTaskService
 
         _db.ChangeTracker.Clear();
 
-        var inProgressQuery = _db.CommunicationTasks
-            .AsNoTracking()
-            .Where(t => !t.IsDeleted && t.Status == CommunicationTaskStatus.InProgress);
-
-        if (filter.TaskType.HasValue)
-            inProgressQuery = inProgressQuery.Where(t => t.TaskType == filter.TaskType.Value);
-        if (filter.MarketplaceClientId.HasValue)
-            inProgressQuery = inProgressQuery.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
-
-        var inProgressRaw = await inProgressQuery
-            .Select(t => new { t.TaskType, t.ExternalId, t.MarketplaceClientId })
-            .ToListAsync(ct);
-        var inProgressSet = inProgressRaw
-            .Select(t => (t.TaskType, t.ExternalId, t.MarketplaceClientId))
-            .ToHashSet();
+        var existingKeys = await LoadExistingTaskKeysForNewExclusionAsync(filter, ct);
 
         if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Chat)
         {
-            var batch = await FetchLiveChatsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct);
-            if (batch.Count > 0) yield return batch;
+            var batch = await FetchLiveChatsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct);
+            if (batch.Count > 0)
+            {
+                await EnrichChatCardsFromHistoryAsync(batch, ct);
+                yield return batch;
+            }
         }
 
         if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Question)
         {
-            var batch = await FetchLiveQuestionsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct);
+            var batch = await FetchLiveQuestionsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct);
             if (batch.Count > 0) yield return batch;
         }
 
         if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Review)
         {
-            var batch = await FetchLiveReviewsAsync(filter.MarketplaceClientId, inProgressSet, filter.From, filter.To, ct);
+            var batch = await FetchLiveReviewsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct);
             if (batch.Count > 0) yield return batch;
         }
     }
@@ -380,6 +382,8 @@ public class CommunicationTaskService : ICommunicationTaskService
             .Select(ProjectToCardDto())
             .ToListAsync(ct);
 
+        await EnrichChatCardsFromHistoryAsync(items, ct);
+
         return (items, total);
     }
 
@@ -414,7 +418,8 @@ public class CommunicationTaskService : ICommunicationTaskService
             PaymentAmount = t.PaymentAmount,
             CreatedAt = t.CreatedAt,
             UpdatedAt = t.UpdatedAt,
-            HasActiveTimer = t.TimeEntries.Any(e => e.EndedAt == null)
+            HasActiveTimer = t.TimeEntries.Any(e => e.EndedAt == null),
+            LastMessageFromCustomer = false
         };
     }
 
@@ -504,7 +509,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         _db.SuppressAudit = true;
         try
         {
-            await EnsureUserExistsAsync(userId, ct);
+            userId = await ResolveUserIdAsync(userId, ct);
 
             // Race guard: another user may have already claimed this Ozon item.
             var existing = await _db.CommunicationTasks
@@ -612,7 +617,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         _db.SuppressAudit = true;
         try
         {
-            await EnsureUserExistsAsync(userId, ct);
+            userId = await ResolveUserIdAsync(userId, ct);
 
             var task = await _db.CommunicationTasks
                 .Include(t => t.TimeEntries)
@@ -693,7 +698,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         _db.SuppressAudit = true;
         try
         {
-            await EnsureUserExistsAsync(userId, ct);
+            userId = await ResolveUserIdAsync(userId, ct);
 
             var task = await _db.CommunicationTasks
                 .Include(t => t.TimeEntries)
@@ -728,7 +733,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         _db.SuppressAudit = true;
         try
         {
-            await EnsureUserExistsAsync(userId, ct);
+            userId = await ResolveUserIdAsync(userId, ct);
 
             var task = await _db.CommunicationTasks
                 .Include(t => t.TimeEntries)
@@ -772,7 +777,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         _db.SuppressAudit = true;
         try
         {
-            await EnsureUserExistsAsync(userId, ct);
+            userId = await ResolveUserIdAsync(userId, ct);
 
             var task = await _db.CommunicationTasks
                 .Include(t => t.TimeEntries)
@@ -810,6 +815,58 @@ public class CommunicationTaskService : ICommunicationTaskService
             await _db.SaveChangesAsync(ct);
             _logger.LogInformation("Task {TaskId} completed by user {UserId}, payment={Payment}",
                 taskId, userId, task.PaymentAmount);
+            return true;
+        }
+        finally
+        {
+            _db.SuppressAudit = false;
+        }
+    }
+
+    public async Task<bool> ReopenTaskAsync(Guid taskId, Guid userId, CancellationToken ct = default)
+    {
+        _db.ChangeTracker.Clear();
+        _db.SuppressAudit = true;
+        try
+        {
+            userId = await ResolveUserIdAsync(userId, ct);
+
+            var task = await _db.CommunicationTasks
+                .Include(t => t.TimeEntries)
+                .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted, ct);
+
+            if (task is null) return false;
+            if (task.Status != CommunicationTaskStatus.Done) return false;
+            if (task.AssignedToUserId != userId) return false;
+
+            task.Status = CommunicationTaskStatus.InProgress;
+            task.CompletedAt = null;
+            task.PaymentAmount = null;
+            task.UpdatedAt = DateTime.UtcNow;
+
+            var hasActive = task.TimeEntries.Any(e => e.UserId == userId && e.EndedAt == null);
+            if (!hasActive)
+            {
+                _db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
+                {
+                    Id = Guid.NewGuid(),
+                    TaskId = taskId,
+                    UserId = userId,
+                    StartedAt = DateTime.UtcNow
+                });
+            }
+
+            _db.CommunicationTaskLogs.Add(new CommunicationTaskLog
+            {
+                Id = Guid.NewGuid(),
+                TaskId = taskId,
+                UserId = userId,
+                Action = "Reopened",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation("Task {TaskId} reopened by user {UserId}", taskId, userId);
             return true;
         }
         finally
@@ -1133,42 +1190,33 @@ public class CommunicationTaskService : ICommunicationTaskService
         return Math.Round(total, 2);
     }
 
+    /// <summary>
+    /// Live «новые» чаты: первая страница как на «Чаты», только <c>BUYER_SELLER</c>.
+    /// </summary>
     private async Task<List<CommunicationTaskDto>> FetchLiveChatsAsync(
         Guid? marketplaceClientId,
-        HashSet<(CommunicationTaskType, string, Guid)> inProgressSet,
+        HashSet<(CommunicationTaskType, string, Guid)> existingTaskKeys,
         DateTime? from, DateTime? to,
         CancellationToken ct)
     {
         try
         {
-            // Fan out per client so every client's chats are queried (not just the first one
-            // filling up the shared page-size quota).
-            var clientIds = marketplaceClientId.HasValue
-                ? [marketplaceClientId.Value]
-                : await _db.MarketplaceClients.AsNoTracking()
-                    .Where(c => !c.IsDeleted)
-                    .Select(c => c.Id)
-                    .ToArrayAsync(ct);
+            var clientKey = marketplaceClientId?.ToString() ?? "all";
+            var cacheKey = $"ozon_chats_board:{_tenantProvider.TenantId}:{clientKey}:BUYER_SELLER";
+            _liveCacheKeys.Add(cacheKey);
 
-            var pageTasks = clientIds.Select(async id =>
+            var allChats = await _cache.GetOrCreateAsync(cacheKey, async entry =>
             {
-                var cacheKey = $"ozon_chats:{_tenantProvider.TenantId}:{id}";
-                return await _cache.GetOrCreateAsync(cacheKey, async entry =>
-                {
-                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
-                    return await _chatService.GetChatsPageAsync(
-                        pageSize: 50, chatStatus: "OPENED", chatType: "BUYER_SELLER",
-                        marketplaceClientId: id, unreadOnly: true, withLastMessageInfo: false, ct: ct);
-                }) ?? new OzonChatPageDto();
-            });
-            var pages = await Task.WhenAll(pageTasks);
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30);
+                return await LoadChatsFirstPageLikeChatsPageAsync(marketplaceClientId, ct);
+            }) ?? [];
 
             var toExclusive = to.HasValue ? to.Value.Date.AddDays(1) : DateTime.MaxValue;
 
             var result = new List<CommunicationTaskDto>();
-            foreach (var chat in pages.SelectMany(p => p.Chats))
+            foreach (var chat in allChats)
             {
-                if (inProgressSet.Contains((CommunicationTaskType.Chat, chat.ChatId, chat.MarketplaceClientId)))
+                if (existingTaskKeys.Contains((CommunicationTaskType.Chat, chat.ChatId, chat.MarketplaceClientId)))
                     continue;
                 if (from.HasValue && chat.LastMessageAt < from.Value)
                     continue;
@@ -1188,7 +1236,8 @@ public class CommunicationTaskService : ICommunicationTaskService
                     ChatType = chat.ChatType,
                     UnreadCount = chat.UnreadCount,
                     CreatedAt = chat.LastMessageAt,
-                    UpdatedAt = DateTime.UtcNow
+                    UpdatedAt = DateTime.UtcNow,
+                    LastMessageFromCustomer = IsOzonCustomerLastMessageUserType(chat.LastMessageUserType)
                 });
             }
             return result;
@@ -1200,45 +1249,59 @@ public class CommunicationTaskService : ICommunicationTaskService
         }
     }
 
+    /// <summary>
+    /// Как первая страница списка на «Чаты», но только тип «Покупатель — Продавец» (<c>BUYER_SELLER</c>), как пилюля на той странице.
+    /// </summary>
+    private async Task<List<OzonChatViewModelDto>> LoadChatsFirstPageLikeChatsPageAsync(
+        Guid? marketplaceClientId,
+        CancellationToken ct)
+    {
+        var page = await _chatService.GetChatsPageAsync(
+            pageSize: 20,
+            cursor: null,
+            chatStatus: null,
+            chatType: "BUYER_SELLER",
+            unreadOnly: false,
+            marketplaceClientId: marketplaceClientId,
+            withLastMessageInfo: true,
+            ct: ct);
+        return page.Chats;
+    }
+
     private async Task<List<CommunicationTaskDto>> FetchLiveQuestionsAsync(
         Guid? marketplaceClientId,
-        HashSet<(CommunicationTaskType, string, Guid)> inProgressSet,
+        HashSet<(CommunicationTaskType, string, Guid)> existingTaskKeys,
         DateTime? from, DateTime? to,
         CancellationToken ct)
     {
         try
         {
             var toExclusive = to.HasValue ? (DateTime?)to.Value.Date.AddDays(1) : null;
-
-            // Fan out per client.
-            var clientIds = marketplaceClientId.HasValue
-                ? [marketplaceClientId.Value]
-                : await _db.MarketplaceClients.AsNoTracking()
-                    .Where(c => !c.IsDeleted)
-                    .Select(c => c.Id)
-                    .ToArrayAsync(ct);
-
             var fromKey = from?.ToString("yyyyMMdd") ?? "null";
             var toKey = toExclusive?.ToString("yyyyMMdd") ?? "null";
-            var pageTasks = clientIds.Select(async id =>
+            var clientKey = marketplaceClientId?.ToString() ?? "all";
+            var cacheKey = $"ozon_questions_board:{_tenantProvider.TenantId}:{clientKey}:{fromKey}:{toKey}";
+            _liveCacheKeys.Add(cacheKey);
+
+            var page = await _cache.GetOrCreateAsync(cacheKey, async entry =>
             {
-                var cacheKey = $"ozon_questions:{_tenantProvider.TenantId}:{id}:{fromKey}:{toKey}";
-                return await _cache.GetOrCreateAsync(cacheKey, async entry =>
-                {
-                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
-                    return await _questionsService.GetQuestionsPageAsync(
-                        pageSize: 50, cursor: null, dateFrom: from, dateTo: toExclusive,
-                        marketplaceClientId: id, ct: ct);
-                }) ?? new OzonQuestionPageDto();
-            });
-            var pages = await Task.WhenAll(pageTasks);
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30);
+                return await _questionsService.GetQuestionsPageAsync(
+                    pageSize: 20,
+                    cursor: null,
+                    dateFrom: from,
+                    dateTo: toExclusive,
+                    status: null,
+                    marketplaceClientId: marketplaceClientId,
+                    ct: ct);
+            }) ?? new OzonQuestionPageDto();
 
             var result = new List<CommunicationTaskDto>();
-            foreach (var q in pages.SelectMany(p => p.Questions))
+            foreach (var q in page.Questions)
             {
                 if (string.Equals(q.Status, "PROCESSED", StringComparison.OrdinalIgnoreCase))
                     continue;
-                if (inProgressSet.Contains((CommunicationTaskType.Question, q.Id, q.MarketplaceClientId)))
+                if (existingTaskKeys.Contains((CommunicationTaskType.Question, q.Id, q.MarketplaceClientId)))
                     continue;
 
                 result.Add(new CommunicationTaskDto
@@ -1268,40 +1331,35 @@ public class CommunicationTaskService : ICommunicationTaskService
 
     private async Task<List<CommunicationTaskDto>> FetchLiveReviewsAsync(
         Guid? marketplaceClientId,
-        HashSet<(CommunicationTaskType, string, Guid)> inProgressSet,
+        HashSet<(CommunicationTaskType, string, Guid)> existingTaskKeys,
         DateTime? from, DateTime? to,
         CancellationToken ct)
     {
         try
         {
-            // Fan out per client.
-            var clientIds = marketplaceClientId.HasValue
-                ? [marketplaceClientId.Value]
-                : await _db.MarketplaceClients.AsNoTracking()
-                    .Where(c => !c.IsDeleted)
-                    .Select(c => c.Id)
-                    .ToArrayAsync(ct);
+            var clientKey = marketplaceClientId?.ToString() ?? "all";
+            var cacheKey = $"ozon_reviews_board:{_tenantProvider.TenantId}:{clientKey}";
+            _liveCacheKeys.Add(cacheKey);
 
-            var pageTasks = clientIds.Select(async id =>
+            var page = await _cache.GetOrCreateAsync(cacheKey, async entry =>
             {
-                var cacheKey = $"ozon_reviews:{_tenantProvider.TenantId}:{id}";
-                return await _cache.GetOrCreateAsync(cacheKey, async entry =>
-                {
-                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
-                    return await _reviewsService.GetReviewsPageAsync(
-                        pageSize: 50, cursor: null, marketplaceClientId: id, ct: ct);
-                }) ?? new OzonReviewPageDto();
-            });
-            var pages = await Task.WhenAll(pageTasks);
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30);
+                return await _reviewsService.GetReviewsPageAsync(
+                    pageSize: 20,
+                    cursor: null,
+                    status: null,
+                    marketplaceClientId: marketplaceClientId,
+                    ct: ct);
+            }) ?? new OzonReviewPageDto();
 
             var toExclusive = to.HasValue ? to.Value.Date.AddDays(1) : DateTime.MaxValue;
 
             var result = new List<CommunicationTaskDto>();
-            foreach (var r in pages.SelectMany(p => p.Reviews))
+            foreach (var r in page.Reviews)
             {
                 if (string.Equals(r.Status, "PROCESSED", StringComparison.OrdinalIgnoreCase))
                     continue;
-                if (inProgressSet.Contains((CommunicationTaskType.Review, r.Id, r.MarketplaceClientId)))
+                if (existingTaskKeys.Contains((CommunicationTaskType.Review, r.Id, r.MarketplaceClientId)))
                     continue;
                 if (from.HasValue && r.PublishedAt < from.Value)
                     continue;
@@ -1373,5 +1431,133 @@ public class CommunicationTaskService : ICommunicationTaskService
         dto.CreatedAt = t.CreatedAt;
         dto.UpdatedAt = t.UpdatedAt;
         dto.HasActiveTimer = t.TimeEntries?.Any(e => e.EndedAt == null) ?? false;
+        dto.LastMessageFromCustomer = false;
+    }
+
+    private async Task<HashSet<(CommunicationTaskType TaskType, string ExternalId, Guid MarketplaceClientId)>>
+        LoadExistingTaskKeysForNewExclusionAsync(CommunicationTaskFilter filter, CancellationToken ct)
+    {
+        var q = _db.CommunicationTasks
+            .AsNoTracking()
+            .Where(t => !t.IsDeleted &&
+                        (t.Status == CommunicationTaskStatus.InProgress ||
+                         t.Status == CommunicationTaskStatus.Done ||
+                         t.Status == CommunicationTaskStatus.Cancelled) &&
+                        (t.TaskType != CommunicationTaskType.Chat ||
+                         t.ChatType == null ||
+                         t.ChatType == "BUYER_SELLER"));
+
+        if (filter.TaskType.HasValue)
+            q = q.Where(t => t.TaskType == filter.TaskType.Value);
+        if (filter.MarketplaceClientId.HasValue)
+            q = q.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
+
+        var rows = await q.Select(t => new { t.TaskType, t.ExternalId, t.MarketplaceClientId }).ToListAsync(ct);
+        return rows.Select(r => (r.TaskType, r.ExternalId, r.MarketplaceClientId)).ToHashSet();
+    }
+
+    private async Task EnrichChatCardsFromHistoryAsync(List<CommunicationTaskDto> tasks, CancellationToken ct)
+    {
+        const int historyLimit = 1;
+        var chats = tasks.Where(t => t.TaskType == CommunicationTaskType.Chat && !string.IsNullOrEmpty(t.ExternalId)).ToList();
+        if (chats.Count == 0) return;
+
+        using var sem = new SemaphoreSlim(8);
+        async Task LoadOne(CommunicationTaskDto task)
+        {
+            await sem.WaitAsync(ct);
+            try
+            {
+                var history = await _chatService.GetChatHistoryAsync(
+                    task.MarketplaceClientId, task.ExternalId, "Backward", null, historyLimit, ct);
+                var messages = history?.Messages;
+                if (messages is not { Count: > 0 })
+                {
+                    task.LastMessageFromCustomer = false;
+                    return;
+                }
+
+                var ordered = messages.OrderBy(m => m.CreatedAt).ToList();
+                var last = ordered[^1];
+                task.LastMessageFromCustomer = IsOzonChatMessageFromCustomer(last);
+                task.PreviewText = BuildChatCardPreviewText(last);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "EnrichChatCardsFromHistory: chat {ChatId}", task.ExternalId);
+                task.LastMessageFromCustomer = false;
+            }
+            finally
+            {
+                sem.Release();
+            }
+        }
+
+        await Task.WhenAll(chats.Select(LoadOne));
+    }
+
+    private static string BuildChatCardPreviewText(OzonChatMessageDto last)
+    {
+        const int maxTotal = 220;
+
+        var sender = GetChatSenderShortLabel(last);
+        var body = ExtractChatMessageBodyPreview(last);
+        if (string.IsNullOrWhiteSpace(body)) return "";
+
+        var line = $"{sender}: {body}";
+        if (line.Length <= maxTotal) return line;
+        return line[..maxTotal].TrimEnd() + "...";
+    }
+
+    private static string GetChatSenderShortLabel(OzonChatMessageDto msg)
+    {
+        var t = msg.User?.Type;
+        if (string.IsNullOrEmpty(t)) return "?";
+        if (t is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT") return "Продавец";
+        if (t is "Customer" or "Сustomer" or "customer" or "BUYER") return "Покупатель";
+        if (t == "Support") return "Поддержка";
+        return t;
+    }
+
+    private static string ExtractChatMessageBodyPreview(OzonChatMessageDto msg)
+    {
+        if (msg.IsImage) return "Изображение";
+
+        if (msg.Data.Count == 0) return "";
+
+        var chunks = new List<string>();
+        foreach (var d in msg.Data)
+        {
+            if (string.IsNullOrWhiteSpace(d)) continue;
+            if (d.Contains("/chat/file/", StringComparison.OrdinalIgnoreCase)
+                || (d.Contains("api-seller.ozon.ru", StringComparison.OrdinalIgnoreCase) && d.Contains('[')))
+            {
+                chunks.Add("файл");
+                continue;
+            }
+
+            var flat = d.Replace("\r\n", " ", StringComparison.Ordinal).Replace('\n', ' ').Trim();
+            if (flat.Length > 80) flat = flat[..80].TrimEnd() + "…";
+            chunks.Add(flat);
+        }
+
+        return string.Join(" ", chunks);
+    }
+
+    private static bool IsOzonChatMessageFromCustomer(OzonChatMessageDto msg)
+    {
+        var t = msg.User?.Type;
+        if (string.IsNullOrEmpty(t)) return false;
+        return IsOzonCustomerUserTypeString(t);
+    }
+
+    private static bool IsOzonCustomerUserTypeString(string t) =>
+        t is "Customer" or "Сustomer" or "customer" or "BUYER";
+
+    private static bool IsOzonCustomerLastMessageUserType(string? t)
+    {
+        if (string.IsNullOrEmpty(t)) return false;
+        if (t is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT") return false;
+        return IsOzonCustomerUserTypeString(t);
     }
 }
