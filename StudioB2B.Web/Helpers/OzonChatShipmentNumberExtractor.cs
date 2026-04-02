@@ -6,22 +6,24 @@ namespace StudioB2B.Web.Helpers;
 /// <summary>
 /// Отправления вида <c>0142726576-0093</c>, <c>44716044-2983-1</c> и артикулы вида <c>6631109LMLDEM=DEP</c>, <c>IQ20TT=DNS[4]</c> в тексте чата.
 /// </summary>
-public static class OzonChatShipmentNumberExtractor
+public static partial class OzonChatShipmentNumberExtractor
 {
     /// <summary>7–14 цифр, дефис, 3–4 цифры, опционально суффикс -N.</summary>
-    private static readonly Regex ShipmentPattern = new(@"\b\d{7,14}-\d{3,4}(?:-\d+)?\b", RegexOptions.Compiled);
+    [GeneratedRegex(@"\b\d{7,14}-\d{3,4}(?:-\d+)?\b")]
+    private static partial Regex ShipmentPattern();
 
     /// <summary>Слева от = минимум 4 символа букв/цифр; справа буквы/цифры и опционально [число].</summary>
-    private static readonly Regex ArticlePattern = new(@"\b[A-Za-z0-9]{4,}=[A-Za-z0-9]+(?:\[\d+\])?\b", RegexOptions.Compiled);
+    [GeneratedRegex(@"\b[A-Za-z0-9]{4,}=[A-Za-z0-9]+(?:\[\d+\])?\b")]
+    private static partial Regex ArticlePattern();
 
     public static List<string> ExtractShipmentsDistinctOrdered(IReadOnlyList<OzonChatMessageDto> messages, Func<string, bool> isFileContent)
     {
-        return ExtractByRegex(messages, isFileContent, ShipmentPattern);
+        return ExtractByRegex(messages, isFileContent, ShipmentPattern());
     }
 
     public static List<string> ExtractArticlesDistinctOrdered(IReadOnlyList<OzonChatMessageDto> messages, Func<string, bool> isFileContent)
     {
-        return ExtractByRegex(messages, isFileContent, ArticlePattern);
+        return ExtractByRegex(messages, isFileContent, ArticlePattern());
     }
 
     private static List<string> ExtractByRegex(
