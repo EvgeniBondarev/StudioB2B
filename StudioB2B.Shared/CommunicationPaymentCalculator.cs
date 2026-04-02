@@ -33,7 +33,8 @@ public static class CommunicationPaymentCalculator
         Guid? assignedUserId,
         IReadOnlyList<CommunicationPaymentRateDto> rates)
     {
-        var lines = new List<PaymentBreakdownLineDto>();
+        // Step 1: collect all eligible rates (type, user, duration filters)
+        var matched = new List<CommunicationPaymentRateDto>();
         foreach (var rate in rates)
         {
             if (!rate.IsActive) continue;
@@ -41,7 +42,17 @@ public static class CommunicationPaymentCalculator
             if (rate.UserId.HasValue && rate.UserId != assignedUserId) continue;
             if (rate.MinDurationMinutes.HasValue && totalMinutes < rate.MinDurationMinutes.Value) continue;
             if (rate.MaxDurationMinutes.HasValue && totalMinutes > rate.MaxDurationMinutes.Value) continue;
+            matched.Add(rate);
+        }
 
+        // Step 2: priority — if any specific (TaskType != null) rates matched, general (TaskType == null) rates are excluded
+        if (matched.Any(r => r.TaskType != null))
+            matched = matched.Where(r => r.TaskType != null).ToList();
+
+        // Step 3: build breakdown lines
+        var lines = new List<PaymentBreakdownLineDto>();
+        foreach (var rate in matched)
+        {
             var hasBounds = rate.MinDurationMinutes.HasValue || rate.MaxDurationMinutes.HasValue;
             var amount = ComputeRateContribution(totalMinutes, rate.PaymentMode, rate.Rate, hasBounds);
             if (amount == 0m) continue;
@@ -89,7 +100,9 @@ public static class CommunicationPaymentCalculator
         if (hasBounds)
             return $"Почасовая (полная ставка за интервал) · {typeScope}{who}{tier}{note} · {r.Rate:F0} ₽ → {amount:F2} ₽";
 
-        var hours = totalMinutes / 60m;
-        return $"Почасовая · {typeScope}{who}{note} · {r.Rate:F0} ₽/ч × {hours:F4} ч = {amount:F2} ₽";
+        var hh = (int)totalMinutes / 60;
+        var mm = (int)Math.Round(totalMinutes % 60, MidpointRounding.AwayFromZero);
+        var timeStr = hh > 0 ? $"{hh} ч {mm} мин" : $"{mm} мин";
+        return $"Почасовая · {typeScope}{who}{note} · {r.Rate:F0} ₽/ч × {timeStr} = {amount:F2} ₽";
     }
 }
