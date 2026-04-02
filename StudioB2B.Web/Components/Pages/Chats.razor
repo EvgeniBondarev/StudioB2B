@@ -287,7 +287,8 @@ else
                     </RadzenStack>
 
                     <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
-                        <TaskActionPanel ExternalId="@_selectedChat.ChatId"
+                        <TaskActionPanel @ref="_taskPanel"
+                                         ExternalId="@_selectedChat.ChatId"
                                          MarketplaceClientId="@_selectedChat.MarketplaceClientId"
                                          TaskType="@CommunicationTaskType.Chat"
                                          Title="@($"Чат — {_selectedChat.MarketplaceClientName}")"
@@ -381,6 +382,7 @@ else
     private List<OzonChatViewModelDto> _chats = new();
     private OzonChatViewModelDto? _selectedChat;
     private List<OzonChatMessageDto> _messages = new();
+    private TaskActionPanel? _taskPanel;
 
     private ulong? _firstUnreadOnOpen; // ID первого непрочитанного сообщения при открытии чата
 
@@ -900,6 +902,7 @@ else
             }
 
             await LoadHistoryAsync();
+            _ = _taskPanel?.CompleteIfInProgressAsync();
             return true;
         }
 
@@ -919,6 +922,7 @@ else
 
         await Task.Delay(600);
         await LoadHistoryAsync();
+        _ = _taskPanel?.CompleteIfInProgressAsync();
         return true;
     }
 

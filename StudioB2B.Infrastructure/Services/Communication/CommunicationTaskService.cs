@@ -180,6 +180,10 @@ public class CommunicationTaskService : ICommunicationTaskService
         {
             var matching = globalRates.Where(r => r.TaskType == null || r.TaskType == type).ToList();
 
+            // Priority: if any specific rates exist for this type, exclude general "all types" rates from the estimate
+            if (matching.Any(r => r.TaskType == type))
+                matching = matching.Where(r => r.TaskType == type).ToList();
+
             var perTask = matching
                 .Where(r => r.PaymentMode == PaymentMode.PerTask && !r.MinDurationMinutes.HasValue)
                 .Sum(r => r.Rate);
@@ -275,6 +279,11 @@ public class CommunicationTaskService : ICommunicationTaskService
         foreach (var type in new[] { CommunicationTaskType.Chat, CommunicationTaskType.Question, CommunicationTaskType.Review })
         {
             var matching = globalRates.Where(r => r.TaskType == null || r.TaskType == type).ToList();
+
+            // Priority: if any specific rates exist for this type, exclude general "all types" rates from the estimate
+            if (matching.Any(r => r.TaskType == type))
+                matching = matching.Where(r => r.TaskType == type).ToList();
+
             var perTask = matching.Where(r => r.PaymentMode == PaymentMode.PerTask && !r.MinDurationMinutes.HasValue).Sum(r => r.Rate);
             if (perTask > 0) result.PaymentEstimates[type] = Math.Round(perTask, 2);
             var hourly = matching.Where(r => r.PaymentMode == PaymentMode.Hourly && !r.MinDurationMinutes.HasValue).Sum(r => r.Rate);
@@ -1169,14 +1178,6 @@ public class CommunicationTaskService : ICommunicationTaskService
         }
     }
 
-    /// <summary>
-    /// Sums ALL matching active rates for the completed task.
-    /// A rate matches when: (TaskType is null OR == task.TaskType) AND (UserId is null OR == task.AssignedToUserId)
-    /// AND task duration falls within [MinDurationMinutes, MaxDurationMinutes] (inclusive, null = unbounded).
-    /// PerTask — полная ставка. Hourly без Min/Max — пропорционально времени (₽/час × часы).
-    /// Hourly с Min или Max — при попадании в диапазон выплачивается полная сумма ставки (не доля часа).
-    /// Все подошедшие правила суммируются (например 50₽ за чат + 10₽ за задачу от 4 мин).
-    /// </summary>
     private async Task<decimal> CalculatePaymentAsync(CommunicationTask task, CancellationToken ct)
     {
         // Extract to local variables so EF Core doesn't try to translate
@@ -1194,15 +1195,21 @@ public class CommunicationTaskService : ICommunicationTaskService
 
         if (rates.Count == 0) return 0m;
 
-        var total = 0m;
+        // Step 1: filter by duration range
+        var eligible = rates
+            .Where(r => (!r.MinDurationMinutes.HasValue || totalMinutes >= r.MinDurationMinutes.Value) &&
+                        (!r.MaxDurationMinutes.HasValue || totalMinutes <= r.MaxDurationMinutes.Value))
+            .ToList();
 
-        foreach (var rate in rates)
+        if (eligible.Count == 0) return 0m;
+
+        // Step 2: priority — if any specific (TaskType != null) rates are eligible, general (TaskType == null) rates are excluded
+        if (eligible.Any(r => r.TaskType != null))
+            eligible = eligible.Where(r => r.TaskType != null).ToList();
+
+        var total = 0m;
+        foreach (var rate in eligible)
         {
-            // Each rule is evaluated independently — skip only if duration is outside this rule's range.
-            if (rate.MinDurationMinutes.HasValue && totalMinutes < rate.MinDurationMinutes.Value)
-                continue;
-            if (rate.MaxDurationMinutes.HasValue && totalMinutes > rate.MaxDurationMinutes.Value)
-                continue;
 
             var hasDurationBounds = rate.MinDurationMinutes.HasValue || rate.MaxDurationMinutes.HasValue;
             total += CommunicationPaymentCalculator.ComputeRateContribution(
