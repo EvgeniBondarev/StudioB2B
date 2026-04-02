@@ -456,7 +456,18 @@
                     {
                         <span style="font-size:0.72rem;color:var(--rz-text-secondary-color);font-family:monospace;">ID: @_previewTask.ExternalId</span>
                     }
-                    @if (_previewTask.Status != CommunicationTaskStatus.Done)
+                    @if (_previewTask.Status == CommunicationTaskStatus.Done)
+                    {
+                        @if (_previewTask.TotalTimeSpentTicks > 0)
+                        {
+                            <span style="font-size:0.78rem;color:var(--rz-text-secondary-color);">⏱ @FormatTimeSpan(TimeSpan.FromTicks(_previewTask.TotalTimeSpentTicks))</span>
+                        }
+                        @if (_previewTask.PaymentAmount.HasValue && _previewTask.PaymentAmount > 0)
+                        {
+                            <span class="task-payment-badge">@_previewTask.PaymentAmount.Value.ToString("F0") ₽</span>
+                        }
+                    }
+                    else
                     {
                         @if (_board.PaymentEstimates.TryGetValue(_previewTask.TaskType, out var hdrEst) && hdrEst > 0)
                         {
@@ -487,7 +498,6 @@
                 @* ── Potential earnings (New / InProgress tasks) ── *@
                 @if (_previewTask.Status != CommunicationTaskStatus.Done)
                 {
-
                     var hasPerTaskEst = _board.PaymentEstimates.TryGetValue(_previewTask.TaskType, out var bodyEst) && bodyEst > 0;
                     var hasHourlyEst = _board.HourlyEstimates.TryGetValue(_previewTask.TaskType, out var bodyHr) && bodyHr > 0;
                     if (hasPerTaskEst || hasHourlyEst)
@@ -509,6 +519,51 @@
                                     }
                                 </span>
                             </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    @* ── Actual payment (Done task) ── *@
+                    var doneBreakdown = ComputeBreakdownForPreview();
+                    var hasPayment = _previewTask.PaymentAmount.HasValue && _previewTask.PaymentAmount > 0;
+                    if (doneBreakdown.Count > 0 || hasPayment)
+                    {
+                        <div style="margin-bottom:0.75rem;padding:0.65rem 0.9rem;background:rgba(139,92,246,0.06);border-radius:8px;border:1px dashed rgba(139,92,246,0.3);">
+                            <div style="font-size:0.82rem;color:#5b21b6;font-weight:600;margin-bottom:0.4rem;">
+                                <RadzenIcon Icon="payments" Style="font-size:0.9rem;vertical-align:middle;margin-right:3px;" />
+                                Оплата за задачу
+                            </div>
+                            @if (_previewTask.TotalTimeSpentTicks > 0)
+                            {
+                                <div style="font-size:0.8rem;color:var(--rz-text-secondary-color);margin-bottom:0.3rem;">
+                                    Затрачено: @FormatTimeSpan(TimeSpan.FromTicks(_previewTask.TotalTimeSpentTicks))
+                                </div>
+                            }
+                            @if (doneBreakdown.Count > 0)
+                            {
+                                <table style="width:100%;font-size:0.76rem;border-collapse:collapse;">
+                                    <tbody>
+                                        @foreach (var line in doneBreakdown)
+                                        {
+                                            <tr style="border-top:1px solid rgba(139,92,246,0.12);">
+                                                <td style="padding:3px 6px 3px 0;color:var(--rz-text-color);">@line.Caption</td>
+                                                <td style="padding:3px 0;text-align:right;font-weight:600;white-space:nowrap;">@line.Amount.ToString("F2") ₽</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style="font-weight:700;border-top:1px solid rgba(139,92,246,0.3);">
+                                            <td style="padding:4px 6px 2px 0;">Итого начислено</td>
+                                            <td style="padding:4px 0 2px 0;text-align:right;color:#5b21b6;">@doneBreakdown.Sum(x => x.Amount).ToString("F2") ₽</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            }
+                            else if (hasPayment)
+                            {
+                                <span style="font-size:1.1rem;font-weight:700;color:#5b21b6;">@_previewTask.PaymentAmount!.Value.ToString("F0") ₽</span>
+                            }
                         </div>
                     }
                 }
@@ -1544,6 +1599,16 @@
         RefreshPreviewTaskFromBoard();
     }
 
+    private async Task CompletePreviewAfterSuccessfulSendAsync()
+    {
+        if (_previewTask is null) return;
+        if (_previewTask.Status != CommunicationTaskStatus.InProgress) return;
+        if (_previewTask.Id == Guid.Empty) return;
+
+        await CompleteAsync(_previewTask);
+        ClosePreview();
+    }
+
     private async Task ResumeAsync(CommunicationTaskDto task)
     {
         var userId = await GetUserIdAsync();
@@ -1787,7 +1852,7 @@
             }
             catch { /* ignore history reload failure */ }
 
-            await PausePreviewAfterSuccessfulSendAsync();
+            await CompletePreviewAfterSuccessfulSendAsync();
             return true;
         }
         catch (Exception ex)
@@ -1804,7 +1869,7 @@
         try
         {
             var creds = await GetClientCredsAsync(_previewTask.MarketplaceClientId);
-            var qVm = new OzonQuestionViewModelDto
+            var qVm = _questionDetail?.Question ?? new OzonQuestionViewModelDto
             {
                 Id = _previewTask.ExternalId,
                 MarketplaceClientId = _previewTask.MarketplaceClientId,
@@ -1812,13 +1877,16 @@
                 ApiId = creds.apiId,
                 ApiKey = creds.apiKey
             };
+            // Ensure credentials are always up-to-date (detail may have been loaded with same creds, but ensure)
+            qVm.ApiId = creds.apiId;
+            qVm.ApiKey = creds.apiKey;
             var answerId = await QuestionsService.CreateQuestionAnswerAsync(qVm, text.Trim());
             if (answerId is not null)
             {
                 NotificationService.Notify(NotificationSeverity.Success, "Ответ отправлен", "", 2000);
                 _questionDetail = await QuestionsService.GetQuestionDetailAsync(qVm);
                 StateHasChanged();
-                await PausePreviewAfterSuccessfulSendAsync();
+                await CompletePreviewAfterSuccessfulSendAsync();
                 return true;
             }
             NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось отправить ответ", 5000);
@@ -1851,7 +1919,7 @@
                 NotificationService.Notify(NotificationSeverity.Success, "Комментарий отправлен", "", 2000);
                 _reviewDetail = await ReviewsService.GetReviewDetailAsync(rVm);
                 StateHasChanged();
-                await PausePreviewAfterSuccessfulSendAsync();
+                await CompletePreviewAfterSuccessfulSendAsync();
                 return true;
             }
             else
@@ -1982,21 +2050,20 @@
             liveTicks += (DateTime.UtcNow - task.StartedAt.Value).Ticks;
 
         var totalMinutes = (decimal)TimeSpan.FromTicks(liveTicks).TotalMinutes;
-        var total = 0m;
 
-        foreach (var rate in _board.ActiveRates)
-        {
-            if (rate.TaskType.HasValue && rate.TaskType != task.TaskType) continue;
-            if (rate.UserId.HasValue && rate.UserId != task.AssignedToUserId) continue;
-            if (rate.MinDurationMinutes.HasValue && totalMinutes < rate.MinDurationMinutes.Value) continue;
-            if (rate.MaxDurationMinutes.HasValue && totalMinutes > rate.MaxDurationMinutes.Value) continue;
+        return CommunicationPaymentCalculator
+            .ComputeBreakdownLines(totalMinutes, task.TaskType, task.AssignedToUserId, _board.ActiveRates)
+            .Sum(l => l.Amount);
+    }
 
-            var hasDurationBounds = rate.MinDurationMinutes.HasValue || rate.MaxDurationMinutes.HasValue;
-            total += CommunicationPaymentCalculator.ComputeRateContribution(
-                totalMinutes, rate.PaymentMode, rate.Rate, hasDurationBounds);
-        }
+    private List<PaymentBreakdownLineDto> ComputeBreakdownForPreview()
+    {
+        if (_previewTask is null || _board.ActiveRates.Count == 0)
+            return new List<PaymentBreakdownLineDto>();
 
-        return Math.Round(total, 2);
+        var totalMinutes = (decimal)TimeSpan.FromTicks(_previewTask.TotalTimeSpentTicks).TotalMinutes;
+        return CommunicationPaymentCalculator.ComputeBreakdownLines(
+            totalMinutes, _previewTask.TaskType, _previewTask.AssignedToUserId, _board.ActiveRates);
     }
 
     private static string GetStatusLabel(CommunicationTaskStatus status) => status switch

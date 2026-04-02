@@ -345,6 +345,29 @@ public class OzonApiClient : IOzonApiClient
         return SendPostAsync<OzonProductAttributesResponseDto>(OzonEndpoints.ProductInfoAttributes, clientId, plainApiKey, body, ct);
     }
 
+    public Task<OzonApiResultDto<OzonProductAttributesResponseDto>> GetProductAttributesByProductIdAsync(
+        string clientId, string apiKey,
+        IReadOnlyCollection<long> productIds,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(clientId))
+            throw new ArgumentException("ClientId must be provided.", nameof(clientId));
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentException("ApiKey must be provided.", nameof(apiKey));
+
+        var plainApiKey = _encryption.Decrypt(apiKey);
+        var body = new OzonProductAttributesRequestDto
+        {
+            Filter = new OzonProductAttributesFilterDto
+            {
+                ProductId = productIds.Select(id => id.ToString()).ToList(),
+                Visibility = "ALL"
+            },
+            Limit = 100
+        };
+        return SendPostAsync<OzonProductAttributesResponseDto>(OzonEndpoints.ProductInfoAttributes, clientId, plainApiKey, body, ct);
+    }
+
     public Task<OzonApiResultDto<OzonChatListResponseDto>> GetChatListAsync(string clientId, string apiKey, OzonChatListRequestDto request,
                                                                          CancellationToken ct = default)
     {

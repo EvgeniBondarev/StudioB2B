@@ -212,6 +212,19 @@ else
         await LoadTaskAsync();
     }
 
+    /// <summary>
+    /// Вызывается родительским компонентом после успешной отправки ответа/комментария.
+    /// Если задача сейчас «В работе» и принадлежит текущему пользователю — завершает её.
+    /// </summary>
+    public async Task CompleteIfInProgressAsync()
+    {
+        if (_task is null || _task.Status != CommunicationTaskStatus.InProgress) return;
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+        if (_task.AssignedToUserId != userId) return;
+        await CompleteAsync();
+    }
+
     private async Task ReleaseAsync()
     {
         if (_task is null) return;
