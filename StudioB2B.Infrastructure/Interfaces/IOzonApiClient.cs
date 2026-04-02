@@ -138,6 +138,16 @@ public interface IOzonApiClient
         IReadOnlyCollection<long> skus,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Gets product attributes filtered by Ozon catalog product_id list via /v4/product/info/attributes.
+    /// Use when only the catalog product_id (from product_url) is known, not the marketplace SKU.
+    /// The response items contain the actual <c>sku</c> (FBO marketplace identifier).
+    /// </summary>
+    Task<OzonApiResultDto<OzonProductAttributesResponseDto>> GetProductAttributesByProductIdAsync(
+        string clientId, string apiKey,
+        IReadOnlyCollection<long> productIds,
+        CancellationToken ct = default);
+
     /// <summary>Gets paginated list of reviews via /v1/review/list.</summary>
     Task<OzonApiResultDto<OzonReviewListResponseDto>> GetReviewListAsync(
         string clientId, string apiKey,

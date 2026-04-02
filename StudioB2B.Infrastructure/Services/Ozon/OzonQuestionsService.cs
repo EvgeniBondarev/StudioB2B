@@ -164,9 +164,11 @@ public class OzonQuestionsService : IOzonQuestionsService
                     ApiId = question.ApiId,
                     ApiKey = question.ApiKey,
                     Id = q.Id,
-                    Sku = q.Sku,
-                    ProductUrl = q.ProductUrl,
-                    QuestionLink = q.QuestionLink,
+                    // Fall back to original SKU if the info endpoint returns 0
+                    Sku = q.Sku > 0 ? q.Sku : question.Sku,
+                    // Fall back to original URLs if the info endpoint returns empty
+                    ProductUrl = !string.IsNullOrEmpty(q.ProductUrl) ? q.ProductUrl : question.ProductUrl,
+                    QuestionLink = !string.IsNullOrEmpty(q.QuestionLink) ? q.QuestionLink : question.QuestionLink,
                     AuthorName = q.AuthorName,
                     Text = q.Text,
                     Status = q.Status.ToString(),
@@ -187,22 +189,56 @@ public class OzonQuestionsService : IOzonQuestionsService
             detail.QuestionInfoAvailable = false;
         }
 
+        // Final SKU fallback: Ozon's list and info APIs sometimes return sku = 0.
+        // Extract the catalog product_id from the product_url, then call
+        // /v4/product/info/attributes with filter.product_id to get the actual marketplace SKU.
+        if (detail.Question.Sku == 0 && !string.IsNullOrWhiteSpace(detail.Question.ProductUrl))
+        {
+            var catalogId = ExtractProductIdFromUrl(detail.Question.ProductUrl);
+            if (catalogId > 0)
+            {
+                try
+                {
+                    var attrResult = await _ozonApi.GetProductAttributesByProductIdAsync(
+                        detail.Question.ApiId, detail.Question.ApiKey, new[] { catalogId.Value }, ct);
+                    if (attrResult.IsSuccess && attrResult.Data?.Result.Count > 0)
+                    {
+                        var resolvedSku = attrResult.Data.Result[0].Sku;
+                        if (resolvedSku > 0)
+                        {
+                            detail.Question.Sku = resolvedSku;
+                            _logger.LogDebug(
+                                "GetQuestionDetail: resolved SKU {Sku} via product_id {CatalogId} for question {Id}",
+                                resolvedSku, catalogId, detail.Question.Id);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "GetQuestionDetail: failed to resolve SKU via product_id for question {Id}",
+                        detail.Question.Id);
+                }
+            }
+        }
+
         // 2. Fetch product info via /v4/product/info/attributes
+        // Use detail.Question.Sku (possibly updated by step 1) — same pattern as OzonReviewsService
+        var skuToLookup = detail.Question.Sku;
         try
         {
             await using var db = _dbFactory.CreateDbContext();
             var product = await db.Products!
                 .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.Sku == question.Sku && !p.IsDeleted, ct);
+                .FirstOrDefaultAsync(p => p.Sku == skuToLookup && !p.IsDeleted, ct);
 
             OzonProductAttributesResponseDto? attrData = null;
 
             if (product?.Article is not null)
             {
                 _logger.LogDebug("GetQuestionDetail: found product in DB by SKU {Sku}, article={Article}",
-                    question.Sku, product.Article);
+                    skuToLookup, product.Article);
                 var attrResult = await _ozonApi.GetProductAttributesAsync(
-                    question.ApiId, question.ApiKey, new[] { product.Article }, ct: ct);
+                    detail.Question.ApiId, detail.Question.ApiKey, new[] { product.Article }, ct: ct);
                 if (attrResult.IsSuccess)
                     attrData = attrResult.Data;
                 else
@@ -212,23 +248,23 @@ public class OzonQuestionsService : IOzonQuestionsService
             {
                 _logger.LogWarning(
                     "GetQuestionDetail: product not found in DB by SKU {Sku} (product={Found}, article={Article}). Falling back to product_id lookup.",
-                    question.Sku,
+                    skuToLookup,
                     product is not null ? "found" : "not found",
                     product?.Article ?? "null");
 
                 // Fallback: call /v4/product/info/attributes with filter.sku = [sku]
                 var fallbackResult = await _ozonApi.GetProductAttributesBySkuAsync(
-                    question.ApiId, question.ApiKey, new[] { question.Sku }, ct);
+                    detail.Question.ApiId, detail.Question.ApiKey, new[] { skuToLookup }, ct);
                 if (fallbackResult.IsSuccess && fallbackResult.Data?.Result.Count > 0)
                 {
-                    _logger.LogDebug("GetQuestionDetail: product_id fallback succeeded for SKU {Sku}", question.Sku);
+                    _logger.LogDebug("GetQuestionDetail: product_id fallback succeeded for SKU {Sku}", skuToLookup);
                     attrData = fallbackResult.Data;
                 }
                 else
                 {
                     _logger.LogWarning(
                         "GetQuestionDetail: product_id fallback also returned no results for SKU {Sku}: {Error}",
-                        question.Sku, fallbackResult.ErrorMessage);
+                        skuToLookup, fallbackResult.ErrorMessage);
                 }
             }
 
@@ -261,24 +297,35 @@ public class OzonQuestionsService : IOzonQuestionsService
                     Depth = item.Depth,
                     DimensionUnit = item.DimensionUnit
                 };
+
+                // Propagate the resolved SKU back to the question when it was 0.
+                // The product attributes API returns the real Ozon marketplace SKU
+                // which is required for answer/create.
+                if (detail.Question.Sku == 0 && item.Sku > 0)
+                {
+                    detail.Question.Sku = item.Sku;
+                    _logger.LogDebug(
+                        "GetQuestionDetail: resolved question SKU {Sku} from product attributes for question {Id}",
+                        item.Sku, detail.Question.Id);
+                }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to fetch product info for SKU {Sku}", question.Sku);
+            _logger.LogWarning(ex, "Failed to fetch product info for SKU {Sku}", skuToLookup);
         }
 
         // 3. Fetch answers via /v1/question/answer/list (Premium Plus, best-effort)
         try
         {
             var answersResult = await _ozonApi.GetQuestionAnswersAsync(
-                question.ApiId, question.ApiKey, question.Id, question.Sku, ct);
+                detail.Question.ApiId, detail.Question.ApiKey, detail.Question.Id, detail.Question.Sku, ct);
             if (answersResult.IsSuccess && answersResult.Data?.Answers.Count > 0)
                 detail.Answers = answersResult.Data.Answers;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "GetQuestionAnswers failed for question {Id}", question.Id);
+            _logger.LogWarning(ex, "GetQuestionAnswers failed for question {Id}", detail.Question.Id);
         }
 
         return detail;
@@ -300,6 +347,31 @@ public class OzonQuestionsService : IOzonQuestionsService
         return attributes
             .SelectMany(a => a.Values)
             .FirstOrDefault(v => v.Value?.Length > 50)?.Value;
+    }
+
+    /// <summary>
+    /// Parses the Ozon catalog product_id from a product URL.
+    /// Ozon product URLs follow the pattern:
+    /// https://www.ozon.ru/product/name-of-product-123456789/ or https://www.ozon.ru/product/123456789/
+    /// The number is the catalog product_id (NOT the marketplace SKU).
+    /// Use <c>GetProductAttributesByProductIdAsync</c> with this value to resolve the actual <c>sku</c>.
+    /// </summary>
+    private static long? ExtractProductIdFromUrl(string? productUrl)
+    {
+        if (string.IsNullOrWhiteSpace(productUrl)) return null;
+        try
+        {
+            var path = new Uri(productUrl).AbsolutePath.TrimEnd('/');
+            var lastSlash = path.LastIndexOf('/');
+            var segment = lastSlash >= 0 ? path[(lastSlash + 1)..] : path;
+            var lastDash = segment.LastIndexOf('-');
+            var numStr = lastDash >= 0 ? segment[(lastDash + 1)..] : segment;
+            return long.TryParse(numStr, out var id) && id > 0 ? id : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<bool> DeleteQuestionAnswerAsync(
@@ -331,6 +403,13 @@ public class OzonQuestionsService : IOzonQuestionsService
         string text,
         CancellationToken ct = default)
     {
+        if (question.Sku <= 0)
+        {
+            _logger.LogWarning("CreateQuestionAnswer: SKU is 0 for question {Id}, cannot call Ozon API",
+                question.Id);
+            return null;
+        }
+
         try
         {
             var result = await _ozonApi.CreateQuestionAnswerAsync(

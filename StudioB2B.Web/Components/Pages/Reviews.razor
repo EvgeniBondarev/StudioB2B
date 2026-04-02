@@ -261,7 +261,8 @@ else
                             </RadzenText>
                         </RadzenStack>
                         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
-                            <TaskActionPanel ExternalId="@_selectedReview.Id"
+                            <TaskActionPanel @ref="_taskPanel"
+                                             ExternalId="@_selectedReview.Id"
                                              MarketplaceClientId="@_selectedReview.MarketplaceClientId"
                                              TaskType="@CommunicationTaskType.Review"
                                              Title="@($"Отзыв ({_selectedReview.Rating}★) — {_selectedReview.MarketplaceClientName}")"
@@ -626,6 +627,7 @@ else
     [Parameter] public Guid? PreSelectClientId { get; set; }
 
     private string? _lastPreSelectReviewId;
+    private TaskActionPanel? _taskPanel;
 
     [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = null!;
 
@@ -930,6 +932,7 @@ else
 
                 text = string.Empty;
                 NotificationService.Notify(NotificationSeverity.Success, "Комментарий опубликован", duration: 3000);
+                _ = _taskPanel?.CompleteIfInProgressAsync();
                 return true;
             }
 
