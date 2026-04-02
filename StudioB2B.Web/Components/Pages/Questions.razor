@@ -258,7 +258,8 @@ else
                             </RadzenText>
                         </RadzenStack>
                         <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
-                            <TaskActionPanel ExternalId="@_selectedQuestion.Id"
+                            <TaskActionPanel @ref="_taskPanel"
+                                             ExternalId="@_selectedQuestion.Id"
                                              MarketplaceClientId="@_selectedQuestion.MarketplaceClientId"
                                              TaskType="@CommunicationTaskType.Question"
                                              Title="@($"Вопрос — {_selectedQuestion.MarketplaceClientName}")"
@@ -566,6 +567,7 @@ else
     [Parameter] public Guid? PreSelectClientId { get; set; }
 
     private string? _lastPreSelectQuestionId;
+    private TaskActionPanel? _taskPanel;
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthState { get; set; } = null!;
@@ -853,12 +855,18 @@ else
     {
         try
         {
+            var originalSku = q.Sku;
+
             _detail = await QuestionsService.GetQuestionDetailAsync(q);
             _selectedQuestion = _detail.Question;
 
+            // If the detail loading lost the SKU (all fallbacks returned 0),
+            // restore it from the original list item — the list API returned it.
+            if (_selectedQuestion.Sku == 0 && originalSku > 0)
+                _selectedQuestion.Sku = originalSku;
+
             // Sync full API data back into the list entry so the sidebar card
             // shows correct Text, Sku, Status, PublishedAt etc.
-            // (important when the item was opened via URL last-resort fallback with a minimal DTO)
             var idx = _questions.FindIndex(x => x.Id == _selectedQuestion.Id &&
                                                x.MarketplaceClientId == _selectedQuestion.MarketplaceClientId);
             if (idx >= 0)
@@ -932,6 +940,7 @@ else
                 });
                 NotificationService.Notify(NotificationSeverity.Success, "Ответ опубликован", duration: 3000);
                 _ = QuestionsService.ChangeQuestionStatusAsync(_selectedQuestion, "PROCESSED");
+                _ = _taskPanel?.CompleteIfInProgressAsync();
                 _selectedQuestion.Status = "PROCESSED";
                 if (_questionCounts is not null)
                     _ = LoadQuestionCountsAsync();
