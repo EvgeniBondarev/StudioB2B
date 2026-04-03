@@ -317,37 +317,41 @@ else
                                         {
                                             @if (string.IsNullOrEmpty(item.Role))
                                             {
-                                                <RadzenStack Orientation="Orientation.Horizontal"
-                                                             AlignItems="AlignItems.Center"
-                                                             Gap="0.5rem"
-                                                             Style="cursor:pointer;"
-                                                             Click="@(() => Navigation.NavigateTo(item.Path))">
+                                                <RadzenLink Path="@item.Path" Style="text-decoration:none; color:inherit;">
+                                                    <RadzenStack Orientation="Orientation.Horizontal"
+                                                                 AlignItems="AlignItems.Center"
+                                                                 Gap="0.5rem"
+                                                                 Style="cursor:pointer;"
+                                                               >
 
-                                                    <RadzenIcon Icon="@PageRegistry.Get(item.Path).Icon"
-                                                                Style="font-size:1rem;" />
+                                                        <RadzenIcon Icon="@PageRegistry.Get(item.Path).Icon"
+                                                                    Style="font-size:1rem;" />
 
-                                                    <RadzenText Text="@PageRegistry.Get(item.Path).Title"
-                                                                TextStyle="TextStyle.Body1" />
+                                                        <RadzenText Text="@PageRegistry.Get(item.Path).Title"
+                                                                    TextStyle="TextStyle.Body1" />
 
-                                                </RadzenStack>
+                                                    </RadzenStack>
+                                                </RadzenLink>
                                             }
                                             else
                                             {
                                                 <AuthorizeView Roles="@item.Role">
                                                     <Authorized Context="authContext">
-                                                        <RadzenStack Orientation="Orientation.Horizontal"
-                                                                     AlignItems="AlignItems.Center"
-                                                                     Gap="0.5rem"
-                                                                     Style="cursor:pointer;"
-                                                                     Click="@(() => Navigation.NavigateTo(item.Path))">
+                                                        <RadzenLink Path="@item.Path"
+                                                                    Style="text-decoration:none; color:inherit;">
+                                                            <RadzenStack Orientation="Orientation.Horizontal"
+                                                                         AlignItems="AlignItems.Center"
+                                                                         Gap="0.5rem"
+                                                                         Style="cursor:pointer;">
 
-                                                            <RadzenIcon Icon="@PageRegistry.Get(item.Path).Icon"
-                                                                        Style="font-size:1rem;" />
+                                                                <RadzenIcon Icon="@PageRegistry.Get(item.Path).Icon"
+                                                                            Style="font-size:1rem;"/>
 
-                                                            <RadzenText Text="@PageRegistry.Get(item.Path).Title"
-                                                                        TextStyle="TextStyle.Body1" />
+                                                                <RadzenText Text="@PageRegistry.Get(item.Path).Title"
+                                                                            TextStyle="TextStyle.Body1"/>
 
-                                                        </RadzenStack>
+                                                            </RadzenStack>
+                                                        </RadzenLink>
                                                     </Authorized>
                                                 </AuthorizeView>
                                             }

@@ -35,7 +35,6 @@
                             <div class="rail-item @(isGroupActive ? "active" : "")"
                                  @onclick="@(() => NavigateDirect(item.Path))" title="@group.Title">
                                 <i class="notranslate rzi">@group.Icon</i>
-                                <span class="rail-label">@group.Title</span>
                             </div>
                         }
                         else
@@ -45,7 +44,6 @@
                                     <div class="rail-item @(isGroupActive ? "active" : "")"
                                          @onclick="@(() => NavigateDirect(item.Path))" title="@group.Title">
                                         <i class="notranslate rzi">@group.Icon</i>
-                                        <span class="rail-label">@group.Title</span>
                                     </div>
                                 </Authorized>
                             </AuthorizeView>
@@ -57,7 +55,7 @@
                             <div class="rail-item @(isGroupActive ? "active" : "")"
                                  @onclick="@(() => NavigateDirect(firstPath))" title="@group.Title">
                                 <i class="notranslate rzi">@group.Icon</i>
-                                <span class="rail-label">@group.Title</span>
+
                             </div>
                             <div class="rail-flyout" style="top: @(GetFlyoutTop(group))px;">
                                 <div class="rail-flyout-title">@group.Title</div>
