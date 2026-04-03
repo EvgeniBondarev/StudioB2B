@@ -120,6 +120,13 @@ else
                                               Click="@(() => ToggleActive(t, true))"
                                               IsBusy="@(_busyId == t.Id)" />
                             }
+                            @if (_isAdmin)
+                            {
+                                <RadzenButton Icon="backup" ButtonStyle="ButtonStyle.Info"
+                                              Size="ButtonSize.Small" Variant="Variant.Outlined"
+                                              Click="@(() => OpenBackupDialog(t))"
+                                              title="Настройки бэкапов" />
+                            }
                             <RadzenButton Icon="delete_outline" ButtonStyle="ButtonStyle.Danger"
                                           Size="ButtonSize.Small" Variant="Variant.Outlined"
                                           Click="@(() => ConfirmDelete(t))"
@@ -225,6 +232,18 @@ else
             return $"{uri.Scheme}://{subdomain}.localhost{port}/";
 
         return $"https://{subdomain}.{masterDomain}/";
+    }
+
+    private async Task OpenBackupDialog(TenantEntity tenant)
+    {
+        await DialogService.OpenAsync<TenantBackupDialog>(
+            $"Бэкапы — {tenant.Name}",
+            new Dictionary<string, object?> { [nameof(TenantBackupDialog.TenantId)] = (object?)tenant.Id },
+            new DialogOptions
+            {
+                Width = "760px",
+                CloseDialogOnOverlayClick = true
+            });
     }
 }
 
