@@ -16,7 +16,8 @@
 }
 else
 {
-    <RadzenTabs @bind-SelectedIndex="_activeTab" Style="flex: 1; display: flex; flex-direction: column; min-height: 0;"
+    <RadzenTabs @bind-SelectedIndex="_activeTab"
+                Style="flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0 10px;"
                 Change="@OnTabChanged">
 
         <Tabs>
@@ -27,6 +28,10 @@ else
                         <CommunicationTaskBoard />
                     }
                 </div>
+            </RadzenTabsItem>
+
+            <RadzenTabsItem Text="Моя статистика" Icon="bar_chart">
+                <MyStatsPanel />
             </RadzenTabsItem>
 
             <RadzenTabsItem Text="Чаты">
@@ -50,12 +55,6 @@ else
                     <Questions @key="@(_activeTab == 3 && _preSelectTab == 3 ? _preSelectId : null)"
                                PreSelectQuestionId="@(_activeTab == 3 && _preSelectTab == 3 ? _preSelectId : null)"
                                PreSelectClientId="@(_activeTab == 3 && _preSelectTab == 3 ? _preSelectClientId : null)" />
-                </div>
-            </RadzenTabsItem>
-
-            <RadzenTabsItem Text="Топ товаров">
-                <div class="tab-content">
-                    <Questions ShowTopProducts="true"/>
                 </div>
             </RadzenTabsItem>
         </Tabs>
