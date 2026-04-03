@@ -229,6 +229,14 @@
         AttachedBase64 = null;
     }
 
+    public void Clear()
+    {
+        MessageText = string.Empty;
+        AttachedFile = null;
+        AttachedBase64 = null;
+        StateHasChanged();
+    }
+
     private bool CanSend =>
         SelectedChat is not null &&
         !_sending &&
