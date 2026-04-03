@@ -598,11 +598,11 @@
                             @if (_previewTask.Status == CommunicationTaskStatus.InProgress)
                             {
                                 <div style="border-top:1px solid var(--rz-base-300);padding:0.5rem 1rem 0.75rem;background:var(--rz-base-background-color);flex-shrink:0;">
-                                    <ChatComposer
-                                        QuickReplies="TaskBoardChatQuickReplies"
-                                        OnSendWithFile="OverlaySendChatMessageAsync"
-                                        PlaceHolder="Написать сообщение..."
-                                        EnableAttachments="true" />
+                             <ChatComposer @ref="_overlayChatComposer"
+                                         QuickReplies="TaskBoardChatQuickReplies"
+                                         OnSendWithFile="OverlaySendChatMessageAsync"
+                                         PlaceHolder="Написать сообщение..."
+                                         EnableAttachments="true" />
                                 </div>
                             }
                             else
@@ -683,7 +683,8 @@
                         @if (_previewTask.Status == CommunicationTaskStatus.InProgress)
                         {
                             <div class="task-question-composer-wrap">
-                                <ChatComposer QuickReplies="TaskBoardChatQuickReplies"
+                                <ChatComposer @ref="_overlayQuestionComposer"
+                                              QuickReplies="TaskBoardChatQuickReplies"
                                               OnSendTextOnly="SendOverlayAnswerTextAsync"
                                               EnableAttachments="false"
                                               MaxLength="3000"
@@ -853,7 +854,7 @@
                     @* Comment composer or locked placeholder *@
                     @if (_previewTask.Status == CommunicationTaskStatus.InProgress)
                     {
-                        <ChatComposer
+                        <ChatComposer @ref="_overlayReviewComposer"
                             QuickReplies="TaskBoardReviewQuickReplies"
                             OnSendTextOnly="SendOverlayCommentAsync"
                             EnableAttachments="false"
@@ -1034,6 +1035,9 @@
     private bool _overlayBusy;
     private string? _overlayDeletingAnswerId;
     private string? _overlayDeletingCommentId;
+    private ChatComposer? _overlayChatComposer;
+    private ChatComposer? _overlayQuestionComposer;
+    private ChatComposer? _overlayReviewComposer;
 
     // Gallery / lightbox state
     private List<string> _galleryItems = new();
@@ -1776,10 +1780,55 @@
         StateHasChanged();
         try
         {
+            if (!await TrySendPendingOverlayMessageAsync()) return;
             await CompleteAsync(_previewTask);
             ClosePreview();
         }
         finally { _overlayBusy = false; }
+    }
+
+    /// <summary>
+    /// If the relevant overlay composer has pending text/file, sends it first.
+    /// Returns true if there was nothing to send or the send succeeded; false if send failed.
+    /// </summary>
+    private async Task<bool> TrySendPendingOverlayMessageAsync()
+    {
+        if (_previewTask is null) return true;
+
+        switch (_previewTask.TaskType)
+        {
+            case CommunicationTaskType.Chat:
+            {
+                if (_overlayChatComposer is null) return true;
+                var text = _overlayChatComposer.MessageText;
+                var file = _overlayChatComposer.AttachedFile;
+                var base64 = _overlayChatComposer.AttachedBase64;
+                if (string.IsNullOrWhiteSpace(text) && file is null) return true;
+                var ok = await OverlaySendChatMessageAsync(text, file, base64);
+                if (ok) _overlayChatComposer.Clear();
+                return ok;
+            }
+            case CommunicationTaskType.Question:
+            {
+                if (_overlayQuestionComposer is null) return true;
+                var text = _overlayQuestionComposer.MessageText;
+                if (string.IsNullOrWhiteSpace(text)) return true;
+                var ok = await SendOverlayAnswerTextAsync(text);
+                if (ok) _overlayQuestionComposer.Clear();
+                return ok;
+            }
+            case CommunicationTaskType.Review:
+            {
+                if (_overlayReviewComposer is null) return true;
+                var text = _overlayReviewComposer.MessageText;
+                if (string.IsNullOrWhiteSpace(text)) return true;
+                var ok = await SendOverlayCommentAsync(text);
+                if (ok) _overlayReviewComposer.Clear();
+                return ok;
+            }
+        }
+
+        return true;
     }
 
     private async Task OverlayReopenAsync()
@@ -1852,7 +1901,6 @@
             }
             catch { /* ignore history reload failure */ }
 
-            await CompletePreviewAfterSuccessfulSendAsync();
             return true;
         }
         catch (Exception ex)
@@ -1886,7 +1934,6 @@
                 NotificationService.Notify(NotificationSeverity.Success, "Ответ отправлен", "", 2000);
                 _questionDetail = await QuestionsService.GetQuestionDetailAsync(qVm);
                 StateHasChanged();
-                await CompletePreviewAfterSuccessfulSendAsync();
                 return true;
             }
             NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось отправить ответ", 5000);
@@ -1919,7 +1966,6 @@
                 NotificationService.Notify(NotificationSeverity.Success, "Комментарий отправлен", "", 2000);
                 _reviewDetail = await ReviewsService.GetReviewDetailAsync(rVm);
                 StateHasChanged();
-                await CompletePreviewAfterSuccessfulSendAsync();
                 return true;
             }
             else
