@@ -16,7 +16,7 @@ public class BackupOptions
 
     public string SecretKey { get; set; } = "";
 
-    public bool UseSSL { get; set; } = false;
+    public bool UseSSL { get; set; }
 
     /// <summary>Количество дней хранения по умолчанию.</summary>
     public int DefaultRetentionDays { get; set; } = 30;

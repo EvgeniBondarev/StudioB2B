@@ -1,6 +1,7 @@
 using Hangfire;
 using Hangfire.States;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Minio;
 using Minio.DataModel.Args;
@@ -15,21 +16,26 @@ namespace StudioB2B.Infrastructure.Services;
 
 public class TenantBackupService : ITenantBackupService
 {
+    private const string TokenCachePrefix = "backup_dl_";
+
     private readonly MasterDbContext _masterDb;
     private readonly MasterHangfireManager _hangfireManager;
     private readonly IMinioClient _minio;
     private readonly BackupOptions _options;
+    private readonly IMemoryCache _cache;
 
     public TenantBackupService(
         MasterDbContext masterDb,
         MasterHangfireManager hangfireManager,
         IMinioClient minio,
-        IOptions<BackupOptions> options)
+        IOptions<BackupOptions> options,
+        IMemoryCache cache)
     {
         _masterDb = masterDb;
         _hangfireManager = hangfireManager;
         _minio = minio;
         _options = options.Value;
+        _cache = cache;
     }
 
     public async Task<TenantBackupScheduleDto?> GetScheduleAsync(Guid tenantId, CancellationToken ct = default)
@@ -123,52 +129,46 @@ public class TenantBackupService : ITenantBackupService
         return records.Select(ToDto).ToList();
     }
 
-    public async Task<string> GetDownloadUrlAsync(Guid historyId, CancellationToken ct = default)
+    public async Task<string> CreateDownloadTokenAsync(Guid historyId, CancellationToken ct = default)
     {
         var history = await _masterDb.TenantBackupHistories
             .AsNoTracking()
             .FirstOrDefaultAsync(h => h.Id == historyId, ct)
             ?? throw new InvalidOperationException($"Backup history {historyId} not found.");
 
-        if (history.MinioObjectKey is null)
+        if (history.MinioObjectKey is null || history.Status != "Completed")
             throw new InvalidOperationException("Backup file is not available.");
 
-        var rawEndpoint = string.IsNullOrWhiteSpace(_options.PublicEndpoint)
-            ? _options.Endpoint
-            : _options.PublicEndpoint;
+        var token = Guid.NewGuid().ToString("N");
+        var fileName = Path.GetFileName(history.MinioObjectKey);
+        (string ObjectKey, string FileName, long? SizeBytes) entry = (history.MinioObjectKey, fileName, history.SizeBytes);
 
-        // If the endpoint contains an explicit scheme, derive SSL from it.
-        // Otherwise fall back to the UseSSL option.
-        bool useSSL;
-        string endpoint;
-        if (rawEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
-            useSSL = true;
-            endpoint = rawEndpoint["https://".Length..];
-        }
-        else if (rawEndpoint.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-        {
-            useSSL = false;
-            endpoint = rawEndpoint["http://".Length..];
-        }
-        else
-        {
-            useSSL = _options.UseSSL;
-            endpoint = rawEndpoint;
-        }
+        _cache.Set(TokenCachePrefix + token, entry, TimeSpan.FromMinutes(15));
 
-        var presignedClient = new MinioClient()
-            .WithEndpoint(endpoint)
-            .WithCredentials(_options.AccessKey, _options.SecretKey)
-            .WithSSL(useSSL)
-            .Build();
+        return token;
+    }
 
-        var presignedArgs = new PresignedGetObjectArgs()
+    public (string ObjectKey, string FileName, long? SizeBytes)? ConsumeDownloadToken(string token)
+    {
+        var key = TokenCachePrefix + token;
+        if (!_cache.TryGetValue<(string, string, long?)>(key, out var entry))
+            return null;
+
+        _cache.Remove(key);
+        return entry;
+    }
+
+    public async Task StreamObjectAsync(string objectKey, Stream output, CancellationToken ct = default)
+    {
+        var args = new GetObjectArgs()
             .WithBucket(_options.Bucket)
-            .WithObject(history.MinioObjectKey)
-            .WithExpiry(900);
+            .WithObject(objectKey)
+            .WithCallbackStream(async (stream, innerCt) =>
+            {
+                await stream.CopyToAsync(output, innerCt);
+            });
 
-        return await presignedClient.PresignedGetObjectAsync(presignedArgs);
+        await _minio.GetObjectAsync(args, ct);
     }
 
     private static TenantBackupScheduleDto ToDto(TenantBackupSchedule s) => new()

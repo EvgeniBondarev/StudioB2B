@@ -337,8 +337,8 @@
         _downloadBusyId = historyId;
         try
         {
-            var url = await BackupService.GetDownloadUrlAsync(historyId);
-            Navigation.NavigateTo(url, forceLoad: true);
+            var token = await BackupService.CreateDownloadTokenAsync(historyId);
+            Navigation.NavigateTo($"/api/backup/download?token={token}", forceLoad: true);
         }
         catch (Exception ex)
         {
