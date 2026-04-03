@@ -27,8 +27,8 @@ RUN dotnet publish StudioB2B.Web/StudioB2B.Web.csproj \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Install curl for health checks and default-mysql-client for mysqldump
+RUN apt-get update && apt-get install -y curl default-mysql-client && rm -rf /var/lib/apt/lists/*
 
 # Copy published app
 COPY --from=build /app/publish .

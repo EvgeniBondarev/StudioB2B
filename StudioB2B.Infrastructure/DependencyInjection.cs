@@ -4,21 +4,23 @@ using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Minio;
+using StudioB2B.Domain.Options;
+using StudioB2B.Infrastructure.Authorization;
+using StudioB2B.Infrastructure.Features;
+using StudioB2B.Infrastructure.Helpers.Http.Handlers;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
-using System.Text;
-using StudioB2B.Domain.Options;
-using StudioB2B.Infrastructure.Features;
-using StudioB2B.Infrastructure.Helpers.Http.Handlers;
-using StudioB2B.Infrastructure.Authorization;
-using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Infrastructure.Services.MultiTenancy;
-using StudioB2B.Infrastructure.Services.Modules;
-using StudioB2B.Infrastructure.Services.Order;
 using StudioB2B.Infrastructure.Services.Communication;
+using StudioB2B.Infrastructure.Services.Modules;
+using StudioB2B.Infrastructure.Services.MultiTenancy;
+using StudioB2B.Infrastructure.Services.Order;
 using StudioB2B.Infrastructure.Services.Ozon;
+using System.Text;
 using TenantService = StudioB2B.Infrastructure.Services.MultiTenancy.TenantService;
 
 namespace StudioB2B.Infrastructure;
@@ -31,6 +33,9 @@ public static class DependencyInjection
     {
         services.Configure<MultiTenancyOptions>(
             configuration.GetSection(MultiTenancyOptions.SectionName));
+
+        services.Configure<BackupOptions>(
+            configuration.GetSection(BackupOptions.SectionName));
 
         services.AddAutoMapper(cfg => cfg.AddMaps(typeof(DependencyInjection).Assembly));
 
@@ -152,6 +157,19 @@ public static class DependencyInjection
         services.AddSingleton<TenantHangfireManager>();
         services.AddHostedService(sp => sp.GetRequiredService<TenantHangfireManager>());
 
+        services.AddSingleton<MasterHangfireManager>();
+        services.AddHostedService(sp => sp.GetRequiredService<MasterHangfireManager>());
+
+        services.AddSingleton<IMinioClient>(sp =>
+        {
+            var opts = sp.GetRequiredService<IOptions<BackupOptions>>().Value;
+            return new MinioClient()
+                .WithEndpoint(opts.Endpoint)
+                .WithCredentials(opts.AccessKey, opts.SecretKey)
+                .WithSSL(opts.UseSSL)
+                .Build();
+        });
+
         services.AddScoped<IOrderSyncJobService, OrderSyncJobService>();
 
         services.AddScoped<CalculationEngine>();
@@ -163,6 +181,8 @@ public static class DependencyInjection
 
         services.AddScoped<ICommunicationTaskService, CommunicationTaskService>();
         services.AddScoped<ICommunicationTaskSyncService, CommunicationTaskSyncService>();
+
+        services.AddScoped<ITenantBackupService, TenantBackupService>();
 
         return services;
     }
