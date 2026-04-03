@@ -133,14 +133,34 @@ public class TenantBackupService : ITenantBackupService
         if (history.MinioObjectKey is null)
             throw new InvalidOperationException("Backup file is not available.");
 
-        var publicEndpoint = string.IsNullOrWhiteSpace(_options.PublicEndpoint)
+        var rawEndpoint = string.IsNullOrWhiteSpace(_options.PublicEndpoint)
             ? _options.Endpoint
             : _options.PublicEndpoint;
 
+        // If the endpoint contains an explicit scheme, derive SSL from it.
+        // Otherwise fall back to the UseSSL option.
+        bool useSSL;
+        string endpoint;
+        if (rawEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            useSSL = true;
+            endpoint = rawEndpoint["https://".Length..];
+        }
+        else if (rawEndpoint.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            useSSL = false;
+            endpoint = rawEndpoint["http://".Length..];
+        }
+        else
+        {
+            useSSL = _options.UseSSL;
+            endpoint = rawEndpoint;
+        }
+
         var presignedClient = new MinioClient()
-            .WithEndpoint(publicEndpoint)
+            .WithEndpoint(endpoint)
             .WithCredentials(_options.AccessKey, _options.SecretKey)
-            .WithSSL(_options.UseSSL)
+            .WithSSL(useSSL)
             .Build();
 
         var presignedArgs = new PresignedGetObjectArgs()
