@@ -23,7 +23,19 @@ public interface ITenantBackupService
     /// <summary>Возвращает последние записи истории бэкапов тенанта.</summary>
     Task<List<TenantBackupHistoryDto>> GetHistoryAsync(Guid tenantId, int limit = 10, CancellationToken ct = default);
 
-    /// <summary>Генерирует presigned URL для скачивания файла бэкапа (TTL 15 мин).</summary>
-    Task<string> GetDownloadUrlAsync(Guid historyId, CancellationToken ct = default);
+    /// <summary>
+    /// Создаёт одноразовый токен для скачивания бэкапа (TTL 15 мин).
+    /// Токен не требует Bearer-аутентификации — он сам является доказательством доступа.
+    /// </summary>
+    Task<string> CreateDownloadTokenAsync(Guid historyId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Проверяет и удаляет одноразовый токен из кэша.
+    /// Возвращает null если токен недействителен или истёк.
+    /// </summary>
+    (string ObjectKey, string FileName, long? SizeBytes)? ConsumeDownloadToken(string token);
+
+    /// <summary>Стримит объект MinIO напрямую в output.</summary>
+    Task StreamObjectAsync(string objectKey, Stream output, CancellationToken ct = default);
 }
 
