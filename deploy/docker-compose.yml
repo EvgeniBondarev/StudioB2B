@@ -10,6 +10,13 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - MultiTenancy__MasterDomain=studiob2b.ru
       - Jwt__Secret=2B5F9B6E75C256999B7359FE076156E5
+      - Backup__Endpoint=minio:9000
+      - Backup__PublicEndpoint=minio.studiob2b.ru
+      - Backup__Bucket=backups
+      - Backup__AccessKey=minioadmin
+      - Backup__SecretKey=minioadmin
+      - Backup__UseSSL=false
+      - Backup__DefaultRetentionDays=30
     volumes:
       - ./data-protection-keys:/root/.aspnet/DataProtection-Keys
     networks:
@@ -29,6 +36,22 @@ services:
       - "3306:3306"
     restart: unless-stopped
 
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio_data:/data
+    networks:
+      - studiob2b_network
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    restart: unless-stopped
+
 networks:
   studiob2b_network:
     driver: bridge
@@ -36,3 +59,7 @@ networks:
       config:
         - subnet: 172.28.0.0/16
           gateway: 172.28.0.1
+
+volumes:
+  minio_data:
+

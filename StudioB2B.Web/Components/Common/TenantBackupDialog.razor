@@ -1,0 +1,367 @@
+@using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Shared
+@inject ITenantBackupService BackupService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+@inject NavigationManager Navigation
+
+<RadzenStack Gap="1.5rem" Style="min-width: 580px; max-width: 720px;">
+
+    @if (_loading)
+    {
+        <RadzenStack AlignItems="AlignItems.Center" Style="padding: 2rem;">
+            <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false" Style="width: 200px;" />
+        </RadzenStack>
+    }
+    else
+    {
+        <!-- Включение/отключение -->
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem">
+            <RadzenSwitch @bind-Value="_isEnabled" />
+            <RadzenText TextStyle="TextStyle.Body2" Style="margin: 0;">
+                @(_isEnabled ? "Автобэкапы включены" : "Автобэкапы отключены")
+            </RadzenText>
+        </RadzenStack>
+
+        @if (_isEnabled)
+        {
+            <!-- Периодичность -->
+            <RadzenStack Gap="0.5rem">
+                <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">Периодичность</RadzenText>
+                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.4rem" Wrap="FlexWrap.Wrap">
+                    @foreach (var opt in _presets)
+                    {
+                        <RadzenButton Text="@opt.Label"
+                                      ButtonStyle="@(_preset == opt.Key ? ButtonStyle.Primary : ButtonStyle.Light)"
+                                      Size="ButtonSize.Small"
+                                      Click="@(() => ApplyPreset(opt.Key))" />
+                    }
+                </RadzenStack>
+            </RadzenStack>
+
+            @if (_preset == "custom")
+            {
+                <RadzenStack Gap="0.35rem">
+                    <RadzenTextBox @bind-Value="_cronExpression" Placeholder="0 2 * * *"
+                                   Style="font-family: monospace; width: 100%;" />
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                        Формат: мин час день_мес месяц день_нед. Например: <b>0 2 * * *</b> — каждый день в 02:00 UTC.
+                        <a href="https://crontab.guru" target="_blank" style="color: var(--rz-primary);">Справка</a>
+                    </RadzenText>
+                </RadzenStack>
+            }
+            else
+            {
+                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color); font-family: monospace;">
+                    Cron: <b>@_cronExpression</b>
+                </RadzenText>
+            }
+
+            <!-- Время (для Daily/Weekly/Monthly) -->
+            @if (_preset is "daily" or "weekly" or "monthly")
+            {
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
+                    <RadzenText TextStyle="TextStyle.Body2" Style="min-width: 80px;">Время (UTC):</RadzenText>
+                    <RadzenDatePicker TValue="DateTime" @bind-Value="_timeValue"
+                                     ShowTime="true" TimeOnly="true"
+                                     DateFormat="HH:mm" Style="width: 110px;"
+                                     Change="@OnTimeChanged" />
+                </RadzenStack>
+            }
+
+            <!-- Хранение -->
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.6rem">
+                <RadzenText TextStyle="TextStyle.Body2" Style="min-width: 130px;">Хранить бэкапы:</RadzenText>
+                <RadzenNumeric TValue="int" @bind-Value="_retentionDays" Min="1" Max="365" Style="width: 80px;" />
+                <RadzenText TextStyle="TextStyle.Body2">дней</RadzenText>
+            </RadzenStack>
+        }
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin: 0;">
+                @_errorMessage
+            </RadzenAlert>
+        }
+
+        <!-- Кнопки управления -->
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.75rem" JustifyContent="JustifyContent.SpaceBetween">
+            <RadzenButton Text="Сделать бэкап сейчас" Icon="backup"
+                          ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small"
+                          IsBusy="@_triggerBusy" Disabled="@_triggerBusy"
+                          Click="@TriggerNowAsync" />
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.75rem">
+                <RadzenButton Text="Отмена" ButtonStyle="ButtonStyle.Light"
+                              Click="@(() => DialogService.Close())" />
+                <RadzenButton Text="Сохранить" Icon="save" ButtonStyle="ButtonStyle.Primary"
+                              IsBusy="@_saveBusy" Disabled="@_saveBusy"
+                              Click="@SaveAsync" />
+            </RadzenStack>
+        </RadzenStack>
+
+        <!-- История бэкапов -->
+        <RadzenStack Gap="0.5rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                         JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin: 0;">
+                    История бэкапов
+                </RadzenText>
+                <RadzenButton Text="Обновить" Icon="refresh" ButtonStyle="ButtonStyle.Light"
+                              Size="ButtonSize.ExtraSmall"
+                              Click="@LoadHistoryAsync" />
+            </RadzenStack>
+
+            @if (_history.Count == 0)
+            {
+                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                    Бэкапов пока нет.
+                </RadzenText>
+            }
+            else
+            {
+                <RadzenDataGrid Data="@_history" TItem="TenantBackupHistoryDto"
+                                AllowSorting="false" AllowPaging="false"
+                                Style="font-size: 0.85rem;">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="TenantBackupHistoryDto" Property="StartedAtUtc" Title="Дата" Width="160px">
+                            <Template Context="h">
+                                @h.StartedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="TenantBackupHistoryDto" Property="Status" Title="Статус" Width="110px">
+                            <Template Context="h">
+                                @{
+                                    var style = h.Status switch
+                                    {
+                                        "Completed" => "color: var(--rz-success);",
+                                        "Failed" => "color: var(--rz-danger);",
+                                        _ => "color: var(--rz-warning);"
+                                    };
+                                    var label = h.Status switch
+                                    {
+                                        "Completed" => "Выполнен",
+                                        "Failed" => "Ошибка",
+                                        _ => "Выполняется"
+                                    };
+                                }
+                                <span style="@style font-weight: 600;">@label</span>
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="TenantBackupHistoryDto" Property="SizeBytes" Title="Размер" Width="100px">
+                            <Template Context="h">
+                                @FormatSize(h.SizeBytes)
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="TenantBackupHistoryDto" Title="" Width="100px">
+                            <Template Context="h">
+                                @if (h.Status == "Completed" && h.MinioObjectKey is not null)
+                                {
+                                    <RadzenButton Icon="download" Size="ButtonSize.ExtraSmall"
+                                                  ButtonStyle="ButtonStyle.Light"
+                                                  IsBusy="@(_downloadBusyId == h.Id)"
+                                                  Click="@(() => DownloadAsync(h.Id))" />
+                                }
+                                @if (h.Status == "Failed" && h.ErrorMessage is not null)
+                                {
+                                    <RadzenButton Icon="info" Size="ButtonSize.ExtraSmall"
+                                                  ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text"
+                                                  Click="@(() => ShowError(h.ErrorMessage))" />
+                                }
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            }
+        </RadzenStack>
+    }
+
+</RadzenStack>
+
+@code {
+    [Parameter] public Guid TenantId { get; set; }
+
+    private bool _loading = true;
+    private bool _saveBusy;
+    private bool _triggerBusy;
+    private Guid? _downloadBusyId;
+    private string? _errorMessage;
+
+    private bool _isEnabled = true;
+    private int _retentionDays = 30;
+    private string _cronExpression = "0 2 * * *";
+    private string _preset = "daily";
+    private DateTime _timeValue = DateTime.Today.AddHours(2);
+
+    private List<TenantBackupHistoryDto> _history = [];
+
+    private record PresetOption(string Key, string Label);
+
+    private readonly List<PresetOption> _presets =
+    [
+        new("daily", "Ежедневно"),
+        new("weekly", "Еженедельно"),
+        new("monthly", "Ежемесячно"),
+        new("custom", "Своё")
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var schedule = await BackupService.GetScheduleAsync(TenantId);
+            if (schedule is not null)
+            {
+                _isEnabled = schedule.IsEnabled;
+                _retentionDays = schedule.RetentionDays;
+                RestoreFromCron(schedule.CronExpression);
+            }
+
+            await LoadHistoryAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        _history = await BackupService.GetHistoryAsync(TenantId, limit: 10);
+    }
+
+    private void ApplyPreset(string key)
+    {
+        _preset = key;
+        _cronExpression = key switch
+        {
+            "daily" => $"{_timeValue.Minute} {_timeValue.Hour} * * *",
+            "weekly" => $"{_timeValue.Minute} {_timeValue.Hour} * * 0",
+            "monthly" => $"{_timeValue.Minute} {_timeValue.Hour} 1 * *",
+            _ => _cronExpression
+        };
+    }
+
+    private void OnTimeChanged(DateTime? value)
+    {
+        if (value is null) return;
+        _timeValue = value.Value;
+        ApplyPreset(_preset);
+    }
+
+    private void RestoreFromCron(string cron)
+    {
+        _cronExpression = cron;
+
+        var parts = cron.Trim().Split(' ');
+        if (parts.Length != 5) { _preset = "custom"; return; }
+
+        var (min, hour, dom, month, dow) = (parts[0], parts[1], parts[2], parts[3], parts[4]);
+
+        if (!int.TryParse(hour, out var h) || !int.TryParse(min, out var m))
+        {
+            _preset = "custom";
+            return;
+        }
+
+        _timeValue = DateTime.Today.AddHours(h).AddMinutes(m);
+
+        // daily: M H * * *
+        if (dom == "*" && month == "*" && dow == "*") { _preset = "daily"; return; }
+        // weekly: M H * * N
+        if (dom == "*" && month == "*" && dow != "*") { _preset = "weekly"; return; }
+        // monthly: M H 1 * *
+        if (dom != "*" && month == "*" && dow == "*") { _preset = "monthly"; return; }
+
+        _preset = "custom";
+    }
+
+    private async Task SaveAsync()
+    {
+        _errorMessage = null;
+
+        if (_isEnabled && string.IsNullOrWhiteSpace(_cronExpression))
+        {
+            _errorMessage = "Укажите cron-выражение.";
+            return;
+        }
+
+        _saveBusy = true;
+        try
+        {
+            var dto = new SaveTenantBackupScheduleDto
+            {
+                TenantId = TenantId,
+                IsEnabled = _isEnabled,
+                CronExpression = _cronExpression.Trim(),
+                RetentionDays = _retentionDays
+            };
+
+            await BackupService.SaveScheduleAsync(dto);
+            NotificationService.Notify(NotificationSeverity.Success, "Сохранено",
+                "Расписание бэкапов обновлено.");
+            DialogService.Close();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _saveBusy = false;
+        }
+    }
+
+    private async Task TriggerNowAsync()
+    {
+        _triggerBusy = true;
+        try
+        {
+            await BackupService.TriggerBackupNowAsync(TenantId);
+            NotificationService.Notify(NotificationSeverity.Success, "Поставлено в очередь",
+                "Бэкап поставлен в очередь и будет выполнен в ближайшее время.");
+            await Task.Delay(2000);
+            await LoadHistoryAsync();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
+        }
+        finally
+        {
+            _triggerBusy = false;
+        }
+    }
+
+    private async Task DownloadAsync(Guid historyId)
+    {
+        _downloadBusyId = historyId;
+        try
+        {
+            var url = await BackupService.GetDownloadUrlAsync(historyId);
+            Navigation.NavigateTo(url, forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
+        }
+        finally
+        {
+            _downloadBusyId = null;
+        }
+    }
+
+    private void ShowError(string? message)
+    {
+        NotificationService.Notify(NotificationSeverity.Error, "Ошибка бэкапа",
+            message ?? "Неизвестная ошибка.", duration: 8000);
+    }
+
+    private static string FormatSize(long? bytes)
+    {
+        if (bytes is null) return "—";
+        if (bytes < 1024) return $"{bytes} Б";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} КБ";
+        return $"{bytes / (1024.0 * 1024):F1} МБ";
+    }
+}
+
