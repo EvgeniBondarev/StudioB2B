@@ -1,13 +1,11 @@
 @using StudioB2B.Domain.Entities
-@using StudioB2B.Domain.Constants
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Shared
 
 @inject IOrderTransactionManagementService TransactionService
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
-@inject IJSRuntime JS
+@inject IJSRuntime Js
 @inject ITenantProvider TenantProvider
 
 @implements IAsyncDisposable
@@ -338,7 +336,7 @@
         // Keep the point under the mouse cursor fixed
         _panX = mouseX - (mouseX - _panX) * (_zoom / oldZoom);
         _panY = mouseY - (mouseY - _panY) * (_zoom / oldZoom);
-        await JS.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
+        await Js.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -354,21 +352,21 @@
     private async Task ZoomIn()
     {
         _zoom = Math.Min(_zoom + ZoomStep, ZoomMax);
-        await JS.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
+        await Js.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
         StateHasChanged();
     }
 
     private async Task ZoomOut()
     {
         _zoom = Math.Max(_zoom - ZoomStep, ZoomMin);
-        await JS.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
+        await Js.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
         StateHasChanged();
     }
 
     private async Task ZoomReset()
     {
         _zoom = 1.0; _panX = 0.0; _panY = 0.0;
-        await JS.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
+        await Js.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
         StateHasChanged();
     }
 
@@ -407,9 +405,9 @@
             _loading = false;
             StateHasChanged();
             await Task.Delay(60);
-            await JS.InvokeVoidAsync("transactionCanvas.initWheelZoom", "tc-canvas-outer", _ref);
-            await JS.InvokeVoidAsync("transactionCanvas.initPan", "tc-canvas-outer", "tc-canvas", _ref);
-            await JS.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
+            await Js.InvokeVoidAsync("transactionCanvas.initWheelZoom", "tc-canvas-outer", _ref);
+            await Js.InvokeVoidAsync("transactionCanvas.initPan", "tc-canvas-outer", "tc-canvas", _ref);
+            await Js.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
         }
         await InitPendingNodesAsync();
     }
@@ -423,7 +421,7 @@
     {
         try
         {
-            var json = await JS.InvokeAsync<string>("transactionCanvas.loadPositions", StorageKey);
+            var json = await Js.InvokeAsync<string>("transactionCanvas.loadPositions", StorageKey);
             if (!string.IsNullOrWhiteSpace(json) && json != "{}")
             {
                 var raw = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, System.Text.Json.JsonElement>>(json);
@@ -473,7 +471,7 @@
             var pos = _nodes[id];
             try
             {
-                await JS.InvokeVoidAsync("transactionCanvas.initNodeDrag",
+                await Js.InvokeVoidAsync("transactionCanvas.initNodeDrag",
                     $"tc-node-{id:N}", id.ToString(), pos.X, pos.Y, _ref);
                 _jsInited.Add(id);
             }
@@ -530,7 +528,7 @@
     }
 
     private async Task StartConnect(Guid statusId)
-        => await JS.InvokeVoidAsync("transactionCanvas.startConnect",
+        => await Js.InvokeVoidAsync("transactionCanvas.startConnect",
             statusId.ToString(), $"tc-node-{statusId:N}", "tc-canvas-outer", "tc-svg", _ref);
 
     private async Task OpenAddStatusDialog()
@@ -582,9 +580,9 @@
         await SavePositionsAsync();
         StateHasChanged();
         await Task.Delay(50);
-        await JS.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
+        await Js.InvokeVoidAsync("transactionCanvas.setTransform", _zoom, _panX, _panY);
         foreach (var (id, p) in _nodes)
-            try { await JS.InvokeVoidAsync("transactionCanvas.setNodePosition", $"tc-node-{id:N}", p.X, p.Y); }
+            try { await Js.InvokeVoidAsync("transactionCanvas.setNodePosition", $"tc-node-{id:N}", p.X, p.Y); }
             catch { /* ignore */ }
     }
 
@@ -744,7 +742,7 @@
         {
             var d = System.Text.Json.JsonSerializer.Serialize(
                 _nodes.ToDictionary(kv => kv.Key.ToString(), kv => new { kv.Value.X, kv.Value.Y }));
-            await JS.InvokeVoidAsync("transactionCanvas.savePositions", StorageKey, d);
+            await Js.InvokeVoidAsync("transactionCanvas.savePositions", StorageKey, d);
         }
         catch { /* ignore */ }
     }

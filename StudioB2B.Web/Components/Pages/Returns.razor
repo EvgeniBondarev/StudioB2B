@@ -1,18 +1,14 @@
 @page "/returns"
 @attribute [Authorize(Roles = nameof(PageEnum.ReturnsView))]
-@using Microsoft.AspNetCore.Authorization
-@using Microsoft.EntityFrameworkCore
 @using StudioB2B.Domain.Entities
-@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider
 @inject IReturnsService ReturnsService
 @inject IOrderSyncJobService JobService
 @inject NotificationService NotificationService
-@inject IJSRuntime JsRuntime
+@inject IJSRuntime Js
 @inject NavigationManager Navigation
-@inject DialogService DialogService
 
 @implements IDisposable
 
@@ -361,14 +357,14 @@ else
         try
         {
             var request = new ReturnsPageRequest(
-                SearchText:          _searchText,
-                DynamicFilter:       args.Filter,
-                FilterType:          _filterType,
-                FilterSchema:        _filterSchema,
+                SearchText: _searchText,
+                DynamicFilter: args.Filter,
+                FilterType: _filterType,
+                FilterSchema: _filterSchema,
                 FilterLinkedToOrder: _filterLinkedToOrder,
-                OrderBy:             args.OrderBy,
-                Skip:                args.Skip ?? 0,
-                Take:                args.Top is > 0 ? args.Top.Value : 20);
+                OrderBy: args.OrderBy,
+                Skip: args.Skip ?? 0,
+                Take: args.Top is > 0 ? args.Top.Value : 20);
 
             var result = await ReturnsService.GetPageAsync(request);
             _pageItems = result.Items;
@@ -405,7 +401,7 @@ else
     {
         try
         {
-            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            var json = await Js.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
             if (!string.IsNullOrEmpty(json))
             {
                 _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
@@ -426,7 +422,7 @@ else
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
-            await JsRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+            await Js.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
         }
         catch { }
     }

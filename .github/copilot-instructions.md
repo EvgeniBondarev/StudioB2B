@@ -467,6 +467,69 @@ _canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(Function
 
 ---
 
+## 10. No unnecessary `using` directives and `@inject` declarations
+
+### C# files — `using` directives
+
+Only add `using` directives for namespaces that are **actually referenced** in the file. Do **not** add a `using` "just in case" or because it was present somewhere else.
+
+**Wrong:**
+```csharp
+using System.Net.Http;          // not used in this file
+using Microsoft.EntityFrameworkCore; // not used in this file
+using StudioB2B.Shared;         // not used in this file
+
+namespace StudioB2B.Infrastructure.Services;
+
+public class PriceTypeService : IPriceTypeService { ... }
+```
+
+**Correct:**
+```csharp
+namespace StudioB2B.Infrastructure.Services;
+
+public class PriceTypeService : IPriceTypeService { ... }
+```
+
+### Razor files — `@using` directives
+
+The file `Components/_Imports.razor` already imports the following namespaces globally — **never repeat them** in individual `.razor` files:
+
+- `Radzen`
+- `Radzen.Blazor`
+- `StudioB2B.Domain.Constants`
+- `StudioB2B.Web.Services`
+- `StudioB2B.Web.Components.Common`
+- `StudioB2B.Shared`
+- `Microsoft.AspNetCore.Authorization`
+- `Microsoft.AspNetCore.Components.Authorization`
+- (and all other namespaces listed in `_Imports.razor`)
+
+**Wrong:**
+```razor
+@using Radzen
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Shared
+@using StudioB2B.Web.Services
+```
+
+**Correct:** omit all of the above — they are already available everywhere.
+
+### Razor files — `@inject` declarations
+
+Only inject services that are **actually used** in the component's markup or `@code` block. Do not carry over injections from templates or copy-paste.
+
+**Wrong:**
+```razor
+@inject DialogService DialogService       @@* never called in this component *@@
+@inject NotificationService NotificationService  @@* never called *@@
+@inject NavigationManager Navigation      @@* never called *@@
+```
+
+**Correct:** include only the injections the component actually calls.
+
+---
+
 ### Complete checklist
 
 #### New page
