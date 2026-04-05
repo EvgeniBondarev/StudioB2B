@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Radzen;
 using StudioB2B.Infrastructure;
 using StudioB2B.Infrastructure.Interfaces;
@@ -41,7 +42,9 @@ public static class ServiceExtensions
                 AllowAutoRedirect = false
             });
 
-        services.AddSignalR();
+        services.Configure<KestrelServerOptions>(o => o.Limits.MaxRequestBodySize = null);
+
+        services.AddSignalR(o => o.MaximumReceiveMessageSize = null);
         services.AddScoped<ISyncNotificationSender, SyncNotificationSender>();
         services.AddScoped<ITaskBoardNotificationSender, TaskBoardNotificationSender>();
 

@@ -14,7 +14,13 @@ public static class PipelineExtensions
     {
         app.UseSerilogRequestLogging();
 
-        app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+        // Перехват ошибок только для не-API маршрутов.
+        // API эндпоинты возвращают JSON/plain-text статусы напрямую;
+        // re-execute для них приводит к ошибке "Incorrect Content-Type" в Blazor.
+        app.UseWhen(
+            ctx => !ctx.Request.Path.StartsWithSegments("/api"),
+            a => a.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
+
         app.UseHttpsRedirection();
 
         app.UseForwardedHeaders();
