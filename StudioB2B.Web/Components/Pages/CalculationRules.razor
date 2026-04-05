@@ -10,7 +10,7 @@
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
 @inject DialogService DialogService
-@inject IJSRuntime JsRuntime
+@inject IJSRuntime Js
 
 
 <PageTitle>Правила расчёта</PageTitle>
@@ -191,7 +191,7 @@ else
     {
         try
         {
-            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            var json = await Js.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
             if (!string.IsNullOrEmpty(json))
             {
                 _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
@@ -212,7 +212,7 @@ else
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
-            await JsRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+            await Js.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
         }
         catch { }
     }
@@ -327,8 +327,8 @@ else
         var items = new List<ContextMenuItem>();
         if (_canManage)
         {
-            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit",   Value = "edit" });
-            items.Add(new ContextMenuItem { Text = "Удалить",       Icon = "delete", Value = "delete" });
+            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" });
+            items.Add(new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" });
         }
         if (items.Count == 0) return;
 

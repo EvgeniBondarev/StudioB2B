@@ -1,6 +1,5 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
 using StudioB2B.Domain.Entities;
 
 namespace StudioB2B.Infrastructure.Persistence.Master;
