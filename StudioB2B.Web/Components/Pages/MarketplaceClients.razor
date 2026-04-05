@@ -1,9 +1,7 @@
 @page "/marketplace-clients"
 @attribute [Authorize(Roles = nameof(PageEnum.MarketplaceClientsView))]
 @using StudioB2B.Domain.Entities
-@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Services
 
 @inject ITenantProvider TenantProvider
 @inject IMarketplaceClientService MarketplaceClientService
@@ -11,7 +9,7 @@
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
 @inject DialogService DialogService
-@inject IJSRuntime JsRuntime
+@inject IJSRuntime Js
 
 
 <link rel="stylesheet" href="css/orders.css" />
@@ -289,7 +287,7 @@ else
     {
         try
         {
-            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            var json = await Js.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
             if (!string.IsNullOrEmpty(json))
             {
                 _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
@@ -310,7 +308,7 @@ else
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
-            await JsRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+            await Js.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
         }
         catch { }
     }
@@ -321,12 +319,12 @@ else
         await EnsureInitializedAsync();
 
         var skip = args.Skip ?? 0;
-        var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 15);
+        var take = args.Top is > 0 ? args.Top.Value : _grid?.PageSize ?? 15;
 
         var filter = new MarketplaceClientPageFilter(
-            TypeId:  _filterClientTypeId,
-            ModeId:  _filterModeId,
-            Filter:  args.Filter,
+            TypeId: _filterClientTypeId,
+            ModeId: _filterModeId,
+            Filter: args.Filter,
             OrderBy: args.OrderBy);
 
         var (items, total) = await MarketplaceClientService.GetPagedAsync(filter, skip, take);
@@ -464,8 +462,8 @@ else
         var items = new List<ContextMenuItem>();
         if (_canManage)
         {
-            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit",   Value = "edit" });
-            items.Add(new ContextMenuItem { Text = "Удалить",       Icon = "delete", Value = "delete" });
+            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" });
+            items.Add(new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" });
         }
         if (items.Count == 0) return;
 

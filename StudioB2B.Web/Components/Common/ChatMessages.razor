@@ -1,7 +1,6 @@
 @using StudioB2B.Web.Helpers
-@using StudioB2B.Shared
 
-@inject IJSRuntime JS
+@inject IJSRuntime Js
 @inject NotificationService NotificationService
 
 <div class="chat-messages-area" id="chat-messages-container">
@@ -195,7 +194,7 @@
     {
         try
         {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", id);
+            await Js.InvokeVoidAsync("navigator.clipboard.writeText", id);
             NotificationService.Notify(NotificationSeverity.Success, "Скопировано", id, 2000);
         }
         catch

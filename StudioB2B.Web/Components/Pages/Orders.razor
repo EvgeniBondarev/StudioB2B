@@ -1,11 +1,7 @@
 @page "/orders"
 @attribute [Authorize(Roles = nameof(PageEnum.OrdersView))]
-@using Radzen
 @using Radzen.Blazor.Rendering
-
-@using StudioB2B.Domain.Constants
 @using StudioB2B.Domain.Entities
-@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Services
 @using StudioB2B.Infrastructure.Interfaces
 
@@ -1275,18 +1271,18 @@ window.gridResize = {
         var take = args.Top is > 0 ? args.Top.Value : (_grid?.PageSize ?? 15);
 
         var request = new OrderPageRequest(
-            ClientId:       _filterClientId,
-            StatusId:       _filterStatusId,
+            ClientId: _filterClientId,
+            StatusId: _filterStatusId,
             SystemStatusId: _filterSystemStatusId,
-            WarehouseId:    _filterWarehouseId,
-            HasReturn:      _filterHasReturn,
-            SchemeType:     _filterSchemeType,
-            SearchText:     _searchText,
-            DynamicFilter:  args.Filter,
-            OrderBy:        isComputedOrder ? null : appliedOrderBy,
-            Skip:           skip,
-            Take:           take,
-            FetchAll:       isComputedOrder);
+            WarehouseId: _filterWarehouseId,
+            HasReturn: _filterHasReturn,
+            SchemeType: _filterSchemeType,
+            SearchText: _searchText,
+            DynamicFilter: args.Filter,
+            OrderBy: isComputedOrder ? null : appliedOrderBy,
+            Skip: skip,
+            Take: take,
+            FetchAll: isComputedOrder);
 
         var result = await OrderService.GetOrderPageAsync(request);
 
@@ -1310,7 +1306,7 @@ window.gridResize = {
                         parts[1].Equals("desc", StringComparison.OrdinalIgnoreCase);
 
             var ruleByProp = _calcRules.ToDictionary(
-                r => $"Computed_{StudioB2B.Infrastructure.Services.CalculationEngine.SanitizeKey(r.ResultKey)}",
+                r => $"Computed_{CalculationEngine.SanitizeKey(r.ResultKey)}",
                 r => r.ResultKey,
                 StringComparer.OrdinalIgnoreCase);
 
@@ -1463,7 +1459,7 @@ window.gridResize = {
                 new ContextMenuItem { Text = "История изменений", Icon = "history", Value = "history" },
                 new ContextMenuItem { Text = "Обновить статус", Icon = "sync", Value = "update_status" }
             ],
-            async e =>
+            async void (e) =>
             {
                 ContextMenuService.Close();
                 if (e.Value?.ToString() == "open" && args.Data is not null)

@@ -1,12 +1,10 @@
 @page "/task-board-report"
 @attribute [Authorize(Roles = nameof(PageEnum.TaskBoardAdmin))]
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Domain.Constants
 
 @inject ICommunicationTaskService TaskService
 @inject ITenantProvider TenantProvider
 @inject NotificationService NotificationService
-@inject NavigationManager Navigation
 @inject IJSRuntime Js
 
 <link rel="stylesheet" href="css/taskboard.css" />

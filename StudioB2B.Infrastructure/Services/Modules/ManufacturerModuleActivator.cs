@@ -2,10 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
-using StudioB2B.Domain.Constants;
 
 namespace StudioB2B.Infrastructure.Services.Modules;
 
