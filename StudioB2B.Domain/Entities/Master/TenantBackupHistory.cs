@@ -10,8 +10,6 @@ public class TenantBackupHistory
 
     public Guid TenantId { get; set; }
 
-    public TenantEntity? Tenant { get; set; }
-
     /// <summary>Ключ объекта в MinIO (null пока бэкап не завершён успешно).</summary>
     public string? MinioObjectKey { get; set; }
 

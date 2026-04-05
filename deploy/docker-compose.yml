@@ -17,6 +17,8 @@ services:
       - Backup__SecretKey=minioadmin
       - Backup__UseSSL=false
       - Backup__DefaultRetentionDays=30
+      - Backup__MysqldumpPath=mysqldump
+      - Backup__MysqlPath=mysql
     volumes:
       - ./data-protection-keys:/root/.aspnet/DataProtection-Keys
     networks:
