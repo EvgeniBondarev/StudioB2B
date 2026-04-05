@@ -16,6 +16,7 @@ public class MasterDbContext : DbContext
     public DbSet<MasterUserRole> UserRoles => Set<MasterUserRole>();
     public DbSet<TenantBackupSchedule> TenantBackupSchedules => Set<TenantBackupSchedule>();
     public DbSet<TenantBackupHistory> TenantBackupHistories => Set<TenantBackupHistory>();
+    public DbSet<TenantRestoreHistory> TenantRestoreHistories => Set<TenantRestoreHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

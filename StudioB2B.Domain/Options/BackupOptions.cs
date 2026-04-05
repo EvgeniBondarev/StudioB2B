@@ -23,4 +23,7 @@ public class BackupOptions
 
     /// <summary>Путь к бинарнику mysqldump. По умолчанию "mysqldump" (работает в Docker/Linux).</summary>
     public string MysqldumpPath { get; set; } = "mysqldump";
+
+    /// <summary>Путь к бинарнику mysql. По умолчанию "mysql" (работает в Docker/Linux).</summary>
+    public string MysqlPath { get; set; } = "mysql";
 }

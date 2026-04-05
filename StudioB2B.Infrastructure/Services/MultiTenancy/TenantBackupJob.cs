@@ -128,16 +128,16 @@ public class TenantBackupJob
         var psi = new ProcessStartInfo
         {
             FileName = mysqldumpPath,
-            Arguments = $"--protocol=TCP --single-transaction --quick --skip-lock-tables -h {host} -P {port} -u {user} {database}",
+            Arguments = $"--protocol=TCP --single-transaction --quick --skip-lock-tables --set-gtid-purged=OFF -h {host} -P {port} -u {user} {database}",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            Environment = { ["MYSQL_PWD"] = password }
         };
 
-        psi.Environment["MYSQL_PWD"] = password;
-
-        using var process = new Process { StartInfo = psi };
+        using var process = new Process();
+        process.StartInfo = psi;
         process.Start();
 
         await using (var fileStream = File.Create(outputFile))
