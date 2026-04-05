@@ -26,7 +26,7 @@ public partial class AddChatTypeAndUnreadCount : Migration
 
     protected override void Down(MigrationBuilder migrationBuilder)
     {
-        migrationBuilder.DropColumn(name: "ChatType",    table: "CommunicationTasks");
+        migrationBuilder.DropColumn(name: "ChatType", table: "CommunicationTasks");
         migrationBuilder.DropColumn(name: "UnreadCount", table: "CommunicationTasks");
     }
 }

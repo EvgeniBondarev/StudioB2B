@@ -1,7 +1,6 @@
 @page "/order-statuses"
 @attribute [Authorize(Roles = nameof(PageEnum.OrderStatusesView))]
 @using StudioB2B.Domain.Entities
-@using StudioB2B.Infrastructure.Features
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider
@@ -9,7 +8,7 @@
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
 @inject DialogService DialogService
-@inject IJSRuntime JsRuntime
+@inject IJSRuntime Js
 
 
 <link rel="stylesheet" href="css/orders.css" />
@@ -366,7 +365,7 @@ else
     {
         try
         {
-            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            var json = await Js.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
             if (!string.IsNullOrEmpty(json))
             {
                 _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
@@ -387,7 +386,7 @@ else
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
-            await JsRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+            await Js.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
         }
         catch { }
     }
@@ -396,7 +395,7 @@ else
     {
         try
         {
-            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", FiltersKey);
+            var json = await Js.InvokeAsync<string?>("localStorage.getItem", FiltersKey);
             if (!string.IsNullOrEmpty(json))
             {
                 var f = System.Text.Json.JsonSerializer.Deserialize<StatusFilters>(json);
@@ -417,7 +416,7 @@ else
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(new StatusFilters(_filterType, _filterMarketplaceTypeId, _filterTerminal));
-            await JsRuntime.InvokeVoidAsync("localStorage.setItem", FiltersKey, json);
+            await Js.InvokeVoidAsync("localStorage.setItem", FiltersKey, json);
         }
         catch { }
     }
