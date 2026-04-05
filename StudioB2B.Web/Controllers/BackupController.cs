@@ -8,6 +8,7 @@ namespace StudioB2B.Web.Controllers;
 /// Проксирует скачивание бэкапов из MinIO через приложение.
 /// Авторизация обеспечивается одноразовым download-токеном, который выдаётся
 /// только аутентифицированному Admin-пользователю в Blazor-компоненте.
+/// Восстановление требует роль Admin напрямую.
 /// </summary>
 [ApiController]
 [Route("api/backup")]
@@ -53,6 +54,41 @@ public class BackupController : ControllerBase
             Response.ContentLength = info.Value.SizeBytes.Value;
 
         await _backupService.StreamObjectAsync(info.Value.ObjectKey, Response.Body, ct);
+    }
+
+    /// <summary>
+    /// POST /api/backup/restore/history/{historyId}?tenantId=...
+    /// Ставит в очередь восстановление из сохранённого бэкапа.
+    /// </summary>
+    [HttpPost("restore/history/{historyId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> RestoreFromHistory(
+        Guid historyId,
+        [FromQuery] Guid tenantId,
+        CancellationToken ct)
+    {
+        await _backupService.EnqueueRestoreAsync(tenantId, historyId, ct);
+        return Ok();
+    }
+
+    /// <summary>
+    /// POST /api/backup/restore/upload?tenantId=...
+    /// Принимает .sql.gz файл потоком (без буферизации на диск),
+    /// загружает в MinIO и ставит в очередь восстановление.
+    /// </summary>
+    [HttpPost("restore/upload")]
+    [Authorize]
+    [DisableRequestSizeLimit]
+    public async Task<IActionResult> UploadAndRestore(
+        [FromQuery] Guid tenantId,
+        CancellationToken ct)
+    {
+        var objectKey = $"uploads/{tenantId:N}/{Guid.NewGuid():N}.sql.gz";
+
+        await _backupService.UploadToMinioAsync(objectKey, Request.Body, Request.ContentLength, ct);
+        await _backupService.EnqueueRestoreAsync(tenantId, objectKey, "Upload", ct);
+
+        return Ok();
     }
 }
 

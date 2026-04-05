@@ -21,6 +21,8 @@ public class MasterUserRoleConfiguration : IEntityTypeConfiguration<MasterUserRo
             .WithMany(r => r.UserRoles)
             .HasForeignKey(ur => ur.RoleId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasQueryFilter(ur => !ur.Role!.IsDeleted);
     }
 }
 
