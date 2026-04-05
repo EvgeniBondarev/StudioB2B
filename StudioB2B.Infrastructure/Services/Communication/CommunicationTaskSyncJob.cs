@@ -2,7 +2,6 @@ using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Domain.Constants;
-using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services.Ozon;

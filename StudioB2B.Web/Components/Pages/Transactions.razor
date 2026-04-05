@@ -2,14 +2,13 @@
 @attribute [Authorize(Roles = nameof(PageEnum.TransactionsView))]
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Infrastructure.Features
 
 @inject ITenantProvider TenantProvider
 @inject IOrderTransactionManagementService TransactionService
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
 @inject DialogService DialogService
-@inject IJSRuntime JSRuntime
+@inject IJSRuntime JsRuntime
 
 @implements IDisposable
 
@@ -313,7 +312,7 @@ else
     {
         try
         {
-            var json = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
             if (!string.IsNullOrEmpty(json))
             {
                 _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
@@ -334,7 +333,7 @@ else
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
-            await JSRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+            await JsRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
         }
         catch { }
     }

@@ -27,6 +27,7 @@ public static class PipelineExtensions
         app.UseAntiforgery();
 
         app.MapControllers();
+        app.UseStaticFiles();
         app.MapStaticAssets();
 
         app.MapHub<SyncNotificationHub>("/hubs/sync");

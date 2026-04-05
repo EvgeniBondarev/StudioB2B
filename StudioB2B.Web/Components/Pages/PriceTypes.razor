@@ -7,7 +7,7 @@
 @inject IPriceTypeService PriceTypeService
 @inject NotificationService NotificationService
 @inject ContextMenuService ContextMenuService
-@inject IJSRuntime JsRuntime
+@inject IJSRuntime Js
 
 <PageTitle>Типы цен</PageTitle>
 
@@ -169,7 +169,7 @@ else
     {
         try
         {
-            var json = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
+            var json = await Js.InvokeAsync<string?>("localStorage.getItem", GridSettingsKey);
             if (!string.IsNullOrEmpty(json))
             {
                 _gridSettings = System.Text.Json.JsonSerializer.Deserialize<DataGridSettings>(json);
@@ -190,7 +190,7 @@ else
         try
         {
             var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
-            await JsRuntime.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
+            await Js.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
         }
         catch { }
     }

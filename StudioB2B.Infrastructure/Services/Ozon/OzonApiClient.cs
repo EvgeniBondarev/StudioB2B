@@ -520,7 +520,7 @@ public class OzonApiClient : IOzonApiClient
             new OzonReviewCommentDeleteRequestDto { CommentId = commentId }, ct);
     }
 
-    public async Task<(Stream? Content, string ContentType, bool Success)> DownloadChatFileAsync(string clientId, string apiKey,                                                                                                 string fileUrl, CancellationToken ct = default)
+    public async Task<(Stream? Content, string ContentType, bool Success)> DownloadChatFileAsync(string clientId, string apiKey, string fileUrl, CancellationToken ct = default)
     {
         try
         {
