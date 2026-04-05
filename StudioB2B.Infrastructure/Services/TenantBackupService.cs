@@ -1,3 +1,4 @@
+using AutoMapper;
 using Hangfire;
 using Hangfire.States;
 using Microsoft.EntityFrameworkCore;
@@ -23,19 +24,22 @@ public class TenantBackupService : ITenantBackupService
     private readonly IMinioClient _minio;
     private readonly BackupOptions _options;
     private readonly IMemoryCache _cache;
+    private readonly IMapper _mapper;
 
     public TenantBackupService(
         MasterDbContext masterDb,
         MasterHangfireManager hangfireManager,
         IMinioClient minio,
         IOptions<BackupOptions> options,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        IMapper mapper)
     {
         _masterDb = masterDb;
         _hangfireManager = hangfireManager;
         _minio = minio;
         _options = options.Value;
         _cache = cache;
+        _mapper = mapper;
     }
 
     public async Task<TenantBackupScheduleDto?> GetScheduleAsync(Guid tenantId, CancellationToken ct = default)
@@ -44,7 +48,7 @@ public class TenantBackupService : ITenantBackupService
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.TenantId == tenantId, ct);
 
-        return schedule is null ? null : ToDto(schedule);
+        return schedule is null ? null : _mapper.Map<TenantBackupScheduleDto>(schedule);
     }
 
     public async Task<TenantBackupScheduleDto> SaveScheduleAsync(SaveTenantBackupScheduleDto dto, CancellationToken ct = default)
@@ -88,7 +92,7 @@ public class TenantBackupService : ITenantBackupService
             manager.RemoveIfExists(schedule.HangfireJobId!);
         }
 
-        return ToDto(schedule);
+        return _mapper.Map<TenantBackupScheduleDto>(schedule);
     }
 
     public async Task DeleteScheduleAsync(Guid tenantId, CancellationToken ct = default)
@@ -126,7 +130,7 @@ public class TenantBackupService : ITenantBackupService
             .Take(limit)
             .ToListAsync(ct);
 
-        return records.Select(ToDto).ToList();
+        return records.Select(_mapper.Map<TenantBackupHistoryDto>).ToList();
     }
 
     public async Task<string> CreateDownloadTokenAsync(Guid historyId, CancellationToken ct = default)
@@ -171,27 +175,62 @@ public class TenantBackupService : ITenantBackupService
         await _minio.GetObjectAsync(args, ct);
     }
 
-    private static TenantBackupScheduleDto ToDto(TenantBackupSchedule s) => new()
+    public async Task UploadToMinioAsync(string objectKey, Stream body, long? size, CancellationToken ct = default)
     {
-        Id = s.Id,
-        TenantId = s.TenantId,
-        IsEnabled = s.IsEnabled,
-        CronExpression = s.CronExpression,
-        RetentionDays = s.RetentionDays,
-        HangfireJobId = s.HangfireJobId,
-        UpdatedAtUtc = s.UpdatedAtUtc
-    };
+        var bucketExistsArgs = new BucketExistsArgs().WithBucket(_options.Bucket);
+        var exists = await _minio.BucketExistsAsync(bucketExistsArgs, ct);
 
-    private static TenantBackupHistoryDto ToDto(TenantBackupHistory h) => new()
+        if (!exists)
+        {
+            var makeBucketArgs = new MakeBucketArgs().WithBucket(_options.Bucket);
+            await _minio.MakeBucketAsync(makeBucketArgs, ct);
+        }
+
+        var putArgs = new PutObjectArgs()
+            .WithBucket(_options.Bucket)
+            .WithObject(objectKey)
+            .WithStreamData(body)
+            .WithObjectSize(size ?? -1)
+            .WithContentType("application/gzip");
+
+        await _minio.PutObjectAsync(putArgs, ct);
+    }
+
+    public async Task EnqueueRestoreAsync(Guid tenantId, Guid historyId, CancellationToken ct = default)
     {
-        Id = h.Id,
-        TenantId = h.TenantId,
-        MinioObjectKey = h.MinioObjectKey,
-        SizeBytes = h.SizeBytes,
-        Status = h.Status,
-        ErrorMessage = h.ErrorMessage,
-        StartedAtUtc = h.StartedAtUtc,
-        CompletedAtUtc = h.CompletedAtUtc
-    };
+        var history = await _masterDb.TenantBackupHistories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(h => h.Id == historyId, ct)
+            ?? throw new InvalidOperationException($"Backup history {historyId} not found.");
+
+        if (history.MinioObjectKey is null || history.Status != "Completed")
+            throw new InvalidOperationException("Backup file is not available for restore.");
+
+        await EnqueueRestoreAsync(tenantId, history.MinioObjectKey, "SavedBackup", ct);
+    }
+
+    public async Task EnqueueRestoreAsync(Guid tenantId, string objectKey, string sourceType, CancellationToken ct = default)
+    {
+        var tenant = await _masterDb.Tenants
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == tenantId, ct)
+            ?? throw new InvalidOperationException($"Tenant {tenantId} not found.");
+
+        _hangfireManager.Client.Create<TenantRestoreJob>(
+            j => j.ExecuteAsync(tenantId, tenant.ConnectionString, tenant.Subdomain, objectKey, sourceType, CancellationToken.None),
+            new EnqueuedState("master-restore"));
+    }
+
+    public async Task<List<TenantRestoreHistoryDto>> GetRestoreHistoryAsync(Guid tenantId, int limit = 10, CancellationToken ct = default)
+    {
+        var records = await _masterDb.TenantRestoreHistories
+            .AsNoTracking()
+            .Where(h => h.TenantId == tenantId)
+            .OrderByDescending(h => h.StartedAtUtc)
+            .Take(limit)
+            .ToListAsync(ct);
+
+        return records.Select(_mapper.Map<TenantRestoreHistoryDto>).ToList();
+    }
 }
 
