@@ -60,7 +60,7 @@ public sealed class MasterHangfireManager : IHostedService, IDisposable
             var serverOptions = new BackgroundJobServerOptions
             {
                 ServerName = "studiob2b-master",
-                Queues = ["master-backup", "default"],
+                Queues = ["master-backup", "master-restore", "default"],
                 Activator = new AspNetCoreJobActivator(_scopeFactory)
             };
 

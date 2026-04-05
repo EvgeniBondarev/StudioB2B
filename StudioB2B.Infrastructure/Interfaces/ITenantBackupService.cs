@@ -37,5 +37,17 @@ public interface ITenantBackupService
 
     /// <summary>Стримит объект MinIO напрямую в output.</summary>
     Task StreamObjectAsync(string objectKey, Stream output, CancellationToken ct = default);
+
+    /// <summary>Загружает поток данных в MinIO по указанному ключу (без буферизации на диск).</summary>
+    Task UploadToMinioAsync(string objectKey, Stream body, long? size, CancellationToken ct = default);
+
+    /// <summary>Ставит задачу восстановления из сохранённого бэкапа в очередь Hangfire.</summary>
+    Task EnqueueRestoreAsync(Guid tenantId, Guid historyId, CancellationToken ct = default);
+
+    /// <summary>Ставит задачу восстановления из загруженного файла в очередь Hangfire.</summary>
+    Task EnqueueRestoreAsync(Guid tenantId, string objectKey, string sourceType, CancellationToken ct = default);
+
+    /// <summary>Возвращает последние записи истории восстановлений тенанта.</summary>
+    Task<List<TenantRestoreHistoryDto>> GetRestoreHistoryAsync(Guid tenantId, int limit = 10, CancellationToken ct = default);
 }
 

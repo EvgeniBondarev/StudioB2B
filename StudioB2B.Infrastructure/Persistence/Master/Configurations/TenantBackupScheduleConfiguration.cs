@@ -22,6 +22,8 @@ public class TenantBackupScheduleConfiguration : IEntityTypeConfiguration<Tenant
             .WithMany()
             .HasForeignKey(s => s.TenantId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasQueryFilter(s => !s.Tenant!.IsDeleted);
     }
 }
 

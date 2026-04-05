@@ -3,6 +3,7 @@
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
+@inject IJSRuntime Js
 
 <RadzenStack Gap="1.5rem" Style="min-width: 580px; max-width: 720px;">
 
@@ -151,20 +152,130 @@
                                 @FormatSize(h.SizeBytes)
                             </Template>
                         </RadzenDataGridColumn>
-                        <RadzenDataGridColumn TItem="TenantBackupHistoryDto" Title="" Width="100px">
+                        <RadzenDataGridColumn TItem="TenantBackupHistoryDto" Title="" Width="150px">
                             <Template Context="h">
-                                @if (h.Status == "Completed" && h.MinioObjectKey is not null)
-                                {
-                                    <RadzenButton Icon="download" Size="ButtonSize.ExtraSmall"
-                                                  ButtonStyle="ButtonStyle.Light"
-                                                  IsBusy="@(_downloadBusyId == h.Id)"
-                                                  Click="@(() => DownloadAsync(h.Id))" />
+                                <RadzenStack Orientation="Orientation.Horizontal" Gap="0.3rem">
+                                    @if (h.Status == "Completed" && h.MinioObjectKey is not null)
+                                    {
+                                        <RadzenButton Icon="download" Size="ButtonSize.ExtraSmall"
+                                                      ButtonStyle="ButtonStyle.Light"
+                                                      IsBusy="@(_downloadBusyId == h.Id)"
+                                                      Click="@(() => DownloadAsync(h.Id))" />
+                                        <RadzenButton Icon="restore" Size="ButtonSize.ExtraSmall"
+                                                      ButtonStyle="ButtonStyle.Danger"
+                                                      IsBusy="@(_restoreBusyId == h.Id)"
+                                                      Disabled="@(_restoreBusyId.HasValue)"
+                                                      Click="@(() => RestoreFromHistoryAsync(h.Id))" />
+                                    }
+                                    @if (h.Status == "Failed" && h.ErrorMessage is not null)
+                                    {
+                                        <RadzenButton Icon="info" Size="ButtonSize.ExtraSmall"
+                                                      ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text"
+                                                      Click="@(() => ShowError(h.ErrorMessage))" />
+                                    }
+                                </RadzenStack>
+                            </Template>
+                        </RadzenDataGridColumn>
+                    </Columns>
+                </RadzenDataGrid>
+            }
+        </RadzenStack>
+
+        <!-- Восстановление из файла -->
+        <RadzenStack Gap="0.75rem">
+            <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600;">
+                Восстановить из файла
+            </RadzenText>
+
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.75rem" Wrap="FlexWrap.Wrap">
+                <InputFile id="restoreFileInput" OnChange="@OnFileSelected"
+                           accept=".gz,.sql.gz" style="display: none;" />
+                <RadzenButton Text="@(_uploadFile is null ? "Выбрать файл .sql.gz" : _uploadFile.Name)"
+                              Icon="folder_open"
+                              ButtonStyle="ButtonStyle.Light"
+                              Size="ButtonSize.Small"
+                              Click="@TriggerFileInput" />
+                @if (_uploadFile is not null)
+                {
+                    <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                        @FormatSize(_uploadFile.Size)
+                    </RadzenText>
+                    <RadzenButton Text="Загрузить и восстановить" Icon="upload"
+                                  ButtonStyle="ButtonStyle.Danger"
+                                  Size="ButtonSize.Small"
+                                  IsBusy="@_uploadBusy" Disabled="@_uploadBusy"
+                                  Click="@UploadAndRestoreAsync" />
+                }
+            </RadzenStack>
+
+            @if (!string.IsNullOrEmpty(_uploadError))
+            {
+                <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false" Style="margin: 0;">
+                    @_uploadError
+                </RadzenAlert>
+            }
+        </RadzenStack>
+
+        <!-- История восстановлений -->
+        <RadzenStack Gap="0.5rem">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                         JustifyContent="JustifyContent.SpaceBetween">
+                <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight: 600; margin: 0;">
+                    История восстановлений
+                </RadzenText>
+                <RadzenButton Text="Обновить" Icon="refresh" ButtonStyle="ButtonStyle.Light"
+                              Size="ButtonSize.ExtraSmall"
+                              Click="@LoadRestoreHistoryAsync" />
+            </RadzenStack>
+
+            @if (_restoreHistory.Count == 0)
+            {
+                <RadzenText TextStyle="TextStyle.Caption" Style="color: var(--rz-text-secondary-color);">
+                    Восстановлений пока не было.
+                </RadzenText>
+            }
+            else
+            {
+                <RadzenDataGrid Data="@_restoreHistory" TItem="TenantRestoreHistoryDto"
+                                AllowSorting="false" AllowPaging="false"
+                                Style="font-size: 0.85rem;">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="TenantRestoreHistoryDto" Property="StartedAtUtc" Title="Дата" Width="160px">
+                            <Template Context="r">
+                                @r.StartedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="TenantRestoreHistoryDto" Property="SourceType" Title="Источник" Width="130px">
+                            <Template Context="r">
+                                @(r.SourceType == "Upload" ? "Загружен вручную" : "Из сохранения")
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="TenantRestoreHistoryDto" Property="Status" Title="Статус" Width="110px">
+                            <Template Context="r">
+                                @{
+                                    var rstyle = r.Status switch
+                                    {
+                                        "Completed" => "color: var(--rz-success);",
+                                        "Failed" => "color: var(--rz-danger);",
+                                        _ => "color: var(--rz-warning);"
+                                    };
+                                    var rlabel = r.Status switch
+                                    {
+                                        "Completed" => "Выполнено",
+                                        "Failed" => "Ошибка",
+                                        _ => "Выполняется"
+                                    };
                                 }
-                                @if (h.Status == "Failed" && h.ErrorMessage is not null)
+                                <span style="@rstyle font-weight: 600;">@rlabel</span>
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="TenantRestoreHistoryDto" Title="" Width="50px">
+                            <Template Context="r">
+                                @if (r.Status == "Failed" && r.ErrorMessage is not null)
                                 {
                                     <RadzenButton Icon="info" Size="ButtonSize.ExtraSmall"
                                                   ButtonStyle="ButtonStyle.Danger" Variant="Variant.Text"
-                                                  Click="@(() => ShowError(h.ErrorMessage))" />
+                                                  Click="@(() => ShowError(r.ErrorMessage))" />
                                 }
                             </Template>
                         </RadzenDataGridColumn>
@@ -182,8 +293,11 @@
     private bool _loading = true;
     private bool _saveBusy;
     private bool _triggerBusy;
+    private bool _uploadBusy;
     private Guid? _downloadBusyId;
+    private Guid? _restoreBusyId;
     private string? _errorMessage;
+    private string? _uploadError;
 
     private bool _isEnabled = true;
     private int _retentionDays = 30;
@@ -191,7 +305,10 @@
     private string _preset = "daily";
     private DateTime _timeValue = DateTime.Today.AddHours(2);
 
+    private IBrowserFile? _uploadFile;
+
     private List<TenantBackupHistoryDto> _history = [];
+    private List<TenantRestoreHistoryDto> _restoreHistory = [];
 
     private record PresetOption(string Key, string Label);
 
@@ -216,6 +333,7 @@
             }
 
             await LoadHistoryAsync();
+            await LoadRestoreHistoryAsync();
         }
         finally
         {
@@ -226,6 +344,11 @@
     private async Task LoadHistoryAsync()
     {
         _history = await BackupService.GetHistoryAsync(TenantId, limit: 10);
+    }
+
+    private async Task LoadRestoreHistoryAsync()
+    {
+        _restoreHistory = await BackupService.GetRestoreHistoryAsync(TenantId, limit: 10);
     }
 
     private void ApplyPreset(string key)
@@ -264,11 +387,8 @@
 
         _timeValue = DateTime.Today.AddHours(h).AddMinutes(m);
 
-        // daily: M H * * *
         if (dom == "*" && month == "*" && dow == "*") { _preset = "daily"; return; }
-        // weekly: M H * * N
         if (dom == "*" && month == "*" && dow != "*") { _preset = "weekly"; return; }
-        // monthly: M H 1 * *
         if (dom != "*" && month == "*" && dow == "*") { _preset = "monthly"; return; }
 
         _preset = "custom";
@@ -331,6 +451,96 @@
         }
     }
 
+    private async Task RestoreFromHistoryAsync(Guid historyId)
+    {
+        var confirmed = await DialogService.Confirm(
+            "Восстановление полностью заменит текущую базу данных тенанта. Все данные будут безвозвратно утеряны. Продолжить?",
+            "⚠️ Подтвердите восстановление",
+            new ConfirmOptions
+            {
+                OkButtonText = "Да, восстановить",
+                CancelButtonText = "Отмена",
+                CloseDialogOnOverlayClick = false
+            });
+
+        if (confirmed != true) return;
+
+        _restoreBusyId = historyId;
+        try
+        {
+            await BackupService.EnqueueRestoreAsync(TenantId, historyId);
+
+            NotificationService.Notify(NotificationSeverity.Success, "Поставлено в очередь",
+                "Восстановление поставлено в очередь и будет выполнено в ближайшее время.");
+
+            await Task.Delay(1500);
+            await LoadRestoreHistoryAsync();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка восстановления", ex.Message);
+        }
+        finally
+        {
+            _restoreBusyId = null;
+        }
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        _uploadFile = e.File;
+        _uploadError = null;
+    }
+
+    private async Task TriggerFileInput()
+    {
+        await Js.InvokeVoidAsync("eval", "document.getElementById('restoreFileInput').click()");
+    }
+
+    private async Task UploadAndRestoreAsync()
+    {
+        if (_uploadFile is null) return;
+
+        _uploadError = null;
+
+        var confirmed = await DialogService.Confirm(
+            $"Файл «{_uploadFile.Name}» будет загружен и применён к базе данных тенанта. Все текущие данные будут безвозвратно утеряны. Продолжить?",
+            "⚠️ Подтвердите восстановление",
+            new ConfirmOptions
+            {
+                OkButtonText = "Да, загрузить и восстановить",
+                CancelButtonText = "Отмена",
+                CloseDialogOnOverlayClick = false
+            });
+
+        if (confirmed != true) return;
+
+        _uploadBusy = true;
+        try
+        {
+            var objectKey = $"uploads/{TenantId:N}/{Guid.NewGuid():N}.sql.gz";
+
+            await using var stream = _uploadFile.OpenReadStream(maxAllowedSize: 2L * 1024 * 1024 * 1024);
+            await BackupService.UploadToMinioAsync(objectKey, stream, _uploadFile.Size);
+            await BackupService.EnqueueRestoreAsync(TenantId, objectKey, "Upload");
+
+            NotificationService.Notify(NotificationSeverity.Success, "Поставлено в очередь",
+                "Восстановление из загруженного файла поставлено в очередь.");
+
+            _uploadFile = null;
+            await Task.Delay(1500);
+            await LoadRestoreHistoryAsync();
+        }
+        catch (Exception ex)
+        {
+            _uploadError = ex.Message;
+        }
+        finally
+        {
+            _uploadBusy = false;
+        }
+    }
+
     private async Task DownloadAsync(Guid historyId)
     {
         _downloadBusyId = historyId;
@@ -351,7 +561,7 @@
 
     private void ShowError(string? message)
     {
-        NotificationService.Notify(NotificationSeverity.Error, "Ошибка бэкапа",
+        NotificationService.Notify(NotificationSeverity.Error, "Ошибка",
             message ?? "Неизвестная ошибка.", duration: 8000);
     }
 
