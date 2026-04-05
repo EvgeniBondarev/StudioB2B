@@ -1,12 +1,10 @@
 @page "/master-users"
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Web.Services
 @inject IMasterUserService MasterUserService
 @inject JwtAuthenticationStateProvider AuthStateProvider
 @inject ITenantProvider TenantProvider
 @inject NotificationService NotificationService
-@inject DialogService DialogService
 @inject NavigationManager Navigation
 
 <PageTitle>Пользователи — StudioB2B</PageTitle>

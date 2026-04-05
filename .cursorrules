@@ -1,0 +1,175 @@
+# Code Style Rules
+
+## 1. No alignment spaces
+
+Use a single space only. Do **not** add extra spaces to push symbols into columns — in parameter lists, field declarations, object initialisers, expression-body members (`=>`), switch expression arms, and assignments.
+
+**Wrong:**
+```csharp
+Guid?   ClientId       = null,
+bool    HasReturn      = false,
+_filterEntity     = null;
+Id        = Guid.NewGuid(),
+```
+
+**Correct:**
+```csharp
+Guid? ClientId = null,
+bool HasReturn = false,
+_filterEntity = null;
+Id = Guid.NewGuid(),
+```
+
+---
+
+## 2. Blank line between properties in models
+
+Each property in a class or record must be separated from the next by a blank line.
+
+**Wrong:**
+```csharp
+public int Created { get; set; }
+public int Updated { get; set; }
+```
+
+**Correct:**
+```csharp
+public int Created { get; set; }
+
+public int Updated { get; set; }
+```
+
+---
+
+## 3. No separator comments
+
+Do **not** use decorative separator comments (`// ── ... ────`). Use a blank line to visually group members.
+
+---
+
+## 4. Exactly one blank line between methods
+
+No more than one blank line between methods.
+
+---
+
+## 5. One class per file
+
+Each `.cs` file must contain exactly one top-level type.
+
+---
+
+## 6. All models in `StudioB2B.Shared`
+
+All DTO and model classes go in `StudioB2B.Shared`. Every file in that project declares `namespace StudioB2B.Shared;` regardless of subdirectory.
+
+---
+
+## 7. Layered architecture
+
+```
+UI Layer  (Blazor .razor, Controllers)
+    ↓  @inject / constructor — interfaces only
+Service Layer  (Infrastructure/Services/)
+    ↓  uses extension-methods
+Feature Layer  (Infrastructure/Features/)
+    ↓  EF Core
+Database
+```
+
+- `.razor` files and controllers must **never** inject `ITenantDbContextFactory` or `IMapper` directly.
+- All database work goes through the Service layer.
+
+---
+
+## 8. No unnecessary `using` directives and `@inject` declarations
+
+### C# files
+
+Only add `using` directives for namespaces **actually referenced** in the file.
+
+**Wrong:**
+```csharp
+using System.Net.Http;           // not used
+using Microsoft.EntityFrameworkCore; // not used
+```
+
+**Correct:** omit any using not referenced in the file.
+
+### Razor files — `@using`
+
+`Components/_Imports.razor` already imports these globally — **never repeat them** in individual `.razor` files:
+
+- `Radzen`
+- `Radzen.Blazor`
+- `StudioB2B.Domain.Constants`
+- `StudioB2B.Web.Services`
+- `StudioB2B.Web.Components.Common`
+- `StudioB2B.Shared`
+- `Microsoft.AspNetCore.Authorization`
+- `Microsoft.AspNetCore.Components.Authorization`
+- (and all other namespaces in `_Imports.razor`)
+
+**Wrong:**
+```razor
+@using Radzen
+@using StudioB2B.Domain.Constants
+@using StudioB2B.Shared
+```
+
+**Correct:** omit — already globally available.
+
+### Razor files — `@inject`
+
+Only inject services that are **actually called** in the component's markup or `@code` block.
+
+**Wrong:**
+```razor
+@inject DialogService DialogService         @* never called *@
+@inject NavigationManager Navigation        @* never called *@
+```
+
+**Correct:** include only injections the component actually uses.
+
+---
+
+## 9. Service pattern for new modules
+
+**Step 1** — Interface `StudioB2B.Infrastructure/Interfaces/I[Module]Service.cs`
+**Step 2** — Implementation `StudioB2B.Infrastructure/Services/[Module]Service.cs`
+**Step 3** — Register in `DependencyInjection.cs`: `services.AddScoped<I[Module]Service, [Module]Service>();`
+**Step 4** — Controller/Razor: inject the interface, never `ITenantDbContextFactory` or `IMapper` directly.
+
+---
+
+## 10. Role & Permission System — always use `nameof`
+
+**Wrong:**
+```csharp
+@attribute [Authorize(Roles = "OrdersView")]
+IsInRole("UsersManage")
+```
+
+**Correct:**
+```csharp
+@attribute [Authorize(Roles = nameof(PageEnum.OrdersView))]
+IsInRole(nameof(FunctionEnum.UsersManage))
+```
+
+`"Admin"` is always a plain string literal — it is not in any enum.
+
+Checklist for new page:
+- `PageEnum` — new value with `[Description]`
+- `NavService.cs` — `NavItem` with `Role = nameof(PageEnum.*)`
+- `.razor` — `@attribute [Authorize(Roles = nameof(PageEnum.*))]`
+
+Checklist for new function:
+- `FunctionEnum` — new value with `[Description]`
+- `TenantDatabaseInitializer.cs → FunctionPageMap` — new entry
+- Razor — `<AuthorizeView Roles="@nameof(FunctionEnum.*)">` / `IsInRole(nameof(FunctionEnum.*))`
+
+Checklist for new grid column:
+- `PageColumnEnum` — new value with `[Description]`
+- `TenantDatabaseInitializer.cs → ColumnPageMap` — new entry
+- Razor — `Visible="@Col(nameof(PageColumnEnum.*))"`
+

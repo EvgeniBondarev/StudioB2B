@@ -1,7 +1,6 @@
 @page "/task-board-settings"
 @attribute [Authorize(Roles = nameof(PageEnum.TaskBoardAdmin))]
 @using StudioB2B.Infrastructure.Interfaces
-@using StudioB2B.Domain.Constants
 
 @inject ICommunicationTaskService TaskService
 @inject IUserService UserService

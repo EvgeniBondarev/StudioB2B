@@ -1,7 +1,6 @@
 @using System.Text.Json
 @using StudioB2B.Domain.Entities
 @using StudioB2B.Infrastructure.Interfaces
-@using SyncJobType = StudioB2B.Domain.Constants.SyncJobTypeEnum
 @inject IOrderSyncJobService JobService
 @inject DialogService DialogService
 
@@ -11,19 +10,19 @@
     <RadzenStack Gap="0.5rem">
         <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Тип задачи</RadzenText>
         <RadzenStack Orientation="Orientation.Horizontal" Gap="0.75rem">
-            <RadzenCard Style="@CardStyle(SyncJobType.Sync)" @onclick="@(() => _jobType = SyncJobType.Sync)" class="rz-cursor-pointer">
+            <RadzenCard Style="@CardStyle(SyncJobTypeEnum.Sync)" @onclick="@(() => _jobType = SyncJobTypeEnum.Sync)" class="rz-cursor-pointer">
                 <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center" Style="min-width:140px; padding:0.5rem 0.25rem;">
                     <RadzenIcon Icon="cloud_sync" Style="font-size:2rem; color:var(--rz-primary);" />
                     <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Загрузка заказов</RadzenText>
                 </RadzenStack>
             </RadzenCard>
-            <RadzenCard Style="@CardStyle(SyncJobType.Update)" @onclick="@(() => _jobType = SyncJobType.Update)" class="rz-cursor-pointer">
+            <RadzenCard Style="@CardStyle(SyncJobTypeEnum.Update)" @onclick="@(() => _jobType = SyncJobTypeEnum.Update)" class="rz-cursor-pointer">
                 <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center" Style="min-width:140px; padding:0.5rem 0.25rem;">
                     <RadzenIcon Icon="sync" Style="font-size:2rem; color:var(--rz-secondary);" />
                     <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Обновление статусов</RadzenText>
                 </RadzenStack>
             </RadzenCard>
-            <RadzenCard Style="@CardStyle(SyncJobType.Returns)" @onclick="@(() => _jobType = SyncJobType.Returns)" class="rz-cursor-pointer">
+            <RadzenCard Style="@CardStyle(SyncJobTypeEnum.Returns)" @onclick="@(() => _jobType = SyncJobTypeEnum.Returns)" class="rz-cursor-pointer">
                 <RadzenStack Gap="0.25rem" AlignItems="AlignItems.Center" Style="min-width:140px; padding:0.5rem 0.25rem;">
                     <RadzenIcon Icon="assignment_return" Style="font-size:2rem; color:var(--rz-info);" />
                     <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Загрузка возвратов</RadzenText>
@@ -139,7 +138,7 @@
     </RadzenStack>
 
     <!-- Параметры задачи (SyncParams) -->
-    @if (_jobType == SyncJobType.Sync || _jobType == SyncJobType.Update || _jobType == SyncJobType.Returns)
+    @if (_jobType == SyncJobTypeEnum.Sync || _jobType == SyncJobTypeEnum.Update || _jobType == SyncJobTypeEnum.Returns)
     {
         <RadzenStack Gap="0.35rem">
             <RadzenText TextStyle="TextStyle.Subtitle2" Style="font-weight:600;">Параметры синхронизации</RadzenText>
@@ -173,7 +172,7 @@
 @code {
     [Parameter] public SyncJobSchedule? EditSchedule { get; set; }
 
-    private SyncJobType _jobType = SyncJobType.Sync;
+    private SyncJobTypeEnum _jobType = SyncJobTypeEnum.Sync;
     private ScheduleUiTypeEnum _scheduleType = ScheduleUiTypeEnum.DailyAt;
 
     private int _intervalMinutes = 15;
@@ -346,7 +345,7 @@
             _selectedDays.Add(day);
     }
 
-    private string CardStyle(SyncJobType t) =>
+    private string CardStyle(SyncJobTypeEnum t) =>
         _jobType == t
             ? "border:2px solid var(--rz-primary); background:var(--rz-primary-lighter); cursor:pointer;"
             : "border:2px solid transparent; cursor:pointer;";
@@ -376,7 +375,7 @@
 
         // Строим SyncParams JSON
         string? syncParams = null;
-        if (_jobType is SyncJobType.Sync or SyncJobType.Update or SyncJobType.Returns)
+        if (_jobType is SyncJobTypeEnum.Sync or SyncJobTypeEnum.Update or SyncJobTypeEnum.Returns)
             syncParams = JsonSerializer.Serialize(new { DaysBack = _syncDaysBack });
 
         var schedule = new SyncJobSchedule

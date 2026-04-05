@@ -347,20 +347,20 @@ else if (_step == 3)
 
             var c = _sellerInfo.Company;
             var request = new CreateMarketplaceClientDto(
-                Name:          c.Name ?? c.LegalName ?? "Ozon клиент",
-                ApiId:         _model.ApiId,
-                Key:           Encryption.Encrypt(_model.Key),
-                ClientTypeId:  _model.ClientTypeId,
-                ModeIds:       _model.ModeIds,
-                Settings:      null,
-                Settings1C:    null,
-                Company:       c.LegalName ?? c.Name,
-                Country:       c.Country,
-                Currency:      c.Currency,
-                INN:           c.Inn,
-                LegalName:     c.LegalName,
-                OzonName:      c.Name,
-                OGRN:          c.Ogrn,
+                Name: c.Name ?? c.LegalName ?? "Ozon клиент",
+                ApiId: _model.ApiId,
+                Key: Encryption.Encrypt(_model.Key),
+                ClientTypeId: _model.ClientTypeId,
+                ModeIds: _model.ModeIds,
+                Settings: null,
+                Settings1C: null,
+                Company: c.LegalName ?? c.Name,
+                Country: c.Country,
+                Currency: c.Currency,
+                INN: c.Inn,
+                LegalName: c.LegalName,
+                OzonName: c.Name,
+                OGRN: c.Ogrn,
                 OwnershipForm: c.OwnershipForm
             );
 

@@ -132,7 +132,7 @@ window.transactionCanvas = {
 
             const onUp = () => {
                 document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup',   onUp);
+                document.removeEventListener('mouseup', onUp);
                 outer.style.cursor = 'grab';
                 // Sync final pan position back to Blazor
                 dotNetRef.invokeMethodAsync('OnPanEnd',
@@ -141,7 +141,7 @@ window.transactionCanvas = {
             };
 
             document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup',   onUp);
+            document.addEventListener('mouseup', onUp);
         };
         outer.addEventListener('mousedown', outer._tcPanHandler);
     },
@@ -180,13 +180,13 @@ window.transactionCanvas = {
             const onUp = (ev) => {
                 el.style.zIndex = origZ || '10';
                 document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup',   onUp);
+                document.removeEventListener('mouseup', onUp);
                 dotNetRef.invokeMethodAsync('OnNodeMoved', statusId,
                     parseFloat(el.style.left),
                     parseFloat(el.style.top));
             };
             document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup',   onUp);
+            document.addEventListener('mouseup', onUp);
         });
     },
 
@@ -231,7 +231,7 @@ window.transactionCanvas = {
         };
         const onUp = (e) => {
             document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup',   onUp);
+            document.removeEventListener('mouseup', onUp);
             tmp.setAttribute('d', '');
             tmp.style.display = 'none';
 
@@ -247,7 +247,7 @@ window.transactionCanvas = {
             if (targetId) dotNetRef.invokeMethodAsync('OnConnectionMade', sourceStatusId, targetId);
         };
         document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup',   onUp);
+        document.addEventListener('mouseup', onUp);
     },
 
     setNodePosition: function (nodeId, x, y) {

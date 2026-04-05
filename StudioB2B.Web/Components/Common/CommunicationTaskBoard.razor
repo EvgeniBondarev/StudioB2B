@@ -1,8 +1,6 @@
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
-@using StudioB2B.Domain.Constants
 @using Microsoft.AspNetCore.SignalR.Client
-@using Microsoft.EntityFrameworkCore
 
 @inject ICommunicationTaskService TaskService
 @inject ICommunicationTaskSyncService SyncService
@@ -14,7 +12,7 @@
 @inject ICurrentUserProvider CurrentUser
 @inject NotificationService NotificationService
 @inject NavigationManager Navigation
-@inject IJSRuntime JS
+@inject IJSRuntime Js
 @inject TaskBoardStateService BoardState
 @inject UserContext UserContext
 
@@ -583,7 +581,7 @@
                                           Icon="open_in_new"
                                           ButtonStyle="ButtonStyle.Primary"
                                           Size="ButtonSize.Medium"
-                                          Click="@(_ => JS.InvokeVoidAsync("open", _chatFallbackUrl, "_blank"))" />
+                                          Click="@(_ => Js.InvokeVoidAsync("open", _chatFallbackUrl, "_blank"))" />
                         </div>
                     }
                     else
@@ -1098,7 +1096,7 @@
         if (_board.DoneTasks.Count < _board.DoneTotalCount && !_loadingMore)
         {
             _dotNetRef ??= DotNetObjectReference.Create(this);
-            try { await JS.InvokeVoidAsync("taskBoardInfiniteScroll.init", _doneSentinel, _dotNetRef); }
+            try { await Js.InvokeVoidAsync("taskBoardInfiniteScroll.init", _doneSentinel, _dotNetRef); }
             catch { /* JS not ready on first render */ }
         }
     }
@@ -1384,7 +1382,7 @@
             StateHasChanged();
             if (_previewTask?.TaskType == CommunicationTaskType.Chat)
             {
-                await JS.InvokeVoidAsync("scrollChatOverlayToBottom");
+                await Js.InvokeVoidAsync("scrollChatOverlayToBottom");
                 StartChatPolling();
             }
         }
@@ -1448,7 +1446,7 @@
                 {
                     _chatMessages.AddRange(toAdd);
                     StateHasChanged();
-                    await JS.InvokeVoidAsync("scrollChatOverlayToBottom");
+                    await Js.InvokeVoidAsync("scrollChatOverlayToBottom");
                 }
             }
         }
@@ -1897,7 +1895,7 @@
                     _chatMessages = history.Messages.OrderBy(m => m.CreatedAt).ToList();
                 StateHasChanged();
                 await Task.Delay(50);
-                await JS.InvokeVoidAsync("scrollChatOverlayToBottom");
+                await Js.InvokeVoidAsync("scrollChatOverlayToBottom");
             }
             catch { /* ignore history reload failure */ }
 
@@ -2151,7 +2149,7 @@
         _timerTick?.Dispose();
         StopChatPolling();
         _dotNetRef?.Dispose();
-        try { await JS.InvokeVoidAsync("taskBoardInfiniteScroll.dispose"); }
+        try { await Js.InvokeVoidAsync("taskBoardInfiniteScroll.dispose"); }
         catch { /* ignore */ }
         if (_hubConnection is not null)
             await _hubConnection.DisposeAsync();

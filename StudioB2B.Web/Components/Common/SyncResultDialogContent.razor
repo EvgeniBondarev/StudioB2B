@@ -1,5 +1,3 @@
-@using SyncJobType = StudioB2B.Domain.Constants.SyncJobTypeEnum
-
 @if (ReturnsSummary is not null)
 {
     <RadzenStack Gap="1rem">
@@ -14,7 +12,7 @@
 else if (Summary is not null)
 {
     <RadzenStack Gap="1rem">
-        @if (JobType == SyncJobType.Sync)
+        @if (JobType == SyncJobTypeEnum.Sync)
         {
             @if (Summary.PerClient.Count > 0)
             {
@@ -90,6 +88,6 @@ else if (Summary is not null)
 @code {
     [Parameter] public OrderSyncSummaryDto? Summary { get; set; }
     [Parameter] public ReturnsSyncResultDto? ReturnsSummary { get; set; }
-    [Parameter, EditorRequired] public SyncJobType JobType { get; set; }
+    [Parameter, EditorRequired] public SyncJobTypeEnum JobType { get; set; }
 }
 
