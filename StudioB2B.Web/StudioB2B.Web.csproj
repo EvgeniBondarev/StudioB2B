@@ -9,7 +9,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="logs\" />
       <Folder Include="wwwroot\lib\" />
     </ItemGroup>
 
@@ -25,8 +24,7 @@
       <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
       <PackageReference Include="Radzen.Blazor" Version="9.0.6" />
       <PackageReference Include="Serilog.AspNetCore" Version="9.0.*" />
-      <PackageReference Include="Serilog.Sinks.Console" Version="6.0.*" />
-      <PackageReference Include="Serilog.Sinks.File" Version="6.0.*" />
+      <PackageReference Include="Serilog.Sinks.Seq" Version="9.0.0" />
     </ItemGroup>
 
     <ItemGroup>
