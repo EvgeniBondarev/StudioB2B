@@ -19,8 +19,26 @@ services:
       - Backup__DefaultRetentionDays=30
       - Backup__MysqldumpPath=mysqldump
       - Backup__MysqlPath=mysql
+      - Serilog__WriteTo__1__Args__apiKey=REPLACE_WITH_SEQ_API_KEY
     volumes:
       - ./data-protection-keys:/root/.aspnet/DataProtection-Keys
+    networks:
+      - studiob2b_network
+    restart: unless-stopped
+    depends_on:
+      - seq
+
+  seq:
+    image: datalust/seq:latest
+    container_name: seq
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_ADMINPASSWORD=Admin1!1
+    ports:
+      - "5341:5341"
+      - "5342:80"
+    volumes:
+      - seq_data:/data
     networks:
       - studiob2b_network
     restart: unless-stopped
@@ -66,4 +84,5 @@ networks:
 
 volumes:
   minio_data:
+  seq_data:
 
