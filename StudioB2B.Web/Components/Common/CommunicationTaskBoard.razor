@@ -1080,8 +1080,18 @@
                 TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         }
 
-        // Restore active preview if user navigated away and back
-        if (BoardState.ActivePreviewExternalId is not null)
+        // Subscribe so same-page notification clicks open the chat immediately
+        BoardState.PendingChatOpenChanged += OnPendingChatOpenChanged;
+
+        // If we navigated here because of a notification click, open the pending chat
+        try { await TryOpenPendingChatAsync(); }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка открытия чата", ex.Message, 5000);
+        }
+
+        // Restore preview if the user navigated away and came back (no notification involved)
+        if (_previewTask is null && BoardState.ActivePreviewExternalId is not null)
         {
             var savedTask = FindTaskInBoard(BoardState.ActivePreviewExternalId, BoardState.ActivePreviewClientId);
             if (savedTask is not null)
@@ -1300,6 +1310,63 @@
         return source.Where(t => t.TaskType == _filterType.Value).ToList();
     }
 
+    private void OnPendingChatOpenChanged()
+    {
+        // Triggered when already on /communication (NavigateTo is skipped, so
+        // Сommunication.razor's OnLocationChanged never fires). Safe to InvokeAsync
+        // here because the component is guaranteed to be alive — no recreation happens
+        // when we skip NavigateTo.
+        _ = InvokeAsync(async () =>
+        {
+            var pending = BoardState.TakePendingChatOpen();
+            if (pending is null) return;
+            try { await OpenChatAsync(pending.Value.ChatId, pending.Value.ClientId); }
+            catch (Exception ex)
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Ошибка открытия чата", ex.Message, 5000);
+            }
+        });
+    }
+
+    /// <summary>Called by CommunicationTaskBoard itself (and previously by Сommunication.razor) to open a specific chat from a push notification.</summary>
+    public async Task OpenChatAsync(string chatId, Guid? clientId)
+    {
+        if (!_clientOptions.Any())
+            await LoadClientOptionsAsync();
+
+        // Search by chatId alone when clientId is unknown (seller_id not matched to a marketplace client)
+        var task = FindTaskInBoard(chatId, clientId.HasValue && clientId.Value != Guid.Empty ? clientId : null);
+
+        if (task is null)
+        {
+            if (!clientId.HasValue || clientId.Value == Guid.Empty)
+            {
+                NotificationService.Notify(NotificationSeverity.Warning, "Чат не найден",
+                    $"Чат не найден на доске задач. Возможно, кабинет не зарегистрирован.", 5000);
+                return;
+            }
+
+            task = new CommunicationTaskDto
+            {
+                Id = Guid.Empty,
+                ExternalId = chatId,
+                MarketplaceClientId = clientId.Value,
+                MarketplaceClientName = _clientOptions
+                    .FirstOrDefault(c => c.Id == clientId.Value)?.Name ?? string.Empty,
+                TaskType = CommunicationTaskType.Chat,
+                Title = chatId
+            };
+        }
+
+        await ShowPreviewAsync(task);
+    }
+
+    private async Task TryOpenPendingChatAsync()
+    {
+        var pending = BoardState.TakePendingChatOpen();
+        if (pending is null) return;
+        await OpenChatAsync(pending.Value.ChatId, pending.Value.ClientId);
+    }
 
     private async Task OnCardClick(CommunicationTaskDto task)
     {
@@ -2146,6 +2213,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        BoardState.PendingChatOpenChanged -= OnPendingChatOpenChanged;
         _timerTick?.Dispose();
         StopChatPolling();
         _dotNetRef?.Dispose();
