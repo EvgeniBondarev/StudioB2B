@@ -117,11 +117,13 @@ else
 
                 <RadzenDataGridColumn TItem="CommunicationPaymentRateDto" Title="" Width="90px" Sortable="false" Filterable="false" TextAlign="TextAlign.Right">
                     <Template Context="rate">
-                        <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
-                                      Click="@(() => OpenRateDialog(rate))" Style="margin-right:4px;" />
-                        <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter"
-                                      Size="ButtonSize.ExtraSmall"
-                                      Click="@(async () => await DeleteRate(rate))" />
+                        <div style="display:flex; align-items:center; justify-content:flex-end;">
+                            <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                          Click="@(() => OpenRateDialog(rate))" Style="margin-right:4px;"/>
+                            <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter"
+                                          Size="ButtonSize.ExtraSmall"
+                                          Click="@(async () => await DeleteRate(rate))"/>
+                        </div>
                     </Template>
                 </RadzenDataGridColumn>
             </Columns>
