@@ -107,7 +107,6 @@ else
                     PagerHorizontalAlign="HorizontalAlign.Left"
                     EditMode="DataGridEditMode.Single"
                     RowUpdate="@OnUpdate"
-                    CellContextMenu="@ShowContextMenu"
                     IsLoading="@_loading"
                     FilterText="@RadzenRuStrings.FilterText"
                     ApplyFilterText="@RadzenRuStrings.ApplyFilterText"
@@ -225,20 +224,39 @@ else
                 </EditTemplate>
             </RadzenDataGridColumn>
 
+            <RadzenDataGridColumn TItem="MarketplaceClient" Title="" Width="70px" Sortable="false"
+                                  Filterable="false" TextAlign="TextAlign.End">
+                <Template Context="item">
+                    @if (_canManage)
+                    {
+                        <RadzenButton Icon="edit" ButtonStyle="ButtonStyle.Light"
+                                      Size="ButtonSize.ExtraSmall"
+                                      Click="@(() => EditRow(item))"
+                                      Style="margin-right:4px;" />
+
+                        <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger"
+                                      Shade="Shade.Lighter"
+                                      Size="ButtonSize.ExtraSmall"
+                                      Click="@(async () => await DeleteRow(item))" />
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+
             <RadzenDataGridColumn TItem="MarketplaceClient" Filterable="false" Sortable="false"
-                                  Width="110px" TextAlign="TextAlign.Center" Title="">
+                                  Width="70px" TextAlign="TextAlign.Center" Title="">
                 <Template Context="c">
                 </Template>
                 <EditTemplate Context="c">
-                    <RadzenButton Icon="check" ButtonStyle="ButtonStyle.Success"
-                                  Size="ButtonSize.ExtraSmall"
-                                  Click="@(() => SaveRow(c))" Style="margin-right: 4px;" />
-                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light"
-                                  Size="ButtonSize.ExtraSmall"
-                                  Click="@(() => CancelRow(c))" />
+                    <div style="display:flex; align-items:center; justify-content:center;">
+                        <RadzenButton Icon="check" ButtonStyle="ButtonStyle.Success"
+                                      Size="ButtonSize.ExtraSmall"
+                                      Click="@(() => SaveRow(c))" Style="margin-right: 4px;"/>
+                        <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light"
+                                      Size="ButtonSize.ExtraSmall"
+                                      Click="@(() => CancelRow(c))"/>
+                    </div>
                 </EditTemplate>
             </RadzenDataGridColumn>
-
         </Columns>
     </RadzenDataGrid>
 }
@@ -457,26 +475,6 @@ else
         {
             NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message);
         }
-    }
-
-    private void ShowContextMenu(DataGridCellMouseEventArgs<MarketplaceClient> args)
-    {
-        var items = new List<ContextMenuItem>();
-        if (_canManage)
-        {
-            items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit",   Value = "edit" });
-            items.Add(new ContextMenuItem { Text = "Удалить",       Icon = "delete", Value = "delete" });
-        }
-        if (items.Count == 0) return;
-
-        ContextMenuService.Open(args, items, e =>
-        {
-            ContextMenuService.Close();
-            if (e.Value?.ToString() == "edit")
-                InvokeAsync(() => EditRow(args.Data!));
-            else if (e.Value?.ToString() == "delete")
-                InvokeAsync(() => DeleteRow(args.Data!));
-        });
     }
 
     private void ToggleDensity() =>
