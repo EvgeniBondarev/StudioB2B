@@ -21,12 +21,12 @@ else
 
         <Tabs>
             <RadzenTabsItem Text="Доска задач" Icon="view_kanban">
-                <div class="tab-content" style="padding:0.5rem 0;">
-                    @if (_boardInitialized)
-                    {
-                        <CommunicationTaskBoard />
-                    }
-                </div>
+                    <div class="tab-content" style="padding:0.5rem 0;">
+                        @if (_boardInitialized)
+                        {
+                            <CommunicationTaskBoard />
+                        }
+                    </div>
             </RadzenTabsItem>
 
             <RadzenTabsItem Text="Моя статистика" Icon="bar_chart">
@@ -68,7 +68,7 @@ else
     private bool _boardInitialized;
     private string? _preSelectId;
     private Guid? _preSelectClientId;
-    private int _preSelectTab = -1;  // which tab the URL preselect applies to (-1 = none)
+    private int _preSelectTab = -1;
 
     protected override void OnInitialized()
     {
@@ -80,8 +80,6 @@ else
 
     protected override void OnParametersSet()
     {
-        // Called by the Blazor router on every same-page navigation,
-        // even before LocationChanged fires — keep query params in sync.
         ApplyQueryParams();
         if (_activeTab == 0 && !_boardInitialized)
             _boardInitialized = true;
@@ -90,7 +88,7 @@ else
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
         ApplyQueryParams();
-        InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private void ApplyQueryParams()
@@ -108,15 +106,12 @@ else
         _preSelectClientId = qs.TryGetValue("clientId", out var cidVal) &&
                              Guid.TryParse(cidVal, out var cid) ? cid : null;
 
-        // Record which tab owns this preselect so it isn't forwarded to other tabs
         _preSelectTab = _preSelectId is not null ? _activeTab : -1;
     }
 
     private void OnTabChanged(int index)
     {
         _activeTab = index;
-        // Clear URL-based preselect when the user manually switches tabs —
-        // a different tab should never inherit another tab's entity ID.
         _preSelectId = null;
         _preSelectClientId = null;
         _preSelectTab = -1;

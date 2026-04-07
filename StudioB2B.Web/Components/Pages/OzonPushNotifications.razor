@@ -1,0 +1,352 @@
+@page "/ozon-push"
+@attribute [Authorize(Roles = nameof(PageEnum.OzonPushView))]
+@using StudioB2B.Infrastructure.Interfaces
+
+@inject ITenantProvider TenantProvider
+@inject IOzonPushNotificationService PushService
+@inject IMarketplaceClientService MarketplaceClientService
+@inject NotificationService NotificationService
+@inject DialogService DialogService
+
+<PageTitle>Push-уведомления Ozon</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+{
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                 JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 1.5rem;">
+        <RadzenText TextStyle="TextStyle.H5" Style="font-weight: 700; margin: 0;">Push-уведомления Ozon</RadzenText>
+        <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+            <AuthorizeView Roles="@nameof(FunctionEnum.OzonPushManage)">
+                <Authorized>
+                    <RadzenButton Text="Очистить всё" Icon="delete_sweep"
+                                  ButtonStyle="ButtonStyle.Danger" Shade="Shade.Light"
+                                  Size="ButtonSize.Small"
+                                  Click="@ConfirmDeleteAllAsync" />
+                </Authorized>
+            </AuthorizeView>
+            <RadzenButton Icon="table_rows" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                          Click="@ToggleDensity" Title="@GetDensityTitle()" />
+        </RadzenStack>
+    </RadzenStack>
+
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.End"
+                 Gap="1rem" Style="margin-bottom: 1rem; flex-wrap: wrap;">
+
+        <RadzenStack Gap="0.25rem">
+            <RadzenLabel Text="Тип" Style="font-size: 0.8rem; color: var(--rz-text-secondary-color);" />
+            <RadzenDropDown @bind-Value="_filterType"
+                            Data="@_messageTypes"
+                            Placeholder="Все типы"
+                            AllowClear="true"
+                            Style="min-width: 220px;"
+                            Change="@OnFilterChange" />
+        </RadzenStack>
+
+        <RadzenStack Gap="0.25rem">
+            <RadzenLabel Text="Клиент" Style="font-size: 0.8rem; color: var(--rz-text-secondary-color);" />
+            <RadzenDropDown @bind-Value="_filterClientId"
+                            Data="@_clients"
+                            TextProperty="Name"
+                            ValueProperty="Id"
+                            Placeholder="Все клиенты"
+                            AllowClear="true"
+                            Style="min-width: 200px;"
+                            Change="@OnFilterChange" />
+        </RadzenStack>
+
+        <RadzenStack Gap="0.25rem">
+            <RadzenLabel Text="С" Style="font-size: 0.8rem; color: var(--rz-text-secondary-color);" />
+            <RadzenDatePicker @bind-Value="_filterFrom" ShowTime="false" DateFormat="dd.MM.yyyy"
+                              Style="min-width: 140px;" Change="@OnDateFilterChange" />
+        </RadzenStack>
+
+        <RadzenStack Gap="0.25rem">
+            <RadzenLabel Text="По" Style="font-size: 0.8rem; color: var(--rz-text-secondary-color);" />
+            <RadzenDatePicker @bind-Value="_filterTo" ShowTime="false" DateFormat="dd.MM.yyyy"
+                              Style="min-width: 140px;" Change="@OnDateFilterChange" />
+        </RadzenStack>
+
+        <RadzenButton Icon="filter_alt_off" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                      Title="Сбросить фильтры" Click="@ResetFilters" />
+    </RadzenStack>
+
+    <RadzenDataGrid @ref="_grid"
+                    TItem="OzonPushNotificationDto"
+                    Data="@_items"
+                    Count="@_totalCount"
+                    LoadData="@LoadDataAsync"
+                    IsLoading="@_loading"
+                    AllowPaging="true"
+                    PageSize="50"
+                    AllowSorting="false"
+                    Density="@_density"
+                    PagerHorizontalAlign="HorizontalAlign.Left"
+                    ShowPagingSummary="true"
+                    RowClick="@OnRowClick"
+                    Style="cursor: pointer;">
+        <Columns>
+            <RadzenDataGridColumn TItem="OzonPushNotificationDto"
+                                  Property="ReceivedAtUtc"
+                                  Title="Время"
+                                  Width="160px"
+                                  Visible="@Col(nameof(PageColumnEnum.OzonPushColDate))">
+                <Template Context="n">
+                    <span style="font-size: 0.82rem; color: var(--rz-text-secondary-color);">
+                        @n.ReceivedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")
+                    </span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OzonPushNotificationDto"
+                                  Property="MessageType"
+                                  Title="Тип"
+                                  Width="220px"
+                                  Visible="@Col(nameof(PageColumnEnum.OzonPushColType))">
+                <Template Context="n">
+                    <RadzenBadge BadgeStyle="@GetTypeBadgeStyle(n.MessageType)"
+                                 Text="@GetTypeLabel(n.MessageType)"
+                                 Style="font-size: 0.75rem;" />
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OzonPushNotificationDto"
+                                  Property="MarketplaceClientName"
+                                  Title="Клиент"
+                                  Width="180px"
+                                  Visible="@Col(nameof(PageColumnEnum.OzonPushColClient))">
+                <Template Context="n">
+                    <span style="font-size: 0.85rem;">@(n.MarketplaceClientName ?? "—")</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OzonPushNotificationDto"
+                                  Property="PostingNumber"
+                                  Title="№ отправления"
+                                  Width="200px"
+                                  Visible="@Col(nameof(PageColumnEnum.OzonPushColPosting))">
+                <Template Context="n">
+                    <span style="font-size: 0.85rem; font-family: monospace;">@(n.PostingNumber ?? "—")</span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OzonPushNotificationDto"
+                                  Property="SellerId"
+                                  Title="Seller ID"
+                                  Width="120px"
+                                  Visible="@Col(nameof(PageColumnEnum.OzonPushColSeller))">
+                <Template Context="n">
+                    <span style="font-size: 0.82rem; color: var(--rz-text-secondary-color);">
+                        @(n.SellerId?.ToString() ?? "—")
+                    </span>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="OzonPushNotificationDto" Title="" Width="44px" Sortable="false">
+                <Template Context="n">
+                    <RadzenButton Icon="code" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                  Variant="Variant.Text" Title="JSON payload"
+                                  Click="@(() => ShowPayload(n))" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+
+    @if (_selectedNotification is not null)
+    {
+        <RadzenCard Style="margin-top: 1rem;">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                         JustifyContent="JustifyContent.SpaceBetween" Style="margin-bottom: 0.75rem;">
+                <RadzenText TextStyle="TextStyle.Subtitle1" Style="font-weight: 600; margin: 0;">
+                    Raw JSON — @_selectedNotification.MessageType
+                </RadzenText>
+                <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                              Variant="Variant.Text" Click="@(() => _selectedNotification = null)" />
+            </RadzenStack>
+            <pre style="background: var(--rz-base-100); padding: 0.75rem; border-radius: 4px;
+                        overflow-x: auto; font-size: 0.78rem; max-height: 400px; white-space: pre-wrap;
+                        word-break: break-all;">@FormatJson(_selectedNotification.RawPayload)</pre>
+        </RadzenCard>
+    }
+}
+
+@code {
+    [CascadingParameter] Task<AuthenticationState> AuthState { get; set; } = null!;
+
+    private RadzenDataGrid<OzonPushNotificationDto>? _grid;
+    private List<OzonPushNotificationDto> _items = new();
+    private int _totalCount;
+    private bool _loading;
+    private System.Security.Claims.ClaimsPrincipal? _user;
+    private Density _density = Density.Default;
+    private OzonPushNotificationDto? _selectedNotification;
+
+    private string? _filterType;
+    private Guid? _filterClientId;
+    private DateTime? _filterFrom;
+    private DateTime? _filterTo;
+
+    private List<ClientOptionDto> _clients = new();
+
+    private static readonly string[] _messageTypes =
+    [
+        OzonPushMessageType.NewPosting,
+        OzonPushMessageType.PostingCancelled,
+        OzonPushMessageType.StateChanged,
+        OzonPushMessageType.CutoffDateChanged,
+        OzonPushMessageType.DeliveryDateChanged,
+        OzonPushMessageType.CreateOrUpdateItem,
+        OzonPushMessageType.CreateItem,
+        OzonPushMessageType.UpdateItem,
+        OzonPushMessageType.StocksChanged,
+        OzonPushMessageType.NewMessage,
+        OzonPushMessageType.UpdateMessage,
+        OzonPushMessageType.MessageRead,
+        OzonPushMessageType.ChatClosed
+    ];
+
+    private bool Col(string role) => _user?.IsInRole("Admin") == true || _user?.IsInRole(role) == true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState;
+        _user = state.User;
+        if (TenantProvider.IsResolved)
+            _clients = await MarketplaceClientService.GetClientOptionsAsync();
+    }
+
+    private async Task LoadDataAsync(LoadDataArgs args)
+    {
+        _loading = true;
+        try
+        {
+            var request = new OzonPushPageRequest
+            {
+                MessageType = _filterType,
+                MarketplaceClientId = _filterClientId,
+                From = _filterFrom,
+                To = _filterTo.HasValue ? _filterTo.Value.AddDays(1).AddTicks(-1) : null,
+                Skip = args.Skip ?? 0,
+                Take = args.Top ?? 50
+            };
+            var result = await PushService.GetPageAsync(request);
+            _items = result.Items;
+            _totalCount = result.TotalCount;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnFilterChange(object? _) => await RefreshGrid();
+
+    private async Task OnDateFilterChange(DateTime? _) => await RefreshGrid();
+
+    private async Task RefreshGrid()
+    {
+        if (_grid is not null)
+            await _grid.Reload();
+    }
+
+    private async Task ResetFilters()
+    {
+        _filterType = null;
+        _filterClientId = null;
+        _filterFrom = null;
+        _filterTo = null;
+        await RefreshGrid();
+    }
+
+    private void OnRowClick(DataGridRowMouseEventArgs<OzonPushNotificationDto> args)
+    {
+        if (args.Data is null) return;
+        _selectedNotification = _selectedNotification?.Id == args.Data.Id ? null : args.Data;
+    }
+
+    private void ShowPayload(OzonPushNotificationDto n)
+    {
+        _selectedNotification = _selectedNotification?.Id == n.Id ? null : n;
+    }
+
+    private async Task ConfirmDeleteAllAsync()
+    {
+        var confirmed = await DialogService.Confirm(
+            "Удалить все push-уведомления Ozon? Это действие необратимо.",
+            "Очистить историю",
+            new ConfirmOptions { OkButtonText = "Удалить", CancelButtonText = "Отмена" });
+
+        if (confirmed != true) return;
+
+        var count = await PushService.DeleteAllAsync();
+        NotificationService.Notify(new NotificationMessage
+        {
+            Severity = NotificationSeverity.Success,
+            Summary = "Готово",
+            Detail = $"Удалено {count} уведомлений.",
+            Duration = 4000
+        });
+        _selectedNotification = null;
+        await RefreshGrid();
+    }
+
+    private void ToggleDensity()
+    {
+        _density = _density == Density.Default ? Density.Compact : Density.Default;
+    }
+
+    private string GetDensityTitle() => _density == Density.Default ? "Компактный вид" : "Стандартный вид";
+
+    private static string GetTypeLabel(string messageType) => messageType switch
+    {
+        OzonPushMessageType.NewPosting => "Новое отправление",
+        OzonPushMessageType.PostingCancelled => "Отмена отправления",
+        OzonPushMessageType.StateChanged => "Изменён статус",
+        OzonPushMessageType.CutoffDateChanged => "Изменена дата отгрузки",
+        OzonPushMessageType.DeliveryDateChanged => "Изменена дата доставки",
+        OzonPushMessageType.CreateOrUpdateItem => "Создание/обновление товара",
+        OzonPushMessageType.CreateItem => "Создание товара",
+        OzonPushMessageType.UpdateItem => "Обновление товара",
+        OzonPushMessageType.StocksChanged => "Изменение остатков",
+        OzonPushMessageType.NewMessage => "Новое сообщение",
+        OzonPushMessageType.UpdateMessage => "Изменение сообщения",
+        OzonPushMessageType.MessageRead => "Прочитано",
+        OzonPushMessageType.ChatClosed => "Чат закрыт",
+        _ => messageType
+    };
+
+    private static BadgeStyle GetTypeBadgeStyle(string messageType) => messageType switch
+    {
+        OzonPushMessageType.NewPosting => BadgeStyle.Success,
+        OzonPushMessageType.PostingCancelled => BadgeStyle.Danger,
+        OzonPushMessageType.StateChanged => BadgeStyle.Info,
+        OzonPushMessageType.CutoffDateChanged => BadgeStyle.Warning,
+        OzonPushMessageType.DeliveryDateChanged => BadgeStyle.Warning,
+        OzonPushMessageType.NewMessage => BadgeStyle.Primary,
+        OzonPushMessageType.UpdateMessage => BadgeStyle.Primary,
+        OzonPushMessageType.MessageRead => BadgeStyle.Light,
+        OzonPushMessageType.ChatClosed => BadgeStyle.Secondary,
+        _ => BadgeStyle.Light
+    };
+
+    private static string FormatJson(string raw)
+    {
+        try
+        {
+            var doc = System.Text.Json.JsonDocument.Parse(raw);
+            return System.Text.Json.JsonSerializer.Serialize(
+                doc.RootElement,
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return raw;
+        }
+    }
+}
+
