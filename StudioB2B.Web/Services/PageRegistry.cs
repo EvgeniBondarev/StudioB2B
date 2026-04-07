@@ -28,6 +28,7 @@ public class PageRegistry
             ["/task-board-report"] = ("Отчёт по оплате", "summarize"),
             ["/modules"] = ("Модули", "extension"),
             ["/permissions"] = ("Права доступа", "shield"),
+            ["/ozon-push"] = ("Push-уведомления Ozon", "notifications"),
             ["/my-tenants"] = ("Рабочие пространства", "domain"),
             ["/master-users"] = ("Пользователи", "manage_accounts"),
         };

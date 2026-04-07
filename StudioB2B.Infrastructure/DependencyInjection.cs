@@ -74,6 +74,7 @@ public static class DependencyInjection
         services.AddScoped<IOzonChatService, OzonChatService>();
         services.AddScoped<IOzonQuestionsService, OzonQuestionsService>();
         services.AddScoped<IOzonReviewsService, OzonReviewsService>();
+        services.AddScoped<IOzonPushNotificationService, OzonPushNotificationService>();
 
         services.AddScoped<TenantProvider>();
         services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<TenantProvider>());

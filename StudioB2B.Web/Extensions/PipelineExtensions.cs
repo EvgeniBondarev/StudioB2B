@@ -38,6 +38,7 @@ public static class PipelineExtensions
 
         app.MapHub<SyncNotificationHub>("/hubs/sync");
         app.MapHub<TaskBoardHub>("/hubs/taskboard");
+        app.MapHub<OzonPushHub>("/hubs/ozon-push");
 
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();
