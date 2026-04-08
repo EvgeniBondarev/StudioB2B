@@ -130,6 +130,8 @@ public class TenantDbContext : DbContext
     public DbSet<CommunicationTimeEntry> CommunicationTimeEntries { get; set; } = null!;
     public DbSet<CommunicationPaymentRate> CommunicationPaymentRates { get; set; } = null!;
 
+    public DbSet<OzonPushNotification> OzonPushNotifications { get; set; } = null!;
+
     #endregion
 
     public TenantDbContext(

@@ -55,5 +55,8 @@ public enum FunctionEnum
 
     [Description("Доска задач: настройка тарифов и отчёты")]
     TaskBoardAdminManage = 16,
+
+    [Description("Push-уведомления Ozon: очистка")]
+    OzonPushManage = 17,
 }
 

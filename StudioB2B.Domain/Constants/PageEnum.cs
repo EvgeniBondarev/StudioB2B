@@ -54,5 +54,8 @@ public enum PageEnum
 
     [Description("Доска задач: администрирование")]
     TaskBoardAdmin = 17,
+
+    [Description("Push-уведомления Ozon")]
+    OzonPushView = 18,
 }
 

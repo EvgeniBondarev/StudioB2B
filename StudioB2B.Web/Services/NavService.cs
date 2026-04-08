@@ -47,7 +47,8 @@ public class NavService
                 new NavItem { Path = "/marketplace-clients", Role = nameof(PageEnum.MarketplaceClientsView) },
                 new NavItem { Path = "/price-types", Role = nameof(PageEnum.PriceTypesView) },
                 new NavItem { Path = "/calculation-rules", Role = nameof(PageEnum.CalculationRulesView) },
-                new NavItem { Path = "/order-statuses", Role = nameof(PageEnum.OrderStatusesView) }
+                new NavItem { Path = "/order-statuses", Role = nameof(PageEnum.OrderStatusesView) },
+                new NavItem { Path = "/ozon-push", Role = nameof(PageEnum.OzonPushView) }
             }
         },
         new NavGroup
