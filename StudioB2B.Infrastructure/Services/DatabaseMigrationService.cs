@@ -138,7 +138,8 @@ public class DatabaseMigrationService : IHostedService
                 HashPassword = BCrypt.Net.BCrypt.HashPassword(adminPassword),
                 FirstName = "Admin",
                 LastName = "User",
-                IsActive = true
+                IsActive = true,
+                IsEmailVerified = true
             };
             db.Users.Add(user);
             db.UserRoles.Add(new MasterUserRole { UserId = user.Id, RoleId = adminRole.Id });

@@ -41,7 +41,8 @@ public static class PipelineExtensions
         app.MapHub<OzonPushHub>("/hubs/ozon-push");
 
         app.MapRazorComponents<App>()
-            .AddInteractiveServerRenderMode();
+            .AddInteractiveServerRenderMode()
+            .AllowAnonymous();
 
         // Применяем pending миграции для всех существующих тенантов при старте
         _ = Task.Run(() => MigrateAllTenantsAsync(app));

@@ -4,6 +4,7 @@
 @inject DialogService DialogService
 @inject NotificationService NotificationService
 @inject JwtAuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
 
 @if (_loading)
 {
@@ -106,10 +107,14 @@ else
                 }
             </div>
 
-            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
-                <RadzenCheckBox @bind-Value="_model.IsActive" Name="IsActive" />
-                <RadzenLabel Text="Активен" Component="IsActive" />
-            </RadzenStack>
+            @* IsActive только при редактировании — при создании аккаунт активируется через письмо *@
+            @if (UserId != Guid.Empty)
+            {
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenCheckBox @bind-Value="_model.IsActive" Name="IsActive" />
+                    <RadzenLabel Text="Активен" Component="IsActive" />
+                </RadzenStack>
+            }
 
             <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem" JustifyContent="JustifyContent.End"
                          Style="margin-top: 0.5rem; border-top: 1px solid var(--rz-border-color); padding-top: 1rem;">
@@ -183,11 +188,13 @@ else
                 var (ok, error) = await UserService.CreateUserAsync(
                     new CreateUserDto(model.Email, model.FirstName, model.LastName,
                                       model.MiddleName, model.Password ?? "P@ssw0rd", model.Permissions),
+                    Navigation.BaseUri,
                     CancellationToken.None);
                 if (ok)
                 {
                     await AuthStateProvider.RefreshAsync();
-                    NotificationService.Notify(NotificationSeverity.Success, "Пользователь создан");
+                    NotificationService.Notify(NotificationSeverity.Success, "Пользователь создан",
+                        "Письмо с ссылкой активации отправлено на email");
                     DialogService.Close(true);
                 }
                 else

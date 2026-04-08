@@ -29,7 +29,7 @@ public class UserMappingProfile : Profile
             .ForMember(dest => dest.FirstName, opt => opt.MapFrom(src => src.FirstName.Trim()))
             .ForMember(dest => dest.LastName, opt => opt.MapFrom(src => src.LastName.Trim()))
             .ForMember(dest => dest.MiddleName, opt => opt.MapFrom(src => src.MiddleName == null ? null : src.MiddleName.Trim()))
-            .ForMember(dest => dest.IsActive, opt => opt.MapFrom(_ => true))
+            .ForMember(dest => dest.IsActive, opt => opt.MapFrom(_ => false))
             .ForMember(dest => dest.HashPassword, opt => opt.Ignore())
             .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())
             .ForMember(dest => dest.UserPermissions, opt => opt.Ignore());
