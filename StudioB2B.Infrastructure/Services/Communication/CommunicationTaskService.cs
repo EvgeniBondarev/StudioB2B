@@ -96,11 +96,15 @@ public class CommunicationTaskService : ICommunicationTaskService
                          t.ChatType == null ||
                          t.ChatType == "BUYER_SELLER"));
 
-        if (filter.TaskType.HasValue)
+        if (filter.TaskTypes.Count > 0)
+            dbQuery = dbQuery.Where(t => filter.TaskTypes.Contains(t.TaskType));
+        else if (filter.TaskType.HasValue)
             dbQuery = dbQuery.Where(t => t.TaskType == filter.TaskType.Value);
         if (filter.AssignedToUserId.HasValue)
             dbQuery = dbQuery.Where(t => t.AssignedToUserId == filter.AssignedToUserId.Value);
-        if (filter.MarketplaceClientId.HasValue)
+        if (filter.MarketplaceClientIds.Count > 0)
+            dbQuery = dbQuery.Where(t => filter.MarketplaceClientIds.Contains(t.MarketplaceClientId));
+        else if (filter.MarketplaceClientId.HasValue)
             dbQuery = dbQuery.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
 
         var inProgressItems = await dbQuery
@@ -131,13 +135,35 @@ public class CommunicationTaskService : ICommunicationTaskService
         if (!filter.AssignedToUserId.HasValue)
         {
             var existingKeys = await LoadExistingTaskKeysForNewExclusionAsync(filter, ct);
+            var noTypeFilter = !filter.TaskType.HasValue && filter.TaskTypes.Count == 0;
+            var clientIds = filter.MarketplaceClientIds.Count > 0
+                ? filter.MarketplaceClientIds
+                : filter.MarketplaceClientId.HasValue ? new List<Guid> { filter.MarketplaceClientId.Value } : (List<Guid>?)null;
 
-            if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Chat)
-                newItems.AddRange(await FetchLiveChatsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct));
-            if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Question)
-                newItems.AddRange(await FetchLiveQuestionsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct));
-            if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Review)
-                newItems.AddRange(await FetchLiveReviewsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct));
+            if (noTypeFilter || filter.TaskTypes.Contains(CommunicationTaskType.Chat) || filter.TaskType == CommunicationTaskType.Chat)
+            {
+                if (clientIds is { Count: > 0 })
+                    foreach (var cid in clientIds)
+                        newItems.AddRange(await FetchLiveChatsAsync(cid, existingKeys, filter.From, filter.To, ct));
+                else
+                    newItems.AddRange(await FetchLiveChatsAsync(null, existingKeys, filter.From, filter.To, ct));
+            }
+            if (noTypeFilter || filter.TaskTypes.Contains(CommunicationTaskType.Question) || filter.TaskType == CommunicationTaskType.Question)
+            {
+                if (clientIds is { Count: > 0 })
+                    foreach (var cid in clientIds)
+                        newItems.AddRange(await FetchLiveQuestionsAsync(cid, existingKeys, filter.From, filter.To, ct));
+                else
+                    newItems.AddRange(await FetchLiveQuestionsAsync(null, existingKeys, filter.From, filter.To, ct));
+            }
+            if (noTypeFilter || filter.TaskTypes.Contains(CommunicationTaskType.Review) || filter.TaskType == CommunicationTaskType.Review)
+            {
+                if (clientIds is { Count: > 0 })
+                    foreach (var cid in clientIds)
+                        newItems.AddRange(await FetchLiveReviewsAsync(cid, existingKeys, filter.From, filter.To, ct));
+                else
+                    newItems.AddRange(await FetchLiveReviewsAsync(null, existingKeys, filter.From, filter.To, ct));
+            }
         }
 
         await EnrichChatCardsFromHistoryAsync(newItems, ct);
@@ -221,11 +247,15 @@ public class CommunicationTaskService : ICommunicationTaskService
                          t.ChatType == null ||
                          t.ChatType == "BUYER_SELLER"));
 
-        if (filter.TaskType.HasValue)
+        if (filter.TaskTypes.Count > 0)
+            dbQuery = dbQuery.Where(t => filter.TaskTypes.Contains(t.TaskType));
+        else if (filter.TaskType.HasValue)
             dbQuery = dbQuery.Where(t => t.TaskType == filter.TaskType.Value);
         if (filter.AssignedToUserId.HasValue)
             dbQuery = dbQuery.Where(t => t.AssignedToUserId == filter.AssignedToUserId.Value);
-        if (filter.MarketplaceClientId.HasValue)
+        if (filter.MarketplaceClientIds.Count > 0)
+            dbQuery = dbQuery.Where(t => filter.MarketplaceClientIds.Contains(t.MarketplaceClientId));
+        else if (filter.MarketplaceClientId.HasValue)
             dbQuery = dbQuery.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
 
         var inProgressItems = await dbQuery
@@ -311,14 +341,36 @@ public class CommunicationTaskService : ICommunicationTaskService
         _db.ChangeTracker.Clear();
 
         var existingKeys = await LoadExistingTaskKeysForNewExclusionAsync(filter, ct);
-
         var newItems = new List<CommunicationTaskDto>();
-        if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Chat)
-            newItems.AddRange(await FetchLiveChatsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct));
-        if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Question)
-            newItems.AddRange(await FetchLiveQuestionsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct));
-        if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Review)
-            newItems.AddRange(await FetchLiveReviewsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct));
+        var noTypeFilter = !filter.TaskType.HasValue && filter.TaskTypes.Count == 0;
+        var clientIds = filter.MarketplaceClientIds.Count > 0
+            ? filter.MarketplaceClientIds
+            : filter.MarketplaceClientId.HasValue ? new List<Guid> { filter.MarketplaceClientId.Value } : (List<Guid>?)null;
+
+        if (noTypeFilter || filter.TaskTypes.Contains(CommunicationTaskType.Chat) || filter.TaskType == CommunicationTaskType.Chat)
+        {
+            if (clientIds is { Count: > 0 })
+                foreach (var cid in clientIds)
+                    newItems.AddRange(await FetchLiveChatsAsync(cid, existingKeys, filter.From, filter.To, ct));
+            else
+                newItems.AddRange(await FetchLiveChatsAsync(null, existingKeys, filter.From, filter.To, ct));
+        }
+        if (noTypeFilter || filter.TaskTypes.Contains(CommunicationTaskType.Question) || filter.TaskType == CommunicationTaskType.Question)
+        {
+            if (clientIds is { Count: > 0 })
+                foreach (var cid in clientIds)
+                    newItems.AddRange(await FetchLiveQuestionsAsync(cid, existingKeys, filter.From, filter.To, ct));
+            else
+                newItems.AddRange(await FetchLiveQuestionsAsync(null, existingKeys, filter.From, filter.To, ct));
+        }
+        if (noTypeFilter || filter.TaskTypes.Contains(CommunicationTaskType.Review) || filter.TaskType == CommunicationTaskType.Review)
+        {
+            if (clientIds is { Count: > 0 })
+                foreach (var cid in clientIds)
+                    newItems.AddRange(await FetchLiveReviewsAsync(cid, existingKeys, filter.From, filter.To, ct));
+            else
+                newItems.AddRange(await FetchLiveReviewsAsync(null, existingKeys, filter.From, filter.To, ct));
+        }
 
         await EnrichChatCardsFromHistoryAsync(newItems, ct);
         return newItems;
@@ -333,26 +385,41 @@ public class CommunicationTaskService : ICommunicationTaskService
         _db.ChangeTracker.Clear();
 
         var existingKeys = await LoadExistingTaskKeysForNewExclusionAsync(filter, ct);
+        var noTypeFilter = !filter.TaskType.HasValue && filter.TaskTypes.Count == 0;
+        var clientIds = filter.MarketplaceClientIds.Count > 0
+            ? filter.MarketplaceClientIds
+            : filter.MarketplaceClientId.HasValue ? new List<Guid> { filter.MarketplaceClientId.Value } : (List<Guid>?)null;
 
-        if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Chat)
+        if (noTypeFilter || filter.TaskTypes.Contains(CommunicationTaskType.Chat) || filter.TaskType == CommunicationTaskType.Chat)
         {
-            var batch = await FetchLiveChatsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct);
-            if (batch.Count > 0)
-            {
-                await EnrichChatCardsFromHistoryAsync(batch, ct);
-                yield return batch;
-            }
+            var batch = new List<CommunicationTaskDto>();
+            if (clientIds is { Count: > 0 })
+                foreach (var cid in clientIds)
+                    batch.AddRange(await FetchLiveChatsAsync(cid, existingKeys, filter.From, filter.To, ct));
+            else
+                batch.AddRange(await FetchLiveChatsAsync(null, existingKeys, filter.From, filter.To, ct));
+            if (batch.Count > 0) { await EnrichChatCardsFromHistoryAsync(batch, ct); yield return batch; }
         }
 
-        if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Question)
+        if (noTypeFilter || filter.TaskTypes.Contains(CommunicationTaskType.Question) || filter.TaskType == CommunicationTaskType.Question)
         {
-            var batch = await FetchLiveQuestionsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct);
+            var batch = new List<CommunicationTaskDto>();
+            if (clientIds is { Count: > 0 })
+                foreach (var cid in clientIds)
+                    batch.AddRange(await FetchLiveQuestionsAsync(cid, existingKeys, filter.From, filter.To, ct));
+            else
+                batch.AddRange(await FetchLiveQuestionsAsync(null, existingKeys, filter.From, filter.To, ct));
             if (batch.Count > 0) yield return batch;
         }
 
-        if (!filter.TaskType.HasValue || filter.TaskType == CommunicationTaskType.Review)
+        if (noTypeFilter || filter.TaskTypes.Contains(CommunicationTaskType.Review) || filter.TaskType == CommunicationTaskType.Review)
         {
-            var batch = await FetchLiveReviewsAsync(filter.MarketplaceClientId, existingKeys, filter.From, filter.To, ct);
+            var batch = new List<CommunicationTaskDto>();
+            if (clientIds is { Count: > 0 })
+                foreach (var cid in clientIds)
+                    batch.AddRange(await FetchLiveReviewsAsync(cid, existingKeys, filter.From, filter.To, ct));
+            else
+                batch.AddRange(await FetchLiveReviewsAsync(null, existingKeys, filter.From, filter.To, ct));
             if (batch.Count > 0) yield return batch;
         }
     }
@@ -371,11 +438,15 @@ public class CommunicationTaskService : ICommunicationTaskService
                         (t.Status == CommunicationTaskStatus.Done ||
                          t.Status == CommunicationTaskStatus.Cancelled));
 
-        if (filter.TaskType.HasValue)
+        if (filter.TaskTypes.Count > 0)
+            query = query.Where(t => filter.TaskTypes.Contains(t.TaskType));
+        else if (filter.TaskType.HasValue)
             query = query.Where(t => t.TaskType == filter.TaskType.Value);
         if (filter.AssignedToUserId.HasValue)
             query = query.Where(t => t.AssignedToUserId == filter.AssignedToUserId.Value);
-        if (filter.MarketplaceClientId.HasValue)
+        if (filter.MarketplaceClientIds.Count > 0)
+            query = query.Where(t => filter.MarketplaceClientIds.Contains(t.MarketplaceClientId));
+        else if (filter.MarketplaceClientId.HasValue)
             query = query.Where(t => t.MarketplaceClientId == filter.MarketplaceClientId.Value);
         if (filter.From.HasValue)
             query = query.Where(t => t.CreatedAt >= filter.From.Value);
