@@ -414,9 +414,7 @@ public class CommunicationTaskService : ICommunicationTaskService
                 ? t.AssignedToUser.FirstName + " " + t.AssignedToUser.LastName
                 : null,
             AssignedAt = t.AssignedAt,
-            StartedAt = t.StartedAt,
             CompletedAt = t.CompletedAt,
-            TotalTimeSpentTicks = t.TotalTimeSpentTicks,
             Title = t.Title,
             PreviewText = t.PreviewText,
             ExternalStatus = t.ExternalStatus,
@@ -427,6 +425,14 @@ public class CommunicationTaskService : ICommunicationTaskService
             CreatedAt = t.CreatedAt,
             UpdatedAt = t.UpdatedAt,
             HasActiveTimer = t.TimeEntries.Any(e => e.EndedAt == null),
+            // StartedAt = beginning of the current ACTIVE segment (null when paused).
+            // TotalTimeSpentTicks = sum of all CLOSED segments only.
+            // This way FormatOverlayDuration correctly adds live delta without counting idle time.
+            StartedAt = t.TimeEntries
+                .Where(e => e.EndedAt == null)
+                .Select(e => (DateTime?)e.StartedAt)
+                .FirstOrDefault(),
+            TotalTimeSpentTicks = t.TotalTimeSpentTicks,
             LastMessageFromCustomer = false
         };
     }
@@ -715,6 +721,11 @@ public class CommunicationTaskService : ICommunicationTaskService
             if (task is null || task.AssignedToUserId != userId) return false;
 
             StopActiveTimers(task, userId);
+
+            // Keep accumulated time up to date so the board DTO always shows correct total.
+            task.TotalTimeSpentTicks = task.TimeEntries
+                .Where(e => e.EndedAt.HasValue)
+                .Sum(e => (e.EndedAt!.Value - e.StartedAt).Ticks);
 
             _db.CommunicationTaskLogs.Add(new CommunicationTaskLog
             {
@@ -1446,9 +1457,13 @@ public class CommunicationTaskService : ICommunicationTaskService
             ? $"{t.AssignedToUser.FirstName} {t.AssignedToUser.LastName}"
             : null;
         dto.AssignedAt = t.AssignedAt;
-        dto.StartedAt = t.StartedAt;
         dto.CompletedAt = t.CompletedAt;
-        dto.TotalTimeSpentTicks = t.TotalTimeSpentTicks;
+        // StartedAt = beginning of the current ACTIVE segment (null when paused).
+        dto.StartedAt = t.TimeEntries?.FirstOrDefault(e => e.EndedAt == null)?.StartedAt;
+        // TotalTimeSpentTicks = sum of all CLOSED segments (kept up to date after each Pause).
+        dto.TotalTimeSpentTicks = t.TimeEntries is { Count: > 0 }
+            ? t.TimeEntries.Where(e => e.EndedAt.HasValue).Sum(e => (e.EndedAt!.Value - e.StartedAt).Ticks)
+            : t.TotalTimeSpentTicks;
         dto.Title = t.Title;
         dto.PreviewText = t.PreviewText;
         dto.ExternalStatus = t.ExternalStatus;

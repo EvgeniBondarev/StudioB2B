@@ -298,24 +298,28 @@
                                     <span class="task-unread-badge" title="Непрочитанных сообщений">@task.UnreadCount</span>
                                 }
                             </div>
+                            @if (!string.IsNullOrEmpty(task.PreviewText))
+                            {
+                                <div class="task-card-preview">@task.PreviewText</div>
+                            }
                             @if (task.HasActiveTimer)
                             {
                                 <div class="task-timer-active">
                                     <span class="timer-dot"></span>
-                                    <span class="live-timer" data-started="@task.StartedAt?.ToString("o")">@FormatDuration(task.StartedAt)</span>
+                                    <span class="live-timer" data-started="@task.StartedAt?.ToString("o")" data-accumulated="@task.TotalTimeSpentTicks">@FormatDuration(task.StartedAt, task.TotalTimeSpentTicks)</span>
                                 </div>
                             }
                             <div class="task-card-footer">
+                                <span class="task-card-time">
+                                    <RadzenIcon Icon="schedule" Style="font-size:0.85rem;" />
+                                    @FormatTimeAgo(task.UpdatedAt)
+                                </span>
                                 @if (task.AssignedToUserName is not null)
                                 {
                                     <span class="task-card-assignee">
                                         <RadzenIcon Icon="person" Style="font-size:0.85rem;" />
                                         @task.AssignedToUserName
                                     </span>
-                                }
-                                @if (!string.IsNullOrEmpty(task.ExternalStatus))
-                                {
-                                    <span class="task-external-status">@task.ExternalStatus</span>
                                 }
                                 @{ var inProgressEst = ComputeEstimate(task); }
                                 @if (inProgressEst > 0)
@@ -861,6 +865,11 @@
                     </span>
                 }
             }
+            else if (_previewTask.Status == CommunicationTaskStatus.Done)
+            {
+                <RadzenButton Text="Вернуть в работу" Icon="replay" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small"
+                              Click="OverlayReopenAsync" IsBusy="@_overlayBusy" Style="margin-left:auto;" />
+            }
         </div>
         }
         </div>
@@ -932,7 +941,8 @@
 
     @if (_previewTask is not null && _previewTask.Status != CommunicationTaskStatus.InProgress)
     {
-    <div class="task-detail-overlay @GetPreviewTypeClass(_previewTask.TaskType)">
+    <div class="task-side-modal-backdrop" @onclick="ClosePreview">
+    <div class="task-detail-overlay @GetPreviewTypeClass(_previewTask.TaskType) @(_previewTask.Status == CommunicationTaskStatus.New ? "overlay-col-new" : "overlay-col-done")" @onclick:stopPropagation="true">
         <div class="task-detail-header">
             <div style="display:flex;align-items:center;gap:0.4rem;flex:1;min-width:0;flex-wrap:wrap;overflow:hidden;">
                 <span style="font-weight:600;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;min-width:0;">@_previewTask.Title</span>
@@ -1441,8 +1451,14 @@
                     </span>
                 }
             }
+            else if (_previewTask.Status == CommunicationTaskStatus.Done)
+            {
+                <RadzenButton Text="Вернуть в работу" Icon="replay" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small"
+                              Click="OverlayReopenAsync" IsBusy="@_overlayBusy" Style="margin-left:auto;" />
+            }
         </div>
         }
+    </div>
     </div>
     }
 
@@ -2152,9 +2168,16 @@
         var userId = await GetUserIdAsync();
         if (userId is null) return;
 
-        // Optimistic: stop timer indicator immediately
+        // Optimistic: stop timer indicator immediately and freeze accumulated ticks
         var local = _board.InProgressTasks.FirstOrDefault(t => t.Id == task.Id);
-        if (local is not null) { local.HasActiveTimer = false; StateHasChanged(); }
+        if (local is not null)
+        {
+            if (local.StartedAt.HasValue)
+                local.TotalTimeSpentTicks += (DateTime.UtcNow - local.StartedAt.Value).Ticks;
+            local.HasActiveTimer = false;
+            local.StartedAt = null;
+            StateHasChanged();
+        }
 
         try { await TaskService.PauseTaskAsync(task.Id, userId.Value); }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
@@ -2309,6 +2332,34 @@
             ClosePreview();
         }
         finally { _overlayBusy = false; }
+    }
+
+    private async Task OverlayReopenAsync()
+    {
+        if (_previewTask is null) return;
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+        _overlayBusy = true;
+        StateHasChanged();
+        try
+        {
+            var ok = await TaskService.ReopenTaskAsync(_previewTask.Id, userId.Value);
+            if (ok)
+            {
+                _board.DoneTasks.RemoveAll(t => t.Id == _previewTask.Id);
+                _previewTask.Status = CommunicationTaskStatus.InProgress;
+                _previewTask.AssignedToUserId = userId;
+                _previewTask.HasActiveTimer = true;
+                _previewTask.StartedAt = DateTime.UtcNow;
+                _board.InProgressTasks.Insert(0, _previewTask);
+                ClosePreview();
+            }
+            else
+            {
+                NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось вернуть задачу в работу", 3000);
+            }
+        }
+        finally { _overlayBusy = false; StateHasChanged(); }
     }
 
     private async Task<bool> OverlaySendChatMessageAsync(string text, IBrowserFile? file, string? base64)
@@ -2592,13 +2643,16 @@
         return utcTime.ToLocalTime().ToString("dd.MM");
     }
 
-    private static string FormatDuration(DateTime? startedAt)
+    private static string FormatDuration(DateTime? startedAt, long accumulatedTicks = 0)
     {
-        if (startedAt is null) return "—";
-        var diff = DateTime.UtcNow - startedAt.Value;
-        if (diff.TotalHours >= 1) return $"{(int)diff.TotalHours}ч {diff.Minutes:D2}м {diff.Seconds:D2}с";
-        if (diff.TotalMinutes >= 1) return $"{(int)diff.TotalMinutes}м {diff.Seconds:D2}с";
-        return $"{(int)diff.TotalSeconds}с";
+        var ticks = accumulatedTicks;
+        if (startedAt.HasValue)
+            ticks += (DateTime.UtcNow - startedAt.Value).Ticks;
+        if (ticks <= 0) return "0с";
+        var ts = TimeSpan.FromTicks(ticks);
+        if (ts.TotalHours >= 1) return $"{(int)ts.TotalHours}ч {ts.Minutes:D2}м {ts.Seconds:D2}с";
+        if (ts.TotalMinutes >= 1) return $"{(int)ts.TotalMinutes}м {ts.Seconds:D2}с";
+        return $"{(int)ts.TotalSeconds}с";
     }
 
     private static string FormatTimeSpan(TimeSpan ts)
