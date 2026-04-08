@@ -321,6 +321,12 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         [PageColumnEnum.SyncColFinishedAt] = PageEnum.SyncView,
         [PageColumnEnum.SyncColDuration] = PageEnum.SyncView,
         [PageColumnEnum.SyncColInitiatedBy] = PageEnum.SyncView,
+
+        [PageColumnEnum.OzonPushColType] = PageEnum.OzonPushView,
+        [PageColumnEnum.OzonPushColClient] = PageEnum.OzonPushView,
+        [PageColumnEnum.OzonPushColPosting] = PageEnum.OzonPushView,
+        [PageColumnEnum.OzonPushColSeller] = PageEnum.OzonPushView,
+        [PageColumnEnum.OzonPushColDate] = PageEnum.OzonPushView,
     };
 
     /// <summary>
@@ -344,6 +350,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         [FunctionEnum.PermissionsManage] = PageEnum.PermissionsView,
         [FunctionEnum.TaskBoardManage] = PageEnum.TaskBoardView,
         [FunctionEnum.TaskBoardAdminManage] = PageEnum.TaskBoardAdmin,
+        [FunctionEnum.OzonPushManage] = PageEnum.OzonPushView,
     };
 
     /// <summary>

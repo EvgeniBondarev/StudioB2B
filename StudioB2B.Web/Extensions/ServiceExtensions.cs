@@ -47,6 +47,7 @@ public static class ServiceExtensions
         services.AddSignalR(o => o.MaximumReceiveMessageSize = null);
         services.AddScoped<ISyncNotificationSender, SyncNotificationSender>();
         services.AddScoped<ITaskBoardNotificationSender, TaskBoardNotificationSender>();
+        services.AddScoped<IOzonPushNotificationSender, OzonPushNotificationSender>();
 
         services.AddScoped<DialogService>();
         services.AddScoped<NotificationService>();
