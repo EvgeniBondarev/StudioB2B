@@ -253,5 +253,20 @@ public enum PageColumnEnum
 
     [Description("Загрузка: колонка «Запустил»")]
     SyncColInitiatedBy = 82,
+
+    [Description("Push-уведомления: колонка «Тип»")]
+    OzonPushColType = 83,
+
+    [Description("Push-уведомления: колонка «Клиент»")]
+    OzonPushColClient = 84,
+
+    [Description("Push-уведомления: колонка «№ отправления»")]
+    OzonPushColPosting = 85,
+
+    [Description("Push-уведомления: колонка «Seller ID»")]
+    OzonPushColSeller = 86,
+
+    [Description("Push-уведомления: колонка «Время»")]
+    OzonPushColDate = 87,
 }
 
