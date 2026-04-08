@@ -1,0 +1,65 @@
+@page "/activate"
+@using StudioB2B.Infrastructure.Interfaces
+@inject IUserService UserService
+@inject NavigationManager Navigation
+
+<PageTitle>Активация аккаунта — StudioB2B</PageTitle>
+
+<div style="display:flex;justify-content:center;padding-top:4rem;padding-bottom:4rem;">
+    <div style="width:100%;max-width:440px;text-align:center;">
+
+        <RadzenText TextStyle="TextStyle.H4" Style="font-weight:700;margin-bottom:1.5rem;">StudioB2B</RadzenText>
+
+        @if (_loading)
+        {
+            <RadzenText TextStyle="TextStyle.Body2" Style="color:var(--rz-text-secondary-color);margin-bottom:1rem;">
+                Активация аккаунта...
+            </RadzenText>
+            <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false" Style="width:100%;" />
+        }
+        else if (_success)
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Success" ShowIcon="true" AllowClose="false">
+                Аккаунт успешно активирован! Теперь вы можете войти.
+            </RadzenAlert>
+            <RadzenButton Text="Перейти ко входу"
+                          ButtonStyle="ButtonStyle.Primary"
+                          Style="margin-top:1.5rem;width:100%;justify-content:center;"
+                          Click="@(() => Navigation.NavigateTo("/", replace: true))" />
+        }
+        else
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Danger" ShowIcon="true" AllowClose="false">
+                @_error
+            </RadzenAlert>
+            <RadzenText TextStyle="TextStyle.Body2" Style="color:var(--rz-text-secondary-color);margin-top:1rem;">
+                Обратитесь к администратору для повторной отправки ссылки.
+            </RadzenText>
+        }
+
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery] public string? Token { get; set; }
+
+    private bool _loading = true;
+    private bool _success;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Guid.TryParse(Token, out var tokenId))
+        {
+            _error = "Недействительная ссылка активации.";
+            _loading = false;
+            return;
+        }
+
+        var (ok, error) = await UserService.ActivateUserAsync(tokenId);
+        _success = ok;
+        _error = error;
+        _loading = false;
+    }
+}
+

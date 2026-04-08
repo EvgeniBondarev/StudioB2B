@@ -42,6 +42,10 @@ public class TenantDbContext : DbContext
 
     public DbSet<TenantUser> Users { get; set; } = null!;
 
+    public DbSet<TenantLoginCode> LoginCodes { get; set; } = null!;
+
+    public DbSet<TenantUserActivationToken> UserActivationTokens { get; set; } = null!;
+
     public DbSet<Permission> Permissions { get; set; } = null!;
     public DbSet<TenantUserPermission> UserPermissions { get; set; } = null!;
     public DbSet<Page> Pages { get; set; } = null!;

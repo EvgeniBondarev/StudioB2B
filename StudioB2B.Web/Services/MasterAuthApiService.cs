@@ -72,6 +72,26 @@ public class MasterAuthApiService : IMasterAuthApiService
             });
 
             if (response.IsSuccessStatusCode)
+                return null; // успех
+
+            var err = await TryReadErrorAsync(response);
+            return err ?? "Ошибка регистрации";
+        }
+        catch
+        {
+            return "Произошла ошибка при регистрации";
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<string?> VerifyEmailAsync(string email, string code)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync("/api/master/auth/verify-email",
+                new { Email = email, Code = code });
+
+            if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
                 if (result?.Token is not null)
@@ -84,11 +104,31 @@ public class MasterAuthApiService : IMasterAuthApiService
             }
 
             var err = await TryReadErrorAsync(response);
-            return err ?? "Ошибка регистрации";
+            return err ?? "Неверный код подтверждения";
         }
         catch
         {
-            return "Произошла ошибка при регистрации";
+            return "Произошла ошибка при подтверждении";
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<string?> ResendCodeAsync(string email)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync("/api/master/auth/resend-code",
+                new { Email = email });
+
+            if (response.IsSuccessStatusCode)
+                return null; // успех
+
+            var err = await TryReadErrorAsync(response);
+            return err ?? "Не удалось отправить код";
+        }
+        catch
+        {
+            return "Произошла ошибка при отправке кода";
         }
     }
 

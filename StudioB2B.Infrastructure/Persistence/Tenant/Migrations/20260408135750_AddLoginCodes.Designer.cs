@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -11,9 +12,11 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
 {
     [DbContext(typeof(TenantDbContext))]
-    partial class TenantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260408135750_AddLoginCodes")]
+    partial class AddLoginCodes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1857,28 +1860,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
-            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserActivationToken", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsUsed")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("char(36)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserActivationTokens", (string)null);
-                });
-
             modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserPermission", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -2491,17 +2472,6 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.TenantLoginCode", b =>
-                {
-                    b.HasOne("StudioB2B.Domain.Entities.TenantUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserActivationToken", b =>
                 {
                     b.HasOne("StudioB2B.Domain.Entities.TenantUser", "User")
                         .WithMany()

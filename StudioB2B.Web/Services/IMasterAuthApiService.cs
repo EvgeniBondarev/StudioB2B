@@ -13,7 +13,7 @@ public interface IMasterAuthApiService
     Task<string?> LoginAsync(string email, string password);
 
     /// <summary>
-    /// Зарегистрировать новый master-аккаунт.
+    /// Шаг 1 регистрации: создаёт пользователя и отправляет код на email.
     /// Возвращает сообщение об ошибке, или <c>null</c> при успехе.
     /// </summary>
     Task<string?> RegisterAsync(
@@ -22,5 +22,16 @@ public interface IMasterAuthApiService
         string  firstName,
         string  lastName,
         string? middleName);
-}
 
+    /// <summary>
+    /// Шаг 2 регистрации: подтверждает код и выполняет вход.
+    /// Возвращает сообщение об ошибке, или <c>null</c> при успехе.
+    /// </summary>
+    Task<string?> VerifyEmailAsync(string email, string code);
+
+    /// <summary>
+    /// Повторная отправка кода подтверждения.
+    /// Возвращает сообщение об ошибке, или <c>null</c> при успехе.
+    /// </summary>
+    Task<string?> ResendCodeAsync(string email);
+}
