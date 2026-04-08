@@ -49,5 +49,11 @@ public class UserService : IUserService
         using var db = _dbContextFactory.CreateDbContext();
         return await db.DeleteUserAsync(id, ct);
     }
+
+    public async Task<(bool Success, string? Error)> ChangePasswordAsync(ChangeUserPasswordDto dto, CancellationToken ct = default)
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        return await db.ChangePasswordAsync(dto, ct);
+    }
 }
 

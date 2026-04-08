@@ -31,5 +31,10 @@ public interface IUserService
     /// Удалить пользователя (мягкое удаление)
     /// </summary>
     Task<(bool Success, string? Error)> DeleteUserAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Сменить пароль пользователя
+    /// </summary>
+    Task<(bool Success, string? Error)> ChangePasswordAsync(ChangeUserPasswordDto dto, CancellationToken ct = default);
 }
 
