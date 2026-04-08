@@ -130,6 +130,8 @@ else
     private List<UserListDto> _users = [];
     private bool _loading = true;
     private bool _canManage;
+    private bool _canChangePassword;
+    private Guid? _currentUserId;
     private System.Security.Claims.ClaimsPrincipal? _user;
     private Density _density = Density.Default;
     private readonly int[] _pageSizeOptions = [10, 25, 50, 100];
@@ -150,6 +152,9 @@ else
         var state = await AuthState;
         _user = state.User;
         _canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.UsersManage));
+        _canChangePassword = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.UsersChangePassword));
+        var sub = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        _currentUserId = Guid.TryParse(sub, out var id) ? id : null;
 
         if (TenantProvider.IsResolved)
             await LoadAsync();
@@ -215,6 +220,7 @@ else
             await LoadAsync();                              // data first
             var state = await AuthState;
             _canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.UsersManage));
+            _canChangePassword = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.UsersChangePassword));
         }
     }
 
@@ -235,7 +241,19 @@ else
             await LoadAsync();                              // data first
             var state = await AuthState;
             _canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.UsersManage));
+            _canChangePassword = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.UsersChangePassword));
         }
+    }
+
+    private async Task OpenChangePasswordDialog(UserListDto userArg)
+    {
+        await DialogService.OpenAsync<ChangePasswordDialog>(
+            $"Смена пароля — {userArg.LastName} {userArg.FirstName}",
+            new Dictionary<string, object?>
+            {
+                [nameof(ChangePasswordDialog.UserId)] = userArg.Id
+            },
+            new DialogOptions { Width = "min(420px, 96vw)", CloseDialogOnOverlayClick = true });
     }
 
     private async Task DeleteUser(UserListDto user)
@@ -268,6 +286,9 @@ else
             items.Add(new ContextMenuItem { Text = "Редактировать", Icon = "edit", Value = "edit" });
             items.Add(new ContextMenuItem { Text = "Удалить", Icon = "delete", Value = "delete" });
         }
+        if (_canChangePassword && args.Data?.Id != _currentUserId)
+            items.Add(new ContextMenuItem { Text = "Сменить пароль", Icon = "lock_reset", Value = "change_password" });
+
         if (items.Count == 0) return;
 
         ContextMenuService.Open(args, items, e =>
@@ -277,6 +298,8 @@ else
                 InvokeAsync(() => OpenEditDialog(args.Data!));
             else if (e.Value?.ToString() == "delete")
                 InvokeAsync(() => DeleteUser(args.Data!));
+            else if (e.Value?.ToString() == "change_password")
+                InvokeAsync(() => OpenChangePasswordDialog(args.Data!));
         });
     }
 

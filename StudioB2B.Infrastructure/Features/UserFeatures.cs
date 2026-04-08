@@ -89,4 +89,14 @@ public static class UserExtensions
         await db.SaveChangesAsync(ct);
         return (true, null);
     }
+
+    public static async Task<(bool Success, string? Error)> ChangePasswordAsync(this TenantDbContext db, ChangeUserPasswordDto dto, CancellationToken ct = default)
+    {
+        var user = await db.Users.FindAsync(new object[] { dto.UserId }, ct);
+        if (user is null) return (false, "Пользователь не найден");
+
+        user.HashPassword = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        await db.SaveChangesAsync(ct);
+        return (true, null);
+    }
 }
