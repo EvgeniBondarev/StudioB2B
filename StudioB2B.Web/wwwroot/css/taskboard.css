@@ -203,6 +203,42 @@
     color: var(--rz-danger);
 }
 
+/* Multi-select checkbox items in sidebar */
+.tb-check-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: var(--rz-text-color);
+    user-select: none;
+    transition: background 0.12s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.tb-check-item:hover {
+    background: var(--rz-base-200);
+}
+
+.tb-check-item input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    cursor: pointer;
+    accent-color: var(--rz-primary);
+}
+
+.tb-check-item.type-chat input[type="checkbox"] { accent-color: #3b82f6; }
+.tb-check-item.type-question input[type="checkbox"] { accent-color: #a855f7; }
+.tb-check-item.type-review input[type="checkbox"] { accent-color: #f59e0b; }
+
+.tb-check-item.type-chat .tb-sidebar-dot { background: #3b82f6; }
+.tb-check-item.type-question .tb-sidebar-dot { background: #a855f7; }
+.tb-check-item.type-review .tb-sidebar-dot { background: #f59e0b; }
+
 /* Links at bottom */
 .tb-sidebar-links {
     display: flex;
