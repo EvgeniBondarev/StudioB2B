@@ -18,9 +18,10 @@ public interface IUserService
     Task<UserListDto?> GetUserByIdAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>
-    /// Создать нового пользователя
+    /// Создать нового пользователя (неактивного).
+    /// После создания на email отправляется ссылка активации.
     /// </summary>
-    Task<(bool Success, string? Error)> CreateUserAsync(CreateUserDto request, CancellationToken ct = default);
+    Task<(bool Success, string? Error)> CreateUserAsync(CreateUserDto request, string tenantBaseUrl, CancellationToken ct = default);
 
     /// <summary>
     /// Обновить пользователя
@@ -36,5 +37,9 @@ public interface IUserService
     /// Сменить пароль пользователя
     /// </summary>
     Task<(bool Success, string? Error)> ChangePasswordAsync(ChangeUserPasswordDto dto, CancellationToken ct = default);
-}
 
+    /// <summary>
+    /// Активировать пользователя по токену из письма.
+    /// </summary>
+    Task<(bool Success, string? Error)> ActivateUserAsync(Guid tokenId, CancellationToken ct = default);
+}

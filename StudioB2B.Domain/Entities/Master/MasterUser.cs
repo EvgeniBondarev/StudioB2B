@@ -16,6 +16,8 @@ public class MasterUser : IBaseEntity, ISoftDelete
 
     public bool IsActive { get; set; } = true;
 
+    public bool IsEmailVerified { get; set; }
+
     public bool IsDeleted { get; set; }
 
     public ICollection<MasterUserRole> UserRoles { get; set; } = new List<MasterUserRole>();

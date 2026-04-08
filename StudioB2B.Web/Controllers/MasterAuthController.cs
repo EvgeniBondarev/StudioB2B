@@ -40,7 +40,7 @@ public class MasterAuthController : ControllerBase
     }
 
     /// <summary>
-    /// Регистрация нового master-пользователя. Возвращает JWT-токен (авто-вход).
+    /// Шаг 1 регистрации: создаёт пользователя и отправляет код на email.
     /// </summary>
     [HttpPost("register")]
     public async Task<IActionResult> Register(
@@ -54,7 +54,47 @@ public class MasterAuthController : ControllerBase
             return BadRequest(new { error = result.Error });
         }
 
-        _logger.LogInformation("Master user registered: {Email}", request.Email);
+        _logger.LogInformation("Verification code sent to {Email}", request.Email);
+        return Ok(new { requiresVerification = result.RequiresVerification });
+    }
+
+    /// <summary>
+    /// Шаг 2 регистрации: подтверждает код и возвращает JWT-токен.
+    /// </summary>
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail(
+        [FromBody] MasterVerifyEmailDto request, CancellationToken ct = default)
+    {
+        var result = await _authService.VerifyEmailAsync(request, ct);
+
+        if (!result.Success)
+        {
+            _logger.LogWarning("Email verification failed for {Email}: {Error}", request.Email, result.Error);
+            return BadRequest(new { error = result.Error });
+        }
+
+        _logger.LogInformation("Master user verified and logged in: {Email}", request.Email);
         return Ok(new { token = result.Token, expiresAt = result.ExpiresAt });
     }
+
+    /// <summary>
+    /// Повторная отправка кода подтверждения.
+    /// </summary>
+    [HttpPost("resend-code")]
+    public async Task<IActionResult> ResendCode(
+        [FromBody] ResendCodeRequest request, CancellationToken ct = default)
+    {
+        var result = await _authService.ResendCodeAsync(request.Email, ct);
+
+        if (!result.Success)
+        {
+            _logger.LogWarning("Resend code failed for {Email}: {Error}", request.Email, result.Error);
+            return BadRequest(new { error = result.Error });
+        }
+
+        _logger.LogInformation("Verification code resent to {Email}", request.Email);
+        return Ok(new { requiresVerification = true });
+    }
+
+    public record ResendCodeRequest(string Email);
 }
