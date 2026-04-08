@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
+@using Microsoft.AspNetCore.SignalR.Client
 @inject ITenantProvider TenantProvider
 @inject NavigationManager Navigation
 @inject PageRegistry PageRegistry
@@ -8,8 +9,11 @@
 @inject MasterAuthStateService MasterAuthState
 @inject UserContext UserContext
 @inject NavService NavService
+@inject NotificationService NotificationService
+@inject TaskBoardStateService BoardState
 
 @implements IDisposable
+@implements IAsyncDisposable
 
 <div class="app-shell">
     <nav class="icon-rail">
@@ -168,6 +172,7 @@
 @code {
     private string _pageTitle = "StudioB2B";
     private string _pageIcon = "home";
+    private HubConnection? _ozonPushHub;
 
     private static readonly HashSet<string> FullHeightPages = ["/chats", "/questions", "/communication"];
 
@@ -196,8 +201,90 @@
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             UserContext.SetUser(authState.User);
             StateHasChanged();
+
+            if (TenantProvider.IsResolved && TenantProvider.TenantId.HasValue)
+                await ConnectOzonPushHubAsync(TenantProvider.TenantId.Value);
         }
     }
+
+    private async Task ConnectOzonPushHubAsync(Guid tenantId)
+    {
+        var baseUri = Navigation.BaseUri.TrimEnd('/');
+        _ozonPushHub = new HubConnectionBuilder()
+            .WithUrl($"{baseUri}/hubs/ozon-push")
+            .WithAutomaticReconnect()
+            .Build();
+
+        _ozonPushHub.On<OzonPushNotificationDto>("OzonPush", notification =>
+        {
+            var label = GetMessageTypeLabel(notification.MessageType);
+            var isChatType = OzonPushMessageType.ChatTypes.Contains(notification.MessageType);
+
+            string detail;
+            if (isChatType && !string.IsNullOrWhiteSpace(notification.MessageText))
+                detail = notification.MessageText;
+            else if (isChatType)
+                detail = notification.MarketplaceClientName ?? $"Seller {notification.SellerId}";
+            else if (notification.PostingNumber is not null)
+                detail = notification.PostingNumber;
+            else
+                detail = notification.MarketplaceClientName ?? $"Seller {notification.SellerId}";
+
+            var msg = new NotificationMessage
+            {
+                Severity = NotificationSeverity.Info,
+                Summary = $"Ozon: {label}",
+                Detail = isChatType ? $"{detail} — нажмите, чтобы открыть" : detail,
+                Duration = 8000
+            };
+
+            if (isChatType && !string.IsNullOrWhiteSpace(notification.ChatId))
+            {
+                var chatId = notification.ChatId;
+                var clientId = notification.MarketplaceClientId;
+                msg.Click = _ => InvokeAsync(() => OpenChatInBoard(chatId, clientId));
+            }
+
+            NotificationService.Notify(msg);
+            InvokeAsync(StateHasChanged);
+        });
+
+        await _ozonPushHub.StartAsync();
+        await _ozonPushHub.InvokeAsync("JoinTenantGroup", tenantId.ToString());
+    }
+
+    private void OpenChatInBoard(string chatId, Guid? clientId)
+    {
+        // Store the pending chat even when clientId is null — the board will search by chatId alone.
+        BoardState.RequestChatOpen(chatId, clientId);
+
+        // Only navigate if not already on /communication.
+        // Same-page NavigateTo can cause the board to be recreated, which loses the
+        // pending-chat data race between the old component's InvokeAsync and the new
+        // component's OnInitializedAsync. When already on the page, the event alone
+        // (PendingChatOpenChanged) is sufficient to open the chat.
+        var currentPath = new Uri(Navigation.Uri).AbsolutePath;
+        if (!currentPath.TrimEnd('/').Equals("/communication", StringComparison.OrdinalIgnoreCase))
+            Navigation.NavigateTo("/communication");
+    }
+
+    private static string GetMessageTypeLabel(string messageType) => messageType switch
+    {
+        OzonPushMessageType.NewPosting => "Новое отправление",
+        OzonPushMessageType.PostingCancelled => "Отмена отправления",
+        OzonPushMessageType.StateChanged => "Изменён статус",
+        OzonPushMessageType.CutoffDateChanged => "Изменена дата отгрузки",
+        OzonPushMessageType.DeliveryDateChanged => "Изменена дата доставки",
+        OzonPushMessageType.CreateOrUpdateItem => "Создание/обновление товара",
+        OzonPushMessageType.CreateItem => "Создание товара",
+        OzonPushMessageType.UpdateItem => "Обновление товара",
+        OzonPushMessageType.StocksChanged => "Изменение остатков",
+        OzonPushMessageType.NewMessage => "Новое сообщение",
+        OzonPushMessageType.UpdateMessage => "Изменение сообщения",
+        OzonPushMessageType.MessageRead => "Сообщение прочитано",
+        OzonPushMessageType.ChatClosed => "Чат закрыт",
+        _ => messageType
+    };
 
     private void OnMasterAuthChanged() => InvokeAsync(StateHasChanged);
 
@@ -265,5 +352,12 @@
         Navigation.LocationChanged -= OnLocationChanged;
         AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
         MasterAuthState.OnChanged -= OnMasterAuthChanged;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        if (_ozonPushHub is not null)
+            await _ozonPushHub.DisposeAsync();
     }
 }
