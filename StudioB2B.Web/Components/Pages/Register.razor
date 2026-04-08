@@ -10,7 +10,7 @@
         <div style="text-align: center; margin-bottom: 2rem;">
             <RadzenText TextStyle="TextStyle.H4" Style="font-weight: 700; margin-bottom: 0.5rem;">StudioB2B</RadzenText>
             <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
-                Создайте аккаунт для управления рабочими пространствами
+                @(_step == 1 ? "Создайте аккаунт для управления рабочими пространствами" : "Введите код из письма")
             </RadzenText>
         </div>
 
@@ -21,49 +21,94 @@
             </RadzenAlert>
         }
 
-        <EditForm Model="@_model" OnValidSubmit="HandleRegister">
-            <DataAnnotationsValidator />
+        @if (_info != null)
+        {
+            <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false" Style="margin-bottom: 1rem;">
+                @_info
+            </RadzenAlert>
+        }
+
+        @if (_step == 1)
+        {
+            <EditForm Model="@_model" OnValidSubmit="HandleRegister">
+                <DataAnnotationsValidator />
+                <RadzenStack Gap="1rem">
+
+                    <RadzenFormField Text="Фамилия *" Style="width: 100%;">
+                        <RadzenTextBox @bind-Value="_model.LastName" Style="width: 100%;" />
+                    </RadzenFormField>
+
+                    <RadzenFormField Text="Имя *" Style="width: 100%;">
+                        <RadzenTextBox @bind-Value="_model.FirstName" Style="width: 100%;" />
+                    </RadzenFormField>
+
+                    <RadzenFormField Text="Отчество" Style="width: 100%;">
+                        <RadzenTextBox @bind-Value="_model.MiddleName" Style="width: 100%;" />
+                    </RadzenFormField>
+
+                    <RadzenFormField Text="Email *" Style="width: 100%;">
+                        <RadzenTextBox @bind-Value="_model.Email" Style="width: 100%;" InputType="InputType.Email" />
+                    </RadzenFormField>
+
+                    <RadzenFormField Text="Пароль *" Style="width: 100%;">
+                        <ChildContent>
+                            <RadzenPassword @bind-Value="_model.Password" Style="width: 100%;" />
+                        </ChildContent>
+                        <Helper>
+                            <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов</RadzenText>
+                        </Helper>
+                    </RadzenFormField>
+
+                    <RadzenFormField Text="Подтверждение пароля *" Style="width: 100%;">
+                        <RadzenPassword @bind-Value="_model.ConfirmPassword" Style="width: 100%;" />
+                    </RadzenFormField>
+
+                    <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
+
+                    <RadzenButton ButtonType="ButtonType.Submit"
+                                  Text="Зарегистрироваться"
+                                  ButtonStyle="ButtonStyle.Primary"
+                                  Style="width: 100%; justify-content: center;"
+                                  IsBusy="@_loading" />
+
+                </RadzenStack>
+            </EditForm>
+        }
+        else
+        {
             <RadzenStack Gap="1rem">
 
-                <RadzenFormField Text="Фамилия *" Style="width: 100%;">
-                    <RadzenTextBox @bind-Value="_model.LastName" Style="width: 100%;" />
+                <RadzenText TextStyle="TextStyle.Body2">
+                    Код отправлен на <strong>@_model.Email</strong>. Он действителен 15 минут.
+                </RadzenText>
+
+                <RadzenFormField Text="Код подтверждения *" Style="width: 100%;">
+                    <RadzenTextBox @bind-Value="_code" Style="width: 100%;" MaxLength="6" />
                 </RadzenFormField>
 
-                <RadzenFormField Text="Имя *" Style="width: 100%;">
-                    <RadzenTextBox @bind-Value="_model.FirstName" Style="width: 100%;" />
-                </RadzenFormField>
-
-                <RadzenFormField Text="Отчество" Style="width: 100%;">
-                    <RadzenTextBox @bind-Value="_model.MiddleName" Style="width: 100%;" />
-                </RadzenFormField>
-
-                <RadzenFormField Text="Email *" Style="width: 100%;">
-                    <RadzenTextBox @bind-Value="_model.Email" Style="width: 100%;" InputType="InputType.Email" />
-                </RadzenFormField>
-
-                <RadzenFormField Text="Пароль *" Style="width: 100%;">
-                    <ChildContent>
-                        <RadzenPassword @bind-Value="_model.Password" Style="width: 100%;" />
-                    </ChildContent>
-                    <Helper>
-                        <RadzenText TextStyle="TextStyle.Caption">Минимум 6 символов</RadzenText>
-                    </Helper>
-                </RadzenFormField>
-
-                <RadzenFormField Text="Подтверждение пароля *" Style="width: 100%;">
-                    <RadzenPassword @bind-Value="_model.ConfirmPassword" Style="width: 100%;" />
-                </RadzenFormField>
-
-                <ValidationSummary style="color: var(--rz-danger); font-size: 0.875rem;" />
-
-                <RadzenButton ButtonType="ButtonType.Submit"
-                              Text="Зарегистрироваться"
+                <RadzenButton Text="Подтвердить"
                               ButtonStyle="ButtonStyle.Primary"
                               Style="width: 100%; justify-content: center;"
+                              Click="HandleVerify"
                               IsBusy="@_loading" />
 
+                <div style="text-align: center;">
+                    <RadzenButton ButtonStyle="ButtonStyle.Light"
+                                  Text="@(_resendCooldown > 0 ? $"Отправить повторно ({_resendCooldown} с)" : "Отправить код повторно")"
+                                  Style="font-size: 0.875rem;"
+                                  Disabled="@(_resendCooldown > 0 || _loading)"
+                                  Click="HandleResend" />
+                </div>
+
+                <div style="text-align: center;">
+                    <RadzenButton ButtonStyle="ButtonStyle.Light"
+                                  Text="← Изменить данные"
+                                  Style="font-size: 0.875rem;"
+                                  Click="@(() => { _step = 1; _error = null; _info = null; })" />
+                </div>
+
             </RadzenStack>
-        </EditForm>
+        }
 
         <hr style="margin-top: 1.5rem;" />
         <div style="text-align: center; margin-top: 0.75rem;">
@@ -80,6 +125,11 @@
     private MasterRegisterModelDto _model = new();
     private bool _loading;
     private string? _error;
+    private string? _info;
+    private int _step = 1;
+    private string _code = "";
+    private int _resendCooldown;
+    private System.Threading.Timer? _cooldownTimer;
 
     private async Task HandleRegister()
     {
@@ -99,6 +149,33 @@
                 _model.FirstName, _model.LastName, _model.MiddleName);
 
             if (_error is null)
+            {
+                _step = 2;
+                StartResendCooldown();
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task HandleVerify()
+    {
+        if (string.IsNullOrWhiteSpace(_code))
+        {
+            _error = "Введите код из письма";
+            return;
+        }
+
+        _error = null;
+        _loading = true;
+
+        try
+        {
+            _error = await MasterAuthApi.VerifyEmailAsync(_model.Email, _code);
+
+            if (_error is null)
                 Navigation.NavigateTo("/", replace: true);
         }
         finally
@@ -107,6 +184,49 @@
         }
     }
 
-    private record ErrorResponse(string? Error);
-}
+    private async Task HandleResend()
+    {
+        _error = null;
+        _info = null;
+        _loading = true;
 
+        try
+        {
+            var err = await MasterAuthApi.ResendCodeAsync(_model.Email);
+
+            if (err is null)
+            {
+                _info = "Новый код отправлен на ваш email.";
+                StartResendCooldown();
+            }
+            else
+            {
+                _error = err;
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void StartResendCooldown()
+    {
+        _resendCooldown = 60;
+        _cooldownTimer?.Dispose();
+        _cooldownTimer = new System.Threading.Timer(_ =>
+        {
+            if (_resendCooldown > 0)
+            {
+                _resendCooldown--;
+                InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                _cooldownTimer?.Dispose();
+            }
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    public void Dispose() => _cooldownTimer?.Dispose();
+}

@@ -58,5 +58,8 @@ public enum FunctionEnum
 
     [Description("Push-уведомления Ozon: очистка")]
     OzonPushManage = 17,
+
+    [Description("Пользователи: смена пароля")]
+    UsersChangePassword = 18,
 }
 

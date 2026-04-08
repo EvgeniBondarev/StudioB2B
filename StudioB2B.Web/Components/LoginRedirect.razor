@@ -1,10 +1,11 @@
 @inject NavigationManager Navigation
 
 @code {
-    protected override void OnInitialized()
+    protected override void OnAfterRender(bool firstRender)
     {
+        if (!firstRender) return;
         var returnUrl = Uri.EscapeDataString(Navigation.Uri);
-        Navigation.NavigateTo($"/?returnUrl={returnUrl}", forceLoad: false);
+        Navigation.NavigateTo($"/?returnUrl={returnUrl}", forceLoad: true);
     }
 }
 

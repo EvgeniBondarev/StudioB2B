@@ -5,10 +5,22 @@ namespace StudioB2B.Infrastructure.Interfaces;
 public interface IAccountService
 {
     /// <summary>
-    /// Проверяет учётные данные пользователя и возвращает данные для выпуска JWT.
+    /// Шаг 1 входа: проверяет учётные данные, генерирует код и отправляет его на email.
     /// Возвращает null, если email не найден, пользователь неактивен или пароль неверен.
     /// </summary>
-    Task<AccountLoginResultDto?> LoginAsync(string email, string password, CancellationToken ct = default);
+    Task<TenantLoginInitResultDto?> InitiateLoginAsync(string email, string password, CancellationToken ct = default);
+
+    /// <summary>
+    /// Шаг 2 входа: проверяет код и возвращает данные для выпуска JWT.
+    /// Возвращает null, если код неверный или устаревший.
+    /// </summary>
+    Task<AccountLoginResultDto?> VerifyLoginCodeAsync(string email, string code, CancellationToken ct = default);
+
+    /// <summary>
+    /// Повторная отправка кода входа.
+    /// Возвращает false, если пользователь не найден.
+    /// </summary>
+    Task<bool> ResendLoginCodeAsync(string email, CancellationToken ct = default);
 
     /// <summary>
     /// Возвращает данные активного пользователя для перевыпуска JWT.
@@ -16,4 +28,3 @@ public interface IAccountService
     /// </summary>
     Task<AccountLoginResultDto?> RefreshAsync(Guid userId, CancellationToken ct = default);
 }
-
