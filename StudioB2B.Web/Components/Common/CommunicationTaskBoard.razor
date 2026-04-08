@@ -47,43 +47,38 @@
                 </div>
             </div>
 
-            <div class="tb-sidebar-card">
+                <div class="tb-sidebar-card">
                 <div class="tb-sidebar-card-header">
                     <span>Тип задачи</span>
+                    @if (_filterTypes.Count > 0)
+                    {
+                        <span class="tb-sidebar-clear" @onclick="@(async () => { _filterTypes.Clear(); await LoadBoardAsync(); })" title="Сбросить">
+                            <span class="rzi">close</span>
+                        </span>
+                    }
                 </div>
                 <div class="tb-sidebar-card-body">
-                    @{ var allActive = _filterType is null; }
-                    <div class="tb-sidebar-item type-all @(allActive ? "active" : "")" @onclick="@(() => SetFilter(null))">
-                        <span class="tb-sidebar-item-label">
-                            <span class="tb-sidebar-dot"></span>
-                            Все
-                        </span>
-                        <span class="tb-sidebar-count">@(_board.NewTasks.Count + _board.InProgressTasks.Count + _board.DoneTotalCount)</span>
-                    </div>
-                    <div class="tb-sidebar-item type-chat @(_filterType == CommunicationTaskType.Chat ? "active" : "")"
-                         @onclick="@(() => SetFilter(CommunicationTaskType.Chat))">
-                        <span class="tb-sidebar-item-label">
-                            <span class="tb-sidebar-dot"></span>
-                            Чаты
-                        </span>
-                        <span class="tb-sidebar-count">@(_board.TypeCounts.GetValueOrDefault(CommunicationTaskType.Chat))</span>
-                    </div>
-                    <div class="tb-sidebar-item type-question @(_filterType == CommunicationTaskType.Question ? "active" : "")"
-                         @onclick="@(() => SetFilter(CommunicationTaskType.Question))">
-                        <span class="tb-sidebar-item-label">
-                            <span class="tb-sidebar-dot"></span>
-                            Вопросы
-                        </span>
-                        <span class="tb-sidebar-count">@(_board.TypeCounts.GetValueOrDefault(CommunicationTaskType.Question))</span>
-                    </div>
-                    <div class="tb-sidebar-item type-review @(_filterType == CommunicationTaskType.Review ? "active" : "")"
-                         @onclick="@(() => SetFilter(CommunicationTaskType.Review))">
-                        <span class="tb-sidebar-item-label">
-                            <span class="tb-sidebar-dot"></span>
-                            Отзывы
-                        </span>
-                        <span class="tb-sidebar-count">@(_board.TypeCounts.GetValueOrDefault(CommunicationTaskType.Review))</span>
-                    </div>
+                    <label class="tb-check-item type-chat">
+                        <input type="checkbox" checked="@_filterTypes.Contains(CommunicationTaskType.Chat)"
+                               @onchange="@(async e => await ToggleTypeFilter(CommunicationTaskType.Chat, (bool)e.Value!))" />
+                        <span class="tb-sidebar-dot"></span>
+                        Чаты
+                        <span class="tb-sidebar-count" style="margin-left:auto;">@(_board.TypeCounts.GetValueOrDefault(CommunicationTaskType.Chat))</span>
+                    </label>
+                    <label class="tb-check-item type-question">
+                        <input type="checkbox" checked="@_filterTypes.Contains(CommunicationTaskType.Question)"
+                               @onchange="@(async e => await ToggleTypeFilter(CommunicationTaskType.Question, (bool)e.Value!))" />
+                        <span class="tb-sidebar-dot"></span>
+                        Вопросы
+                        <span class="tb-sidebar-count" style="margin-left:auto;">@(_board.TypeCounts.GetValueOrDefault(CommunicationTaskType.Question))</span>
+                    </label>
+                    <label class="tb-check-item type-review">
+                        <input type="checkbox" checked="@_filterTypes.Contains(CommunicationTaskType.Review)"
+                               @onchange="@(async e => await ToggleTypeFilter(CommunicationTaskType.Review, (bool)e.Value!))" />
+                        <span class="tb-sidebar-dot"></span>
+                        Отзывы
+                        <span class="tb-sidebar-count" style="margin-left:auto;">@(_board.TypeCounts.GetValueOrDefault(CommunicationTaskType.Review))</span>
+                    </label>
                 </div>
             </div>
 
@@ -119,25 +114,23 @@
                 <div class="tb-sidebar-card">
                     <div class="tb-sidebar-card-header">
                         <span>Кабинет</span>
+                        @if (_filterClientIds.Count > 0)
+                        {
+                            <span class="tb-sidebar-clear" @onclick="@(async () => { _filterClientIds.Clear(); await LoadBoardAsync(); })" title="Сбросить">
+                                <span class="rzi">close</span>
+                            </span>
+                        }
                     </div>
                     <div class="tb-sidebar-card-body">
-                        <div class="tb-sidebar-item @(_filterClientId == null ? "active" : "")"
-                             @onclick="@(async () => await SetClientFilter(null))">
-                            <span class="tb-sidebar-item-label">
-                                <span class="tb-sidebar-dot"></span>
-                                Все кабинеты
-                            </span>
-                        </div>
                         @foreach (var c in _clientOptions)
                         {
                             var cCopy = c;
-                            <div class="tb-sidebar-item @(_filterClientId == cCopy.Id ? "active" : "")"
-                                 @onclick="@(async () => await SetClientFilter(cCopy.Id))">
-                                <span class="tb-sidebar-item-label">
-                                    <span class="tb-sidebar-dot"></span>
-                                    @cCopy.Name
-                                </span>
-                            </div>
+                            <label class="tb-check-item">
+                                <input type="checkbox" checked="@_filterClientIds.Contains(cCopy.Id)"
+                                       @onchange="@(async e => await ToggleClientFilter(cCopy.Id, (bool)e.Value!))" />
+                                <span class="tb-sidebar-dot"></span>
+                                @cCopy.Name
+                            </label>
                         }
                     </div>
                 </div>
@@ -1510,10 +1503,10 @@
 
 @code {
     private TaskBoardDto _board = new();
-    private CommunicationTaskType? _filterType;
+    private HashSet<CommunicationTaskType> _filterTypes = new();
     private DateTime? _filterFrom = DateTime.Today.AddDays(-30);
     private DateTime? _filterTo;
-    private Guid? _filterClientId;
+    private HashSet<Guid> _filterClientIds = new();
     private List<ClientOptionDto> _clientOptions = new();
     private bool _sidebarOpen;
     private bool _loading;
@@ -1659,8 +1652,8 @@
                 DoneTake = DonePageSize,
                 From = _filterFrom,
                 To = _filterTo,
-                TaskType = _filterType,
-                MarketplaceClientId = _filterClientId
+                TaskTypes = _filterTypes.ToList(),
+                MarketplaceClientIds = _filterClientIds.ToList()
             };
 
             // Phase 1: fast DB load — show InProgress + Done immediately
@@ -1694,8 +1687,8 @@
                 DoneTake = DonePageSize,
                 From = _filterFrom,
                 To = _filterTo,
-                TaskType = _filterType,
-                MarketplaceClientId = _filterClientId
+                TaskTypes = _filterTypes.ToList(),
+                MarketplaceClientIds = _filterClientIds.ToList()
             };
 
             // Load DB part first, then Ozon new tasks silently
@@ -1726,7 +1719,7 @@
         StateHasChanged();
         try
         {
-            var filter = new CommunicationTaskFilter { TaskType = _filterType, From = _filterFrom, To = _filterTo, MarketplaceClientId = _filterClientId };
+            var filter = new CommunicationTaskFilter { TaskTypes = _filterTypes.ToList(), From = _filterFrom, To = _filterTo, MarketplaceClientIds = _filterClientIds.ToList() };
             var (items, total) = await TaskService.GetDoneTasksPageAsync(filter, _board.DoneTasks.Count, DonePageSize);
             _board.DoneTasks.AddRange(items);
             _board.DoneTotalCount = total;
@@ -1746,8 +1739,8 @@
                 DoneTake = DonePageSize,
                 From = _filterFrom,
                 To = _filterTo,
-                TaskType = _filterType,
-                MarketplaceClientId = _filterClientId
+                TaskTypes = _filterTypes.ToList(),
+                MarketplaceClientIds = _filterClientIds.ToList()
             });
             _board = board;
             BoardState.Set(board);
@@ -1778,37 +1771,19 @@
     }
 
 
-    private async Task SetFilter(CommunicationTaskType? type)
+    private async Task ToggleTypeFilter(CommunicationTaskType type, bool add)
     {
-        _filterType = _filterType == type ? null : type;
-        _board.DoneTasks.Clear();
-        _board.DoneTotalCount = 0;
-        StateHasChanged();
-        try
-        {
-            var filter = new CommunicationTaskFilter { TaskType = _filterType, From = _filterFrom, To = _filterTo, MarketplaceClientId = _filterClientId };
-            var (items, total) = await TaskService.GetDoneTasksPageAsync(filter, 0, DonePageSize);
-            _board.DoneTasks.AddRange(items);
-            _board.DoneTotalCount = total;
-        }
-        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
-        StateHasChanged();
+        if (add) _filterTypes.Add(type); else _filterTypes.Remove(type);
+        await LoadBoardAsync();
+    }
+
+    private async Task ToggleClientFilter(Guid id, bool add)
+    {
+        if (add) _filterClientIds.Add(id); else _filterClientIds.Remove(id);
+        await LoadBoardAsync();
     }
 
     private async Task OnDateFilterChange(DateTime? _) => await LoadBoardAsync();
-
-    private async Task OnClientFilterChange(object value)
-    {
-        _filterClientId = value is Guid g ? g : (Guid?)null;
-        await LoadBoardAsync();
-    }
-
-    private async Task SetClientFilter(Guid? id)
-    {
-        if (_filterClientId == id) return;
-        _filterClientId = id;
-        await LoadBoardAsync();
-    }
 
     private async Task LoadClientOptionsAsync()
     {
@@ -1818,9 +1793,9 @@
 
     private List<CommunicationTaskDto> ApplyTypeFilter(List<CommunicationTaskDto> source)
     {
-        var filtered = _filterType is null
+        var filtered = _filterTypes.Count == 0
             ? source.AsEnumerable()
-            : source.Where(t => t.TaskType == _filterType.Value);
+            : source.Where(t => _filterTypes.Contains(t.TaskType));
         return filtered.OrderByDescending(t => t.CreatedAt).ToList();
     }
 
