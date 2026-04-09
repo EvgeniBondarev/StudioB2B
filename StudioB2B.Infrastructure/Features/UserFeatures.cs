@@ -37,11 +37,11 @@ public static class UserExtensions
         return mapper.Map<UserListDto>(u) with { Permissions = permissions };
     }
 
-    public static async Task<(bool Success, string? Error)> CreateUserAsync(this TenantDbContext db, CreateUserDto request, IMapper mapper, CancellationToken ct = default)
+    public static async Task<(bool Success, string? Error, Guid? ActivationTokenId)> CreateUserAsync(this TenantDbContext db, CreateUserDto request, IMapper mapper, CancellationToken ct = default)
     {
         var email = request.Email.Trim().ToLowerInvariant();
         if (await db.Users.AnyAsync(u => u.Email == email, ct))
-            return (false, "Пользователь с таким email уже существует");
+            return (false, "Пользователь с таким email уже существует", null);
 
         var user = mapper.Map<TenantUser>(request);
         user.Id = Guid.NewGuid();
@@ -55,13 +55,42 @@ public static class UserExtensions
                 db.UserPermissions.Add(new TenantUserPermission { UserId = user.Id, PermissionId = permId });
         }
 
+        var token = new TenantUserActivationToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            ExpiresAt = DateTime.UtcNow.AddDays(3),
+            IsUsed = false
+        };
+
+        db.UserActivationTokens.Add(token);
+
+        await db.SaveChangesAsync(ct);
+        return (true, null, token.Id);
+    }
+
+    public static async Task<(bool Success, string? Error)> ActivateUserAsync(this TenantDbContext db, Guid tokenId, CancellationToken ct = default)
+    {
+        var token = await db.UserActivationTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.Id == tokenId && !t.IsUsed, ct);
+
+        if (token is null)
+            return (false, "Ссылка недействительна или уже была использована.");
+
+        if (token.ExpiresAt < DateTime.UtcNow)
+            return (false, "Срок действия ссылки истёк. Обратитесь к администратору.");
+
+        token.IsUsed = true;
+        token.User.IsActive = true;
+
         await db.SaveChangesAsync(ct);
         return (true, null);
     }
 
     public static async Task<(bool Success, string? Error)> UpdateUserAsync(this TenantDbContext db, Guid id, UpdateUserDto request, IMapper mapper, CancellationToken ct = default)
     {
-        var user = await db.Users.FindAsync(new object[] { id }, ct);
+        var user = await db.Users.FindAsync([id], ct);
         if (user is null) return (false, "Пользователь не найден");
 
         mapper.Map(request, user);
@@ -82,10 +111,20 @@ public static class UserExtensions
 
     public static async Task<(bool Success, string? Error)> DeleteUserAsync(this TenantDbContext db, Guid id, CancellationToken ct = default)
     {
-        var user = await db.Users.FindAsync(new object[] { id }, ct);
+        var user = await db.Users.FindAsync([id], ct);
         if (user is null) return (false, "Пользователь не найден");
 
         user.IsDeleted = true;
+        await db.SaveChangesAsync(ct);
+        return (true, null);
+    }
+
+    public static async Task<(bool Success, string? Error)> ChangePasswordAsync(this TenantDbContext db, ChangeUserPasswordDto dto, CancellationToken ct = default)
+    {
+        var user = await db.Users.FindAsync([dto.UserId], ct);
+        if (user is null) return (false, "Пользователь не найден");
+
+        user.HashPassword = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
         await db.SaveChangesAsync(ct);
         return (true, null);
     }

@@ -1,6 +1,7 @@
 @page "/"
 @using StudioB2B.Domain.Options
 @using StudioB2B.Infrastructure.Interfaces
+@implements IDisposable
 @inject ITenantProvider TenantProvider
 @inject ITenantService TenantService
 @inject NavigationManager Navigation
@@ -250,7 +251,7 @@ else
                             StudioB2B
                         </RadzenText>
                         <RadzenText TextStyle="TextStyle.Body2" Style="color: var(--rz-text-secondary-color);">
-                            Вход в <strong>@TenantProvider.Subdomain</strong>
+                            @(_loginStep == 1 ? $"Вход в {TenantProvider.Subdomain}" : "Введите код из письма")
                         </RadzenText>
                     </div>
 
@@ -262,24 +263,79 @@ else
                         </RadzenAlert>
                     }
 
-                    <EditForm Model="@_login" OnValidSubmit="HandleLogin" Context="loginForm">
-                        <DataAnnotationsValidator/>
+                    @if (_loginInfo != null)
+                    {
+                        <RadzenAlert AlertStyle="AlertStyle.Info" ShowIcon="true" AllowClose="false"
+                                     Style="margin-bottom: 1rem;">
+                            @_loginInfo
+                        </RadzenAlert>
+                    }
+
+                    @if (_loginStep == 1)
+                    {
+                        <EditForm Model="@_login" OnValidSubmit="HandleLogin" Context="loginForm">
+                            <DataAnnotationsValidator/>
+                            <RadzenStack Gap="1rem">
+                                <RadzenFormField Text="Email" Style="width: 100%;">
+                                    <RadzenTextBox @bind-Value="_login.Email" Style="width: 100%;"
+                                                   InputType="InputType.Email"/>
+                                </RadzenFormField>
+
+                                <RadzenFormField Text="Пароль" Style="width: 100%;">
+                                    <RadzenPassword @bind-Value="_login.Password" Style="width: 100%;"/>
+                                </RadzenFormField>
+
+                                <RadzenButton ButtonType="ButtonType.Submit" Text="Войти"
+                                              ButtonStyle="ButtonStyle.Primary"
+                                              Style="width: 100%; justify-content: center;"
+                                              IsBusy="@_loginLoading"/>
+                            </RadzenStack>
+                        </EditForm>
+                    }
+                    else
+                    {
                         <RadzenStack Gap="1rem">
-                            <RadzenFormField Text="Email" Style="width: 100%;">
-                                <RadzenTextBox @bind-Value="_login.Email" Style="width: 100%;"
-                                               InputType="InputType.Email"/>
-                            </RadzenFormField>
 
-                            <RadzenFormField Text="Пароль" Style="width: 100%;">
-                                <RadzenPassword @bind-Value="_login.Password" Style="width: 100%;"/>
-                            </RadzenFormField>
+                            <RadzenText TextStyle="TextStyle.Body2">
+                                Код отправлен на <strong>@_login.Email</strong>. Он действителен 15 минут.
+                            </RadzenText>
 
-                            <RadzenButton ButtonType="ButtonType.Submit" Text="Войти"
+                            <div style="display:flex;justify-content:center;margin:0.5rem 0;">
+                                <RadzenSecurityCode Value="@_loginCode" ValueChanged="@OnLoginCodeChanged" Count="6" Type="SecurityCodeType.Numeric" Disabled="@(_loginLoading || _loginCodeVerifying)" />
+                            </div>
+
+                            @if (_loginCodeVerifying || _loginLoading)
+                            {
+                                <RadzenStack AlignItems="AlignItems.Center" Gap="0.25rem">
+                                    <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false" Style="width:100%;" />
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);">Проверяем код...</RadzenText>
+                                </RadzenStack>
+                            }
+
+                            <RadzenButton Text="Подтвердить"
                                           ButtonStyle="ButtonStyle.Primary"
                                           Style="width: 100%; justify-content: center;"
+                                          Click="HandleVerifyLogin"
+                                          Disabled="@_loginCodeVerifying"
                                           IsBusy="@_loginLoading"/>
+
+                            <div style="text-align: center;">
+                                <RadzenButton ButtonStyle="ButtonStyle.Light"
+                                              Text="@(_loginResendCooldown > 0 ? $"Отправить повторно ({_loginResendCooldown} с)" : "Отправить код повторно")"
+                                              Style="font-size: 0.875rem;"
+                                              Disabled="@(_loginResendCooldown > 0 || _loginLoading)"
+                                              Click="HandleResendLoginCode"/>
+                            </div>
+
+                            <div style="text-align: center;">
+                                <RadzenButton ButtonStyle="ButtonStyle.Light"
+                                              Text="← Изменить данные"
+                                              Style="font-size: 0.875rem;"
+                                              Click="@(() => { _loginStep = 1; _loginError = null; _loginInfo = null; })"/>
+                            </div>
+
                         </RadzenStack>
-                    </EditForm>
+                    }
                 </div>
             </div>
         </NotAuthorized>
@@ -486,6 +542,13 @@ else
     private LoginModelDto _login = new();
     private bool _loginLoading;
     private string? _loginError;
+    private string? _loginInfo;
+    private int _loginStep = 1;
+    private string _loginCode = "";
+    private int _loginResendCooldown;
+    private System.Threading.Timer? _loginCooldownTimer;
+    private CancellationTokenSource? _loginAutoSubmitCts;
+    private bool _loginCodeVerifying;
 
     protected override async Task OnInitializedAsync()
     {
@@ -635,6 +698,34 @@ else
     private string RegStepDescStyle(int step) =>
         step <= _regStep ? string.Empty : "color: var(--rz-text-disabled-color);";
 
+    private async Task OnLoginCodeChanged(string value)
+    {
+        _loginCode = value;
+        _loginAutoSubmitCts?.Cancel();
+        _loginAutoSubmitCts?.Dispose();
+        _loginAutoSubmitCts = null;
+        _loginCodeVerifying = false;
+
+        if (value?.Length == 6 && !_loginLoading)
+        {
+            _loginCodeVerifying = true;
+            StateHasChanged();
+            var cts = new CancellationTokenSource();
+            _loginAutoSubmitCts = cts;
+            try
+            {
+                await Task.Delay(300, cts.Token);
+                if (!cts.IsCancellationRequested)
+                    await HandleVerifyLogin();
+            }
+            catch (OperationCanceledException) { }
+            finally
+            {
+                _loginCodeVerifying = false;
+            }
+        }
+    }
+
     private async Task HandleLogin()
     {
         _loginError = null;
@@ -649,21 +740,12 @@ else
 
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
-                if (result?.Token is not null)
-                {
-                    await AuthStateProvider.LoginAsync(result.Token);
-                    var returnUrl = ReturnUrl ?? "/";
-                    Navigation.NavigateTo(returnUrl, forceLoad: false);
-                }
+                _loginStep = 2;
+                StartLoginResendCooldown();
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
                 _loginError = "Неверный email или пароль";
-            }
-            else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-            {
-                _loginError = "Аккаунт деактивирован";
             }
             else
             {
@@ -680,6 +762,98 @@ else
         }
     }
 
+    private async Task HandleVerifyLogin()
+    {
+        if (string.IsNullOrWhiteSpace(_loginCode))
+        {
+            _loginError = "Введите код из письма";
+            return;
+        }
+
+        _loginError = null;
+        _loginLoading = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/auth/verify-login", new
+            {
+                Email = _login.Email,
+                Code = _loginCode
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
+                if (result?.Token is not null)
+                {
+                    await AuthStateProvider.LoginAsync(result.Token);
+                    Navigation.NavigateTo(ReturnUrl ?? "/", forceLoad: false);
+                }
+            }
+            else
+            {
+                _loginError = "Неверный или устаревший код. Запросите новый.";
+            }
+        }
+        catch
+        {
+            _loginError = "Произошла ошибка при подтверждении";
+        }
+        finally
+        {
+            _loginLoading = false;
+        }
+    }
+
+    private async Task HandleResendLoginCode()
+    {
+        _loginError = null;
+        _loginInfo = null;
+        _loginLoading = true;
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/api/auth/resend-login-code", new
+            {
+                Email = _login.Email
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                _loginInfo = "Новый код отправлен на ваш email.";
+                StartLoginResendCooldown();
+            }
+            else
+            {
+                _loginError = "Не удалось отправить код";
+            }
+        }
+        catch
+        {
+            _loginError = "Произошла ошибка при отправке кода";
+        }
+        finally
+        {
+            _loginLoading = false;
+        }
+    }
+
+    private void StartLoginResendCooldown()
+    {
+        _loginResendCooldown = 60;
+        _loginCooldownTimer?.Dispose();
+        _loginCooldownTimer = new System.Threading.Timer(_ =>
+        {
+            if (_loginResendCooldown > 0)
+            {
+                _loginResendCooldown--;
+                InvokeAsync(StateHasChanged);
+            }
+            else
+            {
+                _loginCooldownTimer?.Dispose();
+            }
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
     private async Task HandleLogout()
     {
         await AuthStateProvider.LogoutAsync();
@@ -691,6 +865,13 @@ else
         if (string.IsNullOrWhiteSpace(name)) return "?";
         var local = name.Split('@')[0];
         return local.Length >= 2 ? local[..2].ToUpper() : local.ToUpper();
+    }
+
+    public void Dispose()
+    {
+        _loginCooldownTimer?.Dispose();
+        _loginAutoSubmitCts?.Cancel();
+        _loginAutoSubmitCts?.Dispose();
     }
 
 }

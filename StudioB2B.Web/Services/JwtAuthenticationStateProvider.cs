@@ -10,12 +10,13 @@ namespace StudioB2B.Web.Services;
 /// <summary>
 /// AuthenticationStateProvider на основе JWT, хранящегося в localStorage.
 /// </summary>
-public class JwtAuthenticationStateProvider : AuthenticationStateProvider
+public class JwtAuthenticationStateProvider : AuthenticationStateProvider, IDisposable
 {
     private const string TokenKey = "auth_token";
     private const string MasterTokenKey = "master_auth_token";
     private readonly IJSRuntime _js;
     private readonly IHttpClientFactory _httpFactory;
+    private CancellationTokenSource? _expiryCts;
 
     public JwtAuthenticationStateProvider(IJSRuntime js, IHttpClientFactory httpFactory)
     {
@@ -35,6 +36,7 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
             if (principal is null)
                 return Anonymous();
 
+            ScheduleTokenExpiry(token);
             return new AuthenticationState(principal);
         }
         catch
@@ -47,13 +49,50 @@ public class JwtAuthenticationStateProvider : AuthenticationStateProvider
     {
         await _js.InvokeVoidAsync("localStorage.setItem", TokenKey, token);
         var principal = ParseToken(token) ?? new ClaimsPrincipal(new ClaimsIdentity());
+        ScheduleTokenExpiry(token);
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(principal)));
     }
 
     public async Task LogoutAsync()
     {
+        CancelExpiry();
         await _js.InvokeVoidAsync("localStorage.removeItem", TokenKey);
         NotifyAuthenticationStateChanged(Task.FromResult(Anonymous()));
+    }
+
+    private void ScheduleTokenExpiry(string token)
+    {
+        try
+        {
+            CancelExpiry();
+            var handler = new JwtSecurityTokenHandler();
+            if (!handler.CanReadToken(token)) return;
+            var jwt = handler.ReadJwtToken(token);
+            var delay = jwt.ValidTo - DateTime.UtcNow;
+            if (delay <= TimeSpan.Zero) return;
+
+            var cts = new CancellationTokenSource();
+            _expiryCts = cts;
+            _ = Task.Delay(delay, cts.Token).ContinueWith(t =>
+            {
+                if (!t.IsCanceled)
+                    NotifyAuthenticationStateChanged(Task.FromResult(Anonymous()));
+            }, TaskScheduler.Default);
+        }
+        catch { }
+    }
+
+    private void CancelExpiry()
+    {
+        _expiryCts?.Cancel();
+        _expiryCts?.Dispose();
+        _expiryCts = null;
+    }
+
+    public void Dispose()
+    {
+        CancelExpiry();
+        GC.SuppressFinalize(this);
     }
 
     public async Task<string?> GetTokenAsync()

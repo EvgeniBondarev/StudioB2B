@@ -36,6 +36,11 @@ public static class DependencyInjection
         services.Configure<BackupOptions>(
             configuration.GetSection(BackupOptions.SectionName));
 
+        services.Configure<EmailOptions>(
+            configuration.GetSection(EmailOptions.SectionName));
+
+        services.AddScoped<IEmailService, SmtpEmailService>();
+
         services.AddAutoMapper(cfg => cfg.AddMaps(typeof(DependencyInjection).Assembly));
 
         services.AddDbContext<MasterDbContext>(options =>
