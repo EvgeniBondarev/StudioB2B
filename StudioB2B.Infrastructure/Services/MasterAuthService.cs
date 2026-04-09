@@ -3,13 +3,14 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using StudioB2B.Domain.Entities;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Services;
-
 
 /// <summary>
 /// Сервис авторизации пользователей в master-базе.
@@ -18,11 +19,15 @@ public class MasterAuthService
 {
     private readonly MasterDbContext _db;
     private readonly IConfiguration _configuration;
+    private readonly IEmailService _emailService;
+    private readonly ILogger<MasterAuthService> _logger;
 
-    public MasterAuthService(MasterDbContext db, IConfiguration configuration)
+    public MasterAuthService(MasterDbContext db, IConfiguration configuration, IEmailService emailService, ILogger<MasterAuthService> logger)
     {
         _db = db;
         _configuration = configuration;
+        _emailService = emailService;
+        _logger = logger;
     }
 
     public async Task<MasterAuthResultDto> LoginAsync(MasterLoginDto request, CancellationToken ct = default)
@@ -35,6 +40,9 @@ public class MasterAuthService
 
         if (user is null)
             return Fail("Неверный email или пароль");
+
+        if (!user.IsEmailVerified)
+            return Fail("Email не подтверждён. Завершите регистрацию, введя код из письма.");
 
         if (!user.IsActive)
             return Fail("Пользователь деактивирован");
@@ -52,36 +60,201 @@ public class MasterAuthService
         return new MasterAuthResultDto(true, token, expiresAt);
     }
 
-    private static readonly string[] UserRoleArray = { "User" };
-
-    public async Task<MasterAuthResultDto> RegisterAsync(MasterRegisterDto request, CancellationToken ct = default)
+    /// <summary>
+    /// Шаг 1: создаёт пользователя (неактивного) и отправляет код на email.
+    /// Если пользователь с таким email уже есть и ещё не подтверждён — код перевыпускается.
+    /// </summary>
+    public async Task<MasterRegisterResultDto> RegisterAsync(MasterRegisterDto request, CancellationToken ct = default)
     {
         var email = request.Email.Trim().ToLowerInvariant();
 
-        if (await _db.Users.AnyAsync(u => u.Email == email, ct))
-            return Fail("Пользователь с таким email уже зарегистрирован");
+        var existing = await _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
 
-        var userRole = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "User", ct);
-        if (userRole is null)
-            return Fail("Роль 'User' не найдена. Обратитесь к администратору.");
+        if (existing is not null && existing.IsEmailVerified)
+            return new MasterRegisterResultDto(false, Error: "Пользователь с таким email уже зарегистрирован");
 
-        var user = new MasterUser
+        if (existing is null)
+        {
+            var userRole = await _db.Roles.FirstOrDefaultAsync(r => r.Name == "User", ct);
+            if (userRole is null)
+                return new MasterRegisterResultDto(false, Error: "Роль 'User' не найдена. Обратитесь к администратору.");
+
+            var user = new MasterUser
+            {
+                Id = Guid.NewGuid(),
+                Email = email,
+                HashPassword = BCrypt.Net.BCrypt.HashPassword(request.Password),
+                FirstName = request.FirstName.Trim(),
+                LastName = request.LastName.Trim(),
+                MiddleName = string.IsNullOrWhiteSpace(request.MiddleName) ? null : request.MiddleName.Trim(),
+                IsActive = false,
+                IsEmailVerified = false
+            };
+
+            _db.Users.Add(user);
+            _db.UserRoles.Add(new MasterUserRole { UserId = user.Id, RoleId = userRole.Id });
+        }
+        else
+        {
+            // Обновляем данные и пароль при повторной попытке
+            existing.HashPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            existing.FirstName = request.FirstName.Trim();
+            existing.LastName = request.LastName.Trim();
+            existing.MiddleName = string.IsNullOrWhiteSpace(request.MiddleName) ? null : request.MiddleName.Trim();
+        }
+
+        var code = await PrepareVerificationCodeAsync(email, ct);
+        await _db.SaveChangesAsync(ct);
+
+        _ = SendEmailFireAndForgetAsync(email, code);
+
+        return new MasterRegisterResultDto(true, RequiresVerification: true);
+    }
+
+    /// <summary>
+    /// Повторная отправка кода (без изменения данных пользователя).
+    /// </summary>
+    public async Task<MasterRegisterResultDto> ResendCodeAsync(string email, CancellationToken ct = default)
+    {
+        email = email.Trim().ToLowerInvariant();
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
+
+        if (user is null)
+            return new MasterRegisterResultDto(false, Error: "Пользователь не найден");
+
+        if (user.IsEmailVerified)
+            return new MasterRegisterResultDto(false, Error: "Email уже подтверждён");
+
+        var code = await PrepareVerificationCodeAsync(email, ct);
+        await _db.SaveChangesAsync(ct);
+
+        _ = SendEmailFireAndForgetAsync(email, code);
+
+        return new MasterRegisterResultDto(true, RequiresVerification: true);
+    }
+
+    /// <summary>
+    /// Шаг 2: проверяет код, активирует пользователя, возвращает JWT.
+    /// </summary>
+    public async Task<MasterAuthResultDto> VerifyEmailAsync(MasterVerifyEmailDto request, CancellationToken ct = default)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+
+        var code = await _db.EmailVerificationCodes
+            .Where(c => c.Email == email && !c.IsUsed && c.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(c => c.ExpiresAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (code is null)
+            return Fail("Неверный или устаревший код. Запросите новый.");
+
+        if (code.Code != request.Code.Trim())
+            return Fail("Неверный код подтверждения");
+
+        code.IsUsed = true;
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
+        if (user is null)
+            return Fail("Пользователь не найден");
+
+        user.IsEmailVerified = true;
+        user.IsActive = true;
+
+        await _db.SaveChangesAsync(ct);
+
+        var roles = await _db.UserRoles
+            .AsNoTracking()
+            .Where(ur => ur.UserId == user.Id)
+            .Join(_db.Roles.AsNoTracking(), ur => ur.RoleId, r => r.Id, (_, r) => r.Name)
+            .ToListAsync(ct);
+
+        var (token, expiresAt) = GenerateJwtToken(user, roles);
+        return new MasterAuthResultDto(true, token, expiresAt);
+    }
+
+    private async Task<string> PrepareVerificationCodeAsync(string email, CancellationToken ct)
+    {
+        var oldCodes = await _db.EmailVerificationCodes
+            .Where(c => c.Email == email && !c.IsUsed)
+            .ToListAsync(ct);
+
+        foreach (var old in oldCodes)
+            old.IsUsed = true;
+
+        var code = new EmailVerificationCode
         {
             Id = Guid.NewGuid(),
             Email = email,
-            HashPassword = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            FirstName = request.FirstName.Trim(),
-            LastName = request.LastName.Trim(),
-            MiddleName = string.IsNullOrWhiteSpace(request.MiddleName) ? null : request.MiddleName.Trim(),
-            IsActive = true
+            Code = GenerateCode(),
+            ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+            IsUsed = false
         };
 
-        _db.Users.Add(user);
-        _db.UserRoles.Add(new MasterUserRole { UserId = user.Id, RoleId = userRole.Id });
-        await _db.SaveChangesAsync(ct);
+        _db.EmailVerificationCodes.Add(code);
 
-        var (token, expiresAt) = GenerateJwtToken(user, UserRoleArray);
-        return new MasterAuthResultDto(true, token, expiresAt);
+        _logger.LogInformation("Email verification code for {Email}: {Code}", email, code.Code);
+
+        return code.Code;
+    }
+
+    private async Task SendEmailFireAndForgetAsync(string email, string code)
+    {
+        try
+        {
+            var html = $"""
+                <!DOCTYPE html>
+                <html lang="ru">
+                <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+                <body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                  <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                    <tr>
+                      <td align="center" style="padding:48px 16px;">
+                        <table width="480" cellpadding="0" cellspacing="0" role="presentation" style="max-width:480px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                          <tr>
+                            <td style="background:#4f46e5;padding:32px 40px;text-align:center;">
+                              <span style="color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">StudioB2B</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:40px 40px 32px;">
+                              <h1 style="margin:0 0 12px;font-size:20px;font-weight:700;color:#111827;">Подтверждение email</h1>
+                              <p style="margin:0 0 28px;font-size:15px;color:#4b5563;line-height:1.6;">
+                                Введите этот код для завершения регистрации в <strong style="color:#111827;">StudioB2B</strong>:
+                              </p>
+                              <div style="text-align:center;margin:0 0 32px;">
+                                <span style="display:inline-block;font-size:38px;font-weight:800;letter-spacing:0.5em;padding-left:0.5em;font-family:'Courier New',Courier,monospace;background:#f0f0ff;border:2px solid #c7c5f0;border-radius:10px;padding:16px 24px 16px 32px;color:#4f46e5;">{code}</span>
+                              </div>
+                              <p style="margin:0;font-size:13px;color:#9ca3af;line-height:1.6;">
+                                ⏱&nbsp; Код действителен <strong>15 минут</strong>.<br>
+                                Если вы не запрашивали этот код — просто проигнорируйте письмо.
+                              </p>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="background:#f8f8fc;border-top:1px solid #e8e8f0;padding:20px 40px;text-align:center;">
+                              <p style="margin:0;font-size:12px;color:#9ca3af;">StudioB2B &nbsp;·&nbsp; Это автоматическое сообщение, не отвечайте на него.</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </body>
+                </html>
+                """;
+
+            await _emailService.SendAsync(email, email, "Код подтверждения — StudioB2B", html);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send verification email to {Email}", email);
+        }
+    }
+
+    private static string GenerateCode()
+    {
+        return Random.Shared.Next(100_000, 999_999).ToString();
     }
 
     private (string token, DateTime expiresAt) GenerateJwtToken(MasterUser user, IEnumerable<string> roles)
@@ -125,4 +298,3 @@ public class MasterAuthService
 
     private static MasterAuthResultDto Fail(string error) => new MasterAuthResultDto(false, Error: error);
 }
-

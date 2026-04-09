@@ -14,6 +14,7 @@ public class MasterDbContext : DbContext
     public DbSet<MasterRole> Roles => Set<MasterRole>();
     public DbSet<MasterUser> Users => Set<MasterUser>();
     public DbSet<MasterUserRole> UserRoles => Set<MasterUserRole>();
+    public DbSet<EmailVerificationCode> EmailVerificationCodes => Set<EmailVerificationCode>();
     public DbSet<TenantBackupSchedule> TenantBackupSchedules => Set<TenantBackupSchedule>();
     public DbSet<TenantBackupHistory> TenantBackupHistories => Set<TenantBackupHistory>();
     public DbSet<TenantRestoreHistory> TenantRestoreHistories => Set<TenantRestoreHistory>();

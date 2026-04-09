@@ -60,7 +60,8 @@ public class UsersController : ControllerBase
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
 
-        var (success, error) = await _userService.CreateUserAsync(request);
+        var baseUrl = $"{Request.Scheme}://{Request.Host}/";
+        var (success, error) = await _userService.CreateUserAsync(request, baseUrl);
         if (!success)
             return BadRequest(new { error });
 

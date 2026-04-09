@@ -232,6 +232,10 @@
                                 {
                                     <span class="task-unread-badge" title="Непрочитанных сообщений">@task.UnreadCount</span>
                                 }
+                                @if (task.WasPreviouslyCompleted)
+                                {
+                                    <span class="task-was-completed-badge" title="Покупатель написал снова после завершения">Повтор</span>
+                                }
                             </div>
                             @if (!string.IsNullOrEmpty(task.PreviewText))
                             {
@@ -320,7 +324,7 @@
                                     <span class="task-estimate-badge" title="Ожидаемая оплата по текущим тарифам">~@inProgressEst.ToString("F0") ₽</span>
                                 }
                             </div>
-                            @if (task.AssignedToUserId == CurrentUser.UserId)
+                            @if (task.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
                             {
                                 <div class="task-card-actions">
                                     @if (task.HasActiveTimer)
@@ -491,7 +495,7 @@
                             else if (_previewTask.Status == CommunicationTaskStatus.InProgress)
                             {
                                 <div class="chat-action-bar">
-                                    @if (_previewTask.AssignedToUserId == CurrentUser.UserId)
+                                    @if (_previewTask.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
                                     {
                                         <div class="task-timer-active" style="display:inline-flex;align-items:center;gap:0.25rem;margin-right:auto;">
                                             @if (_previewTask.HasActiveTimer) { <span class="timer-dot"></span> }
@@ -520,13 +524,14 @@
                                         </span>
                                     }
                                 </div>
-                                @if (_previewTask.AssignedToUserId == CurrentUser.UserId)
+                                @if (_previewTask.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
                                 {
                                     <div style="flex-shrink:0;">
                                         <ChatComposer
                                             OnSendWithFile="OverlaySendChatMessageAsync"
                                             PlaceHolder="Написать сообщение..."
-                                            EnableAttachments="true" />
+                                            EnableAttachments="true"
+                                            QuickReplies="ChatQuickReplies" />
                                     </div>
                                 }
                             }
@@ -604,6 +609,13 @@
                     @if (_previewTask.Status == CommunicationTaskStatus.InProgress)
                     {
                         <div class="question-answer-composer">
+                            <div class="chat-quick-replies" style="padding:0.25rem 0 0.1rem;">
+                                @foreach (var qr in QuestionQuickReplies)
+                                {
+                                    var qrText = qr;
+                                    <button type="button" class="chat-quick-reply-chip" @onclick="@(() => _overlayAnswerText = qrText)">@qrText</button>
+                                }
+                            </div>
                             <div class="question-answer-input-row">
                                 <RadzenTextArea @bind-Value="_overlayAnswerText"
                                                 Rows="1"
@@ -789,7 +801,8 @@
                             OnSendTextOnly="SendOverlayCommentAsync"
                             EnableAttachments="false"
                             PlaceHolder="Написать комментарий к отзыву..."
-                            MaxLength="3000" />
+                            MaxLength="3000"
+                            QuickReplies="ReviewQuickReplies" />
                     }
                     else
                     {
@@ -824,7 +837,7 @@
             }
             else if (_previewTask.Status == CommunicationTaskStatus.InProgress)
             {
-                @if (_previewTask.AssignedToUserId == CurrentUser.UserId)
+                @if (_previewTask.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
                 {
                     <div class="task-timer-active" style="display:inline-flex;align-items:center;gap:0.3rem;margin-right:auto;">
                         @if (_previewTask.HasActiveTimer)
@@ -1077,7 +1090,7 @@
                             else if (_previewTask.Status == CommunicationTaskStatus.InProgress)
                             {
                                 <div class="chat-action-bar">
-                                    @if (_previewTask.AssignedToUserId == CurrentUser.UserId)
+                                    @if (_previewTask.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
                                     {
                                         <div class="task-timer-active" style="display:inline-flex;align-items:center;gap:0.25rem;margin-right:auto;">
                                             @if (_previewTask.HasActiveTimer) { <span class="timer-dot"></span> }
@@ -1106,13 +1119,14 @@
                                         </span>
                                     }
                                 </div>
-                                @if (_previewTask.AssignedToUserId == CurrentUser.UserId)
+                                @if (_previewTask.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
                                 {
                                     <div style="flex-shrink:0;">
                                         <ChatComposer
                                             OnSendWithFile="OverlaySendChatMessageAsync"
                                             PlaceHolder="Написать сообщение..."
-                                            EnableAttachments="true" />
+                                            EnableAttachments="true"
+                                            QuickReplies="ChatQuickReplies" />
                                     </div>
                                 }
                             }
@@ -1190,6 +1204,13 @@
                     @if (_previewTask.Status == CommunicationTaskStatus.InProgress)
                     {
                         <div class="question-answer-composer">
+                            <div class="chat-quick-replies" style="padding:0.25rem 0 0.1rem;">
+                                @foreach (var qr in QuestionQuickReplies)
+                                {
+                                    var qrText = qr;
+                                    <button type="button" class="chat-quick-reply-chip" @onclick="@(() => _overlayAnswerText = qrText)">@qrText</button>
+                                }
+                            </div>
                             <div class="question-answer-input-row">
                                 <RadzenTextArea @bind-Value="_overlayAnswerText"
                                                 Rows="1"
@@ -1375,7 +1396,8 @@
                             OnSendTextOnly="SendOverlayCommentAsync"
                             EnableAttachments="false"
                             PlaceHolder="Написать комментарий к отзыву..."
-                            MaxLength="3000" />
+                            MaxLength="3000"
+                            QuickReplies="ReviewQuickReplies" />
                     }
                     else
                     {
@@ -1410,7 +1432,7 @@
             }
             else if (_previewTask.Status == CommunicationTaskStatus.InProgress)
             {
-                @if (_previewTask.AssignedToUserId == CurrentUser.UserId)
+                @if (_previewTask.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
                 {
                     <div class="task-timer-active" style="display:inline-flex;align-items:center;gap:0.3rem;margin-right:auto;">
                         @if (_previewTask.HasActiveTimer)
@@ -1503,6 +1525,7 @@
 
 @code {
     private TaskBoardDto _board = new();
+    private Guid? _myTenantId;
     private HashSet<CommunicationTaskType> _filterTypes = new();
     private DateTime? _filterFrom = DateTime.Today.AddDays(-30);
     private DateTime? _filterTo;
@@ -1522,6 +1545,32 @@
     private Timer? _timerTick;
     private Timer? _chatPollTimer;
     private bool _isPollingChat;
+
+    private static readonly string[] ChatQuickReplies =
+    [
+        "Здравствуйте!",
+        "Здравствуйте, для проверки необходим VIN номер Вашего авто",
+        "Заявка на рассмотрении, ожидайте",
+        "Оформите возврат"
+    ];
+
+    private static readonly string[] QuestionQuickReplies =
+    [
+        "Здравствуйте!",
+        "Здравствуйте, для проверки необходим VIN номер Вашего авто",
+        "Заявка на рассмотрении, ожидайте",
+        "Оформите возврат"
+    ];
+
+    private static readonly string[] ReviewQuickReplies =
+    [
+        "Здравствуйте!",
+        "Здравствуйте! Спасибо за ваш отзыв.",
+        "Здравствуйте! Приносим извинения за доставленные неудобства.",
+        "Спасибо за обратную связь, мы обязательно учтём ваше мнение.",
+        "Пожалуйста, напишите нам в личные сообщения, мы поможем решить вопрос.",
+        "Мы рады, что вам понравился товар!"
+    ];
 
     // Preview state
     private CommunicationTaskDto? _previewTask;
@@ -1559,6 +1608,7 @@
 
         var authState = await AuthState;
         UserContext.SetUser(authState.User);
+        _myTenantId = await TaskService.GetCurrentUserTenantIdAsync();
 
         _ = LoadClientOptionsAsync();
 
@@ -2106,7 +2156,7 @@
             t.ExternalId == task.ExternalId &&
             t.MarketplaceClientId == task.MarketplaceClientId);
         task.Status = CommunicationTaskStatus.InProgress;
-        task.AssignedToUserId = userId;
+        task.AssignedToUserId = _myTenantId ?? userId;
         task.HasActiveTimer = true;
         task.StartedAt = DateTime.UtcNow;
         _board.InProgressTasks.Insert(0, task);
@@ -2323,7 +2373,7 @@
             {
                 _board.DoneTasks.RemoveAll(t => t.Id == _previewTask.Id);
                 _previewTask.Status = CommunicationTaskStatus.InProgress;
-                _previewTask.AssignedToUserId = userId;
+                _previewTask.AssignedToUserId = _myTenantId ?? userId;
                 _previewTask.HasActiveTimer = true;
                 _previewTask.StartedAt = DateTime.UtcNow;
                 _board.InProgressTasks.Insert(0, _previewTask);

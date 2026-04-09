@@ -17,6 +17,7 @@
 
     <ItemGroup>
       <PackageReference Include="AutoMapper" Version="16.1.1" />
+      <PackageReference Include="MailKit" Version="4.*" />
       <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
       <PackageReference Include="DynamicExpresso.Core" Version="2.19.3" />
       <PackageReference Include="Minio" Version="7.0.0" />

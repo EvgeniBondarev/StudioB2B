@@ -31,7 +31,7 @@ public class AccountController : ControllerBase
     }
 
     /// <summary>
-    /// Авторизация: возвращает JWT-токен
+    /// Шаг 1 входа: проверяет учётные данные и отправляет код на email.
     /// </summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto request, CancellationToken ct = default)
@@ -39,12 +39,33 @@ public class AccountController : ControllerBase
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
 
-        var result = await _accountService.LoginAsync(request.Email, request.Password, ct);
+        var result = await _accountService.InitiateLoginAsync(request.Email, request.Password, ct);
 
         if (result is null)
         {
             _logger.LogWarning("Login failed for {Email}", request.Email);
             return Unauthorized(new { error = "Неверный email или пароль" });
+        }
+
+        _logger.LogInformation("Login code sent to {Email}", request.Email);
+        return Ok(new { requiresVerification = true });
+    }
+
+    /// <summary>
+    /// Шаг 2 входа: подтверждает код и возвращает JWT-токен.
+    /// </summary>
+    [HttpPost("verify-login")]
+    public async Task<IActionResult> VerifyLogin([FromBody] VerifyLoginRequest request, CancellationToken ct = default)
+    {
+        if (!_tenantProvider.IsResolved)
+            return BadRequest(new { error = "Tenant not resolved" });
+
+        var result = await _accountService.VerifyLoginCodeAsync(request.Email, request.Code, ct);
+
+        if (result is null)
+        {
+            _logger.LogWarning("Login code verification failed for {Email}", request.Email);
+            return BadRequest(new { error = "Неверный или устаревший код. Запросите новый." });
         }
 
         var token = GenerateJwtToken(result.UserId, result.Email, result.IsFullAccess, result.RoleNames);
@@ -55,8 +76,28 @@ public class AccountController : ControllerBase
     }
 
     /// <summary>
+    /// Повторная отправка кода входа.
+    /// </summary>
+    [HttpPost("resend-login-code")]
+    public async Task<IActionResult> ResendLoginCode([FromBody] ResendLoginCodeRequest request, CancellationToken ct = default)
+    {
+        if (!_tenantProvider.IsResolved)
+            return BadRequest(new { error = "Tenant not resolved" });
+
+        var ok = await _accountService.ResendLoginCodeAsync(request.Email, ct);
+
+        if (!ok)
+        {
+            _logger.LogWarning("Resend login code failed for {Email}", request.Email);
+            return BadRequest(new { error = "Пользователь не найден" });
+        }
+
+        _logger.LogInformation("Login code resent to {Email}", request.Email);
+        return Ok(new { requiresVerification = true });
+    }
+
+    /// <summary>
     /// Перевыпускает JWT с актуальными ролями текущего пользователя.
-    /// Вызывается клиентом сразу после изменения ролей, чтобы не требовать повторного входа.
     /// </summary>
     [HttpGet("refresh")]
     [Authorize]
@@ -115,4 +156,8 @@ public class AccountController : ControllerBase
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    public record VerifyLoginRequest(string Email, string Code);
+
+    public record ResendLoginCodeRequest(string Email);
 }
