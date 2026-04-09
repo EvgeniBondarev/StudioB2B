@@ -219,12 +219,12 @@ public class CommunicationTaskService : ICommunicationTaskService
                 matching = matching.Where(r => r.TaskType == type).ToList();
 
             var perTask = matching
-                .Where(r => r.PaymentMode == PaymentMode.PerTask && !r.MinDurationMinutes.HasValue)
+                .Where(r => r.PaymentMode == PaymentMode.PerTask)
                 .Sum(r => r.Rate);
             if (perTask > 0) result.PaymentEstimates[type] = Math.Round(perTask, 2);
 
             var hourly = matching
-                .Where(r => r.PaymentMode == PaymentMode.Hourly && !r.MinDurationMinutes.HasValue)
+                .Where(r => r.PaymentMode == PaymentMode.Hourly)
                 .Sum(r => r.Rate);
             if (hourly > 0) result.HourlyEstimates[type] = Math.Round(hourly, 2);
         }
@@ -322,9 +322,9 @@ public class CommunicationTaskService : ICommunicationTaskService
             if (matching.Any(r => r.TaskType == type))
                 matching = matching.Where(r => r.TaskType == type).ToList();
 
-            var perTask = matching.Where(r => r.PaymentMode == PaymentMode.PerTask && !r.MinDurationMinutes.HasValue).Sum(r => r.Rate);
+            var perTask = matching.Where(r => r.PaymentMode == PaymentMode.PerTask).Sum(r => r.Rate);
             if (perTask > 0) result.PaymentEstimates[type] = Math.Round(perTask, 2);
-            var hourly = matching.Where(r => r.PaymentMode == PaymentMode.Hourly && !r.MinDurationMinutes.HasValue).Sum(r => r.Rate);
+            var hourly = matching.Where(r => r.PaymentMode == PaymentMode.Hourly).Sum(r => r.Rate);
             if (hourly > 0) result.HourlyEstimates[type] = Math.Round(hourly, 2);
         }
         result.ActiveRates.AddRange(activeRates.Select(r => new CommunicationPaymentRateDto
