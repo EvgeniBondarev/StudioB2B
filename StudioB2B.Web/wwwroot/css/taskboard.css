@@ -477,6 +477,20 @@
     flex-shrink: 0;
 }
 
+.task-was-completed-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fbbf24;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
 /* Estimated earnings badge (New/InProgress tasks) */
 .task-estimate-badge {
     display: inline-flex;
@@ -862,6 +876,10 @@
     padding: 1px 6px;
 }
 
+.taskboard-main.has-preview .col-inprogress .taskboard-column-body {
+    overflow: hidden;
+}
+
 .col-inprogress {
     overflow: visible;
     display: flex;
@@ -883,6 +901,7 @@
 .col-inprogress .task-detail-overlay {
     width: 100%;
     flex: 1;
+    height: 0;
     min-height: 300px;
     border-radius: 12px;
     border: 1px solid var(--rz-base-300);

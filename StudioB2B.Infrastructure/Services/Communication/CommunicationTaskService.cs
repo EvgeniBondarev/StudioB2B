@@ -42,6 +42,12 @@ public class CommunicationTaskService : ICommunicationTaskService
         _tenantProvider = tenantProvider;
     }
 
+    public async Task<Guid?> GetCurrentUserTenantIdAsync(CancellationToken ct = default)
+    {
+        if (_currentUser.UserId is null) return null;
+        return await ResolveUserIdAsync(_currentUser.UserId.Value, ct);
+    }
+
     public void InvalidateLiveCache()
     {
         foreach (var key in _liveCacheKeys)
@@ -504,7 +510,8 @@ public class CommunicationTaskService : ICommunicationTaskService
                 .Select(e => (DateTime?)e.StartedAt)
                 .FirstOrDefault(),
             TotalTimeSpentTicks = t.TotalTimeSpentTicks,
-            LastMessageFromCustomer = false
+            LastMessageFromCustomer = false,
+            WasPreviouslyCompleted = t.WasPreviouslyCompleted
         };
     }
 
@@ -1546,6 +1553,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         dto.UpdatedAt = t.UpdatedAt;
         dto.HasActiveTimer = t.TimeEntries?.Any(e => e.EndedAt == null) ?? false;
         dto.LastMessageFromCustomer = false;
+        dto.WasPreviouslyCompleted = t.WasPreviouslyCompleted;
     }
 
     private async Task<HashSet<(CommunicationTaskType TaskType, string ExternalId, Guid MarketplaceClientId)>>
