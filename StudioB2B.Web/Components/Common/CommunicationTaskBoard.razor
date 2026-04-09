@@ -1601,6 +1601,76 @@
                     }
                 }
 
+                @* Payment breakdown — New: shows applicable rates; Done: shows actual calculation *@
+                @if (!_previewLoading && _board.ActiveRates.Count > 0)
+                {
+                    @if (_previewTask.Status == CommunicationTaskStatus.New)
+                    {
+                        var newRates = GetApplicableRates(_previewTask.TaskType);
+                        @if (newRates.Count > 0)
+                        {
+                            <div class="payment-breakdown-card">
+                                <div class="payment-breakdown-header">
+                                    <span class="rzi" style="font-size:0.85rem;">payments</span>
+                                    Как рассчитывается заработок
+                                </div>
+                                @foreach (var rate in newRates)
+                                {
+                                    <div class="payment-breakdown-row">
+                                        <span class="payment-breakdown-label">@FormatRateDescription(rate)</span>
+                                        <span class="payment-breakdown-amount">@FormatRateAmount(rate)</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    else if (_previewTask.Status == CommunicationTaskStatus.Done)
+                    {
+                        var doneMin = (decimal)TimeSpan.FromTicks(_previewTask.TotalTimeSpentTicks).TotalMinutes;
+                        var doneLines = CommunicationPaymentCalculator.ComputeBreakdownLines(
+                            doneMin, _previewTask.TaskType, _previewTask.AssignedToUserId, _board.ActiveRates);
+                        @if (doneLines.Count > 0 || (_previewTask.PaymentAmount.HasValue && _previewTask.PaymentAmount > 0))
+                        {
+                            <div class="payment-breakdown-card done">
+                                <div class="payment-breakdown-header">
+                                    <span class="rzi" style="font-size:0.85rem;">receipt_long</span>
+                                    Расчёт оплаты
+                                    @if (_previewTask.TotalTimeSpentTicks > 0)
+                                    {
+                                        <span style="margin-left:auto;font-size:0.72rem;color:var(--rz-text-secondary-color);">
+                                            @FormatTimeSpan(TimeSpan.FromTicks(_previewTask.TotalTimeSpentTicks))
+                                        </span>
+                                    }
+                                </div>
+                                @if (doneLines.Count > 0)
+                                {
+                                    @foreach (var line in doneLines)
+                                    {
+                                        <div class="payment-breakdown-row">
+                                            <span class="payment-breakdown-label">@line.Caption</span>
+                                            <span class="payment-breakdown-amount">+@line.Amount.ToString("F0") ₽</span>
+                                        </div>
+                                    }
+                                    @if (doneLines.Count > 1)
+                                    {
+                                        <div class="payment-breakdown-total">
+                                            <span>Итого</span>
+                                            <span>+@doneLines.Sum(l => l.Amount).ToString("F0") ₽</span>
+                                        </div>
+                                    }
+                                }
+                                else if (_previewTask.PaymentAmount.HasValue && _previewTask.PaymentAmount > 0)
+                                {
+                                    <div class="payment-breakdown-row">
+                                        <span class="payment-breakdown-label" style="color:var(--rz-text-secondary-color);">Данные о тарифах отсутствуют</span>
+                                        <span class="payment-breakdown-amount">+@_previewTask.PaymentAmount.Value.ToString("F0") ₽</span>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                }
+
                 @if (!_previewLoading &&
                      _previewTask.TaskType != CommunicationTaskType.Chat &&
                      _questionDetail is null && _reviewDetail is null)
@@ -2863,6 +2933,33 @@
         CommunicationTaskType.Review => "Отзыв",
         _ => "—"
     };
+
+    private List<CommunicationPaymentRateDto> GetApplicableRates(CommunicationTaskType taskType)
+    {
+        var global = _board.ActiveRates.Where(r => r.UserId == null).ToList();
+        var matched = global.Where(r => r.TaskType == null || r.TaskType == taskType).ToList();
+        if (matched.Any(r => r.TaskType == taskType))
+            matched = matched.Where(r => r.TaskType == taskType).ToList();
+        return matched;
+    }
+
+    private static string FormatRateDescription(CommunicationPaymentRateDto r)
+    {
+        var parts = new List<string>();
+        parts.Add(r.PaymentMode == PaymentMode.PerTask ? "За задачу" : "Почасовая");
+        if (r.MinDurationMinutes.HasValue && r.MaxDurationMinutes.HasValue)
+            parts.Add($"если {r.MinDurationMinutes}–{r.MaxDurationMinutes} мин");
+        else if (r.MinDurationMinutes.HasValue)
+            parts.Add($"от {r.MinDurationMinutes} мин");
+        else if (r.MaxDurationMinutes.HasValue)
+            parts.Add($"до {r.MaxDurationMinutes} мин");
+        if (!string.IsNullOrWhiteSpace(r.Description))
+            parts.Add(r.Description);
+        return string.Join(" · ", parts);
+    }
+
+    private static string FormatRateAmount(CommunicationPaymentRateDto r) =>
+        r.PaymentMode == PaymentMode.PerTask ? $"{r.Rate:F0} ₽" : $"{r.Rate:F0} ₽/ч";
 
     private decimal ComputeEstimate(CommunicationTaskDto task)
     {
