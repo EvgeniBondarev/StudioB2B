@@ -174,7 +174,7 @@
     private string _pageIcon = "home";
     private HubConnection? _ozonPushHub;
 
-    private static readonly HashSet<string> FullHeightPages = ["/chats", "/questions", "/communication"];
+    private static readonly HashSet<string> FullHeightPages = ["/chats", "/questions", "/communication", "/task-board"];
 
     private bool _isFullHeight => FullHeightPages.Contains(
         new Uri(Navigation.Uri).AbsolutePath.TrimEnd('/').ToLowerInvariant());

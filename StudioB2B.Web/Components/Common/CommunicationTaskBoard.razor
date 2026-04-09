@@ -20,10 +20,10 @@
 
 @implements IAsyncDisposable
 
-<link rel="stylesheet" href="css/taskboard.css" />
+<link rel="stylesheet" href="css/taskboard.css?v=1775729250" />
 <link rel="stylesheet" href="css/chats/chatMessages.css" />
 <link rel="stylesheet" href="css/chats/chatComposer.css" />
-<script src="js/taskboard.js"></script>
+<script src="js/taskboard.js?v=1775729247"></script>
 
 <div class="taskboard-root">
 
@@ -277,14 +277,13 @@
                 <span>В работе</span>
                 <span class="taskboard-column-count">@FilteredInProgress.Count</span>
             </div>
-            <div class="taskboard-column-body">
-                @if (FilteredInProgress.Count == 0)
+            @if (_previewTask is not null && _previewTask.Status == CommunicationTaskStatus.InProgress)
+            {
+                var _inpToShow = FilteredInProgress;
+                if (_inpToShow.Count > 0)
                 {
-                    <div class="taskboard-empty"><RadzenIcon Icon="hourglass_empty" /><span>Нет задач в работе</span></div>
-                }
-                else
-                {
-                    @foreach (var task in FilteredInProgress)
+                    <div class="taskboard-pinned-card">
+                    @foreach (var task in _inpToShow.Take(1))
                     {
                         <div class="task-card @(_previewTask?.Id == task.Id ? "selected" : "")" @onclick="@(() => OnCardClick(task))">
                             <div class="task-card-header">
@@ -352,8 +351,9 @@
                                 </div>
                             }
                         </div>
-                        @if (_previewTask?.Id == task.Id)
-                        {
+                    }
+                    </div>
+                }
                         <div class="task-detail-overlay @GetPreviewTypeClass(_previewTask.TaskType)">
         <div class="task-detail-header">
             <div style="display:flex;align-items:center;gap:0.4rem;flex:1;min-width:0;flex-wrap:wrap;overflow:hidden;">
@@ -878,11 +878,170 @@
             }
         </div>
         }
+        else if (_previewTask.Status == CommunicationTaskStatus.Done)
+        {
+        <div style="padding:0.5rem 1rem;border-top:1px solid var(--rz-base-300);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;min-height:3rem;">
+            <RadzenButton Text="Вернуть в работу" Icon="replay" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small"
+                          Click="OverlayReopenAsync" IsBusy="@_overlayBusy" Style="margin-left:auto;" />
         </div>
-                        }
+        }
+        </div>
+                @if (_inpToShow.Count > 1)
+                {
+                    <div class="taskboard-column-body col-inprogress-others">
+                    @foreach (var task in _inpToShow.Skip(1))
+                    {
+                        <div class="task-card @(_previewTask?.Id == task.Id ? "selected" : "")" @onclick="@(() => OnCardClick(task))">
+                            <div class="task-card-header">
+                                <span class="task-type-badge @GetTypeClass(task.TaskType)">@GetTypeLabel(task.TaskType)</span>
+                                <span class="task-card-title" title="@task.Title">@task.Title</span>
+                                @if (task.TaskType == CommunicationTaskType.Chat && task.UnreadCount > 0)
+                                {
+                                    <span class="task-unread-badge" title="Непрочитанных сообщений">@task.UnreadCount</span>
+                                }
+                            </div>
+                            @if (!string.IsNullOrEmpty(task.PreviewText))
+                            {
+                                <div class="task-card-preview">@task.PreviewText</div>
+                            }
+                            @if (task.HasActiveTimer)
+                            {
+                                <div class="task-timer-active">
+                                    <span class="timer-dot"></span>
+                                    <span class="live-timer" data-started="@task.StartedAt?.ToString("o")" data-accumulated="@task.TotalTimeSpentTicks">@FormatDuration(task.StartedAt, task.TotalTimeSpentTicks)</span>
+                                </div>
+                            }
+                            <div class="task-card-footer">
+                                <span class="task-card-time">
+                                    <RadzenIcon Icon="schedule" Style="font-size:0.85rem;" />
+                                    @FormatTimeAgo(task.UpdatedAt)
+                                </span>
+                                @if (task.AssignedToUserName is not null)
+                                {
+                                    <span class="task-card-assignee">
+                                        <RadzenIcon Icon="person" Style="font-size:0.85rem;" />
+                                        @task.AssignedToUserName
+                                    </span>
+                                }
+                                @{ var inProgressEst = ComputeEstimate(task); }
+                                @if (inProgressEst > 0)
+                                {
+                                    <span class="task-estimate-badge" title="Ожидаемая оплата по текущим тарифам">~@inProgressEst.ToString("F0") ₽</span>
+                                }
+                            </div>
+                            @if (task.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
+                            {
+                                <div class="task-card-actions">
+                                    @if (task.HasActiveTimer)
+                                    {
+                                        <RadzenButton Text="Пауза" Icon="pause"
+                                                      ButtonStyle="ButtonStyle.Warning" Size="ButtonSize.ExtraSmall"
+                                                      Click="@(async () => await PauseAsync(task))"
+                                                      @onclick:stopPropagation="true" />
+                                    }
+                                    else
+                                    {
+                                        <RadzenButton Text="Продолжить" Icon="play_arrow"
+                                                      ButtonStyle="ButtonStyle.Info" Size="ButtonSize.ExtraSmall"
+                                                      Click="@(async () => await ResumeAsync(task))"
+                                                      @onclick:stopPropagation="true" />
+                                    }
+                                    <RadzenButton Text="Готово" Icon="check"
+                                                  ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall"
+                                                  Click="@(async () => await CompleteAsync(task))"
+                                                  @onclick:stopPropagation="true" />
+                                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                                  Click="@(async () => await ReleaseAsync(task))"
+                                                  @onclick:stopPropagation="true"
+                                                  title="Снять с себя" />
+                                </div>
+                            }
+                        </div>
+                    }
+                    </div>
+                }
+            }
+            else
+            {
+            <div class="taskboard-column-body">
+                @if (FilteredInProgress.Count == 0)
+                {
+                    <div class="taskboard-empty"><RadzenIcon Icon="hourglass_empty" /><span>Нет задач в работе</span></div>
+                }
+                else
+                {
+                    @foreach (var task in FilteredInProgress)
+                    {
+                        <div class="task-card @(_previewTask?.Id == task.Id ? "selected" : "")" @onclick="@(() => OnCardClick(task))">
+                            <div class="task-card-header">
+                                <span class="task-type-badge @GetTypeClass(task.TaskType)">@GetTypeLabel(task.TaskType)</span>
+                                <span class="task-card-title" title="@task.Title">@task.Title</span>
+                                @if (task.TaskType == CommunicationTaskType.Chat && task.UnreadCount > 0)
+                                {
+                                    <span class="task-unread-badge" title="Непрочитанных сообщений">@task.UnreadCount</span>
+                                }
+                            </div>
+                            @if (!string.IsNullOrEmpty(task.PreviewText))
+                            {
+                                <div class="task-card-preview">@task.PreviewText</div>
+                            }
+                            @if (task.HasActiveTimer)
+                            {
+                                <div class="task-timer-active">
+                                    <span class="timer-dot"></span>
+                                    <span class="live-timer" data-started="@task.StartedAt?.ToString("o")" data-accumulated="@task.TotalTimeSpentTicks">@FormatDuration(task.StartedAt, task.TotalTimeSpentTicks)</span>
+                                </div>
+                            }
+                            <div class="task-card-footer">
+                                <span class="task-card-time">
+                                    <RadzenIcon Icon="schedule" Style="font-size:0.85rem;" />
+                                    @FormatTimeAgo(task.UpdatedAt)
+                                </span>
+                                @if (task.AssignedToUserName is not null)
+                                {
+                                    <span class="task-card-assignee">
+                                        <RadzenIcon Icon="person" Style="font-size:0.85rem;" />
+                                        @task.AssignedToUserName
+                                    </span>
+                                }
+                                @{ var inProgressEst = ComputeEstimate(task); }
+                                @if (inProgressEst > 0)
+                                {
+                                    <span class="task-estimate-badge" title="Ожидаемая оплата по текущим тарифам">~@inProgressEst.ToString("F0") ₽</span>
+                                }
+                            </div>
+                            @if (task.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
+                            {
+                                <div class="task-card-actions">
+                                    @if (task.HasActiveTimer)
+                                    {
+                                        <RadzenButton Text="Пауза" Icon="pause"
+                                                      ButtonStyle="ButtonStyle.Warning" Size="ButtonSize.ExtraSmall"
+                                                      Click="@(async () => await PauseAsync(task))"
+                                                      @onclick:stopPropagation="true" />
+                                    }
+                                    else
+                                    {
+                                        <RadzenButton Text="Продолжить" Icon="play_arrow"
+                                                      ButtonStyle="ButtonStyle.Info" Size="ButtonSize.ExtraSmall"
+                                                      Click="@(async () => await ResumeAsync(task))"
+                                                      @onclick:stopPropagation="true" />
+                                    }
+                                    <RadzenButton Text="Готово" Icon="check"
+                                                  ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall"
+                                                  Click="@(async () => await CompleteAsync(task))"
+                                                  @onclick:stopPropagation="true" />
+                                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                                  Click="@(async () => await ReleaseAsync(task))"
+                                                  @onclick:stopPropagation="true"
+                                                  title="Снять с себя" />
+                                </div>
+                            }
+                        </div>
                     }
                 }
             </div>
+            }
         </div>
 
         <!-- DONE -->
@@ -904,7 +1063,15 @@
                             <div class="task-card-header">
                                 <span class="task-type-badge @GetTypeClass(task.TaskType)">@GetTypeLabel(task.TaskType)</span>
                                 <span class="task-card-title" title="@task.Title">@task.Title</span>
+                                <RadzenButton Icon="replay" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                              title="Вернуть в работу"
+                                              Click="@(async () => await CardReopenAsync(task))"
+                                              @onclick:stopPropagation="true" />
                             </div>
+                            @if (!string.IsNullOrEmpty(task.PreviewText))
+                            {
+                                <div class="task-card-preview">@task.PreviewText</div>
+                            }
                             <div class="task-card-footer">
                                 @if (task.AssignedToUserName is not null)
                                 {
@@ -1473,6 +1640,13 @@
             }
         </div>
         }
+        else if (_previewTask.Status == CommunicationTaskStatus.Done)
+        {
+        <div style="padding:0.5rem 1rem;border-top:1px solid var(--rz-base-300);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;min-height:3rem;">
+            <RadzenButton Text="Вернуть в работу" Icon="replay" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small"
+                          Click="OverlayReopenAsync" IsBusy="@_overlayBusy" Style="margin-left:auto;" />
+        </div>
+        }
     </div>
     </div>
     }
@@ -1545,6 +1719,7 @@
     private Timer? _timerTick;
     private Timer? _chatPollTimer;
     private bool _isPollingChat;
+    private DateTime _lastRefreshAt;
 
     private static readonly string[] ChatQuickReplies =
     [
@@ -1596,7 +1771,24 @@
     private ElementReference _galleryDiv;
 
     private List<CommunicationTaskDto> FilteredNew => ApplyTypeFilter(_board.NewTasks);
-    private List<CommunicationTaskDto> FilteredInProgress => ApplyTypeFilter(_board.InProgressTasks);
+    private List<CommunicationTaskDto> FilteredInProgress
+    {
+        get
+        {
+            var list = ApplyTypeFilter(_board.InProgressTasks);
+            if (_previewTask is not null)
+            {
+                var idx = list.FindIndex(t => t.Id == _previewTask.Id);
+                if (idx > 0)
+                {
+                    var item = list[idx];
+                    list.RemoveAt(idx);
+                    list.Insert(0, item);
+                }
+            }
+            return list;
+        }
+    }
     private List<CommunicationTaskDto> FilteredDone => ApplyTypeFilter(_board.DoneTasks);
 
     [CascadingParameter]
@@ -1794,6 +1986,7 @@
             });
             _board = board;
             BoardState.Set(board);
+            _lastRefreshAt = DateTime.UtcNow;
             StateHasChanged();
         }
         catch { /* silent */ }
@@ -1809,10 +2002,10 @@
                 .WithAutomaticReconnect()
                 .Build();
 
-            _hubConnection.On<object>("TaskClaimed", async _ => await InvokeAsync(RefreshBoardSilentAsync));
-            _hubConnection.On<object>("TaskReleased", async _ => await InvokeAsync(RefreshBoardSilentAsync));
-            _hubConnection.On<object>("TaskCompleted", async _ => await InvokeAsync(RefreshBoardSilentAsync));
-            _hubConnection.On<object>("BoardUpdated", async _ => await InvokeAsync(RefreshBoardSilentAsync));
+            _hubConnection.On<object>("TaskClaimed", async _ => await InvokeAsync(OnSignalRBoardUpdate));
+            _hubConnection.On<object>("TaskReleased", async _ => await InvokeAsync(OnSignalRBoardUpdate));
+            _hubConnection.On<object>("TaskCompleted", async _ => await InvokeAsync(OnSignalRBoardUpdate));
+            _hubConnection.On<object>("BoardUpdated", async _ => await InvokeAsync(OnSignalRBoardUpdate));
 
             await _hubConnection.StartAsync();
             await _hubConnection.InvokeAsync("JoinTenantGroup", TenantProvider.TenantId.ToString());
@@ -1820,6 +2013,12 @@
         catch { NotificationService.Notify(NotificationSeverity.Warning, "SignalR", "Не удалось подключиться", 3000); }
     }
 
+    private async Task OnSignalRBoardUpdate()
+    {
+        // Skip if we just refreshed less than 2 seconds ago (acting user's own action)
+        if ((DateTime.UtcNow - _lastRefreshAt).TotalSeconds < 2) return;
+        await RefreshBoardSilentAsync();
+    }
 
     private async Task ToggleTypeFilter(CommunicationTaskType type, bool add)
     {
@@ -2357,6 +2556,27 @@
             ClosePreview();
         }
         finally { _overlayBusy = false; }
+    }
+
+    private async Task CardReopenAsync(CommunicationTaskDto task)
+    {
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+        var ok = await TaskService.ReopenTaskAsync(task.Id, userId.Value);
+        if (ok)
+        {
+            _board.DoneTasks.RemoveAll(t => t.Id == task.Id);
+            task.Status = CommunicationTaskStatus.InProgress;
+            task.AssignedToUserId = _myTenantId ?? userId;
+            task.HasActiveTimer = true;
+            task.StartedAt = DateTime.UtcNow;
+            _board.InProgressTasks.Insert(0, task);
+            StateHasChanged();
+        }
+        else
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось вернуть задачу в работу", 3000);
+        }
     }
 
     private async Task OverlayReopenAsync()

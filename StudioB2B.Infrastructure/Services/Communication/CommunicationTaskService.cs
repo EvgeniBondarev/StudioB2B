@@ -20,6 +20,7 @@ public class CommunicationTaskService : ICommunicationTaskService
     private readonly IOzonReviewsService _reviewsService;
     private readonly IMemoryCache _cache;
     private readonly ITenantProvider _tenantProvider;
+    private readonly ITaskBoardNotificationSender _notificationSender;
     private readonly HashSet<string> _liveCacheKeys = new();
 
     public CommunicationTaskService(
@@ -30,7 +31,8 @@ public class CommunicationTaskService : ICommunicationTaskService
         IOzonQuestionsService questionsService,
         IOzonReviewsService reviewsService,
         IMemoryCache cache,
-        ITenantProvider tenantProvider)
+        ITenantProvider tenantProvider,
+        ITaskBoardNotificationSender notificationSender)
     {
         _db = db;
         _logger = logger;
@@ -40,6 +42,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         _reviewsService = reviewsService;
         _cache = cache;
         _tenantProvider = tenantProvider;
+        _notificationSender = notificationSender;
     }
 
     public async Task<Guid?> GetCurrentUserTenantIdAsync(CancellationToken ct = default)
@@ -689,6 +692,7 @@ public class CommunicationTaskService : ICommunicationTaskService
             await _db.SaveChangesAsync(ct);
             _logger.LogInformation("Task {ExternalId} ({Type}) created and claimed by user {UserId}",
                 liveTask.ExternalId, liveTask.TaskType, userId);
+            await NotifyBoardChangedAsync(ct);
             return task.Id;
         }
         catch (Exception ex)
@@ -751,6 +755,7 @@ public class CommunicationTaskService : ICommunicationTaskService
 
             await _db.SaveChangesAsync(ct);
             _logger.LogInformation("Task {TaskId} claimed by user {UserId}", taskId, userId);
+            await NotifyBoardChangedAsync(ct);
             return true;
         }
         finally
@@ -776,6 +781,7 @@ public class CommunicationTaskService : ICommunicationTaskService
             _db.CommunicationTasks.Remove(task);
             await _db.SaveChangesAsync(ct);
             _logger.LogInformation("Task {TaskId} released and removed from DB by user {UserId}", taskId, userId);
+            await NotifyBoardChangedAsync(ct);
             return true;
         }
         finally
@@ -912,6 +918,7 @@ public class CommunicationTaskService : ICommunicationTaskService
             await _db.SaveChangesAsync(ct);
             _logger.LogInformation("Task {TaskId} completed by user {UserId}, payment={Payment}",
                 taskId, userId, task.PaymentAmount);
+            await NotifyBoardChangedAsync(ct);
             return true;
         }
         finally
@@ -964,6 +971,7 @@ public class CommunicationTaskService : ICommunicationTaskService
 
             await _db.SaveChangesAsync(ct);
             _logger.LogInformation("Task {TaskId} reopened by user {UserId}", taskId, userId);
+            await NotifyBoardChangedAsync(ct);
             return true;
         }
         finally
@@ -1237,6 +1245,20 @@ public class CommunicationTaskService : ICommunicationTaskService
         _db.CommunicationPaymentRates.Remove(entity);
         await _db.SaveChangesAsync(ct);
         return true;
+    }
+
+    private async Task NotifyBoardChangedAsync(CancellationToken ct)
+    {
+        try
+        {
+            var tenantId = _tenantProvider.TenantId;
+            if (tenantId != Guid.Empty)
+                await _notificationSender.SendBoardUpdatedAsync(tenantId.Value, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send board update notification");
+        }
     }
 
     public async Task<int> RecalculatePaymentsAsync(CancellationToken ct = default)
