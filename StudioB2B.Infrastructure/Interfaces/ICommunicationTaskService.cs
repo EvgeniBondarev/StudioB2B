@@ -66,6 +66,9 @@ public interface ICommunicationTaskService
     /// <summary>Recalculates PaymentAmount for all Done tasks using current rates. Returns count of tasks updated.</summary>
     Task<int> RecalculatePaymentsAsync(CancellationToken ct = default);
 
+    /// <summary>Returns the tenant-resolved Guid for the current user (may differ from the master JWT Guid).</summary>
+    Task<Guid?> GetCurrentUserTenantIdAsync(CancellationToken ct = default);
+
     /// <summary>Invalidates the in-memory cache for live Ozon data (chats, questions, reviews).</summary>
     void InvalidateLiveCache();
 }

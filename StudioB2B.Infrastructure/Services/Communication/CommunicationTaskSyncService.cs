@@ -97,11 +97,82 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
 
             await _db.SaveChangesAsync(ct);
             _logger.LogInformation("Synced {Count} existing chat tasks (full={Full})", existing.Count, fullSync);
+
+            await AutoReopenDoneChatsAsync(ct);
         }
         catch (Exception ex)
         {
             _db.ChangeTracker.Clear();
             _logger.LogError(ex, "Failed to sync chats to task board");
+        }
+    }
+
+    private async Task AutoReopenDoneChatsAsync(CancellationToken ct)
+    {
+        try
+        {
+            var doneTasks = await _db.CommunicationTasks
+                .Where(t => t.TaskType == CommunicationTaskType.Chat &&
+                            t.Status == CommunicationTaskStatus.Done &&
+                            !t.IsDeleted)
+                .ToListAsync(ct);
+
+            if (doneTasks.Count == 0) return;
+
+            var sem = new SemaphoreSlim(4);
+            var reopened = 0;
+
+            async Task CheckOne(Domain.Entities.CommunicationTask task)
+            {
+                await sem.WaitAsync(ct);
+                try
+                {
+                    var history = await _chatService.GetChatHistoryAsync(
+                        task.MarketplaceClientId, task.ExternalId, "Backward", null, 1, ct);
+                    var last = history?.Messages.FirstOrDefault();
+                    if (last is null) return;
+                    if (!IsCustomerUserType(last.User?.Type)) return;
+
+                    task.Status = CommunicationTaskStatus.New;
+                    task.WasPreviouslyCompleted = true;
+                    task.AssignedToUserId = null;
+                    task.AssignedAt = null;
+                    task.UpdatedAt = DateTime.UtcNow;
+
+                    _db.CommunicationTaskLogs.Add(new Domain.Entities.CommunicationTaskLog
+                    {
+                        Id = Guid.NewGuid(),
+                        TaskId = task.Id,
+                        UserId = null,
+                        Action = "AutoReopened",
+                        Details = "Новое сообщение от покупателя после завершения",
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    Interlocked.Increment(ref reopened);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "AutoReopen check failed for task {Id}", task.Id);
+                }
+                finally
+                {
+                    sem.Release();
+                }
+            }
+
+            await Task.WhenAll(doneTasks.Select(CheckOne));
+
+            if (reopened > 0)
+            {
+                await _db.SaveChangesAsync(ct);
+                _logger.LogInformation("Auto-reopened {Count} done chat tasks with new buyer messages", reopened);
+            }
+        }
+        catch (Exception ex)
+        {
+            _db.ChangeTracker.Clear();
+            _logger.LogError(ex, "Failed to auto-reopen done chat tasks");
         }
     }
 
@@ -186,6 +257,9 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             _logger.LogError(ex, "Failed to sync reviews to task board");
         }
     }
+
+    private static bool IsCustomerUserType(string? t) =>
+        t is "Customer" or "Сustomer" or "customer" or "BUYER";
 
     private static bool IsTerminalChatStatus(string? status) =>
         string.Equals(status, "CLOSED", StringComparison.OrdinalIgnoreCase);
