@@ -203,12 +203,45 @@ public class MasterAuthService
         try
         {
             var html = $"""
-                <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-                  <h2>Подтверждение email</h2>
-                  <p>Ваш код подтверждения для регистрации в <strong>StudioB2B</strong>:</p>
-                  <div style="font-size:2rem;font-weight:700;letter-spacing:0.3em;padding:1rem 1.5rem;background:#f5f5f5;border-radius:8px;display:inline-block">{code}</div>
-                  <p style="color:#888;font-size:0.875rem">Код действителен 15 минут.</p>
-                </div>
+                <!DOCTYPE html>
+                <html lang="ru">
+                <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+                <body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                  <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                    <tr>
+                      <td align="center" style="padding:48px 16px;">
+                        <table width="480" cellpadding="0" cellspacing="0" role="presentation" style="max-width:480px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                          <tr>
+                            <td style="background:#4f46e5;padding:32px 40px;text-align:center;">
+                              <span style="color:#ffffff;font-size:24px;font-weight:700;letter-spacing:1px;">StudioB2B</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:40px 40px 32px;">
+                              <h1 style="margin:0 0 12px;font-size:20px;font-weight:700;color:#111827;">Подтверждение email</h1>
+                              <p style="margin:0 0 28px;font-size:15px;color:#4b5563;line-height:1.6;">
+                                Введите этот код для завершения регистрации в <strong style="color:#111827;">StudioB2B</strong>:
+                              </p>
+                              <div style="text-align:center;margin:0 0 32px;">
+                                <span style="display:inline-block;font-size:38px;font-weight:800;letter-spacing:0.5em;padding-left:0.5em;font-family:'Courier New',Courier,monospace;background:#f0f0ff;border:2px solid #c7c5f0;border-radius:10px;padding:16px 24px 16px 32px;color:#4f46e5;">{code}</span>
+                              </div>
+                              <p style="margin:0;font-size:13px;color:#9ca3af;line-height:1.6;">
+                                ⏱&nbsp; Код действителен <strong>15 минут</strong>.<br>
+                                Если вы не запрашивали этот код — просто проигнорируйте письмо.
+                              </p>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="background:#f8f8fc;border-top:1px solid #e8e8f0;padding:20px 40px;text-align:center;">
+                              <p style="margin:0;font-size:12px;color:#9ca3af;">StudioB2B &nbsp;·&nbsp; Это автоматическое сообщение, не отвечайте на него.</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </body>
+                </html>
                 """;
 
             await _emailService.SendAsync(email, email, "Код подтверждения — StudioB2B", html);
