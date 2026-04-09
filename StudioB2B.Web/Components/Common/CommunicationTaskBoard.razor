@@ -322,6 +322,14 @@
                                 {
                                     <span class="task-estimate-badge" title="Ожидаемая оплата по текущим тарифам">~@inProgressEst.ToString("F0") ₽</span>
                                 }
+                                else if (_board.PaymentEstimates.TryGetValue(task.TaskType, out var inpBrdEst) && inpBrdEst > 0)
+                                {
+                                    <span class="task-estimate-badge" title="Потенциальный заработок за задачу">~@inpBrdEst.ToString("F0") ₽</span>
+                                }
+                                else if (_board.HourlyEstimates.TryGetValue(task.TaskType, out var inpBrdHr) && inpBrdHr > 0)
+                                {
+                                    <span class="task-estimate-badge" title="Ставка за час">@inpBrdHr.ToString("F0") ₽/ч</span>
+                                }
                             </div>
                             @if (task.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
                             {
@@ -928,6 +936,14 @@
                                 {
                                     <span class="task-estimate-badge" title="Ожидаемая оплата по текущим тарифам">~@inProgressEst.ToString("F0") ₽</span>
                                 }
+                                else if (_board.PaymentEstimates.TryGetValue(task.TaskType, out var inpBrdEst) && inpBrdEst > 0)
+                                {
+                                    <span class="task-estimate-badge" title="Потенциальный заработок за задачу">~@inpBrdEst.ToString("F0") ₽</span>
+                                }
+                                else if (_board.HourlyEstimates.TryGetValue(task.TaskType, out var inpBrdHr) && inpBrdHr > 0)
+                                {
+                                    <span class="task-estimate-badge" title="Ставка за час">@inpBrdHr.ToString("F0") ₽/ч</span>
+                                }
                             </div>
                             @if (task.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
                             {
@@ -1008,6 +1024,14 @@
                                 @if (inProgressEst > 0)
                                 {
                                     <span class="task-estimate-badge" title="Ожидаемая оплата по текущим тарифам">~@inProgressEst.ToString("F0") ₽</span>
+                                }
+                                else if (_board.PaymentEstimates.TryGetValue(task.TaskType, out var inpBrdEst) && inpBrdEst > 0)
+                                {
+                                    <span class="task-estimate-badge" title="Потенциальный заработок за задачу">~@inpBrdEst.ToString("F0") ₽</span>
+                                }
+                                else if (_board.HourlyEstimates.TryGetValue(task.TaskType, out var inpBrdHr) && inpBrdHr > 0)
+                                {
+                                    <span class="task-estimate-badge" title="Ставка за час">@inpBrdHr.ToString("F0") ₽/ч</span>
                                 }
                             </div>
                             @if (task.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
@@ -2849,24 +2873,9 @@
             liveTicks += (DateTime.UtcNow - task.StartedAt.Value).Ticks;
 
         var totalMinutes = (decimal)TimeSpan.FromTicks(liveTicks).TotalMinutes;
-        var total = 0m;
-
-        foreach (var rate in _board.ActiveRates)
-        {
-            if (rate.TaskType.HasValue && rate.TaskType != task.TaskType) continue;
-            if (rate.UserId.HasValue && rate.UserId != task.AssignedToUserId) continue;
-            if (rate.MinDurationMinutes.HasValue && totalMinutes < rate.MinDurationMinutes.Value) continue;
-            if (rate.MaxDurationMinutes.HasValue && totalMinutes > rate.MaxDurationMinutes.Value) continue;
-
-            total += rate.PaymentMode switch
-            {
-                PaymentMode.PerTask => rate.Rate,
-                PaymentMode.Hourly => rate.Rate * (totalMinutes / 60m),
-                _ => 0m
-            };
-        }
-
-        return Math.Round(total, 2);
+        var lines = CommunicationPaymentCalculator.ComputeBreakdownLines(
+            totalMinutes, task.TaskType, task.AssignedToUserId, _board.ActiveRates);
+        return lines.Sum(l => l.Amount);
     }
 
     private static string GetStatusLabel(CommunicationTaskStatus status) => status switch
