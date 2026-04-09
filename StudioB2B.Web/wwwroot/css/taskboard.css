@@ -315,7 +315,7 @@
 
 
 .taskboard-column-body {
-    flex: 1;
+    flex: auto;
     overflow-y: auto;
     padding: 0.5rem;
     display: flex;
@@ -886,7 +886,7 @@
 
 /* Normal mode: cards fill column */
 .col-inprogress .taskboard-column-body {
-    flex: 1;
+    flex: 0 0 auto;
     min-height: 0;
     overflow-y: auto;
     display: flex;
