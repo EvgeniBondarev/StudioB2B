@@ -1,4 +1,5 @@
 @page "/register"
+@implements IDisposable
 @inject NavigationManager Navigation
 @inject IMasterAuthApiService MasterAuthApi
 
@@ -82,14 +83,23 @@
                     Код отправлен на <strong>@_model.Email</strong>. Он действителен 15 минут.
                 </RadzenText>
 
-                <RadzenFormField Text="Код подтверждения *" Style="width: 100%;">
-                    <RadzenTextBox @bind-Value="_code" Style="width: 100%;" MaxLength="6" />
-                </RadzenFormField>
+                <div style="display:flex;justify-content:center;margin:0.5rem 0;">
+                    <RadzenSecurityCode Value="@_code" ValueChanged="@OnCodeChanged" Count="6" Type="SecurityCodeType.Numeric" Disabled="@(_loading || _codeVerifying)" />
+                </div>
+
+                @if (_codeVerifying || _loading)
+                {
+                    <RadzenStack AlignItems="AlignItems.Center" Gap="0.25rem">
+                        <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false" Style="width:100%;" />
+                        <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);">Проверяем код...</RadzenText>
+                    </RadzenStack>
+                }
 
                 <RadzenButton Text="Подтвердить"
                               ButtonStyle="ButtonStyle.Primary"
                               Style="width: 100%; justify-content: center;"
                               Click="HandleVerify"
+                              Disabled="@_codeVerifying"
                               IsBusy="@_loading" />
 
                 <div style="text-align: center;">
@@ -130,6 +140,8 @@
     private string _code = "";
     private int _resendCooldown;
     private System.Threading.Timer? _cooldownTimer;
+    private CancellationTokenSource? _autoSubmitCts;
+    private bool _codeVerifying;
 
     private async Task HandleRegister()
     {
@@ -228,5 +240,38 @@
         }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
     }
 
-    public void Dispose() => _cooldownTimer?.Dispose();
+    private async Task OnCodeChanged(string value)
+    {
+        _code = value;
+        _autoSubmitCts?.Cancel();
+        _autoSubmitCts?.Dispose();
+        _autoSubmitCts = null;
+        _codeVerifying = false;
+
+        if (value?.Length == 6 && !_loading)
+        {
+            _codeVerifying = true;
+            StateHasChanged();
+            var cts = new CancellationTokenSource();
+            _autoSubmitCts = cts;
+            try
+            {
+                await Task.Delay(300, cts.Token);
+                if (!cts.IsCancellationRequested)
+                    await HandleVerify();
+            }
+            catch (OperationCanceledException) { }
+            finally
+            {
+                _codeVerifying = false;
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _cooldownTimer?.Dispose();
+        _autoSubmitCts?.Cancel();
+        _autoSubmitCts?.Dispose();
+    }
 }
