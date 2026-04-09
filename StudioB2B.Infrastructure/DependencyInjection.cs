@@ -39,7 +39,9 @@ public static class DependencyInjection
         services.Configure<EmailOptions>(
             configuration.GetSection(EmailOptions.SectionName));
 
-        services.AddScoped<IEmailService, SmtpEmailService>();
+        services.AddSingleton<BackgroundEmailSenderService>();
+        services.AddSingleton<IEmailService>(sp => sp.GetRequiredService<BackgroundEmailSenderService>());
+        services.AddHostedService(sp => sp.GetRequiredService<BackgroundEmailSenderService>());
 
         services.AddAutoMapper(cfg => cfg.AddMaps(typeof(DependencyInjection).Assembly));
 
