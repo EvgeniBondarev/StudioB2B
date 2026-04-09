@@ -300,14 +300,23 @@ else
                                 Код отправлен на <strong>@_login.Email</strong>. Он действителен 15 минут.
                             </RadzenText>
 
-                            <RadzenFormField Text="Код подтверждения *" Style="width: 100%;">
-                                <RadzenTextBox @bind-Value="_loginCode" Style="width: 100%;" MaxLength="6"/>
-                            </RadzenFormField>
+                            <div style="display:flex;justify-content:center;margin:0.5rem 0;">
+                                <RadzenSecurityCode Value="@_loginCode" ValueChanged="@OnLoginCodeChanged" Count="6" Type="SecurityCodeType.Numeric" Disabled="@(_loginLoading || _loginCodeVerifying)" />
+                            </div>
+
+                            @if (_loginCodeVerifying || _loginLoading)
+                            {
+                                <RadzenStack AlignItems="AlignItems.Center" Gap="0.25rem">
+                                    <RadzenProgressBar Mode="ProgressBarMode.Indeterminate" ShowValue="false" Style="width:100%;" />
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="color:var(--rz-text-secondary-color);">Проверяем код...</RadzenText>
+                                </RadzenStack>
+                            }
 
                             <RadzenButton Text="Подтвердить"
                                           ButtonStyle="ButtonStyle.Primary"
                                           Style="width: 100%; justify-content: center;"
                                           Click="HandleVerifyLogin"
+                                          Disabled="@_loginCodeVerifying"
                                           IsBusy="@_loginLoading"/>
 
                             <div style="text-align: center;">
@@ -538,6 +547,8 @@ else
     private string _loginCode = "";
     private int _loginResendCooldown;
     private System.Threading.Timer? _loginCooldownTimer;
+    private CancellationTokenSource? _loginAutoSubmitCts;
+    private bool _loginCodeVerifying;
 
     protected override async Task OnInitializedAsync()
     {
@@ -687,6 +698,34 @@ else
     private string RegStepDescStyle(int step) =>
         step <= _regStep ? string.Empty : "color: var(--rz-text-disabled-color);";
 
+    private async Task OnLoginCodeChanged(string value)
+    {
+        _loginCode = value;
+        _loginAutoSubmitCts?.Cancel();
+        _loginAutoSubmitCts?.Dispose();
+        _loginAutoSubmitCts = null;
+        _loginCodeVerifying = false;
+
+        if (value?.Length == 6 && !_loginLoading)
+        {
+            _loginCodeVerifying = true;
+            StateHasChanged();
+            var cts = new CancellationTokenSource();
+            _loginAutoSubmitCts = cts;
+            try
+            {
+                await Task.Delay(300, cts.Token);
+                if (!cts.IsCancellationRequested)
+                    await HandleVerifyLogin();
+            }
+            catch (OperationCanceledException) { }
+            finally
+            {
+                _loginCodeVerifying = false;
+            }
+        }
+    }
+
     private async Task HandleLogin()
     {
         _loginError = null;
@@ -828,6 +867,11 @@ else
         return local.Length >= 2 ? local[..2].ToUpper() : local.ToUpper();
     }
 
-    public void Dispose() => _loginCooldownTimer?.Dispose();
+    public void Dispose()
+    {
+        _loginCooldownTimer?.Dispose();
+        _loginAutoSubmitCts?.Cancel();
+        _loginAutoSubmitCts?.Dispose();
+    }
 
 }
