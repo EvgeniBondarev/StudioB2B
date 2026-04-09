@@ -221,10 +221,16 @@ public class CommunicationTaskService : ICommunicationTaskService
             var perTask = matching
                 .Where(r => r.PaymentMode == PaymentMode.PerTask)
                 .Sum(r => r.Rate);
-            if (perTask > 0) result.PaymentEstimates[type] = Math.Round(perTask, 2);
+            // Timed hourly rates (with min/max duration) are flat fees — show as a concrete amount
+            var timedHourly = matching
+                .Where(r => r.PaymentMode == PaymentMode.Hourly && (r.MinDurationMinutes.HasValue || r.MaxDurationMinutes.HasValue))
+                .Sum(r => r.Rate);
+            var fixedTotal = perTask + timedHourly;
+            if (fixedTotal > 0) result.PaymentEstimates[type] = Math.Round(fixedTotal, 2);
 
+            // Unbounded hourly rates — show as ₽/h
             var hourly = matching
-                .Where(r => r.PaymentMode == PaymentMode.Hourly)
+                .Where(r => r.PaymentMode == PaymentMode.Hourly && !r.MinDurationMinutes.HasValue && !r.MaxDurationMinutes.HasValue)
                 .Sum(r => r.Rate);
             if (hourly > 0) result.HourlyEstimates[type] = Math.Round(hourly, 2);
         }
@@ -323,8 +329,14 @@ public class CommunicationTaskService : ICommunicationTaskService
                 matching = matching.Where(r => r.TaskType == type).ToList();
 
             var perTask = matching.Where(r => r.PaymentMode == PaymentMode.PerTask).Sum(r => r.Rate);
-            if (perTask > 0) result.PaymentEstimates[type] = Math.Round(perTask, 2);
-            var hourly = matching.Where(r => r.PaymentMode == PaymentMode.Hourly).Sum(r => r.Rate);
+            var timedHourly = matching
+                .Where(r => r.PaymentMode == PaymentMode.Hourly && (r.MinDurationMinutes.HasValue || r.MaxDurationMinutes.HasValue))
+                .Sum(r => r.Rate);
+            var fixedTotal = perTask + timedHourly;
+            if (fixedTotal > 0) result.PaymentEstimates[type] = Math.Round(fixedTotal, 2);
+            var hourly = matching
+                .Where(r => r.PaymentMode == PaymentMode.Hourly && !r.MinDurationMinutes.HasValue && !r.MaxDurationMinutes.HasValue)
+                .Sum(r => r.Rate);
             if (hourly > 0) result.HourlyEstimates[type] = Math.Round(hourly, 2);
         }
         result.ActiveRates.AddRange(activeRates.Select(r => new CommunicationPaymentRateDto
