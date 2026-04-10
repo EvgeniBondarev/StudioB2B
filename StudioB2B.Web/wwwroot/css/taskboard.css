@@ -518,6 +518,61 @@
     white-space: nowrap;
 }
 
+.task-payment-badge-clickable {
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.task-payment-badge-clickable:hover {
+    background: rgba(16,185,129,0.3);
+}
+
+.card-breakdown-panel {
+    margin: 0.3rem 0.5rem 0.4rem;
+    border-radius: 8px;
+    border: 1px solid rgba(16,185,129,0.3);
+    background: rgba(16,185,129,0.04);
+    font-size: 0.72rem;
+    overflow: hidden;
+}
+
+.card-breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.4rem;
+    padding: 0.3rem 0.55rem;
+    border-bottom: 1px solid rgba(16,185,129,0.15);
+    color: var(--rz-text-color);
+}
+
+.card-breakdown-row:last-child {
+    border-bottom: none;
+}
+
+.card-breakdown-label {
+    flex: 1;
+    line-height: 1.35;
+    color: var(--rz-text-secondary-color);
+}
+
+.card-breakdown-amount {
+    font-weight: 700;
+    white-space: nowrap;
+    color: #065f46;
+    flex-shrink: 0;
+}
+
+.card-breakdown-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.3rem 0.55rem;
+    font-weight: 700;
+    border-top: 1px solid rgba(16,185,129,0.3);
+    background: rgba(16,185,129,0.08);
+    color: #065f46;
+}
+
 /* Active task indicator in list cards */
 .task-activity-row {
     display: flex;
@@ -1494,5 +1549,5 @@
     border-top: 2px solid var(--rz-base-300);
     background: var(--rz-base-200);
     color: #065f46;
-}
+ }
 
