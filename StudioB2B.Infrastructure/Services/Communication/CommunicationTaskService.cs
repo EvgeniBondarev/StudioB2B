@@ -221,16 +221,16 @@ public class CommunicationTaskService : ICommunicationTaskService
             var perTask = matching
                 .Where(r => r.PaymentMode == PaymentMode.PerTask)
                 .Sum(r => r.Rate);
-            // Timed hourly rates (with min/max duration) are flat fees — show as a concrete amount
+            // Bounded hourly rates: show full rate as max potential earnings (achieved at MaxDurationMinutes)
             var timedHourly = matching
-                .Where(r => r.PaymentMode == PaymentMode.Hourly && (r.MinDurationMinutes.HasValue || r.MaxDurationMinutes.HasValue))
+                .Where(r => r.PaymentMode == PaymentMode.Hourly && r.MaxDurationMinutes.HasValue)
                 .Sum(r => r.Rate);
             var fixedTotal = perTask + timedHourly;
             if (fixedTotal > 0) result.PaymentEstimates[type] = Math.Round(fixedTotal, 2);
 
             // Unbounded hourly rates — show as ₽/h
             var hourly = matching
-                .Where(r => r.PaymentMode == PaymentMode.Hourly && !r.MinDurationMinutes.HasValue && !r.MaxDurationMinutes.HasValue)
+                .Where(r => r.PaymentMode == PaymentMode.Hourly && !r.MaxDurationMinutes.HasValue)
                 .Sum(r => r.Rate);
             if (hourly > 0) result.HourlyEstimates[type] = Math.Round(hourly, 2);
         }
@@ -329,13 +329,14 @@ public class CommunicationTaskService : ICommunicationTaskService
                 matching = matching.Where(r => r.TaskType == type).ToList();
 
             var perTask = matching.Where(r => r.PaymentMode == PaymentMode.PerTask).Sum(r => r.Rate);
+            // Bounded hourly rates: show full rate as max potential earnings (achieved at MaxDurationMinutes)
             var timedHourly = matching
-                .Where(r => r.PaymentMode == PaymentMode.Hourly && (r.MinDurationMinutes.HasValue || r.MaxDurationMinutes.HasValue))
+                .Where(r => r.PaymentMode == PaymentMode.Hourly && r.MaxDurationMinutes.HasValue)
                 .Sum(r => r.Rate);
             var fixedTotal = perTask + timedHourly;
             if (fixedTotal > 0) result.PaymentEstimates[type] = Math.Round(fixedTotal, 2);
             var hourly = matching
-                .Where(r => r.PaymentMode == PaymentMode.Hourly && !r.MinDurationMinutes.HasValue && !r.MaxDurationMinutes.HasValue)
+                .Where(r => r.PaymentMode == PaymentMode.Hourly && !r.MaxDurationMinutes.HasValue)
                 .Sum(r => r.Rate);
             if (hourly > 0) result.HourlyEstimates[type] = Math.Round(hourly, 2);
         }
@@ -1302,43 +1303,34 @@ public class CommunicationTaskService : ICommunicationTaskService
 
     private async Task<decimal> CalculatePaymentAsync(CommunicationTask task, CancellationToken ct)
     {
-        // Extract to local variables so EF Core doesn't try to translate
-        // entity property access inside the query expression tree.
         var taskType = task.TaskType;
         var assignedUserId = task.AssignedToUserId;
         var totalMinutes = (decimal)TimeSpan.FromTicks(task.TotalTimeSpentTicks).TotalMinutes;
 
         var rates = await _db.CommunicationPaymentRates
             .AsNoTracking()
-            .Where(r => r.IsActive &&
-                        (r.TaskType == null || r.TaskType == taskType) &&
-                        (r.UserId == null || r.UserId == assignedUserId))
+            .Where(r => r.IsActive)
             .ToListAsync(ct);
 
         if (rates.Count == 0) return 0m;
 
-        // Step 1: filter by duration range
-        var eligible = rates
-            .Where(r => (!r.MinDurationMinutes.HasValue || totalMinutes >= r.MinDurationMinutes.Value) &&
-                        (!r.MaxDurationMinutes.HasValue || totalMinutes <= r.MaxDurationMinutes.Value))
-            .ToList();
-
-        if (eligible.Count == 0) return 0m;
-
-        // Step 2: priority — if any specific (TaskType != null) rates are eligible, general (TaskType == null) rates are excluded
-        if (eligible.Any(r => r.TaskType != null))
-            eligible = eligible.Where(r => r.TaskType != null).ToList();
-
-        var total = 0m;
-        foreach (var rate in eligible)
+        var rateDtos = rates.Select(r => new CommunicationPaymentRateDto
         {
+            Id = r.Id,
+            TaskType = r.TaskType,
+            PaymentMode = r.PaymentMode,
+            UserId = r.UserId,
+            Rate = r.Rate,
+            MinDurationMinutes = r.MinDurationMinutes,
+            MaxDurationMinutes = r.MaxDurationMinutes,
+            IsActive = r.IsActive,
+            Description = r.Description
+        }).ToList();
 
-            var hasDurationBounds = rate.MinDurationMinutes.HasValue || rate.MaxDurationMinutes.HasValue;
-            total += CommunicationPaymentCalculator.ComputeRateContribution(
-                totalMinutes, rate.PaymentMode, rate.Rate, hasDurationBounds);
-        }
+        var lines = CommunicationPaymentCalculator.ComputeBreakdownLines(
+            totalMinutes, taskType, assignedUserId, rateDtos);
 
-        return Math.Round(total, 2);
+        return Math.Round(lines.Sum(l => l.Amount), 2);
     }
 
     /// <summary>

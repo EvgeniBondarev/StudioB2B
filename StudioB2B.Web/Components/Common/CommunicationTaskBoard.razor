@@ -1106,7 +1106,14 @@
                                 }
                                 @if (task.PaymentAmount.HasValue && task.PaymentAmount > 0)
                                 {
-                                    <span class="task-payment-badge">+@task.PaymentAmount.Value.ToString("F0") ₽</span>
+                                    var isExpanded = _breakdownExpanded.Contains(task.Id);
+                                    <span class="task-payment-badge task-payment-badge-clickable"
+                                          title="@(isExpanded ? "Скрыть расшифровку" : "Показать расшифровку")"
+                                          @onclick="@(() => { if (!_breakdownExpanded.Remove(task.Id)) _breakdownExpanded.Add(task.Id); })"
+                                          @onclick:stopPropagation="true">
+                                        <span class="rzi" style="font-size:0.7rem;margin-right:2px;">@(isExpanded ? "expand_less" : "receipt_long")</span>
+                                        +@task.PaymentAmount.Value.ToString("F0") ₽
+                                    </span>
                                 }
                                 <span class="task-card-time">
                                     @if (task.TotalTimeSpentTicks > 0)
@@ -1115,6 +1122,37 @@
                                     }
                                 </span>
                             </div>
+                            @if (_breakdownExpanded.Contains(task.Id) && _board.ActiveRates.Count > 0)
+                            {
+                                var totalMin = (decimal)TimeSpan.FromTicks(task.TotalTimeSpentTicks).TotalMinutes;
+                                var lines = CommunicationPaymentCalculator.ComputeBreakdownLines(
+                                    totalMin, task.TaskType, task.AssignedToUserId, _board.ActiveRates);
+                                <div class="card-breakdown-panel" @onclick:stopPropagation="true">
+                                    @if (lines.Count > 0)
+                                    {
+                                        @foreach (var line in lines)
+                                        {
+                                            <div class="card-breakdown-row">
+                                                <span class="card-breakdown-label">@line.Caption</span>
+                                                <span class="card-breakdown-amount">+@line.Amount.ToString("F0") ₽</span>
+                                            </div>
+                                        }
+                                        @if (lines.Count > 1)
+                                        {
+                                            <div class="card-breakdown-total">
+                                                <span>Итого</span>
+                                                <span>+@lines.Sum(l => l.Amount).ToString("F0") ₽</span>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="card-breakdown-row" style="color:var(--rz-text-secondary-color);font-style:italic;">
+                                            Нет совпадающих тарифов
+                                        </div>
+                                    }
+                                </div>
+                            }
                         </div>
                     }
 
@@ -1795,6 +1833,7 @@
     private TaskBoardDto _board = new();
     private Guid? _myTenantId;
     private HashSet<CommunicationTaskType> _filterTypes = new();
+    private HashSet<Guid> _breakdownExpanded = new();
     private DateTime? _filterFrom = DateTime.Today.AddDays(-30);
     private DateTime? _filterTo;
     private HashSet<Guid> _filterClientIds = new();
@@ -2523,11 +2562,24 @@
         var userId = await GetUserIdAsync();
         if (userId is null) return;
 
-        // Optimistic: move card InProgress → Done immediately
+        // Capture live ticks (include currently running timer segment)
+        var liveTicks = task.TotalTimeSpentTicks;
+        if (task.HasActiveTimer && task.StartedAt.HasValue)
+            liveTicks += (DateTime.UtcNow - task.StartedAt.Value).Ticks;
+        var totalMinutes = (decimal)TimeSpan.FromTicks(liveTicks).TotalMinutes;
+
+        // Optimistic: move card InProgress → Done immediately with client-side payment estimate
         _board.InProgressTasks.RemoveAll(t => t.Id == task.Id);
+        task.TotalTimeSpentTicks = liveTicks;
         task.Status = CommunicationTaskStatus.Done;
         task.HasActiveTimer = false;
         task.CompletedAt = DateTime.UtcNow;
+        if (_board.ActiveRates.Count > 0)
+        {
+            var lines = CommunicationPaymentCalculator.ComputeBreakdownLines(
+                totalMinutes, task.TaskType, task.AssignedToUserId, _board.ActiveRates);
+            task.PaymentAmount = lines.Count > 0 ? Math.Round(lines.Sum(l => l.Amount), 2) : null;
+        }
         _board.DoneTasks.Insert(0, task);
         _board.DoneTotalCount++;
         StateHasChanged();
@@ -2539,7 +2591,7 @@
         }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
 
-        // Refresh to get server-calculated PaymentAmount
+        // Refresh to sync server-confirmed PaymentAmount
         await RefreshBoardSilentAsync();
     }
 

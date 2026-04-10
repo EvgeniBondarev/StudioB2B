@@ -37,9 +37,73 @@ else
                      Style="font-size:0.85rem;">
             <b>Приоритет типа задачи:</b> если для конкретного типа задачи (Чат / Вопрос / Отзыв) указан тариф — он применяется вместо общего («все типы»). Общий тариф используется только если для данного типа нет своего правила.<br/>
             <b>Сотрудник</b> — пусто = для всех. <b>Почасовая</b> — ₽/час × время. <b>За задачу</b> — фикс ₽ за штуку.<br/>
-            <b>Диапазон времени</b> — тариф применяется только если длительность задачи попадает в диапазон. Пример: &lt;1 мин. = 10₽, 1–60 мин. = 50₽, &gt;60 мин. = 100₽.<br/>
-            Несколько подходящих правил <em>одного уровня приоритета</em> суммируются.
+            <b>Диапазон времени</b> — задаёт пол и потолок биллинга (см. ниже). Несколько подходящих правил <em>одного уровня приоритета</em> суммируются.
         </RadzenAlert>
+
+        <details style="font-size:0.85rem; color:var(--rz-text-color);">
+            <summary style="cursor:pointer; user-select:none; color:var(--rz-info); font-weight:500; padding:0.25rem 0;">
+                Как работает диапазон времени (пол и потолок биллинга)?
+            </summary>
+            <div style="margin-top:0.6rem; padding:0.75rem 1rem; background:var(--rz-base-100); border-radius:8px; border-left:3px solid var(--rz-info);">
+                <p style="margin:0 0 0.5rem;">
+                    Поля <b>«от» (мин. длительность)</b> и <b>«до» (макс. длительность)</b> не исключают тариф, а ограничивают
+                    расчётное время снизу и сверху:
+                </p>
+                <ul style="margin:0 0 0.75rem; padding-left:1.25rem; line-height:1.8;">
+                    <li><b>Пол биллинга («от»)</b> — если задача завершена <em>быстрее</em> минимума, оплачивается
+                        минимальное время. Например, при «от = 5 мин» и 2 минутах работы — считается как 5 мин.</li>
+                    <li><b>Потолок биллинга («до»)</b> — если задача длилась <em>дольше</em> максимума, считается
+                        максимум. Например, при «до = 30 мин» и 2 часах работы — оплачивается как 30 мин
+                        (полная ставка).</li>
+                </ul>
+                <p style="margin:0 0 0.5rem; font-weight:500;">Пример: тариф «Почасовая, от 5 до 30 мин, 500 ₽»</p>
+                <table style="border-collapse:collapse; width:100%; font-size:0.82rem;">
+                    <thead>
+                        <tr style="border-bottom:2px solid var(--rz-border-color);">
+                            <th style="text-align:left; padding:4px 8px; font-weight:600;">Отработано</th>
+                            <th style="text-align:left; padding:4px 8px; font-weight:600;">Расчётное время</th>
+                            <th style="text-align:right; padding:4px 8px; font-weight:600;">Начислено</th>
+                            <th style="text-align:left; padding:4px 8px; font-weight:600;">Формула</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid var(--rz-border-color);">
+                            <td style="padding:4px 8px;">2 мин</td>
+                            <td style="padding:4px 8px; color:var(--rz-warning-darker-color);">5 мин (пол биллинга)</td>
+                            <td style="padding:4px 8px; text-align:right;">83 ₽</td>
+                            <td style="padding:4px 8px; color:var(--rz-text-secondary-color);">5 / 30 × 500</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--rz-border-color);">
+                            <td style="padding:4px 8px;">15 мин</td>
+                            <td style="padding:4px 8px;">15 мин</td>
+                            <td style="padding:4px 8px; text-align:right;">250 ₽</td>
+                            <td style="padding:4px 8px; color:var(--rz-text-secondary-color);">15 / 30 × 500</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--rz-border-color);">
+                            <td style="padding:4px 8px;">30 мин</td>
+                            <td style="padding:4px 8px;">30 мин</td>
+                            <td style="padding:4px 8px; text-align:right; font-weight:600;">500 ₽</td>
+                            <td style="padding:4px 8px; color:var(--rz-text-secondary-color);">30 / 30 × 500 (полная ставка)</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid var(--rz-border-color);">
+                            <td style="padding:4px 8px;">45 мин</td>
+                            <td style="padding:4px 8px; color:var(--rz-info);">30 мин (потолок биллинга)</td>
+                            <td style="padding:4px 8px; text-align:right; font-weight:600;">500 ₽</td>
+                            <td style="padding:4px 8px; color:var(--rz-text-secondary-color);">30 / 30 × 500 (полная ставка)</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:4px 8px;">2 часа</td>
+                            <td style="padding:4px 8px; color:var(--rz-info);">30 мин (потолок биллинга)</td>
+                            <td style="padding:4px 8px; text-align:right; font-weight:600;">500 ₽</td>
+                            <td style="padding:4px 8px; color:var(--rz-text-secondary-color);">30 / 30 × 500 (полная ставка)</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="margin:0.75rem 0 0; color:var(--rz-text-secondary-color);">
+                    Если указана только одна граница — работает только она. Без диапазона: почасовая начисляется пропорционально (₽/ч × минуты / 60).
+                </p>
+            </div>
+        </details>
 
         <RadzenDataGrid TItem="CommunicationPaymentRateDto" @ref="_grid"
                         Data="@_rates" AllowColumnResize="true" Style="width:100%;"
