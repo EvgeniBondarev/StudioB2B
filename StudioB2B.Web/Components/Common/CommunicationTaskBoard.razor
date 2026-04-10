@@ -224,7 +224,7 @@
                 {
                     @foreach (var task in FilteredNew)
                     {
-                        <div class="task-card" @onclick="@(() => OnCardClick(task))">
+                        <div class="task-card @(task.WasPreviouslyCompleted ? "task-card--reopened" : "")" @onclick="@(() => OnCardClick(task))">
                             <div class="task-card-header">
                                 <span class="task-type-badge @GetTypeClass(task.TaskType)">@GetTypeLabel(task.TaskType)</span>
                                 <span class="task-card-title" title="@task.Title">@task.Title</span>
@@ -1903,7 +1903,19 @@
     private bool _galleryIsVideo;
     private ElementReference _galleryDiv;
 
-    private List<CommunicationTaskDto> FilteredNew => ApplyTypeFilter(_board.NewTasks);
+    private List<CommunicationTaskDto> FilteredNew
+    {
+        get
+        {
+            var src = _filterTypes.Count == 0
+                ? _board.NewTasks.AsEnumerable()
+                : _board.NewTasks.Where(t => _filterTypes.Contains(t.TaskType));
+            return src
+                .OrderByDescending(t => t.WasPreviouslyCompleted)
+                .ThenByDescending(t => t.CreatedAt)
+                .ToList();
+        }
+    }
     private List<CommunicationTaskDto> FilteredInProgress
     {
         get
@@ -1992,8 +2004,19 @@
 
     private async Task QuickSyncAndReloadAsync()
     {
-        // GetBoardAsync fetches live New tasks directly from Ozon — no separate sync step needed.
         await LoadBoardAsync();
+
+        // Run lightweight sync in background — also triggers AutoReopenDoneChatsAsync
+        // which returns done tasks to New if the last message is from a customer.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await SyncService.SyncRecentAsync();
+                await InvokeAsync(SilentReloadAsync);
+            }
+            catch { /* non-critical */ }
+        });
     }
 
     private async Task FullSyncAndReloadAsync()

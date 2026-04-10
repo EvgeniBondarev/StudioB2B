@@ -85,6 +85,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
 
             if (existing.Count == 0) return;
 
+            var inlineReopened = 0;
             foreach (var chat in chats)
             {
                 if (!existing.TryGetValue(chat.ChatId, out var task)) continue;
@@ -93,10 +94,34 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                 task.ChatType ??= chat.ChatType;
                 task.UnreadCount = chat.UnreadCount;
                 task.UpdatedAt = DateTime.UtcNow;
+
+                // Last message info is already fetched (withLastMessageInfo: true) — reopen Done tasks
+                // that have unread messages or whose last message is from a customer.
+                if (task.Status == CommunicationTaskStatus.Done &&
+                    (chat.UnreadCount > 0 || IsCustomerUserType(chat.LastMessageUserType)))
+                {
+                    task.Status = CommunicationTaskStatus.New;
+                    task.WasPreviouslyCompleted = true;
+                    task.AssignedToUserId = null;
+                    task.AssignedAt = null;
+
+                    _db.CommunicationTaskLogs.Add(new Domain.Entities.CommunicationTaskLog
+                    {
+                        Id = Guid.NewGuid(),
+                        TaskId = task.Id,
+                        UserId = null,
+                        Action = "AutoReopened",
+                        Details = "Новое сообщение от покупателя после завершения",
+                        CreatedAt = DateTime.UtcNow
+                    });
+
+                    inlineReopened++;
+                }
             }
 
             await _db.SaveChangesAsync(ct);
-            _logger.LogInformation("Synced {Count} existing chat tasks (full={Full})", existing.Count, fullSync);
+            _logger.LogInformation("Synced {Count} existing chat tasks (full={Full}), inline-reopened {Reopened}",
+                existing.Count, fullSync, inlineReopened);
 
             await AutoReopenDoneChatsAsync(ct);
         }
@@ -210,6 +235,8 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
 
             await _db.SaveChangesAsync(ct);
             _logger.LogInformation("Synced {Count} existing question tasks (full={Full})", existing.Count, fullSync);
+
+            await AutoReopenByStatusChangeAsync(existing.Values, IsTerminalQuestionStatus, ct);
         }
         catch (Exception ex)
         {
@@ -250,6 +277,8 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
 
             await _db.SaveChangesAsync(ct);
             _logger.LogInformation("Synced {Count} existing review tasks (full={Full})", existing.Count, fullSync);
+
+            await AutoReopenByStatusChangeAsync(existing.Values, IsTerminalReviewStatus, ct);
         }
         catch (Exception ex)
         {
@@ -258,8 +287,50 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
         }
     }
 
-    private static bool IsCustomerUserType(string? t) =>
-        t is "Customer" or "Сustomer" or "customer" or "BUYER";
+    private async Task AutoReopenByStatusChangeAsync(
+        ICollection<Domain.Entities.CommunicationTask> syncedTasks,
+        Func<string?, bool> isTerminalStatus,
+        CancellationToken ct)
+    {
+        var reopened = 0;
+        foreach (var task in syncedTasks)
+        {
+            if (task.Status != CommunicationTaskStatus.Done) continue;
+            if (string.IsNullOrEmpty(task.ExternalStatus)) continue;
+            if (isTerminalStatus(task.ExternalStatus)) continue;
+
+            task.Status = CommunicationTaskStatus.New;
+            task.WasPreviouslyCompleted = true;
+            task.AssignedToUserId = null;
+            task.AssignedAt = null;
+            task.UpdatedAt = DateTime.UtcNow;
+
+            _db.CommunicationTaskLogs.Add(new Domain.Entities.CommunicationTaskLog
+            {
+                Id = Guid.NewGuid(),
+                TaskId = task.Id,
+                UserId = null,
+                Action = "AutoReopened",
+                Details = "Статус задачи на площадке изменился — требуется повторная обработка",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            reopened++;
+        }
+
+        if (reopened > 0)
+        {
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation("Auto-reopened {Count} tasks based on external status change", reopened);
+        }
+    }
+
+    private static bool IsCustomerUserType(string? t)
+    {
+        if (string.IsNullOrEmpty(t)) return false;
+        // Anything that is not a seller/support type is treated as a customer message.
+        return t is not ("Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT" or "Support");
+    }
 
     private static bool IsTerminalChatStatus(string? status) =>
         string.Equals(status, "CLOSED", StringComparison.OrdinalIgnoreCase);
