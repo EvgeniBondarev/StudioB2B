@@ -878,88 +878,17 @@
             }
         </div>
         }
-        else if (_previewTask.Status == CommunicationTaskStatus.Done)
-        {
-        <div style="padding:0.5rem 1rem;border-top:1px solid var(--rz-base-300);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;min-height:3rem;">
-            <RadzenButton Text="Вернуть в работу" Icon="replay" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small"
-                          Click="OverlayReopenAsync" IsBusy="@_overlayBusy" Style="margin-left:auto;" />
-        </div>
-        }
-        </div>
-                @if (_inpToShow.Count > 1)
-                {
-                    <div class="taskboard-column-body col-inprogress-others">
-                    @foreach (var task in _inpToShow.Skip(1))
-                    {
-                        <div class="task-card @(_previewTask?.Id == task.Id ? "selected" : "")" @onclick="@(() => OnCardClick(task))">
-                            <div class="task-card-header">
-                                <span class="task-type-badge @GetTypeClass(task.TaskType)">@GetTypeLabel(task.TaskType)</span>
-                                <span class="task-card-title" title="@task.Title">@task.Title</span>
-                                @if (task.TaskType == CommunicationTaskType.Chat && task.UnreadCount > 0)
-                                {
-                                    <span class="task-unread-badge" title="Непрочитанных сообщений">@task.UnreadCount</span>
-                                }
-                            </div>
-                            @if (!string.IsNullOrEmpty(task.PreviewText))
+                            else if (_previewTask.Status == CommunicationTaskStatus.Done)
                             {
-                                <div class="task-card-preview">@task.PreviewText</div>
-                            }
-                            @if (task.HasActiveTimer)
-                            {
-                                <div class="task-timer-active">
-                                    <span class="timer-dot"></span>
-                                    <span class="live-timer" data-started="@task.StartedAt?.ToString("o")" data-accumulated="@task.TotalTimeSpentTicks">@FormatDuration(task.StartedAt, task.TotalTimeSpentTicks)</span>
-                                </div>
-                            }
-                            <div class="task-card-footer">
-                                <span class="task-card-time">
-                                    <RadzenIcon Icon="schedule" Style="font-size:0.85rem;" />
-                                    @FormatTimeAgo(task.UpdatedAt)
-                                </span>
-                                @if (task.AssignedToUserName is not null)
-                                {
-                                    <span class="task-card-assignee">
-                                        <RadzenIcon Icon="person" Style="font-size:0.85rem;" />
-                                        @task.AssignedToUserName
-                                    </span>
-                                }
-                                @{ var inProgressEst = ComputeEstimate(task); }
-                                @if (inProgressEst > 0)
-                                {
-                                    <span class="task-estimate-badge" title="Ожидаемая оплата по текущим тарифам">~@inProgressEst.ToString("F0") ₽</span>
-                                }
-                            </div>
-                            @if (task.AssignedToUserId == (_myTenantId ?? CurrentUser.UserId))
-                            {
-                                <div class="task-card-actions">
-                                    @if (task.HasActiveTimer)
-                                    {
-                                        <RadzenButton Text="Пауза" Icon="pause"
-                                                      ButtonStyle="ButtonStyle.Warning" Size="ButtonSize.ExtraSmall"
-                                                      Click="@(async () => await PauseAsync(task))"
-                                                      @onclick:stopPropagation="true" />
-                                    }
-                                    else
-                                    {
-                                        <RadzenButton Text="Продолжить" Icon="play_arrow"
-                                                      ButtonStyle="ButtonStyle.Info" Size="ButtonSize.ExtraSmall"
-                                                      Click="@(async () => await ResumeAsync(task))"
-                                                      @onclick:stopPropagation="true" />
-                                    }
-                                    <RadzenButton Text="Готово" Icon="check"
-                                                  ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall"
-                                                  Click="@(async () => await CompleteAsync(task))"
-                                                  @onclick:stopPropagation="true" />
-                                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
-                                                  Click="@(async () => await ReleaseAsync(task))"
-                                                  @onclick:stopPropagation="true"
-                                                  title="Снять с себя" />
+                                <div
+                                    style="padding:0.5rem 1rem;border-top:1px solid var(--rz-base-300);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;min-height:3rem;">
+                                    <RadzenButton Text="Вернуть в работу" Icon="replay"
+                                                  ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small"
+                                                  Click="OverlayReopenAsync" IsBusy="@_overlayBusy"
+                                                  Style="margin-left:auto;"/>
                                 </div>
                             }
                         </div>
-                    }
-                    </div>
-                }
             }
             else
             {
