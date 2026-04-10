@@ -952,7 +952,7 @@
 
 /* Normal mode: cards fill column */
 .col-inprogress .taskboard-column-body {
-    flex: 0 0 auto;
+    flex: 1 1 0;
     min-height: 0;
     overflow-y: auto;
     display: flex;
@@ -965,6 +965,12 @@
 .taskboard-pinned-card {
     flex-shrink: 0;
     padding: 0.25rem 0.5rem;
+}
+
+/* Other cards below overlay — don't steal height from overlay */
+.col-inprogress .col-inprogress-others {
+    flex: 0 0 auto;
+    max-height: 35%;
 }
 
 /* Overlay fills all remaining viewport height */

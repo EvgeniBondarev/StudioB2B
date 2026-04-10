@@ -1934,7 +1934,10 @@
             return list;
         }
     }
-    private List<CommunicationTaskDto> FilteredDone => ApplyTypeFilter(_board.DoneTasks);
+    private List<CommunicationTaskDto> FilteredDone =>
+        ApplyTypeFilter(_board.DoneTasks)
+            .OrderByDescending(t => t.CompletedAt ?? t.UpdatedAt)
+            .ToList();
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthState { get; set; } = null!;
@@ -1993,12 +1996,26 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+            try { await JS.InvokeVoidAsync("taskBoardEsc.init", _dotNetRef); }
+            catch { /* ignore */ }
+        }
+
         if (_board.DoneTasks.Count < _board.DoneTotalCount && !_loadingMore)
         {
             _dotNetRef ??= DotNetObjectReference.Create(this);
             try { await JS.InvokeVoidAsync("taskBoardInfiniteScroll.init", _doneSentinel, _dotNetRef); }
             catch { /* JS not ready on first render */ }
         }
+    }
+
+    [JSInvokable]
+    public void OnEscapeKeyAsync()
+    {
+        if (_previewTask is not null)
+            ClosePreview();
     }
 
 
@@ -3103,6 +3120,8 @@
         StopChatPolling();
         _dotNetRef?.Dispose();
         try { await JS.InvokeVoidAsync("taskBoardInfiniteScroll.dispose"); }
+        catch { /* ignore */ }
+        try { await JS.InvokeVoidAsync("taskBoardEsc.dispose"); }
         catch { /* ignore */ }
         if (_hubConnection is not null)
             await _hubConnection.DisposeAsync();

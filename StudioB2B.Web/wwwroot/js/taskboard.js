@@ -24,6 +24,27 @@ window.taskBoardInfiniteScroll = {
     }
 };
 
+window.taskBoardEsc = {
+    _handler: null,
+
+    init: function (dotnetHelper) {
+        this.dispose();
+        this._handler = function (e) {
+            if (e.key === 'Escape') {
+                dotnetHelper.invokeMethodAsync('OnEscapeKeyAsync');
+            }
+        };
+        document.addEventListener('keydown', this._handler);
+    },
+
+    dispose: function () {
+        if (this._handler) {
+            document.removeEventListener('keydown', this._handler);
+            this._handler = null;
+        }
+    }
+};
+
 window.scrollChatOverlayToBottom = function () {
     const el = document.querySelector('.task-detail-overlay .chat-messages-area');
     if (el) el.scrollTop = el.scrollHeight;
