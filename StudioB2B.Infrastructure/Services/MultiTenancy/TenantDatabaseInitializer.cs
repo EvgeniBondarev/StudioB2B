@@ -351,7 +351,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         [FunctionEnum.TaskBoardManage] = PageEnum.TaskBoardView,
         [FunctionEnum.TaskBoardAdminManage] = PageEnum.TaskBoardAdmin,
         [FunctionEnum.OzonPushManage] = PageEnum.OzonPushView,
-        [FunctionEnum.UsersChangePassword] = PageEnum.UsersView,
     };
 
     /// <summary>
