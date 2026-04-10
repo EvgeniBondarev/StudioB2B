@@ -365,7 +365,6 @@ else if (_step == 3)
             );
 
             await MarketplaceClientService.CreateAsync(request);
-
             NotificationService.Notify(NotificationSeverity.Success,
                 "Клиент создан",
                 $"Ozon · {c.Name ?? c.LegalName ?? _model.ApiId} успешно добавлен.");
