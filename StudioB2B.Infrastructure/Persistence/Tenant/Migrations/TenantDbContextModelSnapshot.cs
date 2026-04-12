@@ -274,6 +274,9 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<bool>("WasPreviouslyCompleted")
+                        .HasColumnType("tinyint(1)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AssignedToUserId");
@@ -1749,6 +1752,33 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                     b.ToTable("SyncJobSchedules");
                 });
 
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantLoginCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("LoginCodes", (string)null);
+                });
+
             modelBuilder.Entity("StudioB2B.Domain.Entities.TenantModule", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1828,6 +1858,28 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .IsUnique();
 
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserActivationToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserActivationTokens", (string)null);
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserPermission", b =>
@@ -2439,6 +2491,28 @@ namespace StudioB2B.Infrastructure.Persistence.Tenant.Migrations
                         .IsRequired();
 
                     b.Navigation("OrderStatus");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantLoginCode", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.TenantUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserActivationToken", b =>
+                {
+                    b.HasOne("StudioB2B.Domain.Entities.TenantUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("StudioB2B.Domain.Entities.TenantUserPermission", b =>

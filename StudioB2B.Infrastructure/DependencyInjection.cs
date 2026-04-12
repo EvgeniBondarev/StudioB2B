@@ -9,8 +9,9 @@ using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
 using System.Text;
+using Microsoft.Extensions.Options;
+using Minio;
 using StudioB2B.Domain.Options;
-using StudioB2B.Infrastructure.Features;
 using StudioB2B.Infrastructure.Helpers.Http.Handlers;
 using StudioB2B.Infrastructure.Authorization;
 using StudioB2B.Infrastructure.Interfaces;
@@ -42,9 +43,15 @@ public static class DependencyInjection
 
         services.AddHostedService<DatabaseMigrationService>();
 
+        services.Configure<BackupOptions>(
+            configuration.GetSection(BackupOptions.SectionName));
+
+        services.Configure<EmailOptions>(
+            configuration.GetSection(EmailOptions.SectionName));
+
         services.AddSingleton<BackgroundEmailSenderService>();
-        services.AddHostedService(sp => sp.GetRequiredService<BackgroundEmailSenderService>());
         services.AddSingleton<IEmailService>(sp => sp.GetRequiredService<BackgroundEmailSenderService>());
+        services.AddHostedService(sp => sp.GetRequiredService<BackgroundEmailSenderService>());
 
         services.AddMemoryCache();
 
@@ -74,6 +81,7 @@ public static class DependencyInjection
         services.AddScoped<IOzonChatService, OzonChatService>();
         services.AddScoped<IOzonQuestionsService, OzonQuestionsService>();
         services.AddScoped<IOzonReviewsService, OzonReviewsService>();
+        services.AddScoped<IOzonPushNotificationService, OzonPushNotificationService>();
 
         services.AddScoped<TenantProvider>();
         services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<TenantProvider>());
@@ -156,6 +164,19 @@ public static class DependencyInjection
         services.AddSingleton<TenantHangfireManager>();
         services.AddHostedService(sp => sp.GetRequiredService<TenantHangfireManager>());
 
+        services.AddSingleton<MasterHangfireManager>();
+        services.AddHostedService(sp => sp.GetRequiredService<MasterHangfireManager>());
+
+        services.AddSingleton<IMinioClient>(sp =>
+        {
+            var opts = sp.GetRequiredService<IOptions<BackupOptions>>().Value;
+            return new MinioClient()
+                .WithEndpoint(opts.Endpoint)
+                .WithCredentials(opts.AccessKey, opts.SecretKey)
+                .WithSSL(opts.UseSSL)
+                .Build();
+        });
+
         services.AddScoped<IOrderSyncJobService, OrderSyncJobService>();
 
         services.AddScoped<CalculationEngine>();
@@ -167,6 +188,8 @@ public static class DependencyInjection
 
         services.AddScoped<ICommunicationTaskService, CommunicationTaskService>();
         services.AddScoped<ICommunicationTaskSyncService, CommunicationTaskSyncService>();
+
+        services.AddScoped<ITenantBackupService, TenantBackupService>();
 
         return services;
     }
