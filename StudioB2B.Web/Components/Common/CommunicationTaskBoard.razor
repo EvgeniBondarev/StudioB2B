@@ -224,7 +224,7 @@
                 {
                     @foreach (var task in FilteredNew)
                     {
-                        <div class="task-card" @onclick="@(() => OnCardClick(task))">
+                        <div class="task-card @(task.WasPreviouslyCompleted ? "task-card--reopened" : "")" @onclick="@(() => OnCardClick(task))">
                             <div class="task-card-header">
                                 <span class="task-type-badge @GetTypeClass(task.TaskType)">@GetTypeLabel(task.TaskType)</span>
                                 <span class="task-card-title" title="@task.Title">@task.Title</span>
@@ -352,7 +352,7 @@
                                                   ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall"
                                                   Click="@(async () => await CompleteAsync(task))"
                                                   @onclick:stopPropagation="true" />
-                                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                    <RadzenButton Icon="replay" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter" Size="ButtonSize.ExtraSmall"
                                                   Click="@(async () => await ReleaseAsync(task))"
                                                   @onclick:stopPropagation="true"
                                                   title="Снять с себя" />
@@ -521,7 +521,7 @@
                                         }
                                         <RadzenButton Text="Готово" Icon="check" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small"
                                                       Click="OverlayCompleteAsync" IsBusy="@_overlayBusy" />
-                                        <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                        <RadzenButton Icon="replay" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter" Size="ButtonSize.Small"
                                                       title="Снять с себя" Click="OverlayReleaseAsync" IsBusy="@_overlayBusy" />
                                     }
                                     else
@@ -868,7 +868,7 @@
                     }
                     <RadzenButton Text="Готово" Icon="check" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small"
                                   Click="OverlayCompleteAsync" IsBusy="@_overlayBusy" />
-                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                    <RadzenButton Icon="replay" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter" Size="ButtonSize.Small"
                                   title="Снять с себя" Click="OverlayReleaseAsync" IsBusy="@_overlayBusy" />
                 }
                 else
@@ -966,7 +966,7 @@
                                                   ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall"
                                                   Click="@(async () => await CompleteAsync(task))"
                                                   @onclick:stopPropagation="true" />
-                                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                    <RadzenButton Icon="replay" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter" Size="ButtonSize.ExtraSmall"
                                                   Click="@(async () => await ReleaseAsync(task))"
                                                   @onclick:stopPropagation="true"
                                                   title="Снять с себя" />
@@ -1055,7 +1055,7 @@
                                                   ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall"
                                                   Click="@(async () => await CompleteAsync(task))"
                                                   @onclick:stopPropagation="true" />
-                                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                                    <RadzenButton Icon="replay" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter" Size="ButtonSize.ExtraSmall"
                                                   Click="@(async () => await ReleaseAsync(task))"
                                                   @onclick:stopPropagation="true"
                                                   title="Снять с себя" />
@@ -1106,7 +1106,14 @@
                                 }
                                 @if (task.PaymentAmount.HasValue && task.PaymentAmount > 0)
                                 {
-                                    <span class="task-payment-badge">+@task.PaymentAmount.Value.ToString("F0") ₽</span>
+                                    var isExpanded = _breakdownExpanded.Contains(task.Id);
+                                    <span class="task-payment-badge task-payment-badge-clickable"
+                                          title="@(isExpanded ? "Скрыть расшифровку" : "Показать расшифровку")"
+                                          @onclick="@(() => { if (!_breakdownExpanded.Remove(task.Id)) _breakdownExpanded.Add(task.Id); })"
+                                          @onclick:stopPropagation="true">
+                                        <span class="rzi" style="font-size:0.7rem;margin-right:2px;">@(isExpanded ? "expand_less" : "receipt_long")</span>
+                                        +@task.PaymentAmount.Value.ToString("F0") ₽
+                                    </span>
                                 }
                                 <span class="task-card-time">
                                     @if (task.TotalTimeSpentTicks > 0)
@@ -1115,6 +1122,37 @@
                                     }
                                 </span>
                             </div>
+                            @if (_breakdownExpanded.Contains(task.Id) && _board.ActiveRates.Count > 0)
+                            {
+                                var totalMin = (decimal)TimeSpan.FromTicks(task.TotalTimeSpentTicks).TotalMinutes;
+                                var lines = CommunicationPaymentCalculator.ComputeBreakdownLines(
+                                    totalMin, task.TaskType, task.AssignedToUserId, _board.ActiveRates);
+                                <div class="card-breakdown-panel" @onclick:stopPropagation="true">
+                                    @if (lines.Count > 0)
+                                    {
+                                        @foreach (var line in lines)
+                                        {
+                                            <div class="card-breakdown-row">
+                                                <span class="card-breakdown-label">@line.Caption</span>
+                                                <span class="card-breakdown-amount">+@line.Amount.ToString("F0") ₽</span>
+                                            </div>
+                                        }
+                                        @if (lines.Count > 1)
+                                        {
+                                            <div class="card-breakdown-total">
+                                                <span>Итого</span>
+                                                <span>+@lines.Sum(l => l.Amount).ToString("F0") ₽</span>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="card-breakdown-row" style="color:var(--rz-text-secondary-color);font-style:italic;">
+                                            Нет совпадающих тарифов
+                                        </div>
+                                    }
+                                </div>
+                            }
                         </div>
                     }
 
@@ -1299,7 +1337,7 @@
                                         }
                                         <RadzenButton Text="Готово" Icon="check" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small"
                                                       Click="OverlayCompleteAsync" IsBusy="@_overlayBusy" />
-                                        <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                                        <RadzenButton Icon="replay" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter" Size="ButtonSize.Small"
                                                       title="Снять с себя" Click="OverlayReleaseAsync" IsBusy="@_overlayBusy" />
                                     }
                                     else
@@ -1716,7 +1754,7 @@
                     }
                     <RadzenButton Text="Готово" Icon="check" ButtonStyle="ButtonStyle.Success" Size="ButtonSize.Small"
                                   Click="OverlayCompleteAsync" IsBusy="@_overlayBusy" />
-                    <RadzenButton Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small"
+                    <RadzenButton Icon="replay" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter" Size="ButtonSize.Small"
                                   title="Снять с себя" Click="OverlayReleaseAsync" IsBusy="@_overlayBusy" />
                 }
                 else
@@ -1795,6 +1833,7 @@
     private TaskBoardDto _board = new();
     private Guid? _myTenantId;
     private HashSet<CommunicationTaskType> _filterTypes = new();
+    private HashSet<Guid> _breakdownExpanded = new();
     private DateTime? _filterFrom = DateTime.Today.AddDays(-30);
     private DateTime? _filterTo;
     private HashSet<Guid> _filterClientIds = new();
@@ -1864,7 +1903,19 @@
     private bool _galleryIsVideo;
     private ElementReference _galleryDiv;
 
-    private List<CommunicationTaskDto> FilteredNew => ApplyTypeFilter(_board.NewTasks);
+    private List<CommunicationTaskDto> FilteredNew
+    {
+        get
+        {
+            var src = _filterTypes.Count == 0
+                ? _board.NewTasks.AsEnumerable()
+                : _board.NewTasks.Where(t => _filterTypes.Contains(t.TaskType));
+            return src
+                .OrderByDescending(t => t.WasPreviouslyCompleted)
+                .ThenByDescending(t => t.CreatedAt)
+                .ToList();
+        }
+    }
     private List<CommunicationTaskDto> FilteredInProgress
     {
         get
@@ -1883,7 +1934,10 @@
             return list;
         }
     }
-    private List<CommunicationTaskDto> FilteredDone => ApplyTypeFilter(_board.DoneTasks);
+    private List<CommunicationTaskDto> FilteredDone =>
+        ApplyTypeFilter(_board.DoneTasks)
+            .OrderByDescending(t => t.CompletedAt ?? t.UpdatedAt)
+            .ToList();
 
     [CascadingParameter]
     private Task<AuthenticationState> AuthState { get; set; } = null!;
@@ -1942,6 +1996,13 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+            try { await JS.InvokeVoidAsync("taskBoardEsc.init", _dotNetRef); }
+            catch { /* ignore */ }
+        }
+
         if (_board.DoneTasks.Count < _board.DoneTotalCount && !_loadingMore)
         {
             _dotNetRef ??= DotNetObjectReference.Create(this);
@@ -1950,11 +2011,35 @@
         }
     }
 
+    [JSInvokable]
+    public void OnEscapeKeyAsync()
+    {
+        if (_previewTask is not null)
+            ClosePreview();
+    }
+
 
     private async Task QuickSyncAndReloadAsync()
     {
-        // GetBoardAsync fetches live New tasks directly from Ozon — no separate sync step needed.
         await LoadBoardAsync();
+
+        // Run lightweight sync in background — also triggers AutoReopenDoneChatsAsync
+        // which returns done tasks to New if the last message is from a customer.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var reopened = await SyncService.SyncRecentAsync();
+                await InvokeAsync(async () =>
+                {
+                    if (reopened > 0)
+                        NotificationService.Notify(NotificationSeverity.Warning, "Задачи возвращены в работу",
+                            $"{reopened} {Plural(reopened, "задача", "задачи", "задач")} возвращено — покупатель написал снова", 6000);
+                    await SilentReloadAsync();
+                });
+            }
+            catch { /* non-critical */ }
+        });
     }
 
     private async Task FullSyncAndReloadAsync()
@@ -1967,8 +2052,11 @@
         StateHasChanged();
         try
         {
-            await SyncService.SyncAsync();
-            NotificationService.Notify(NotificationSeverity.Success, "Синхронизация", "Полная синхронизация завершена", 3000);
+            var reopened = await SyncService.SyncAsync();
+            var msg = reopened > 0
+                ? $"Полная синхронизация завершена. {reopened} {Plural(reopened, "задача", "задачи", "задач")} возвращено в работу."
+                : "Полная синхронизация завершена";
+            NotificationService.Notify(NotificationSeverity.Success, "Синхронизация", msg, 4000);
         }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Warning, "Синхронизация", ex.Message, 4000); }
         finally { _syncing = false; }
@@ -2523,11 +2611,24 @@
         var userId = await GetUserIdAsync();
         if (userId is null) return;
 
-        // Optimistic: move card InProgress → Done immediately
+        // Capture live ticks (include currently running timer segment)
+        var liveTicks = task.TotalTimeSpentTicks;
+        if (task.HasActiveTimer && task.StartedAt.HasValue)
+            liveTicks += (DateTime.UtcNow - task.StartedAt.Value).Ticks;
+        var totalMinutes = (decimal)TimeSpan.FromTicks(liveTicks).TotalMinutes;
+
+        // Optimistic: move card InProgress → Done immediately with client-side payment estimate
         _board.InProgressTasks.RemoveAll(t => t.Id == task.Id);
+        task.TotalTimeSpentTicks = liveTicks;
         task.Status = CommunicationTaskStatus.Done;
         task.HasActiveTimer = false;
         task.CompletedAt = DateTime.UtcNow;
+        if (_board.ActiveRates.Count > 0)
+        {
+            var lines = CommunicationPaymentCalculator.ComputeBreakdownLines(
+                totalMinutes, task.TaskType, task.AssignedToUserId, _board.ActiveRates);
+            task.PaymentAmount = lines.Count > 0 ? Math.Round(lines.Sum(l => l.Amount), 2) : null;
+        }
         _board.DoneTasks.Insert(0, task);
         _board.DoneTotalCount++;
         StateHasChanged();
@@ -2539,7 +2640,7 @@
         }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
 
-        // Refresh to get server-calculated PaymentAmount
+        // Refresh to sync server-confirmed PaymentAmount
         await RefreshBoardSilentAsync();
     }
 
@@ -3020,7 +3121,17 @@
         _dotNetRef?.Dispose();
         try { await JS.InvokeVoidAsync("taskBoardInfiniteScroll.dispose"); }
         catch { /* ignore */ }
+        try { await JS.InvokeVoidAsync("taskBoardEsc.dispose"); }
+        catch { /* ignore */ }
         if (_hubConnection is not null)
             await _hubConnection.DisposeAsync();
+    }
+
+    private static string Plural(int n, string one, string few, string many)
+    {
+        var mod10 = n % 10;
+        var mod100 = n % 100;
+        if (mod100 is >= 11 and <= 19) return many;
+        return mod10 switch { 1 => one, >= 2 and <= 4 => few, _ => many };
     }
 }

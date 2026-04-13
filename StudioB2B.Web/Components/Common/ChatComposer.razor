@@ -122,9 +122,9 @@
 
     private ElementReference _commentArea;
 
-    private bool IsSendDisabled => string.IsNullOrWhiteSpace(MessageText)
-                                   || (MessageText?.Length ?? 0) < 2
-                                   || (MessageText?.Length ?? 0) > @MaxLength;
+    private bool IsSendDisabled =>
+        AttachedFile is null &&
+        (string.IsNullOrWhiteSpace(MessageText) || MessageText.Length < 2 || MessageText.Length > MaxLength);
 
     private async Task OnInput(ChangeEventArgs e)
     {
