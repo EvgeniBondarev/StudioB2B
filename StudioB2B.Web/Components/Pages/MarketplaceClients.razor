@@ -310,7 +310,10 @@ else
             var json = System.Text.Json.JsonSerializer.Serialize(_gridSettings);
             await Js.InvokeVoidAsync("localStorage.setItem", GridSettingsKey, json);
         }
-        catch { }
+        catch
+        {
+            // ignored
+        }
     }
 
     private async Task LoadData(LoadDataArgs args)
