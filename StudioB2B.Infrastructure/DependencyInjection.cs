@@ -1,24 +1,24 @@
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using Minio;
-using StudioB2B.Domain.Options;
-using StudioB2B.Infrastructure.Authorization;
-using StudioB2B.Infrastructure.Helpers.Http.Handlers;
-using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
-using StudioB2B.Infrastructure.Services.Communication;
-using StudioB2B.Infrastructure.Services.Modules;
+using System.Text;
+using Microsoft.Extensions.Options;
+using Minio;
+using StudioB2B.Domain.Options;
+using StudioB2B.Infrastructure.Helpers.Http.Handlers;
+using StudioB2B.Infrastructure.Authorization;
+using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Services.MultiTenancy;
+using StudioB2B.Infrastructure.Services.Modules;
 using StudioB2B.Infrastructure.Services.Order;
+using StudioB2B.Infrastructure.Services.Communication;
 using StudioB2B.Infrastructure.Services.Ozon;
 using TenantService = StudioB2B.Infrastructure.Services.MultiTenancy.TenantService;
 
@@ -33,16 +33,6 @@ public static class DependencyInjection
         services.Configure<MultiTenancyOptions>(
             configuration.GetSection(MultiTenancyOptions.SectionName));
 
-        services.Configure<BackupOptions>(
-            configuration.GetSection(BackupOptions.SectionName));
-
-        services.Configure<EmailOptions>(
-            configuration.GetSection(EmailOptions.SectionName));
-
-        services.AddSingleton<BackgroundEmailSenderService>();
-        services.AddSingleton<IEmailService>(sp => sp.GetRequiredService<BackgroundEmailSenderService>());
-        services.AddHostedService(sp => sp.GetRequiredService<BackgroundEmailSenderService>());
-
         services.AddAutoMapper(cfg => cfg.AddMaps(typeof(DependencyInjection).Assembly));
 
         services.AddDbContext<MasterDbContext>(options =>
@@ -52,6 +42,16 @@ public static class DependencyInjection
         });
 
         services.AddHostedService<DatabaseMigrationService>();
+
+        services.Configure<BackupOptions>(
+            configuration.GetSection(BackupOptions.SectionName));
+
+        services.Configure<EmailOptions>(
+            configuration.GetSection(EmailOptions.SectionName));
+
+        services.AddSingleton<BackgroundEmailSenderService>();
+        services.AddSingleton<IEmailService>(sp => sp.GetRequiredService<BackgroundEmailSenderService>());
+        services.AddHostedService(sp => sp.GetRequiredService<BackgroundEmailSenderService>());
 
         services.AddMemoryCache();
 
