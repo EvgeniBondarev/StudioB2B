@@ -15,17 +15,20 @@ public class UserService : IUserService
     private readonly ITenantDbContextFactory _dbContextFactory;
     private readonly IMapper _mapper;
     private readonly IEmailService _emailService;
+    private readonly ITenantProvider _tenantProvider;
     private readonly ILogger<UserService> _logger;
 
     public UserService(
         ITenantDbContextFactory dbContextFactory,
         IMapper mapper,
         IEmailService emailService,
+        ITenantProvider tenantProvider,
         ILogger<UserService> logger)
     {
         _dbContextFactory = dbContextFactory;
         _mapper = mapper;
         _emailService = emailService;
+        _tenantProvider = tenantProvider;
         _logger = logger;
     }
 
@@ -44,13 +47,17 @@ public class UserService : IUserService
     public async Task<(bool Success, string? Error)> CreateUserAsync(CreateUserDto request, string tenantBaseUrl, CancellationToken ct = default)
     {
         await using var db = _dbContextFactory.CreateDbContext();
-        var (ok, error, tokenId) = await db.CreateUserAsync(request, _mapper, ct);
+        var requireActivation = _tenantProvider.RequireEmailActivation;
+        var (ok, error, tokenId) = await db.CreateUserAsync(request, _mapper, requireActivation, ct);
 
-        if (!ok || tokenId is null)
+        if (!ok)
             return (false, error);
 
-        var activationUrl = $"{tenantBaseUrl.TrimEnd('/')}/activate?token={tokenId}";
-        _ = SendActivationEmailAsync(request.Email, activationUrl);
+        if (tokenId is not null)
+        {
+            var activationUrl = $"{tenantBaseUrl.TrimEnd('/')}/activate?token={tokenId}";
+            _ = SendActivationEmailAsync(request.Email, activationUrl);
+        }
 
         return (true, null);
     }
