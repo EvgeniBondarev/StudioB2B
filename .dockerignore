@@ -1,0 +1,30 @@
+# Build artifacts
+**/bin/
+**/obj/
+
+# Test projects — not needed in the production image
+tests/
+
+# Documentation
+docs/
+
+# IDE and OS files
+.idea/
+.cursor/
+.vs/
+.vscode/
+*.user
+.DS_Store
+
+# Git
+.git/
+.github/
+.gitignore
+
+# Local config overrides
+appsettings.Development.json
+
+# Dumps and temp files
+**/dumps/
+*.log
+
