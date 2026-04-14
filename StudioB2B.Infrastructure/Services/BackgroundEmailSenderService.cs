@@ -12,7 +12,7 @@ namespace StudioB2B.Infrastructure.Services;
 
 /// <summary>
 /// Фоновый сервис отправки почты. Принимает письма мгновенно (Channel),
-/// отправляет через одно постоянное SMTP-соединение — без лишних reconnect'ов.
+/// открывает SMTP-соединение только на время отправки пакета — без простаивающих соединений.
 /// </summary>
 public class BackgroundEmailSenderService : BackgroundService, IEmailService
 {
@@ -45,49 +45,58 @@ public class BackgroundEmailSenderService : BackgroundService, IEmailService
             return;
         }
 
-        while (!stoppingToken.IsCancellationRequested)
+        await foreach (var first in _channel.Reader.ReadAllAsync(stoppingToken))
+        {
+            var batch = new List<EmailItem> { first };
+            while (_channel.Reader.TryRead(out var next))
+                batch.Add(next);
+
+            await SendBatchAsync(batch, stoppingToken);
+        }
+    }
+
+    private async Task SendBatchAsync(List<EmailItem> batch, CancellationToken ct)
+    {
+        const int maxAttempts = 3;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             using var smtp = new SmtpClient();
             try
             {
                 var socketOpts = _options.EnableSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None;
-                await smtp.ConnectAsync(_options.Host, _options.Port, socketOpts, stoppingToken);
+                await smtp.ConnectAsync(_options.Host, _options.Port, socketOpts, ct);
 
                 if (!string.IsNullOrWhiteSpace(_options.User))
-                    await smtp.AuthenticateAsync(_options.User, _options.Password, stoppingToken);
+                    await smtp.AuthenticateAsync(_options.User, _options.Password, ct);
 
-                _logger.LogInformation("[EMAIL SERVICE] Подключён к {Host}:{Port}", _options.Host, _options.Port);
+                _logger.LogInformation("[EMAIL SERVICE] Подключён к {Host}:{Port}, отправка {Count} писем", _options.Host, _options.Port, batch.Count);
 
-                await foreach (var item in _channel.Reader.ReadAllAsync(stoppingToken))
+                foreach (var item in batch)
                 {
-                    try
-                    {
-                        await smtp.SendAsync(BuildMessage(item), stoppingToken);
-                        _logger.LogDebug("[EMAIL SERVICE] Отправлено → {To}: {Subject}", item.ToAddress, item.Subject);
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        _logger.LogError(ex, "[EMAIL SERVICE] Ошибка отправки → {To}", item.ToAddress);
-                        if (!smtp.IsConnected)
-                            break; // разрыв соединения — выходим на переподключение
-                    }
+                    await smtp.SendAsync(BuildMessage(item), ct);
+                    _logger.LogDebug("[EMAIL SERVICE] Отправлено → {To}: {Subject}", item.ToAddress, item.Subject);
                 }
+
+                await smtp.DisconnectAsync(true, CancellationToken.None);
+                return;
             }
             catch (OperationCanceledException)
             {
-                break;
+                throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[EMAIL SERVICE] Ошибка SMTP-соединения, повтор через 30 с");
-                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
-            }
-            finally
-            {
+                _logger.LogError(ex, "[EMAIL SERVICE] Попытка {Attempt}/{Max} — ошибка SMTP, повтор через {Delay} с", attempt, maxAttempts, 10 * attempt);
                 if (smtp.IsConnected)
-                    await smtp.DisconnectAsync(true, CancellationToken.None);
+                    await smtp.DisconnectAsync(false, CancellationToken.None);
+
+                if (attempt < maxAttempts)
+                    await Task.Delay(TimeSpan.FromSeconds(10 * attempt), ct);
             }
         }
+
+        _logger.LogError("[EMAIL SERVICE] Не удалось отправить {Count} писем после {Max} попыток", batch.Count, maxAttempts);
     }
 
     private MimeMessage BuildMessage(EmailItem item)
