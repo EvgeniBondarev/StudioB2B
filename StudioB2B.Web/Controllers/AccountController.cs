@@ -32,6 +32,7 @@ public class AccountController : ControllerBase
 
     /// <summary>
     /// Шаг 1 входа: проверяет учётные данные и отправляет код на email.
+    /// Если для тенанта отключён код подтверждения — сразу возвращает JWT.
     /// </summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto request, CancellationToken ct = default)
@@ -45,6 +46,16 @@ public class AccountController : ControllerBase
         {
             _logger.LogWarning("Login failed for {Email}", request.Email);
             return Unauthorized(new { error = "Неверный email или пароль" });
+        }
+
+        if (result.DirectLogin is not null)
+        {
+            var directToken = GenerateJwtToken(
+                result.DirectLogin.UserId, result.DirectLogin.Email,
+                result.DirectLogin.IsFullAccess, result.DirectLogin.RoleNames);
+            var expiresMinutesDirect = _configuration.GetSection("Jwt").GetValue<int?>("ExpiresMinutes") ?? 60;
+            _logger.LogInformation("User {Email} logged in directly (no code required)", request.Email);
+            return Ok(new { requiresVerification = false, token = directToken, expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutesDirect) });
         }
 
         _logger.LogInformation("Login code sent to {Email}", request.Email);

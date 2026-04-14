@@ -106,7 +106,7 @@ public class DatabaseMigrationService : IHostedService
     {
         const string adminRoleName = "Admin";
         const string userRoleName = "User";
-        const string adminEmail = "admin@gmail.com";
+        const string adminEmail = "korol20041@gmail.com";
         const string adminPassword = "Admin1!";
 
         // Роль Admin
@@ -136,8 +136,9 @@ public class DatabaseMigrationService : IHostedService
                 Id = Guid.NewGuid(),
                 Email = normalizedEmail,
                 HashPassword = BCrypt.Net.BCrypt.HashPassword(adminPassword),
-                FirstName = "Admin",
-                LastName = "User",
+                FirstName = "Admin Firstname",
+                LastName = "Admin Lastname",
+                MiddleName = "Admin Middlename",
                 IsActive = true,
                 IsEmailVerified = true
             };

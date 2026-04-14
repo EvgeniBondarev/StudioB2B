@@ -149,6 +149,19 @@ public partial class TenantService : ITenantService
         return true;
     }
 
+    public async Task<bool> UpdateSettingsAsync(Guid tenantId, bool requireLoginCode, bool requireEmailActivation, CancellationToken ct = default)
+    {
+        var tenant = await _masterDb.Tenants.FindAsync([tenantId], ct);
+        if (tenant is null) return false;
+
+        tenant.RequireLoginCode = requireLoginCode;
+        tenant.RequireEmailActivation = requireEmailActivation;
+        await _masterDb.SaveChangesAsync(ct);
+        _logger.LogInformation("Tenant {TenantId} settings updated: RequireLoginCode={RequireLoginCode}, RequireEmailActivation={RequireEmailActivation}",
+            tenantId, requireLoginCode, requireEmailActivation);
+        return true;
+    }
+
     private string BuildConnectionString(string subdomain) => string.Format(_options.TenantDbConnectionTemplate, $"StudioB2B_Tenant_{subdomain}");
 
     private async Task RollbackAsync(

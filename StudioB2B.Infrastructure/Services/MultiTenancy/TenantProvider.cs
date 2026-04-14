@@ -14,10 +14,16 @@ public class TenantProvider : ITenantProvider
 
     public bool IsResolved => TenantId.HasValue && !string.IsNullOrEmpty(ConnectionString);
 
+    public bool RequireLoginCode { get; private set; } = true;
+
+    public bool RequireEmailActivation { get; private set; } = true;
+
     public void SetTenant(TenantEntity tenantEntity)
     {
         TenantId = tenantEntity.Id;
         Subdomain = tenantEntity.Subdomain;
         ConnectionString = tenantEntity.ConnectionString;
+        RequireLoginCode = tenantEntity.RequireLoginCode;
+        RequireEmailActivation = tenantEntity.RequireEmailActivation;
     }
 }
