@@ -24,6 +24,16 @@ public interface ITenantProvider
     /// Активен ли тенант
     /// </summary>
     bool IsResolved { get; }
+
+    /// <summary>
+    /// Требовать ли код подтверждения при входе
+    /// </summary>
+    bool RequireLoginCode { get; }
+
+    /// <summary>
+    /// Требовать ли активацию аккаунта по email при создании пользователя
+    /// </summary>
+    bool RequireEmailActivation { get; }
 }
 
 

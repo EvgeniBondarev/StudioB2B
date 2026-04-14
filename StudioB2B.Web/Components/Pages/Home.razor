@@ -740,8 +740,17 @@ else
 
             if (response.IsSuccessStatusCode)
             {
-                _loginStep = 2;
-                StartLoginResendCooldown();
+                var loginResult = await response.Content.ReadFromJsonAsync<LoginInitResponseDto>();
+                if (loginResult?.RequiresVerification == false && loginResult.Token is not null)
+                {
+                    await AuthStateProvider.LoginAsync(loginResult.Token);
+                    Navigation.NavigateTo(ReturnUrl ?? "/", forceLoad: false);
+                }
+                else
+                {
+                    _loginStep = 2;
+                    StartLoginResendCooldown();
+                }
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {

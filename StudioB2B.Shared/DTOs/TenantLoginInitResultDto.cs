@@ -2,5 +2,5 @@ namespace StudioB2B.Shared;
 
 public record TenantLoginInitResultDto(
     bool RequiresVerification,
-    string? Error = null);
-
+    string? Error = null,
+    AccountLoginResultDto? DirectLogin = null);
