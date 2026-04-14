@@ -55,16 +55,16 @@ public class AccountService : IAccountService
         if (user is null || !user.IsActive)
             return null;
 
-        var loginCode = await db.LoginCodes
-            .Where(c => c.UserId == user.Id && !c.IsUsed && c.ExpiresAt > DateTime.UtcNow)
-            .OrderByDescending(c => c.ExpiresAt)
-            .FirstOrDefaultAsync(ct);
+        // var loginCode = await db.LoginCodes
+        //     .Where(c => c.UserId == user.Id && !c.IsUsed && c.ExpiresAt > DateTime.UtcNow)
+        //     .OrderByDescending(c => c.ExpiresAt)
+        //     .FirstOrDefaultAsync(ct);
+        //
+        // if (loginCode is null || loginCode.Code != code.Trim())
+        //     return null;
 
-        if (loginCode is null || loginCode.Code != code.Trim())
-            return null;
-
-        loginCode.IsUsed = true;
-        await db.SaveChangesAsync(ct);
+        // loginCode.IsUsed = true;
+        // await db.SaveChangesAsync(ct);
 
         var (isFullAccess, roleNames) = await BuildRoleClaimsAsync(db, user.Id, ct);
         return new AccountLoginResultDto
