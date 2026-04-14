@@ -1,0 +1,51 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore StudioB2B.sln
+
+      - name: Build
+        run: dotnet build StudioB2B.sln --no-restore -c Release
+
+      - name: Run unit tests
+        run: |
+          dotnet test tests/StudioB2B.Tests.Unit/StudioB2B.Tests.Unit.csproj \
+            --no-build \
+            -c Release \
+            --logger "trx;LogFileName=unit-results.trx" \
+            --results-directory ./test-results
+
+      - name: Run integration tests
+        run: |
+          dotnet test tests/StudioB2B.Tests.Integration/StudioB2B.Tests.Integration.csproj \
+            --no-build \
+            -c Release \
+            --logger "trx;LogFileName=integration-results.trx" \
+            --results-directory ./test-results
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Test Results
+          path: './test-results/*.trx'
+          reporter: dotnet-trx
+          fail-on-error: true
+
