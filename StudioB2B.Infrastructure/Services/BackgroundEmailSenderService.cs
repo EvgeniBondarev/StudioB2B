@@ -100,6 +100,6 @@ public class BackgroundEmailSenderService : BackgroundService, IEmailService
         return msg;
     }
 
-    private record EmailItem(string ToAddress, string ToName, string Subject, string HtmlBody);
+    private sealed record EmailItem(string ToAddress, string ToName, string Subject, string HtmlBody);
 }
 

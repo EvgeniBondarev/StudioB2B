@@ -104,7 +104,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
             return;
 
         var pages = new[] { PageEnum.TaskBoardView, PageEnum.ChatsView, PageEnum.QuestionsView, PageEnum.ReviewsView };
-        var functions = new[] { FunctionEnum.TaskBoardManage, FunctionEnum.QuestionsManage };
 
         var perm = new Permission { Id = Guid.NewGuid(), Name = permName, IsFullAccess = false };
         ctx.Permissions.Add(perm);
@@ -113,8 +112,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         ctx.Set<PermissionPage>().AddRange(
             pages.Select(p => new PermissionPage { PermissionId = perm.Id, PageId = (int)p }));
 
-        ctx.Set<PermissionFunction>().AddRange(
-            functions.Select(f => new PermissionFunction { PermissionId = perm.Id, FunctionId = (int)f }));
 
         await ctx.SaveChangesAsync(ct);
     }
@@ -335,7 +332,6 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
     private static readonly Dictionary<FunctionEnum, PageEnum> FunctionPageMap = new()
     {
         [FunctionEnum.UsersManage] = PageEnum.UsersView,
-        [FunctionEnum.OrdersManage] = PageEnum.OrdersView,
         [FunctionEnum.TransactionsManage] = PageEnum.TransactionsView,
         [FunctionEnum.OrderStatusesManage] = PageEnum.OrderStatusesView,
         [FunctionEnum.CalculationRulesManage] = PageEnum.CalculationRulesView,
@@ -346,11 +342,9 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         [FunctionEnum.SyncRunStatusUpdate] = PageEnum.SyncView,
         [FunctionEnum.SyncRunReturns] = PageEnum.SyncView,
         [FunctionEnum.SyncManageSchedules] = PageEnum.SyncView,
-        [FunctionEnum.QuestionsManage] = PageEnum.QuestionsView,
         [FunctionEnum.PermissionsManage] = PageEnum.PermissionsView,
-        [FunctionEnum.TaskBoardManage] = PageEnum.TaskBoardView,
-        [FunctionEnum.TaskBoardAdminManage] = PageEnum.TaskBoardAdmin,
         [FunctionEnum.OzonPushManage] = PageEnum.OzonPushView,
+        [FunctionEnum.UsersChangePassword] = PageEnum.UsersView,
     };
 
     /// <summary>
