@@ -11,12 +11,18 @@ public class AccountService : IAccountService
 {
     private readonly ITenantDbContextFactory _dbContextFactory;
     private readonly IEmailService _emailService;
+    private readonly ITenantProvider _tenantProvider;
     private readonly ILogger<AccountService> _logger;
 
-    public AccountService(ITenantDbContextFactory dbContextFactory, IEmailService emailService, ILogger<AccountService> logger)
+    public AccountService(
+        ITenantDbContextFactory dbContextFactory,
+        IEmailService emailService,
+        ITenantProvider tenantProvider,
+        ILogger<AccountService> logger)
     {
         _dbContextFactory = dbContextFactory;
         _emailService = emailService;
+        _tenantProvider = tenantProvider;
         _logger = logger;
     }
 
@@ -34,6 +40,19 @@ public class AccountService : IAccountService
 
         if (!BCrypt.Net.BCrypt.Verify(password, user.HashPassword))
             return null;
+
+        if (!_tenantProvider.RequireLoginCode)
+        {
+            var (isFullAccess, roleNames) = await BuildRoleClaimsAsync(db, user.Id, ct);
+            var directLogin = new AccountLoginResultDto
+            {
+                UserId = user.Id,
+                Email = user.Email,
+                IsFullAccess = isFullAccess,
+                RoleNames = roleNames
+            };
+            return new TenantLoginInitResultDto(RequiresVerification: false, DirectLogin: directLogin);
+        }
 
         var code = await PrepareLoginCodeAsync(db, user.Id, ct);
         await db.SaveChangesAsync(ct);

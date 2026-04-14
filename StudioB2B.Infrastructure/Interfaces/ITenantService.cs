@@ -31,4 +31,7 @@ public interface ITenantService
 
     /// <summary>Мягкое удаление тенанта</summary>
     Task<bool> DeleteAsync(Guid tenantId, CancellationToken ct = default);
+
+    /// <summary>Обновить настройки безопасности тенанта</summary>
+    Task<bool> UpdateSettingsAsync(Guid tenantId, bool requireLoginCode, bool requireEmailActivation, CancellationToken ct = default);
 }

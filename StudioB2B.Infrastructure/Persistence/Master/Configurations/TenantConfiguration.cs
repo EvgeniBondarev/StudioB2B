@@ -27,6 +27,12 @@ public class TenantConfiguration : IEntityTypeConfiguration<TenantEntity>
             .IsRequired()
             .HasMaxLength(500);
 
+        builder.Property(t => t.RequireLoginCode)
+            .HasDefaultValue(true);
+
+        builder.Property(t => t.RequireEmailActivation)
+            .HasDefaultValue(true);
+
         builder.Property(t => t.CreatedByUserId)
             .IsRequired(false);
 
