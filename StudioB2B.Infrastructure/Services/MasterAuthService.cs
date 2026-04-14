@@ -141,27 +141,27 @@ public class MasterAuthService
     {
         var email = request.Email.Trim().ToLowerInvariant();
 
-        // var code = await _db.EmailVerificationCodes
-        //     .Where(c => c.Email == email && !c.IsUsed && c.ExpiresAt > DateTime.UtcNow)
-        //     .OrderByDescending(c => c.ExpiresAt)
-        //     .FirstOrDefaultAsync(ct);
-        //
-        // if (code is null)
-        //     return Fail("Неверный или устаревший код. Запросите новый.");
-        //
-        // if (code.Code != request.Code.Trim())
-        //     return Fail("Неверный код подтверждения");
-        //
-        // code.IsUsed = true;
+        var code = await _db.EmailVerificationCodes
+            .Where(c => c.Email == email && !c.IsUsed && c.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(c => c.ExpiresAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (code is null)
+            return Fail("Неверный или устаревший код. Запросите новый.");
+
+        if (code.Code != request.Code.Trim())
+            return Fail("Неверный код подтверждения");
+
+        code.IsUsed = true;
 
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
         if (user is null)
             return Fail("Пользователь не найден");
 
-        // user.IsEmailVerified = true;
-        // user.IsActive = true;
-        //
-        // await _db.SaveChangesAsync(ct);
+        user.IsEmailVerified = true;
+        user.IsActive = true;
+
+        await _db.SaveChangesAsync(ct);
 
         var roles = await _db.UserRoles
             .AsNoTracking()
