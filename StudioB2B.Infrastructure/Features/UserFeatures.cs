@@ -37,7 +37,7 @@ public static class UserExtensions
         return mapper.Map<UserListDto>(u) with { Permissions = permissions };
     }
 
-    public static async Task<(bool Success, string? Error, Guid? ActivationTokenId)> CreateUserAsync(this TenantDbContext db, CreateUserDto request, IMapper mapper, CancellationToken ct = default)
+    public static async Task<(bool Success, string? Error, Guid? ActivationTokenId)> CreateUserAsync(this TenantDbContext db, CreateUserDto request, IMapper mapper, bool requireEmailActivation, CancellationToken ct = default)
     {
         var email = request.Email.Trim().ToLowerInvariant();
         if (await db.Users.AnyAsync(u => u.Email == email, ct))
@@ -47,12 +47,21 @@ public static class UserExtensions
         user.Id = Guid.NewGuid();
         user.HashPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
+        if (!requireEmailActivation)
+            user.IsActive = true;
+
         db.Users.Add(user);
 
         foreach (var permId in request.Permissions)
         {
             if (await db.Permissions.AnyAsync(p => p.Id == permId && !p.IsDeleted, ct))
                 db.UserPermissions.Add(new TenantUserPermission { UserId = user.Id, PermissionId = permId });
+        }
+
+        if (!requireEmailActivation)
+        {
+            await db.SaveChangesAsync(ct);
+            return (true, null, null);
         }
 
         var token = new TenantUserActivationToken

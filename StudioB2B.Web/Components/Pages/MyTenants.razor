@@ -101,6 +101,43 @@ else
                         <!-- Разделитель -->
                         <hr style="margin: 0; border-color: var(--rz-border-color);" />
 
+                        <!-- Настройки безопасности -->
+                        <RadzenStack Gap="0.5rem">
+                            <RadzenText TextStyle="TextStyle.Caption"
+                                        Style="color: var(--rz-text-secondary-color); margin: 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+                                Безопасность
+                            </RadzenText>
+
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                                         JustifyContent="JustifyContent.SpaceBetween">
+                                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                                    <RadzenIcon Icon="verified_user" Style="font-size: 1rem; color: var(--rz-text-secondary-color);" />
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">
+                                        Код подтверждения при входе
+                                    </RadzenText>
+                                </RadzenStack>
+                                <RadzenSwitch Value="@t.RequireLoginCode"
+                                              ValueChanged="@(async (bool v) => await ToggleSetting(t, v, t.RequireEmailActivation))"
+                                              Disabled="@(_settingsBusyId == t.Id)" />
+                            </RadzenStack>
+
+                            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center"
+                                         JustifyContent="JustifyContent.SpaceBetween">
+                                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.4rem">
+                                    <RadzenIcon Icon="mark_email_read" Style="font-size: 1rem; color: var(--rz-text-secondary-color);" />
+                                    <RadzenText TextStyle="TextStyle.Caption" Style="margin: 0;">
+                                        Активация аккаунта по email
+                                    </RadzenText>
+                                </RadzenStack>
+                                <RadzenSwitch Value="@t.RequireEmailActivation"
+                                              ValueChanged="@(async (bool v) => await ToggleSetting(t, t.RequireLoginCode, v))"
+                                              Disabled="@(_settingsBusyId == t.Id)" />
+                            </RadzenStack>
+                        </RadzenStack>
+
+                        <!-- Разделитель -->
+                        <hr style="margin: 0; border-color: var(--rz-border-color);" />
+
                         <!-- Кнопки действий -->
                         <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
                             @if (t.IsActive)
@@ -146,6 +183,7 @@ else
     private bool _isAdmin;
     private Guid _currentUserId;
     private Guid? _busyId;
+    private Guid? _settingsBusyId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -244,5 +282,23 @@ else
                 CloseDialogOnOverlayClick = true
             });
     }
-}
 
+    private async Task ToggleSetting(TenantEntity tenant, bool requireLoginCode, bool requireEmailActivation)
+    {
+        _settingsBusyId = tenant.Id;
+        try
+        {
+            var ok = await TenantService.UpdateSettingsAsync(tenant.Id, requireLoginCode, requireEmailActivation);
+            if (ok)
+            {
+                tenant.RequireLoginCode = requireLoginCode;
+                tenant.RequireEmailActivation = requireEmailActivation;
+                NotificationService.Notify(NotificationSeverity.Success, "Сохранено", $"Настройки «{tenant.Name}» обновлены");
+            }
+        }
+        finally
+        {
+            _settingsBusyId = null;
+        }
+    }
+}
