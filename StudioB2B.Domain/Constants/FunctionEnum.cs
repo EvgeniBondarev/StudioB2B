@@ -11,9 +11,6 @@ public enum FunctionEnum
     [Description("Пользователи: управление")]
     UsersManage = 1,
 
-    [Description("Заказы: управление")]
-    OrdersManage = 2,
-
     [Description("Документы заказов: управление")]
     TransactionsManage = 3,
 
@@ -44,17 +41,8 @@ public enum FunctionEnum
     [Description("Загрузка: управление расписаниями")]
     SyncManageSchedules = 12,
 
-    [Description("Вопросы: управление")]
-    QuestionsManage = 13,
-
     [Description("Права доступа: управление")]
     PermissionsManage = 14,
-
-    [Description("Доска задач: управление задачами")]
-    TaskBoardManage = 15,
-
-    [Description("Доска задач: настройка тарифов и отчёты")]
-    TaskBoardAdminManage = 16,
 
     [Description("Push-уведомления Ozon: очистка")]
     OzonPushManage = 17,

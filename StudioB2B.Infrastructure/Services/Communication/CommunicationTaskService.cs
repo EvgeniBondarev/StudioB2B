@@ -1265,7 +1265,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         try
         {
             var tenantId = _tenantProvider.TenantId;
-            if (tenantId != Guid.Empty)
+            if (tenantId.HasValue && tenantId.Value != Guid.Empty)
                 await _notificationSender.SendBoardUpdatedAsync(tenantId.Value, ct);
         }
         catch (Exception ex)
