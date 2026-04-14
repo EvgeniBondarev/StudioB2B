@@ -12,8 +12,8 @@ COPY StudioB2B.Infrastructure/StudioB2B.Infrastructure.csproj StudioB2B.Infrastr
 COPY StudioB2B.Shared/StudioB2B.Shared.csproj StudioB2B.Shared/
 COPY StudioB2B.Web/StudioB2B.Web.csproj StudioB2B.Web/
 
-# Restore dependencies
-RUN dotnet restore StudioB2B.sln
+# Restore only the production project and its dependencies (test projects are not needed)
+RUN dotnet restore StudioB2B.Web/StudioB2B.Web.csproj
 
 # Copy source code
 COPY . .
