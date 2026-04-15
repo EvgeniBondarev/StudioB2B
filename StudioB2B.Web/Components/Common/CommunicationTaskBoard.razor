@@ -600,7 +600,7 @@
                                 <div class="question-answer-item">
                                     <div class="question-answer-meta">
                                         <span class="question-answer-author">@ans.AuthorName</span>
-                                        <span class="question-answer-date">@ans.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                        <span class="question-answer-date">@(ans.PublishedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "—")</span>
                                         <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter"
                                                       Variant="Variant.Text" Size="ButtonSize.ExtraSmall"
                                                       Style="margin-left:auto;padding:0 4px;" Title="Удалить ответ"
@@ -1416,7 +1416,7 @@
                                 <div class="question-answer-item">
                                     <div class="question-answer-meta">
                                         <span class="question-answer-author">@ans.AuthorName</span>
-                                        <span class="question-answer-date">@ans.PublishedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                        <span class="question-answer-date">@(ans.PublishedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "—")</span>
                                         <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter"
                                                       Variant="Variant.Text" Size="ButtonSize.ExtraSmall"
                                                       Style="margin-left:auto;padding:0 4px;" Title="Удалить ответ"
@@ -2852,20 +2852,12 @@
 
     private async Task SendOverlayAnswerAsync()
     {
-        if (string.IsNullOrWhiteSpace(_overlayAnswerText) || _previewTask is null) return;
+        if (string.IsNullOrWhiteSpace(_overlayAnswerText) || _previewTask is null || _questionDetail is null) return;
         _overlaySendingAnswer = true;
         StateHasChanged();
         try
         {
-            var creds = await GetClientCredsAsync(_previewTask.MarketplaceClientId);
-            var qVm = new OzonQuestionViewModelDto
-            {
-                Id = _previewTask.ExternalId,
-                MarketplaceClientId = _previewTask.MarketplaceClientId,
-                MarketplaceClientName = _previewTask.MarketplaceClientName,
-                ApiId = creds.apiId,
-                ApiKey = creds.apiKey
-            };
+            var qVm = _questionDetail.Question;
             var answerId = await QuestionsService.CreateQuestionAnswerAsync(qVm, _overlayAnswerText);
             if (answerId is not null)
             {
@@ -2923,20 +2915,12 @@
 
     private async Task DeleteOverlayAnswerAsync(OzonQuestionAnswerDto ans)
     {
-        if (_previewTask is null) return;
+        if (_previewTask is null || _questionDetail is null) return;
         _overlayDeletingAnswerId = ans.Id;
         StateHasChanged();
         try
         {
-            var creds = await GetClientCredsAsync(_previewTask.MarketplaceClientId);
-            var qVm = new OzonQuestionViewModelDto
-            {
-                Id = _previewTask.ExternalId,
-                MarketplaceClientId = _previewTask.MarketplaceClientId,
-                MarketplaceClientName = _previewTask.MarketplaceClientName,
-                ApiId = creds.apiId,
-                ApiKey = creds.apiKey
-            };
+            var qVm = _questionDetail.Question;
             var ok = await QuestionsService.DeleteQuestionAnswerAsync(qVm, ans.Id);
             if (ok)
             {
