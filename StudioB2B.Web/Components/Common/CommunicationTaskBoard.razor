@@ -10,6 +10,7 @@
 @inject IOzonQuestionsService QuestionsService
 @inject IOzonReviewsService ReviewsService
 @inject IMarketplaceClientService MarketplaceClientService
+@inject IUserService UserService
 @inject ITenantProvider TenantProvider
 @inject ICurrentUserProvider CurrentUser
 @inject NotificationService NotificationService
@@ -130,6 +131,34 @@
                                        @onchange="@(async e => await ToggleClientFilter(cCopy.Id, (bool)e.Value!))" />
                                 <span class="tb-sidebar-dot"></span>
                                 @cCopy.Name
+                            </label>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (_userOptions.Count > 0)
+            {
+                <div class="tb-sidebar-card">
+                    <div class="tb-sidebar-card-header">
+                        <span>Сотрудник</span>
+                        @if (_filterUserIds.Count > 0)
+                        {
+                            <span class="tb-sidebar-clear" @onclick="@(async () => { _filterUserIds.Clear(); await ReloadDbAndKeepNewAsync(); })" title="Сбросить">
+                                <span class="rzi">close</span>
+                            </span>
+                        }
+                    </div>
+                    <div class="tb-sidebar-card-body">
+                        @foreach (var u in _userOptions)
+                        {
+                            var uCopy = u;
+                            var uName = $"{uCopy.FirstName} {uCopy.LastName}".Trim();
+                            <label class="tb-check-item">
+                                <input type="checkbox" checked="@_filterUserIds.Contains(uCopy.Id)"
+                                       @onchange="@(async e => await ToggleUserFilter(uCopy.Id, (bool)e.Value!))" />
+                                <span class="tb-sidebar-dot"></span>
+                                @uName
                             </label>
                         }
                     </div>
@@ -1838,6 +1867,8 @@
     private DateTime? _filterTo;
     private HashSet<Guid> _filterClientIds = new();
     private List<ClientOptionDto> _clientOptions = new();
+    private HashSet<Guid> _filterUserIds = new();
+    private List<UserListDto> _userOptions = new();
     private bool _sidebarOpen;
     private bool _loading;
     private bool _loadingNew;
@@ -1951,6 +1982,7 @@
         _myTenantId = await TaskService.GetCurrentUserTenantIdAsync();
 
         _ = LoadClientOptionsAsync();
+        _ = LoadUserOptionsAsync();
 
         if (BoardState.HasData)
         {
@@ -2077,7 +2109,8 @@
                 From = _filterFrom,
                 To = _filterTo,
                 TaskTypes = _filterTypes.ToList(),
-                MarketplaceClientIds = _filterClientIds.ToList()
+                MarketplaceClientIds = _filterClientIds.ToList(),
+                AssignedToUserIds = _filterUserIds.ToList()
             };
 
             // Phase 1: fast DB load — show InProgress + Done immediately
@@ -2112,7 +2145,8 @@
                 From = _filterFrom,
                 To = _filterTo,
                 TaskTypes = _filterTypes.ToList(),
-                MarketplaceClientIds = _filterClientIds.ToList()
+                MarketplaceClientIds = _filterClientIds.ToList(),
+                AssignedToUserIds = _filterUserIds.ToList()
             };
 
             // Load DB part first, then Ozon new tasks silently
@@ -2143,7 +2177,7 @@
         StateHasChanged();
         try
         {
-            var filter = new CommunicationTaskFilter { TaskTypes = _filterTypes.ToList(), From = _filterFrom, To = _filterTo, MarketplaceClientIds = _filterClientIds.ToList() };
+            var filter = new CommunicationTaskFilter { TaskTypes = _filterTypes.ToList(), From = _filterFrom, To = _filterTo, MarketplaceClientIds = _filterClientIds.ToList(), AssignedToUserIds = _filterUserIds.ToList() };
             var (items, total) = await TaskService.GetDoneTasksPageAsync(filter, _board.DoneTasks.Count, DonePageSize);
             _board.DoneTasks.AddRange(items);
             _board.DoneTotalCount = total;
@@ -2164,7 +2198,8 @@
                 From = _filterFrom,
                 To = _filterTo,
                 TaskTypes = _filterTypes.ToList(),
-                MarketplaceClientIds = _filterClientIds.ToList()
+                MarketplaceClientIds = _filterClientIds.ToList(),
+                AssignedToUserIds = _filterUserIds.ToList()
             });
             _board = board;
             BoardState.Set(board);
@@ -2214,11 +2249,53 @@
         await LoadBoardAsync();
     }
 
+    private async Task ToggleUserFilter(Guid id, bool add)
+    {
+        if (add) _filterUserIds.Add(id); else _filterUserIds.Remove(id);
+        await ReloadDbAndKeepNewAsync();
+    }
+
+    /// <summary>Перезагружает InProgress + Done с текущими фильтрами, не трогая колонку «Новые».</summary>
+    private async Task ReloadDbAndKeepNewAsync()
+    {
+        try
+        {
+            var filter = new CommunicationTaskFilter
+            {
+                DoneTake = DonePageSize,
+                From = _filterFrom,
+                To = _filterTo,
+                TaskTypes = _filterTypes.ToList(),
+                MarketplaceClientIds = _filterClientIds.ToList(),
+                AssignedToUserIds = _filterUserIds.ToList()
+            };
+
+            var savedNew = _board.NewTasks.ToList();
+            var dbBoard = await TaskService.GetDbBoardAsync(filter);
+
+            // Restore New tasks and their TypeCounts contribution
+            dbBoard.NewTasks.AddRange(savedNew);
+            foreach (var t in savedNew)
+                dbBoard.TypeCounts[t.TaskType] = dbBoard.TypeCounts.GetValueOrDefault(t.TaskType) + 1;
+
+            _board = dbBoard;
+            BoardState.Set(_board);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
+    }
+
     private async Task OnDateFilterChange(DateTime? _) => await LoadBoardAsync();
 
     private async Task LoadClientOptionsAsync()
     {
         try { _clientOptions = await MarketplaceClientService.GetClientOptionsAsync(); StateHasChanged(); }
+        catch { /* non-critical */ }
+    }
+
+    private async Task LoadUserOptionsAsync()
+    {
+        try { _userOptions = await UserService.GetAllUsersAsync(); StateHasChanged(); }
         catch { /* non-critical */ }
     }
 
