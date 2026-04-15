@@ -20,5 +20,5 @@ public class OzonQuestionAnswerDto
     public string Text { get; set; } = string.Empty;
 
     [JsonPropertyName("published_at")]
-    public DateTime PublishedAt { get; set; }
+    public DateTime? PublishedAt { get; set; }
 }
