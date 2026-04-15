@@ -14,6 +14,9 @@ public class CommunicationTaskFilter
 
     public Guid? AssignedToUserId { get; set; }
 
+    /// <summary>Multi-select user filter. Empty = all users.</summary>
+    public List<Guid> AssignedToUserIds { get; set; } = new();
+
     /// <summary>Single-client filter (legacy). Ignored when <see cref="MarketplaceClientIds"/> is non-empty.</summary>
     public Guid? MarketplaceClientId { get; set; }
 
