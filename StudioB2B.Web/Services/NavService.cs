@@ -79,7 +79,7 @@ public class NavService
             {
                 new NavItem { Path = "/users", Role = nameof(PageEnum.UsersView) },
                 new NavItem { Path = "/audit", Role = nameof(PageEnum.AuditView) },
-                new NavItem { Path = "/permissions", Role = nameof(PageEnum.ModulesView) },
+                new NavItem { Path = "/permissions", Role = nameof(PageEnum.PermissionsView) },
                 new NavItem { Path = "/orders-sync", Role = nameof(PageEnum.OrdersView) },
                 new NavItem { Path = "/modules", Role = nameof(PageEnum.ModulesView) }
             }
