@@ -57,10 +57,7 @@ public class NavService
             Icon = "forum",
             Items = new()
             {
-                new NavItem { Path = "/communication", Role = nameof(PageEnum.ChatsView) },
-                new NavItem { Path = "/chats", Role = nameof(PageEnum.ChatsView) },
-                new NavItem { Path = "/questions", Role = nameof(PageEnum.ChatsView) },
-                new NavItem { Path = "/reviews", Role = nameof(PageEnum.ChatsView) }
+                new NavItem { Path = "/communication", Role = nameof(PageEnum.ChatsView) }
             }
         },
         new NavGroup

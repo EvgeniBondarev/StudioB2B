@@ -40,12 +40,6 @@ public enum PageEnum
     [Description("Загрузка / синхронизация")]
     SyncView = 12,
 
-    [Description("Вопросы покупателей")]
-    QuestionsView = 13,
-
-    [Description("Отзывы")]
-    ReviewsView = 14,
-
     [Description("Права доступа")]
     PermissionsView = 15,
 
