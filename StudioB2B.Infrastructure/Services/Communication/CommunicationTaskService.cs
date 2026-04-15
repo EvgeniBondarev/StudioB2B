@@ -109,7 +109,9 @@ public class CommunicationTaskService : ICommunicationTaskService
             dbQuery = dbQuery.Where(t => filter.TaskTypes.Contains(t.TaskType));
         else if (filter.TaskType.HasValue)
             dbQuery = dbQuery.Where(t => t.TaskType == filter.TaskType.Value);
-        if (filter.AssignedToUserId.HasValue)
+        if (filter.AssignedToUserIds.Count > 0)
+            dbQuery = dbQuery.Where(t => t.AssignedToUserId != null && filter.AssignedToUserIds.Contains(t.AssignedToUserId.Value));
+        else if (filter.AssignedToUserId.HasValue)
             dbQuery = dbQuery.Where(t => t.AssignedToUserId == filter.AssignedToUserId.Value);
         if (filter.MarketplaceClientIds.Count > 0)
             dbQuery = dbQuery.Where(t => filter.MarketplaceClientIds.Contains(t.MarketplaceClientId));
@@ -138,8 +140,7 @@ public class CommunicationTaskService : ICommunicationTaskService
             .Select(ProjectToCardDto())
             .ToListAsync(ct);
 
-        // New tasks come live from Ozon — not stored in DB.
-        // Skip when filtering by specific user (live tasks are unassigned).
+        // New tasks come live from Ozon — not stored in DB. Always shown regardless of user filter.
         var newItems = new List<CommunicationTaskDto>();
         if (!filter.AssignedToUserId.HasValue)
         {
@@ -266,7 +267,9 @@ public class CommunicationTaskService : ICommunicationTaskService
             dbQuery = dbQuery.Where(t => filter.TaskTypes.Contains(t.TaskType));
         else if (filter.TaskType.HasValue)
             dbQuery = dbQuery.Where(t => t.TaskType == filter.TaskType.Value);
-        if (filter.AssignedToUserId.HasValue)
+        if (filter.AssignedToUserIds.Count > 0)
+            dbQuery = dbQuery.Where(t => t.AssignedToUserId != null && filter.AssignedToUserIds.Contains(t.AssignedToUserId.Value));
+        else if (filter.AssignedToUserId.HasValue)
             dbQuery = dbQuery.Where(t => t.AssignedToUserId == filter.AssignedToUserId.Value);
         if (filter.MarketplaceClientIds.Count > 0)
             dbQuery = dbQuery.Where(t => filter.MarketplaceClientIds.Contains(t.MarketplaceClientId));
@@ -464,7 +467,9 @@ public class CommunicationTaskService : ICommunicationTaskService
             query = query.Where(t => filter.TaskTypes.Contains(t.TaskType));
         else if (filter.TaskType.HasValue)
             query = query.Where(t => t.TaskType == filter.TaskType.Value);
-        if (filter.AssignedToUserId.HasValue)
+        if (filter.AssignedToUserIds.Count > 0)
+            query = query.Where(t => t.AssignedToUserId != null && filter.AssignedToUserIds.Contains(t.AssignedToUserId.Value));
+        else if (filter.AssignedToUserId.HasValue)
             query = query.Where(t => t.AssignedToUserId == filter.AssignedToUserId.Value);
         if (filter.MarketplaceClientIds.Count > 0)
             query = query.Where(t => filter.MarketplaceClientIds.Contains(t.MarketplaceClientId));
