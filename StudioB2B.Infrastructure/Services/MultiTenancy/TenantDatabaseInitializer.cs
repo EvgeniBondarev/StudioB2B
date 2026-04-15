@@ -12,20 +12,17 @@ namespace StudioB2B.Infrastructure.Services.MultiTenancy;
 
 public class TenantDatabaseInitializer : ITenantDatabaseInitializer
 {
-    private readonly MasterDbContext _masterDb;
     private readonly ILogger<TenantDatabaseInitializer> _logger;
     private readonly IConfiguration _configuration;
     private readonly IOzonApiClient _ozonApiClient;
     private readonly IKeyEncryptionService _keyEncryption;
 
     public TenantDatabaseInitializer(
-        MasterDbContext masterDb,
         ILogger<TenantDatabaseInitializer> logger,
         IConfiguration configuration,
         IOzonApiClient ozonApiClient,
         IKeyEncryptionService keyEncryption)
     {
-        _masterDb = masterDb;
         _logger = logger;
         _configuration = configuration;
         _ozonApiClient = ozonApiClient;
@@ -103,7 +100,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         if (await ctx.Permissions.AnyAsync(p => p.Name == permName && !p.IsDeleted, ct))
             return;
 
-        var pages = new[] { PageEnum.TaskBoardView, PageEnum.ChatsView, PageEnum.QuestionsView, PageEnum.ReviewsView };
+        var pages = new[] { PageEnum.TaskBoardView, PageEnum.ChatsView };
 
         var perm = new Permission { Id = Guid.NewGuid(), Name = permName, IsFullAccess = false };
         ctx.Permissions.Add(perm);

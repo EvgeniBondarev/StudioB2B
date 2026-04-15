@@ -32,30 +32,6 @@ else
             <RadzenTabsItem Text="Моя статистика" Icon="bar_chart">
                 <MyStatsPanel />
             </RadzenTabsItem>
-
-            <RadzenTabsItem Text="Чаты">
-                <div class="tab-content">
-                    <Chats @key="@(_activeTab == 1 && _preSelectTab == 1 ? _preSelectId : null)"
-                           PreSelectChatId="@(_activeTab == 1 && _preSelectTab == 1 ? _preSelectId : null)"
-                           PreSelectClientId="@(_activeTab == 1 && _preSelectTab == 1 ? _preSelectClientId : null)" />
-                </div>
-            </RadzenTabsItem>
-
-            <RadzenTabsItem Text="Отзывы">
-                <div class="tab-content">
-                    <Reviews @key="@(_activeTab == 2 && _preSelectTab == 2 ? _preSelectId : null)"
-                             PreSelectReviewId="@(_activeTab == 2 && _preSelectTab == 2 ? _preSelectId : null)"
-                             PreSelectClientId="@(_activeTab == 2 && _preSelectTab == 2 ? _preSelectClientId : null)" />
-                </div>
-            </RadzenTabsItem>
-
-            <RadzenTabsItem Text="Вопросы">
-                <div class="tab-content">
-                    <Questions @key="@(_activeTab == 3 && _preSelectTab == 3 ? _preSelectId : null)"
-                               PreSelectQuestionId="@(_activeTab == 3 && _preSelectTab == 3 ? _preSelectId : null)"
-                               PreSelectClientId="@(_activeTab == 3 && _preSelectTab == 3 ? _preSelectClientId : null)" />
-                </div>
-            </RadzenTabsItem>
         </Tabs>
 
     </RadzenTabs>
@@ -66,9 +42,6 @@ else
 @code {
     private int _activeTab = 0;
     private bool _boardInitialized;
-    private string? _preSelectId;
-    private Guid? _preSelectClientId;
-    private int _preSelectTab = -1;
 
     protected override void OnInitialized()
     {
@@ -97,24 +70,15 @@ else
         var qs = QueryHelpers.ParseQuery(uri.Query);
 
         if (qs.TryGetValue("tab", out var tabVal) &&
-            int.TryParse(tabVal, out var tab) && tab is >= 0 and <= 4)
+            int.TryParse(tabVal, out var tab) && tab is >= 0 and <= 1)
         {
             _activeTab = tab;
         }
-
-        _preSelectId = qs.TryGetValue("id", out var idVal) ? idVal.ToString() : null;
-        _preSelectClientId = qs.TryGetValue("clientId", out var cidVal) &&
-                             Guid.TryParse(cidVal, out var cid) ? cid : null;
-
-        _preSelectTab = _preSelectId is not null ? _activeTab : -1;
     }
 
     private void OnTabChanged(int index)
     {
         _activeTab = index;
-        _preSelectId = null;
-        _preSelectClientId = null;
-        _preSelectTab = -1;
         if (index == 0 && !_boardInitialized)
             _boardInitialized = true;
     }
