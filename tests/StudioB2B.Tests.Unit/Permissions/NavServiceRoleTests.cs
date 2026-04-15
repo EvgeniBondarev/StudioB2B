@@ -15,6 +15,18 @@ public class NavServiceRoleTests
         Enum.GetNames<PageEnum>().ToHashSet(StringComparer.Ordinal);
 
     [Fact]
+    public void PermissionsPath_UsesPermissionsViewRole()
+    {
+        var item = _nav.Groups
+            .SelectMany(g => g.Items)
+            .FirstOrDefault(i => i.Path == "/permissions");
+
+        item.Should().NotBeNull("NavService must have an item for /permissions");
+        item.Role.Should().Be(nameof(PageEnum.PermissionsView),
+            "/permissions must use PageEnum.PermissionsView, not ModulesView");
+    }
+
+    [Fact]
     public void AllNavItemRoles_ReferenceExistingPageEnum()
     {
         var items = _nav.Groups.SelectMany(g => g.Items)
