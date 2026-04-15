@@ -13,6 +13,7 @@
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
         <PackageReference Include="FluentAssertions" Version="7.*" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.*" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
         <PackageReference Include="Moq" Version="4.*" />
         <PackageReference Include="NetArchTest.Rules" Version="1.3.*" />

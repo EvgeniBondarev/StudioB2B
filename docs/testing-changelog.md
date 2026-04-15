@@ -1,6 +1,6 @@
 # Testing Changelog
 
-## Статус: 🟢 Фазы 1–3 завершены. Все unit-тесты зелёные ✅
+## Статус: 🟢 Фазы 1–6 завершены (код). Все unit-тесты зелёные ✅ Интеграционные тесты готовы к запуску с Docker. Бэклог завершён ✅
 
 ---
 
@@ -19,6 +19,8 @@
 - [x] `KeyEncryptionServiceTests` — 7 тест-кейсов: round-trip, разные ключи, fallback, plaintext
 - [x] `CommunicationPaymentCalculatorTests` — 7 тест-кейсов: PerTask, Hourly, пол/потолок биллинга, фильтрация
 - [x] `ScheduleCronBuilderTests` — 11 тест-кейсов: все типы cron-выражений, null, invalid
+- [x] `DomainHelperTests` — 7 тест-кейсов: strip protocol, trailing slash, uppercase HTTPS, no protocol
+- [x] `OrderSyncResultDtoTests` — 5 тест-кейсов: Add() accumulates all counter fields correctly
 
 ### Фаза 3 — Reflection-тесты системы прав
 - [x] `EnumDescriptionTests` — 18+18+87 значений: все имеют `[Description]` ✅
@@ -35,9 +37,23 @@
 - [x] `PermissionCrudTests` — create/delete/duplicate permission
 - [x] `AuditLogTests` — генерация FieldAuditLog, SuppressAudit
 - [x] `SoftDeleteFilterTests` — фильтрация soft-delete, IgnoreQueryFilters
+- [x] `UserCrudTests` — create (4 кейса): create/duplicate/update/soft-delete пользователя
+- [x] `CalculationRuleCrudTests` — 5 кейсов: create/update/soft-delete + `GetActiveRulesAsync` фильтрация inactive/deleted
+- [x] `OrderStatusCrudTests` — 4 кейса: create/update/soft-delete + `IgnoreQueryFilters`
 
-### Фаза 5 — Тесты внешних сервисов (код написан)
+### Фаза 5 — Тесты внешних сервисов
 - [x] `OzonApiClientTests` — WireMock.Net: success, 401, пустые credentials
+- [x] `SmtpEmailServiceTests` — пустой Host: не бросает исключение, логирует warning (3 кейса) ✅
+
+### Бэклог — Auth
+- [x] `JwtTokenTests` — 6 кейсов: sub/email/roles/full_access claims, no full_access when false, issuer+audience ✅
+
+### Бэклог — Дополнительные тесты
+- [x] `OrderTransactionFieldRegistryTests` — 10 кейсов: Get/IsValid/All, case-insensitive, null, reference type, value type ✅
+- [x] `OrderSyncServiceTests` — 4 кейса: single client, two clients, error swallowed, no matching clients (InMemory EF) ✅
+- [x] `TenantBackupServiceTests` — 4 кейса: ConsumeDownloadToken valid/unknown/one-time-use/empty ✅
+- [x] `OrderTransactionEngineTests` — 22 кейса: ApplyFieldValue (8), ValidateRequiredPriceRules (3), ValidateRequiredFieldRules (2), IsFieldValueEmpty (7) via reflection ✅
+- [x] `CommunicationTaskSyncTests` — 5 кейсов: empty services, no matching tasks, Done→New reopen, exception swallowed, SyncRecentAsync ✅
 
 ### Фаза 6 — Архитектурные тесты (все проходят ✅)
 - [x] `ArchitectureTests` — 4 правила NetArchTest: нет прямого ITenantDbContextFactory/IMapper в UI, нет зависимости сервисов на Web, Features — только static классы
@@ -47,41 +63,19 @@
 - [x] Удалены 4 неиспользуемых значения из `FunctionEnum`: `OrdersManage (2)`, `QuestionsManage (13)`, `TaskBoardManage (15)`, `TaskBoardAdminManage (16)`
 - [x] Удалены соответствующие записи из `FunctionPageMap` в `TenantDatabaseInitializer.cs`
 - [x] Удалена мёртвая seed-логика в `SeedChatManagerPermissionAsync` (назначение функций `TaskBoardManage`/`QuestionsManage`)
+- [x] `NavService.cs` строка 82: `/permissions` исправлен с `ModulesView` → `PermissionsView` (тест `PermissionsPath_UsesPermissionsViewRole`)
 
 ---
 
 ## 🔄 В работе
 
-_Фаза 4 — Интеграционные тесты БД_
+_Фаза 4 — Интеграционные тесты БД (все написаны, запускаются с Docker)_
 
 ---
 
 ## 📋 Осталось сделать
 
-### Фаза 4 — Интеграционные тесты БД
-- [ ] `TenantDbContextFixture` (Testcontainers MySQL)
-- [ ] `SeedTests` (идемпотентность seed)
-- [ ] `PermissionCrudTests`
-- [ ] `UserCrudTests`
-- [ ] `AuditLogTests`
-- [ ] `SoftDeleteFilterTests`
-- [ ] `CalculationRuleCrudTests`
-- [ ] `OrderStatusCrudTests`
-
-### Фаза 5 — Внешние сервисы
-- [ ] `OzonApiClientTests` (WireMock.Net, 4 сценария)
-- [ ] `SmtpEmailServiceTests` (2 сценария)
-
-### Фаза 6 — Архитектурные тесты
-- [ ] `ArchitectureTests` (NetArchTest.Rules, 4 правила)
-
-### Бэклог
-- [ ] `OrderSyncServiceTests`
-- [ ] `TenantDatabaseInitializerTests`
-- [ ] `OrderTransactionEngineTests`
-- [ ] `CommunicationTaskSyncTests`
-- [ ] `JwtTokenTests`
-- [ ] `TenantBackupServiceTests`
+_Бэклог полностью завершён._
 
 ---
 
@@ -100,17 +94,14 @@ _Фаза 4 — Интеграционные тесты БД_
 ### Итог запуска unit-тестов (текущий)
 
 ```
-Total:   385  ✅ Passed: 385  ❌ Failed: 0
+Total:   456  ✅ Passed: 456  ❌ Failed: 0
 ```
 
-Все тесты зелёные.
+Прирост за сессию: +27 тестов (OrderTransactionEngineTests ×22, CommunicationTaskSyncTests ×5)
 
 ### Прочие замечания
 
 - `ColumnPageMap` и `FunctionPageMap` — приватные поля `TenantDatabaseInitializer`.
   Тесты используют reflection для доступа к ним. Это работает.
-- `NavService` строка 85: `/permissions` использует `nameof(PageEnum.ModulesView)` вместо
-  `nameof(PageEnum.PermissionsView)` — тест `NavServiceRoleTests` не упал, т.к. `ModulesView`
-  является валидным `PageEnum`. Это логическая ошибка, не синтаксическая.
-  Добавить отдельный тест `NavService_PermissionsPath_UsesCorrectRole`.
+- `JwtTokenTests` обращаются к приватному методу `AccountController.GenerateJwtToken` через reflection.
 
