@@ -26,7 +26,7 @@ public class OrderTransactionApplyTests : IClassFixture<TenantDbContextFixture>
         _fixture.SeedReferenceDataAsync().GetAwaiter().GetResult();
     }
 
-    private OrderTransactionService CreateService(
+    private static OrderTransactionService CreateService(
         StudioB2B.Infrastructure.Persistence.Tenant.TenantDbContext ctx) =>
         new(ctx, new CalculationEngine(), FakeUser, NullLogger<OrderTransactionService>.Instance);
 
