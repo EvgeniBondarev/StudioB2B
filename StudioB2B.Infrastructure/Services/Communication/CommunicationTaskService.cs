@@ -12,7 +12,7 @@ namespace StudioB2B.Infrastructure.Services.Communication;
 
 public class CommunicationTaskService : ICommunicationTaskService
 {
-    private readonly TenantDbContext _db;
+    private readonly ITenantDbContextFactory _dbContextFactory;
     private readonly ILogger<CommunicationTaskService> _logger;
     private readonly ICurrentUserProvider _currentUser;
     private readonly IOzonChatService _chatService;
@@ -24,7 +24,7 @@ public class CommunicationTaskService : ICommunicationTaskService
     private readonly HashSet<string> _liveCacheKeys = new();
 
     public CommunicationTaskService(
-        TenantDbContext db,
+        ITenantDbContextFactory dbContextFactory,
         ILogger<CommunicationTaskService> logger,
         ICurrentUserProvider currentUser,
         IOzonChatService chatService,
@@ -34,7 +34,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         ITenantProvider tenantProvider,
         ITaskBoardNotificationSender notificationSender)
     {
-        _db = db;
+        _dbContextFactory = dbContextFactory;
         _logger = logger;
         _currentUser = currentUser;
         _chatService = chatService;
@@ -48,7 +48,8 @@ public class CommunicationTaskService : ICommunicationTaskService
     public async Task<Guid?> GetCurrentUserTenantIdAsync(CancellationToken ct = default)
     {
         if (_currentUser.UserId is null) return null;
-        return await ResolveUserIdAsync(_currentUser.UserId.Value, ct);
+        using var db = _dbContextFactory.CreateDbContext();
+        return await ResolveUserIdAsync(db, _currentUser.UserId.Value, ct);
     }
 
     public void InvalidateLiveCache()
@@ -63,15 +64,15 @@ public class CommunicationTaskService : ICommunicationTaskService
     /// If the exact ID exists — returns it. Otherwise looks up by email.
     /// If nothing found — creates a stub user record. Returns the usable FK-safe Id.
     /// </summary>
-    private async Task<Guid> ResolveUserIdAsync(Guid userId, CancellationToken ct)
+    private async Task<Guid> ResolveUserIdAsync(TenantDbContext db, Guid userId, CancellationToken ct)
     {
-        if (await _db.Users.AnyAsync(u => u.Id == userId, ct))
+        if (await db.Users.AnyAsync(u => u.Id == userId, ct))
             return userId;
 
         var email = _currentUser.Email;
         if (email is not null)
         {
-            var existingId = await _db.Users
+            var existingId = await db.Users
                 .Where(u => u.Email == email)
                 .Select(u => u.Id)
                 .FirstOrDefaultAsync(ct);
@@ -80,7 +81,7 @@ public class CommunicationTaskService : ICommunicationTaskService
                 return existingId;
         }
 
-        _db.Users.Add(new TenantUser
+        db.Users.Add(new TenantUser
         {
             Id = userId,
             Email = email ?? $"{userId}@stub",
@@ -89,16 +90,16 @@ public class CommunicationTaskService : ICommunicationTaskService
             HashPassword = "",
             IsActive = true
         });
-        await _db.SaveChangesAsync(ct);
+        await db.SaveChangesAsync(ct);
         _logger.LogInformation("Created stub tenant user {UserId} for task board FK", userId);
         return userId;
     }
 
     public async Task<TaskBoardDto> GetBoardAsync(CommunicationTaskFilter filter, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
+        using var db = _dbContextFactory.CreateDbContext();
 
-        var dbQuery = _db.CommunicationTasks
+        var dbQuery = db.CommunicationTasks
             .AsNoTracking()
             .Where(t => !t.IsDeleted &&
                         (t.TaskType != CommunicationTaskType.Chat ||
@@ -140,11 +141,10 @@ public class CommunicationTaskService : ICommunicationTaskService
             .Select(ProjectToCardDto())
             .ToListAsync(ct);
 
-        // New tasks come live from Ozon — not stored in DB. Always shown regardless of user filter.
         var newItems = new List<CommunicationTaskDto>();
         if (!filter.AssignedToUserId.HasValue)
         {
-            var existingKeys = await LoadExistingTaskKeysForNewExclusionAsync(filter, ct);
+            var existingKeys = await LoadExistingTaskKeysForNewExclusionAsync(db, filter, ct);
             var noTypeFilter = !filter.TaskType.HasValue && filter.TaskTypes.Count == 0;
             var clientIds = filter.MarketplaceClientIds.Count > 0
                 ? filter.MarketplaceClientIds
@@ -203,7 +203,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         result.InProgressTasks.AddRange(inProgressItems);
         result.DoneTasks.AddRange(doneItems);
 
-        var activeRates = await _db.CommunicationPaymentRates
+        var activeRates = await db.CommunicationPaymentRates
             .Include(r => r.User)
             .AsNoTracking()
             .Where(r => r.IsActive)
@@ -215,21 +215,18 @@ public class CommunicationTaskService : ICommunicationTaskService
         {
             var matching = globalRates.Where(r => r.TaskType == null || r.TaskType == type).ToList();
 
-            // Priority: if any specific rates exist for this type, exclude general "all types" rates from the estimate
             if (matching.Any(r => r.TaskType == type))
                 matching = matching.Where(r => r.TaskType == type).ToList();
 
             var perTask = matching
                 .Where(r => r.PaymentMode == PaymentMode.PerTask)
                 .Sum(r => r.Rate);
-            // Bounded hourly rates: show full rate as max potential earnings (achieved at MaxDurationMinutes)
             var timedHourly = matching
                 .Where(r => r.PaymentMode == PaymentMode.Hourly && r.MaxDurationMinutes.HasValue)
                 .Sum(r => r.Rate);
             var fixedTotal = perTask + timedHourly;
             if (fixedTotal > 0) result.PaymentEstimates[type] = Math.Round(fixedTotal, 2);
 
-            // Unbounded hourly rates — show as ₽/h
             var hourly = matching
                 .Where(r => r.PaymentMode == PaymentMode.Hourly && !r.MaxDurationMinutes.HasValue)
                 .Sum(r => r.Rate);
@@ -252,11 +249,13 @@ public class CommunicationTaskService : ICommunicationTaskService
         return result;
     }
 
+
     public async Task<TaskBoardDto> GetDbBoardAsync(CommunicationTaskFilter filter, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
 
-        var dbQuery = _db.CommunicationTasks
+        var dbQuery = db.CommunicationTasks
             .AsNoTracking()
             .Where(t => !t.IsDeleted &&
                         (t.TaskType != CommunicationTaskType.Chat ||
@@ -316,7 +315,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         result.InProgressTasks.AddRange(inProgressItems);
         result.DoneTasks.AddRange(doneItems);
 
-        var activeRates = await _db.CommunicationPaymentRates
+        var activeRates = await db.CommunicationPaymentRates
             .Include(r => r.User)
             .AsNoTracking()
             .Where(r => r.IsActive)
@@ -363,9 +362,10 @@ public class CommunicationTaskService : ICommunicationTaskService
     {
         if (filter.AssignedToUserId.HasValue) return new List<CommunicationTaskDto>();
 
-        _db.ChangeTracker.Clear();
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
 
-        var existingKeys = await LoadExistingTaskKeysForNewExclusionAsync(filter, ct);
+        var existingKeys = await LoadExistingTaskKeysForNewExclusionAsync(db, filter, ct);
         var newItems = new List<CommunicationTaskDto>();
         var noTypeFilter = !filter.TaskType.HasValue && filter.TaskTypes.Count == 0;
         var clientIds = filter.MarketplaceClientIds.Count > 0
@@ -407,9 +407,10 @@ public class CommunicationTaskService : ICommunicationTaskService
     {
         if (filter.AssignedToUserId.HasValue) yield break;
 
-        _db.ChangeTracker.Clear();
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
 
-        var existingKeys = await LoadExistingTaskKeysForNewExclusionAsync(filter, ct);
+        var existingKeys = await LoadExistingTaskKeysForNewExclusionAsync(db, filter, ct);
         var noTypeFilter = !filter.TaskType.HasValue && filter.TaskTypes.Count == 0;
         var clientIds = filter.MarketplaceClientIds.Count > 0
             ? filter.MarketplaceClientIds
@@ -452,9 +453,10 @@ public class CommunicationTaskService : ICommunicationTaskService
     public async Task<(List<CommunicationTaskDto> Items, int TotalCount)> GetDoneTasksPageAsync(
         CommunicationTaskFilter filter, int skip, int take, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
 
-        var query = _db.CommunicationTasks
+        var query = db.CommunicationTasks
             .AsNoTracking()
             .Where(t => !t.IsDeleted &&
                         (t.TaskType != CommunicationTaskType.Chat ||
@@ -538,9 +540,10 @@ public class CommunicationTaskService : ICommunicationTaskService
 
     public async Task<CommunicationTaskDto?> FindActiveTaskAsync(string externalId, Guid marketplaceClientId, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
 
-        return await _db.CommunicationTasks
+        return await db.CommunicationTasks
             .AsNoTracking()
             .Where(t => !t.IsDeleted &&
                         t.Status == CommunicationTaskStatus.InProgress &&
@@ -552,9 +555,10 @@ public class CommunicationTaskService : ICommunicationTaskService
 
     public async Task<List<CommunicationTaskDto>> GetInProgressTasksAsync(CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
 
-        return await _db.CommunicationTasks
+        return await db.CommunicationTasks
             .AsNoTracking()
             .Where(t => !t.IsDeleted && t.Status == CommunicationTaskStatus.InProgress)
             .Select(ProjectToCardDto())
@@ -563,10 +567,11 @@ public class CommunicationTaskService : ICommunicationTaskService
 
     public async Task<List<CommunicationTaskDto>> GetDoneTasksTodayAsync(CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
         var todayUtc = DateTime.UtcNow.Date;
 
-        return await _db.CommunicationTasks
+        return await db.CommunicationTasks
             .AsNoTracking()
             .Where(t => !t.IsDeleted &&
                         t.Status == CommunicationTaskStatus.Done &&
@@ -577,9 +582,10 @@ public class CommunicationTaskService : ICommunicationTaskService
 
     public async Task<CommunicationTaskDetailDto?> GetTaskDetailAsync(Guid taskId, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
 
-        var task = await _db.CommunicationTasks
+        var task = await db.CommunicationTasks
             .Include(t => t.MarketplaceClient)
             .Include(t => t.AssignedToUser)
             .Include(t => t.Logs).ThenInclude(l => l.User)
@@ -618,14 +624,15 @@ public class CommunicationTaskService : ICommunicationTaskService
 
     public async Task<Guid?> CreateAndClaimAsync(CommunicationTaskDto liveTask, Guid userId, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
-        _db.SuppressAudit = true;
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
+        db.SuppressAudit = true;
         try
         {
-            userId = await ResolveUserIdAsync(userId, ct);
+            userId = await ResolveUserIdAsync(db, userId, ct);
 
             // Race guard: another user may have already claimed this Ozon item.
-            var existing = await _db.CommunicationTasks
+            var existing = await db.CommunicationTasks
                 .Include(t => t.TimeEntries)
                 .FirstOrDefaultAsync(t =>
                     t.TaskType == liveTask.TaskType &&
@@ -647,7 +654,7 @@ public class CommunicationTaskService : ICommunicationTaskService
 
                 if (!existing.TimeEntries.Any(e => e.EndedAt == null))
                 {
-                    _db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
+                    db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
                     {
                         Id = Guid.NewGuid(),
                         TaskId = existing.Id,
@@ -656,7 +663,7 @@ public class CommunicationTaskService : ICommunicationTaskService
                     });
                 }
 
-                await _db.SaveChangesAsync(ct);
+                await db.SaveChangesAsync(ct);
                 return existing.Id;
             }
 
@@ -680,9 +687,9 @@ public class CommunicationTaskService : ICommunicationTaskService
                 UpdatedAt = DateTime.UtcNow
             };
 
-            _db.CommunicationTasks.Add(task);
+            db.CommunicationTasks.Add(task);
 
-            _db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
+            db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
             {
                 Id = Guid.NewGuid(),
                 TaskId = task.Id,
@@ -707,7 +714,7 @@ public class CommunicationTaskService : ICommunicationTaskService
                 CreatedAt = DateTime.UtcNow
             });
 
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             _logger.LogInformation("Task {ExternalId} ({Type}) created and claimed by user {UserId}",
                 liveTask.ExternalId, liveTask.TaskType, userId);
             await NotifyBoardChangedAsync(ct);
@@ -715,25 +722,25 @@ public class CommunicationTaskService : ICommunicationTaskService
         }
         catch (Exception ex)
         {
-            _db.ChangeTracker.Clear();
             _logger.LogError(ex, "CreateAndClaimAsync failed for {ExternalId}", liveTask.ExternalId);
             return null;
         }
         finally
         {
-            _db.SuppressAudit = false;
+            db.SuppressAudit = false;
         }
     }
 
     public async Task<bool> ClaimTaskAsync(Guid taskId, Guid userId, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
-        _db.SuppressAudit = true;
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
+        db.SuppressAudit = true;
         try
         {
-            userId = await ResolveUserIdAsync(userId, ct);
+            userId = await ResolveUserIdAsync(db, userId, ct);
 
-            var task = await _db.CommunicationTasks
+            var task = await db.CommunicationTasks
                 .Include(t => t.TimeEntries)
                 .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted, ct);
 
@@ -746,7 +753,7 @@ public class CommunicationTaskService : ICommunicationTaskService
             task.StartedAt ??= DateTime.UtcNow;
             task.UpdatedAt = DateTime.UtcNow;
 
-            _db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
+            db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
             {
                 Id = Guid.NewGuid(),
                 TaskId = taskId,
@@ -754,7 +761,7 @@ public class CommunicationTaskService : ICommunicationTaskService
                 StartedAt = DateTime.UtcNow
             });
 
-            _db.CommunicationTaskLogs.Add(new CommunicationTaskLog
+            db.CommunicationTaskLogs.Add(new CommunicationTaskLog
             {
                 Id = Guid.NewGuid(),
                 TaskId = taskId,
@@ -762,7 +769,7 @@ public class CommunicationTaskService : ICommunicationTaskService
                 Action = "Assigned",
                 CreatedAt = DateTime.UtcNow
             });
-            _db.CommunicationTaskLogs.Add(new CommunicationTaskLog
+            db.CommunicationTaskLogs.Add(new CommunicationTaskLog
             {
                 Id = Guid.NewGuid(),
                 TaskId = taskId,
@@ -771,24 +778,25 @@ public class CommunicationTaskService : ICommunicationTaskService
                 CreatedAt = DateTime.UtcNow
             });
 
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             _logger.LogInformation("Task {TaskId} claimed by user {UserId}", taskId, userId);
             await NotifyBoardChangedAsync(ct);
             return true;
         }
         finally
         {
-            _db.SuppressAudit = false;
+            db.SuppressAudit = false;
         }
     }
 
     public async Task<bool> ReleaseTaskAsync(Guid taskId, Guid userId, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
-        _db.SuppressAudit = true;
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
+        db.SuppressAudit = true;
         try
         {
-            var task = await _db.CommunicationTasks
+            var task = await db.CommunicationTasks
                 .Include(t => t.TimeEntries)
                 .Include(t => t.Logs)
                 .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted, ct);
@@ -796,27 +804,28 @@ public class CommunicationTaskService : ICommunicationTaskService
             if (task is null || task.AssignedToUserId != userId) return false;
 
             // Delete the record so the task returns to the live Ozon feed.
-            _db.CommunicationTasks.Remove(task);
-            await _db.SaveChangesAsync(ct);
+            db.CommunicationTasks.Remove(task);
+            await db.SaveChangesAsync(ct);
             _logger.LogInformation("Task {TaskId} released and removed from DB by user {UserId}", taskId, userId);
             await NotifyBoardChangedAsync(ct);
             return true;
         }
         finally
         {
-            _db.SuppressAudit = false;
+            db.SuppressAudit = false;
         }
     }
 
     public async Task<bool> PauseTaskAsync(Guid taskId, Guid userId, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
-        _db.SuppressAudit = true;
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
+        db.SuppressAudit = true;
         try
         {
-            userId = await ResolveUserIdAsync(userId, ct);
+            userId = await ResolveUserIdAsync(db, userId, ct);
 
-            var task = await _db.CommunicationTasks
+            var task = await db.CommunicationTasks
                 .Include(t => t.TimeEntries)
                 .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted, ct);
 
@@ -829,7 +838,7 @@ public class CommunicationTaskService : ICommunicationTaskService
                 .Where(e => e.EndedAt.HasValue)
                 .Sum(e => (e.EndedAt!.Value - e.StartedAt).Ticks);
 
-            _db.CommunicationTaskLogs.Add(new CommunicationTaskLog
+            db.CommunicationTaskLogs.Add(new CommunicationTaskLog
             {
                 Id = Guid.NewGuid(),
                 TaskId = taskId,
@@ -839,24 +848,25 @@ public class CommunicationTaskService : ICommunicationTaskService
             });
 
             task.UpdatedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             return true;
         }
         finally
         {
-            _db.SuppressAudit = false;
+            db.SuppressAudit = false;
         }
     }
 
     public async Task<bool> ResumeTaskAsync(Guid taskId, Guid userId, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
-        _db.SuppressAudit = true;
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
+        db.SuppressAudit = true;
         try
         {
-            userId = await ResolveUserIdAsync(userId, ct);
+            userId = await ResolveUserIdAsync(db, userId, ct);
 
-            var task = await _db.CommunicationTasks
+            var task = await db.CommunicationTasks
                 .Include(t => t.TimeEntries)
                 .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted, ct);
 
@@ -865,7 +875,7 @@ public class CommunicationTaskService : ICommunicationTaskService
             var hasActive = task.TimeEntries.Any(e => e.UserId == userId && e.EndedAt == null);
             if (hasActive) return true;
 
-            _db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
+            db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
             {
                 Id = Guid.NewGuid(),
                 TaskId = taskId,
@@ -873,7 +883,7 @@ public class CommunicationTaskService : ICommunicationTaskService
                 StartedAt = DateTime.UtcNow
             });
 
-            _db.CommunicationTaskLogs.Add(new CommunicationTaskLog
+            db.CommunicationTaskLogs.Add(new CommunicationTaskLog
             {
                 Id = Guid.NewGuid(),
                 TaskId = taskId,
@@ -883,24 +893,25 @@ public class CommunicationTaskService : ICommunicationTaskService
             });
 
             task.UpdatedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             return true;
         }
         finally
         {
-            _db.SuppressAudit = false;
+            db.SuppressAudit = false;
         }
     }
 
     public async Task<bool> CompleteTaskAsync(Guid taskId, Guid userId, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
-        _db.SuppressAudit = true;
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
+        db.SuppressAudit = true;
         try
         {
-            userId = await ResolveUserIdAsync(userId, ct);
+            userId = await ResolveUserIdAsync(db, userId, ct);
 
-            var task = await _db.CommunicationTasks
+            var task = await db.CommunicationTasks
                 .Include(t => t.TimeEntries)
                 .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted, ct);
 
@@ -921,9 +932,9 @@ public class CommunicationTaskService : ICommunicationTaskService
             // Ensure AssignedToUserId is set so personal payment rates are applied correctly.
             task.AssignedToUserId ??= userId;
 
-            task.PaymentAmount = await CalculatePaymentAsync(task, ct);
+            task.PaymentAmount = await CalculatePaymentAsync(db, task, ct);
 
-            _db.CommunicationTaskLogs.Add(new CommunicationTaskLog
+            db.CommunicationTaskLogs.Add(new CommunicationTaskLog
             {
                 Id = Guid.NewGuid(),
                 TaskId = taskId,
@@ -933,7 +944,7 @@ public class CommunicationTaskService : ICommunicationTaskService
                 CreatedAt = DateTime.UtcNow
             });
 
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             _logger.LogInformation("Task {TaskId} completed by user {UserId}, payment={Payment}",
                 taskId, userId, task.PaymentAmount);
             await NotifyBoardChangedAsync(ct);
@@ -941,19 +952,20 @@ public class CommunicationTaskService : ICommunicationTaskService
         }
         finally
         {
-            _db.SuppressAudit = false;
+            db.SuppressAudit = false;
         }
     }
 
     public async Task<bool> ReopenTaskAsync(Guid taskId, Guid userId, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
-        _db.SuppressAudit = true;
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
+        db.SuppressAudit = true;
         try
         {
-            userId = await ResolveUserIdAsync(userId, ct);
+            userId = await ResolveUserIdAsync(db, userId, ct);
 
-            var task = await _db.CommunicationTasks
+            var task = await db.CommunicationTasks
                 .Include(t => t.TimeEntries)
                 .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted, ct);
 
@@ -969,7 +981,7 @@ public class CommunicationTaskService : ICommunicationTaskService
             var hasActive = task.TimeEntries.Any(e => e.UserId == userId && e.EndedAt == null);
             if (!hasActive)
             {
-                _db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
+                db.CommunicationTimeEntries.Add(new CommunicationTimeEntry
                 {
                     Id = Guid.NewGuid(),
                     TaskId = taskId,
@@ -978,7 +990,7 @@ public class CommunicationTaskService : ICommunicationTaskService
                 });
             }
 
-            _db.CommunicationTaskLogs.Add(new CommunicationTaskLog
+            db.CommunicationTaskLogs.Add(new CommunicationTaskLog
             {
                 Id = Guid.NewGuid(),
                 TaskId = taskId,
@@ -987,20 +999,22 @@ public class CommunicationTaskService : ICommunicationTaskService
                 CreatedAt = DateTime.UtcNow
             });
 
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             _logger.LogInformation("Task {TaskId} reopened by user {UserId}", taskId, userId);
             await NotifyBoardChangedAsync(ct);
             return true;
         }
         finally
         {
-            _db.SuppressAudit = false;
+            db.SuppressAudit = false;
         }
     }
 
     public async Task<PaymentReportDto> GetPaymentReportAsync(DateTime from, DateTime to, CancellationToken ct = default)
     {
-        var doneTasks = await _db.CommunicationTasks
+        using var db = _dbContextFactory.CreateDbContext();
+
+        var doneTasks = await db.CommunicationTasks
             .Include(t => t.AssignedToUser)
             .AsNoTracking()
             .Where(t => t.Status == CommunicationTaskStatus.Done &&
@@ -1036,7 +1050,9 @@ public class CommunicationTaskService : ICommunicationTaskService
 
     public async Task<UserTaskDetailsDto> GetUserTaskDetailsAsync(Guid userId, DateTime from, DateTime to, CancellationToken ct = default)
     {
-        var tasks = await _db.CommunicationTasks
+        using var db = _dbContextFactory.CreateDbContext();
+
+        var tasks = await db.CommunicationTasks
             .Include(t => t.AssignedToUser)
             .Include(t => t.MarketplaceClient)
             .Include(t => t.TimeEntries)
@@ -1078,7 +1094,7 @@ public class CommunicationTaskService : ICommunicationTaskService
                 }).ToList()
         }).ToList();
 
-        var rateDtos = await _db.CommunicationPaymentRates
+        var rateDtos = await db.CommunicationPaymentRates
             .AsNoTracking()
             .Where(r => r.IsActive)
             .Select(r => new CommunicationPaymentRateDto
@@ -1107,7 +1123,9 @@ public class CommunicationTaskService : ICommunicationTaskService
 
     public async Task<PersonalStatsDto> GetPersonalStatsAsync(Guid userId, DateTime from, DateTime to, CancellationToken ct = default)
     {
-        var tasks = await _db.CommunicationTasks
+        using var db = _dbContextFactory.CreateDbContext();
+
+        var tasks = await db.CommunicationTasks
             .Include(t => t.MarketplaceClient)
             .Include(t => t.TimeEntries)
             .AsNoTracking()
@@ -1118,7 +1136,7 @@ public class CommunicationTaskService : ICommunicationTaskService
             .OrderByDescending(t => t.CompletedAt)
             .ToListAsync(ct);
 
-        var user = await _db.Users.AsNoTracking()
+        var user = await db.Users.AsNoTracking()
             .Where(u => u.Id == userId)
             .Select(u => new { u.FirstName, u.LastName })
             .FirstOrDefaultAsync(ct);
@@ -1194,7 +1212,9 @@ public class CommunicationTaskService : ICommunicationTaskService
 
     public async Task<List<CommunicationPaymentRateDto>> GetPaymentRatesAsync(CancellationToken ct = default)
     {
-        return await _db.CommunicationPaymentRates
+        using var db = _dbContextFactory.CreateDbContext();
+
+        return await db.CommunicationPaymentRates
             .Include(r => r.User)
             .AsNoTracking()
             .OrderBy(r => r.TaskType).ThenBy(r => r.PaymentMode).ThenBy(r => r.UserId)
@@ -1216,8 +1236,9 @@ public class CommunicationTaskService : ICommunicationTaskService
 
     public async Task<CommunicationPaymentRateDto> SavePaymentRateAsync(CommunicationPaymentRateDto dto, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
-        _db.SuppressAudit = true;
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
+        db.SuppressAudit = true;
         try
         {
             CommunicationPaymentRate entity;
@@ -1225,11 +1246,11 @@ public class CommunicationTaskService : ICommunicationTaskService
             if (dto.Id == Guid.Empty)
             {
                 entity = new CommunicationPaymentRate { Id = Guid.NewGuid() };
-                _db.CommunicationPaymentRates.Add(entity);
+                db.CommunicationPaymentRates.Add(entity);
             }
             else
             {
-                entity = await _db.CommunicationPaymentRates.FindAsync(new object[] { dto.Id }, ct)
+                entity = await db.CommunicationPaymentRates.FindAsync(new object[] { dto.Id }, ct)
                          ?? throw new InvalidOperationException($"Rate {dto.Id} not found");
             }
 
@@ -1242,26 +1263,27 @@ public class CommunicationTaskService : ICommunicationTaskService
             entity.IsActive = dto.IsActive;
             entity.Description = dto.Description;
 
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
 
             dto.Id = entity.Id;
             return dto;
         }
         finally
         {
-            _db.SuppressAudit = false;
+            db.SuppressAudit = false;
         }
     }
 
     public async Task<bool> DeletePaymentRateAsync(Guid id, CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
 
-        var entity = await _db.CommunicationPaymentRates.FindAsync(new object[] { id }, ct);
+        var entity = await db.CommunicationPaymentRates.FindAsync(new object[] { id }, ct);
         if (entity is null) return false;
 
-        _db.CommunicationPaymentRates.Remove(entity);
-        await _db.SaveChangesAsync(ct);
+        db.CommunicationPaymentRates.Remove(entity);
+        await db.SaveChangesAsync(ct);
         return true;
     }
 
@@ -1281,38 +1303,40 @@ public class CommunicationTaskService : ICommunicationTaskService
 
     public async Task<int> RecalculatePaymentsAsync(CancellationToken ct = default)
     {
-        _db.ChangeTracker.Clear();
-        _db.SuppressAudit = true;
+        using var db = _dbContextFactory.CreateDbContext();
+        db.ChangeTracker.Clear();
+        db.SuppressAudit = true;
         try
         {
-            var done = await _db.CommunicationTasks
+            var done = await db.CommunicationTasks
                 .Include(t => t.TimeEntries)
                 .Where(t => t.Status == CommunicationTaskStatus.Done && !t.IsDeleted)
                 .ToListAsync(ct);
 
             foreach (var task in done)
             {
-                task.PaymentAmount = await CalculatePaymentAsync(task, ct);
+                task.PaymentAmount = await CalculatePaymentAsync(db, task, ct);
                 task.UpdatedAt = DateTime.UtcNow;
             }
 
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             _logger.LogInformation("RecalculatePayments: updated {Count} tasks", done.Count);
             return done.Count;
         }
         finally
         {
-            _db.SuppressAudit = false;
+            db.SuppressAudit = false;
         }
     }
 
-    private async Task<decimal> CalculatePaymentAsync(CommunicationTask task, CancellationToken ct)
+
+    private static async Task<decimal> CalculatePaymentAsync(TenantDbContext db, CommunicationTask task, CancellationToken ct)
     {
         var taskType = task.TaskType;
         var assignedUserId = task.AssignedToUserId;
         var totalMinutes = (decimal)TimeSpan.FromTicks(task.TotalTimeSpentTicks).TotalMinutes;
 
-        var rates = await _db.CommunicationPaymentRates
+        var rates = await db.CommunicationPaymentRates
             .AsNoTracking()
             .Where(r => r.IsActive)
             .ToListAsync(ct);
@@ -1587,10 +1611,10 @@ public class CommunicationTaskService : ICommunicationTaskService
         dto.WasPreviouslyCompleted = t.WasPreviouslyCompleted;
     }
 
-    private async Task<HashSet<(CommunicationTaskType TaskType, string ExternalId, Guid MarketplaceClientId)>>
-        LoadExistingTaskKeysForNewExclusionAsync(CommunicationTaskFilter filter, CancellationToken ct)
+    private static async Task<HashSet<(CommunicationTaskType TaskType, string ExternalId, Guid MarketplaceClientId)>>
+        LoadExistingTaskKeysForNewExclusionAsync(TenantDbContext db, CommunicationTaskFilter filter, CancellationToken ct)
     {
-        var q = _db.CommunicationTasks
+        var q = db.CommunicationTasks
             .AsNoTracking()
             .Where(t => !t.IsDeleted &&
                         (t.Status == CommunicationTaskStatus.InProgress ||
