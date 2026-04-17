@@ -1329,6 +1329,57 @@ public class CommunicationTaskService : ICommunicationTaskService
         }
     }
 
+    public async Task RecordOutgoingMessageAsync(
+        string externalId,
+        CommunicationTaskType taskType,
+        string externalMessageId,
+        Guid sentByUserId,
+        string sentByUserName,
+        CancellationToken ct = default)
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        db.SuppressAudit = true;
+        try
+        {
+            var exists = await db.CommunicationOutgoingMessages
+                .AnyAsync(m => m.ExternalId == externalId &&
+                               m.TaskType == taskType &&
+                               m.ExternalMessageId == externalMessageId, ct);
+            if (exists) return;
+
+            db.CommunicationOutgoingMessages.Add(new CommunicationOutgoingMessage
+            {
+                Id = Guid.NewGuid(),
+                ExternalId = externalId,
+                TaskType = taskType,
+                ExternalMessageId = externalMessageId,
+                SentByUserId = sentByUserId,
+                SentByUserName = sentByUserName,
+                SentAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync(ct);
+        }
+        finally
+        {
+            db.SuppressAudit = false;
+        }
+    }
+
+    public async Task<Dictionary<string, string>> GetOutgoingAuthorsAsync(
+        string externalId,
+        CommunicationTaskType taskType,
+        CancellationToken ct = default)
+    {
+        using var db = _dbContextFactory.CreateDbContext();
+        var rows = await db.CommunicationOutgoingMessages
+            .AsNoTracking()
+            .Where(m => m.ExternalId == externalId && m.TaskType == taskType)
+            .Select(m => new { m.ExternalMessageId, m.SentByUserName })
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(r => r.ExternalMessageId, r => r.SentByUserName);
+    }
+
 
     private static async Task<decimal> CalculatePaymentAsync(TenantDbContext db, CommunicationTask task, CancellationToken ct)
     {
