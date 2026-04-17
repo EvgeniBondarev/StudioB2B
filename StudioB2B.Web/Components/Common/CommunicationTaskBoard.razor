@@ -1490,13 +1490,43 @@
                             </div>
                         </div>
                     }
-                    else
+                    else if (_previewTask.Status == CommunicationTaskStatus.New)
                     {
                         <div style="padding:0.6rem 0.9rem;border-radius:8px;
                                    background:var(--rz-base-100);border:1px dashed var(--rz-base-300);
                                    display:flex;align-items:center;gap:0.6rem;color:var(--rz-text-secondary-color);">
                             <span class="rzi" style="font-size:1.15rem;opacity:0.45;">edit_off</span>
                             <span style="font-size:0.82rem;">Чтобы ответить, нажмите «Взять задачу»</span>
+                        </div>
+                    }
+                    else if (_previewTask.Status == CommunicationTaskStatus.Done)
+                    {
+                        <div class="payment-breakdown-card done" style="margin-top:0.5rem;">
+                            <div class="payment-breakdown-header">
+                                <span class="rzi" style="font-size:0.85rem;">manage_accounts</span>
+                                Обработка
+                            </div>
+                            @if (_previewTask.AssignedToUserName is not null)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Сотрудник</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);font-weight:500;">@_previewTask.AssignedToUserName</span>
+                                </div>
+                            }
+                            @if (_previewTask.AssignedAt.HasValue)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Взят в работу</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);">@_previewTask.AssignedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                </div>
+                            }
+                            @if (_previewTask.CompletedAt.HasValue)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Завершён</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);">@_previewTask.CompletedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                </div>
+                            }
                         </div>
                     }
                 }
