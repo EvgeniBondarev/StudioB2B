@@ -2122,10 +2122,7 @@
             // Phase 2: stream live Ozon new tasks — each batch (chats, questions, reviews) renders immediately
             await foreach (var batch in TaskService.StreamNewTasksAsync(filter))
             {
-                _board.NewTasks.AddRange(batch);
-                _board.NewTasks.Sort((a, b) => b.CreatedAt.CompareTo(a.CreatedAt));
-                foreach (var t in batch)
-                    _board.TypeCounts[t.TaskType] = _board.TypeCounts.GetValueOrDefault(t.TaskType) + 1;
+                MergeNewTaskBatch(_board, batch);
                 await InvokeAsync(StateHasChanged);
             }
             BoardState.Set(_board);
@@ -2156,10 +2153,7 @@
 
             await foreach (var batch in TaskService.StreamNewTasksAsync(filter))
             {
-                _board.NewTasks.AddRange(batch);
-                _board.NewTasks.Sort((a, b) => b.CreatedAt.CompareTo(a.CreatedAt));
-                foreach (var t in batch)
-                    _board.TypeCounts[t.TaskType] = _board.TypeCounts.GetValueOrDefault(t.TaskType) + 1;
+                MergeNewTaskBatch(_board, batch);
                 await InvokeAsync(StateHasChanged);
             }
             BoardState.Set(_board);
@@ -2274,9 +2268,7 @@
             var dbBoard = await TaskService.GetDbBoardAsync(filter);
 
             // Restore New tasks and their TypeCounts contribution
-            dbBoard.NewTasks.AddRange(savedNew);
-            foreach (var t in savedNew)
-                dbBoard.TypeCounts[t.TaskType] = dbBoard.TypeCounts.GetValueOrDefault(t.TaskType) + 1;
+            MergeNewTaskBatch(dbBoard, savedNew);
 
             _board = dbBoard;
             BoardState.Set(_board);
@@ -2286,6 +2278,25 @@
     }
 
     private async Task OnDateFilterChange(DateTime? _) => await LoadBoardAsync();
+
+    /// <summary>Adds <paramref name="batch"/> to board.NewTasks, skipping items already present by (TaskType, ExternalId, MarketplaceClientId).</summary>
+    private static void MergeNewTaskBatch(TaskBoardDto board, IEnumerable<CommunicationTaskDto> batch)
+    {
+        var existing = board.NewTasks
+            .Select(t => (t.TaskType, t.ExternalId, t.MarketplaceClientId))
+            .ToHashSet();
+
+        foreach (var t in batch)
+        {
+            if (existing.Add((t.TaskType, t.ExternalId, t.MarketplaceClientId)))
+            {
+                board.NewTasks.Add(t);
+                board.TypeCounts[t.TaskType] = board.TypeCounts.GetValueOrDefault(t.TaskType) + 1;
+            }
+        }
+
+        board.NewTasks.Sort((a, b) => b.CreatedAt.CompareTo(a.CreatedAt));
+    }
 
     private async Task LoadClientOptionsAsync()
     {
