@@ -17,7 +17,7 @@ public class OrderTransactionHistoryTests : IClassFixture<TenantDbContextFixture
         _fixture.SeedReferenceDataAsync().GetAwaiter().GetResult();
     }
 
-    private OrderTransactionHistory NewHistory(Guid orderId, Guid transactionId, bool success) => new()
+    private static OrderTransactionHistory NewHistory(Guid orderId, Guid transactionId, bool success) => new()
     {
         Id = Guid.NewGuid(),
         OrderId = orderId,

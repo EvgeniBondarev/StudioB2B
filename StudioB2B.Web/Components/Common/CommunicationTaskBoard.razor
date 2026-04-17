@@ -519,6 +519,7 @@
                                           SelectedChat="_previewChatVm"
                                           EagerImages="true"
                                           OpenGallery="OnOpenGallery"
+                                          MessageAuthors="_chatMessageAuthors"
                                           LoadingHistory="false" />
                             @if (_previewTask.Status == CommunicationTaskStatus.New)
                             {
@@ -624,9 +625,10 @@
                                         Style="font-weight:600;margin-bottom:0.5rem;color:var(--rz-text-secondary-color);">Ответы (@_questionDetail.Answers.Count)</RadzenText>
                             @foreach (var ans in _questionDetail.Answers)
                             {
+                                var ansAuthor = _questionAuthors.TryGetValue(ans.Id, out var qa) ? qa : ans.AuthorName;
                                 <div class="question-answer-item">
                                     <div class="question-answer-meta">
-                                        <span class="question-answer-author">@ans.AuthorName</span>
+                                        <span class="question-answer-author">@ansAuthor</span>
                                         <span class="question-answer-date">@(ans.PublishedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "—")</span>
                                         <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter"
                                                       Variant="Variant.Text" Size="ButtonSize.ExtraSmall"
@@ -1335,6 +1337,7 @@
                                           SelectedChat="_previewChatVm"
                                           EagerImages="true"
                                           OpenGallery="OnOpenGallery"
+                                          MessageAuthors="_chatMessageAuthors"
                                           LoadingHistory="false" />
                             @if (_previewTask.Status == CommunicationTaskStatus.New)
                             {
@@ -1440,9 +1443,10 @@
                                         Style="font-weight:600;margin-bottom:0.5rem;color:var(--rz-text-secondary-color);">Ответы (@_questionDetail.Answers.Count)</RadzenText>
                             @foreach (var ans in _questionDetail.Answers)
                             {
+                                var ansAuthor = _questionAuthors.TryGetValue(ans.Id, out var qa) ? qa : ans.AuthorName;
                                 <div class="question-answer-item">
                                     <div class="question-answer-meta">
-                                        <span class="question-answer-author">@ans.AuthorName</span>
+                                        <span class="question-answer-author">@ansAuthor</span>
                                         <span class="question-answer-date">@(ans.PublishedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "—")</span>
                                         <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter"
                                                       Variant="Variant.Text" Size="ButtonSize.ExtraSmall"
@@ -1484,13 +1488,43 @@
                             </div>
                         </div>
                     }
-                    else
+                    else if (_previewTask.Status == CommunicationTaskStatus.New)
                     {
                         <div style="padding:0.6rem 0.9rem;border-radius:8px;
                                    background:var(--rz-base-100);border:1px dashed var(--rz-base-300);
                                    display:flex;align-items:center;gap:0.6rem;color:var(--rz-text-secondary-color);">
                             <span class="rzi" style="font-size:1.15rem;opacity:0.45;">edit_off</span>
                             <span style="font-size:0.82rem;">Чтобы ответить, нажмите «Взять задачу»</span>
+                        </div>
+                    }
+                    else if (_previewTask.Status == CommunicationTaskStatus.Done)
+                    {
+                        <div class="payment-breakdown-card done" style="margin-top:0.5rem;">
+                            <div class="payment-breakdown-header">
+                                <span class="rzi" style="font-size:0.85rem;">manage_accounts</span>
+                                Обработка
+                            </div>
+                            @if (_previewTask.AssignedToUserName is not null)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Сотрудник</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);font-weight:500;">@_previewTask.AssignedToUserName</span>
+                                </div>
+                            }
+                            @if (_previewTask.AssignedAt.HasValue)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Взят в работу</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);">@_previewTask.AssignedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                </div>
+                            }
+                            @if (_previewTask.CompletedAt.HasValue)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Завершён</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);">@_previewTask.CompletedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                </div>
+                            }
                         </div>
                     }
                 }
@@ -1919,6 +1953,11 @@
     private OzonQuestionDetailDto? _questionDetail;
     private OzonReviewDetailDto? _reviewDetail;
 
+    // Outgoing message author maps (externalMessageId → employeeDisplayName)
+    private Dictionary<string, string> _chatMessageAuthors = new();
+    private Dictionary<string, string> _questionAuthors = new();
+    private Dictionary<string, string> _reviewAuthors = new();
+
     // Overlay compose state
     private string _overlayAnswerText = string.Empty;
     private bool _overlaySendingAnswer;
@@ -2120,10 +2159,7 @@
             // Phase 2: stream live Ozon new tasks — each batch (chats, questions, reviews) renders immediately
             await foreach (var batch in TaskService.StreamNewTasksAsync(filter))
             {
-                _board.NewTasks.AddRange(batch);
-                _board.NewTasks.Sort((a, b) => b.CreatedAt.CompareTo(a.CreatedAt));
-                foreach (var t in batch)
-                    _board.TypeCounts[t.TaskType] = _board.TypeCounts.GetValueOrDefault(t.TaskType) + 1;
+                MergeNewTaskBatch(_board, batch);
                 await InvokeAsync(StateHasChanged);
             }
             BoardState.Set(_board);
@@ -2154,10 +2190,7 @@
 
             await foreach (var batch in TaskService.StreamNewTasksAsync(filter))
             {
-                _board.NewTasks.AddRange(batch);
-                _board.NewTasks.Sort((a, b) => b.CreatedAt.CompareTo(a.CreatedAt));
-                foreach (var t in batch)
-                    _board.TypeCounts[t.TaskType] = _board.TypeCounts.GetValueOrDefault(t.TaskType) + 1;
+                MergeNewTaskBatch(_board, batch);
                 await InvokeAsync(StateHasChanged);
             }
             BoardState.Set(_board);
@@ -2272,9 +2305,7 @@
             var dbBoard = await TaskService.GetDbBoardAsync(filter);
 
             // Restore New tasks and their TypeCounts contribution
-            dbBoard.NewTasks.AddRange(savedNew);
-            foreach (var t in savedNew)
-                dbBoard.TypeCounts[t.TaskType] = dbBoard.TypeCounts.GetValueOrDefault(t.TaskType) + 1;
+            MergeNewTaskBatch(dbBoard, savedNew);
 
             _board = dbBoard;
             BoardState.Set(_board);
@@ -2284,6 +2315,36 @@
     }
 
     private async Task OnDateFilterChange(DateTime? _) => await LoadBoardAsync();
+
+    private string GetCurrentUserDisplayName()
+    {
+        if (_myTenantId.HasValue)
+        {
+            var user = _userOptions.FirstOrDefault(u => u.Id == _myTenantId.Value);
+            if (user is not null)
+                return (user.FirstName + " " + user.LastName).Trim();
+        }
+        return UserContext.Principal?.Identity?.Name ?? "Сотрудник";
+    }
+
+    /// <summary>Adds <paramref name="batch"/> to board.NewTasks, skipping items already present by (TaskType, ExternalId, MarketplaceClientId).</summary>
+    private static void MergeNewTaskBatch(TaskBoardDto board, IEnumerable<CommunicationTaskDto> batch)
+    {
+        var existing = board.NewTasks
+            .Select(t => (t.TaskType, t.ExternalId, t.MarketplaceClientId))
+            .ToHashSet();
+
+        foreach (var t in batch)
+        {
+            if (existing.Add((t.TaskType, t.ExternalId, t.MarketplaceClientId)))
+            {
+                board.NewTasks.Add(t);
+                board.TypeCounts[t.TaskType] = board.TypeCounts.GetValueOrDefault(t.TaskType) + 1;
+            }
+        }
+
+        board.NewTasks.Sort((a, b) => b.CreatedAt.CompareTo(a.CreatedAt));
+    }
 
     private async Task LoadClientOptionsAsync()
     {
@@ -2378,6 +2439,9 @@
         _chatFallbackUrl = null;
         _questionDetail = null;
         _reviewDetail = null;
+        _chatMessageAuthors = new();
+        _questionAuthors = new();
+        _reviewAuthors = new();
         StateHasChanged();
 
         try
@@ -2402,6 +2466,7 @@
                     {
                         _chatFallbackUrl = $"https://seller.ozon.ru/app/messenger/?group=customers_v2&id={task.ExternalId}";
                     }
+                    _chatMessageAuthors = await TaskService.GetOutgoingAuthorsAsync(task.ExternalId, CommunicationTaskType.Chat);
                     break;
 
                 case CommunicationTaskType.Question:
@@ -2416,6 +2481,7 @@
                         ApiKey = creds.apiKey
                     };
                     _questionDetail = await QuestionsService.GetQuestionDetailAsync(qVm);
+                    _questionAuthors = await TaskService.GetOutgoingAuthorsAsync(task.ExternalId, CommunicationTaskType.Question);
                     break;
                 }
 
@@ -2431,6 +2497,7 @@
                         ApiKey = creds.apiKey
                     };
                     _reviewDetail = await ReviewsService.GetReviewDetailAsync(rVm);
+                    _reviewAuthors = await TaskService.GetOutgoingAuthorsAsync(task.ExternalId, CommunicationTaskType.Review);
                     break;
                 }
             }
@@ -2467,6 +2534,9 @@
         _chatFallbackUrl = null;
         _questionDetail = null;
         _reviewDetail = null;
+        _chatMessageAuthors = new();
+        _questionAuthors = new();
+        _reviewAuthors = new();
         _overlayAnswerText = string.Empty;
         _overlayBusy = false;
         _overlayDeletingAnswerId = null;
@@ -2514,6 +2584,18 @@
                 if (toAdd.Count > 0)
                 {
                     _chatMessages.AddRange(toAdd);
+
+                    var hasNewSellerMsg = toAdd.Any(m =>
+                        m.User?.Type is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT" &&
+                        !_chatMessageAuthors.ContainsKey(m.MessageId.ToString()));
+                    if (hasNewSellerMsg && _previewTask is not null)
+                    {
+                        var freshAuthors = await TaskService.GetOutgoingAuthorsAsync(
+                            _previewTask.ExternalId, CommunicationTaskType.Chat);
+                        foreach (var kv in freshAuthors)
+                            _chatMessageAuthors[kv.Key] = kv.Value;
+                    }
+
                     StateHasChanged();
                     await JS.InvokeVoidAsync("scrollChatOverlayToBottom");
                 }
@@ -2903,13 +2985,36 @@
                 }
             }
 
+            var oldMessageIds = _chatMessages.Select(m => m.MessageId).ToHashSet();
+
             await Task.Delay(600);
             try
             {
                 var history = await ChatService.GetChatHistoryAsync(
                     _previewChatVm.MarketplaceClientId, _previewChatVm.ChatId, "Backward", limit: 50);
                 if (history is not null)
+                {
                     _chatMessages = history.Messages.OrderBy(m => m.CreatedAt).ToList();
+
+                    // Record new seller messages as sent by the current employee
+                    if (_myTenantId.HasValue)
+                    {
+                        var myName = GetCurrentUserDisplayName();
+                        var chatId = _previewChatVm.ChatId;
+                        foreach (var msg in _chatMessages.Where(m =>
+                            !oldMessageIds.Contains(m.MessageId) &&
+                            (m.User?.Type is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT")))
+                        {
+                            var msgId = msg.MessageId.ToString();
+                            if (!_chatMessageAuthors.ContainsKey(msgId))
+                            {
+                                _chatMessageAuthors[msgId] = myName;
+                                _ = TaskService.RecordOutgoingMessageAsync(
+                                    chatId, CommunicationTaskType.Chat, msgId, _myTenantId.Value, myName);
+                            }
+                        }
+                    }
+                }
                 StateHasChanged();
                 await Task.Delay(50);
                 await JS.InvokeVoidAsync("scrollChatOverlayToBottom");
@@ -2939,6 +3044,16 @@
                 NotificationService.Notify(NotificationSeverity.Success, "Ответ отправлен", "", 2000);
                 _overlayAnswerText = string.Empty;
                 _questionDetail = await QuestionsService.GetQuestionDetailAsync(qVm);
+
+                // Record who answered
+                if (_myTenantId.HasValue)
+                {
+                    var myName = GetCurrentUserDisplayName();
+                    _questionAuthors[answerId] = myName;
+                    _ = TaskService.RecordOutgoingMessageAsync(
+                        _previewTask.ExternalId, CommunicationTaskType.Question, answerId, _myTenantId.Value, myName);
+                }
+
                 StateHasChanged();
             }
             else
@@ -2972,6 +3087,16 @@
             {
                 NotificationService.Notify(NotificationSeverity.Success, "Комментарий отправлен", "", 2000);
                 _reviewDetail = await ReviewsService.GetReviewDetailAsync(rVm);
+
+                // Record who commented
+                if (_myTenantId.HasValue)
+                {
+                    var myName = GetCurrentUserDisplayName();
+                    _reviewAuthors[commentId] = myName;
+                    _ = TaskService.RecordOutgoingMessageAsync(
+                        _previewTask.ExternalId, CommunicationTaskType.Review, commentId, _myTenantId.Value, myName);
+                }
+
                 StateHasChanged();
                 return true;
             }
