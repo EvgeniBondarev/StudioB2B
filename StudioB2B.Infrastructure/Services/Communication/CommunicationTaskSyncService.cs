@@ -122,7 +122,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             }
 
             await _db.SaveChangesAsync(ct);
-            _logger.LogInformation("Synced {Count} existing chat tasks (full={Full}), inline-reopened {Reopened}",
+            _logger.LogWarning("Synced {Count} existing chat tasks (full={Full}), inline-reopened {Reopened}",
                 existing.Count, fullSync, inlineReopened);
 
             var deepReopened = await AutoReopenDoneChatsAsync(ct);
@@ -195,7 +195,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             if (reopened > 0)
             {
                 await _db.SaveChangesAsync(ct);
-                _logger.LogInformation("Auto-reopened {Count} done chat tasks with new buyer messages", reopened);
+                _logger.LogWarning("Auto-reopened {Count} done chat tasks with new buyer messages", reopened);
             }
             return reopened;
         }
@@ -240,7 +240,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             }
 
             await _db.SaveChangesAsync(ct);
-            _logger.LogInformation("Synced {Count} existing question tasks (full={Full})", existing.Count, fullSync);
+            _logger.LogWarning("Synced {Count} existing question tasks (full={Full})", existing.Count, fullSync);
 
             return await AutoReopenByStatusChangeAsync(existing.Values, IsTerminalQuestionStatus, ct);
         }
@@ -283,7 +283,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             }
 
             await _db.SaveChangesAsync(ct);
-            _logger.LogInformation("Synced {Count} existing review tasks (full={Full})", existing.Count, fullSync);
+            _logger.LogWarning("Synced {Count} existing review tasks (full={Full})", existing.Count, fullSync);
 
             return await AutoReopenByStatusChangeAsync(existing.Values, IsTerminalReviewStatus, ct);
         }
@@ -329,7 +329,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
         if (reopened > 0)
         {
             await _db.SaveChangesAsync(ct);
-            _logger.LogInformation("Auto-reopened {Count} tasks based on external status change", reopened);
+            _logger.LogWarning("Auto-reopened {Count} tasks based on external status change", reopened);
         }
         return reopened;
     }

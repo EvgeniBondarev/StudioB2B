@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using StudioB2B.Infrastructure.Features;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
@@ -8,10 +9,12 @@ namespace StudioB2B.Infrastructure.Services.Ozon;
 public class OzonPushNotificationService : IOzonPushNotificationService
 {
     private readonly ITenantDbContextFactory _dbContextFactory;
+    private readonly ILogger<OzonPushNotificationService> _logger;
 
-    public OzonPushNotificationService(ITenantDbContextFactory dbContextFactory)
+    public OzonPushNotificationService(ITenantDbContextFactory dbContextFactory, ILogger<OzonPushNotificationService> logger)
     {
         _dbContextFactory = dbContextFactory;
+        _logger = logger;
     }
 
     public async Task<OzonPushNotificationDto> SaveAsync(
@@ -27,9 +30,19 @@ public class OzonPushNotificationService : IOzonPushNotificationService
 
         Guid? clientId = null;
         if (sellerId.HasValue)
+        {
             clientId = await db.FindClientIdBySellerIdAsync(sellerId.Value, ct);
+            if (clientId is null)
+                _logger.LogWarning(
+                    "OzonPush: sellerId {SellerId} not matched to any marketplace client. Message type: {MessageType}.",
+                    sellerId.Value, messageType);
+        }
 
         var entity = await db.SaveAsync(messageType, rawPayload, sellerId, postingNumber, clientId, ct);
+
+        _logger.LogWarning(
+            "OzonPush: saved {MessageType} | sellerId={SellerId} | clientId={ClientId} | posting={PostingNumber}.",
+            messageType, sellerId, clientId, postingNumber);
 
         string? clientName = null;
         if (entity.MarketplaceClientId.HasValue)
@@ -67,4 +80,3 @@ public class OzonPushNotificationService : IOzonPushNotificationService
         return await db.DeleteAllAsync(ct);
     }
 }
-

@@ -69,6 +69,16 @@ tests/
 
 **Цель:** проверить работу с реальной MySQL через EF Core.
 
+### Инфраструктура тестов
+
+- `TenantDbContextFixture.SeedReferenceDataAsync()` — идемпотентный метод, создаёт общие справочники:
+  `MarketplaceClientType`, `MarketplaceClientMode`, `MarketplaceClient`, два `OrderStatus` (from/to).
+  Сохраняет Guid-ы в публичных свойствах: `DefaultClientTypeId`, `DefaultModeId`, `DefaultClientId`, `DefaultFromStatusId`, `DefaultToStatusId`.
+
+- `DatabaseSeeder` — статический класс-фабрика для минимальных тестовых сущностей:
+  `MarketplaceClient`, `Shipment`, `Order`, `OrderTransaction`, `CommunicationTask`, `TaskLog`,
+  `Warehouse`, `WarehouseStock`, `Product`, `Manufacturer`, `PriceType`, `OzonReturn`.
+
 ### Задачи
 
 - [ ] `TenantDbContextFixture` — базовая фикстура: поднимает Testcontainers MySQL, применяет миграции, возвращает `TenantDbContext`
@@ -81,6 +91,20 @@ tests/
 - [ ] `SoftDeleteFilterTests` — удалённые сущности не возвращаются стандартным запросом
 - [ ] `CalculationRuleCrudTests` — CRUD правил расчёта
 - [ ] `OrderStatusCrudTests` — CRUD статусов заказов
+- [ ] `MarketplaceClientCrudTests` — 5 кейсов: `GetAllAsync`, `CreateAsync`, `UpdateAsync`, `DeleteAsync`, `GetClientOptionsAsync` с фильтром по `allowedIds`
+- [ ] `PriceTypeCrudTests` — 5 кейсов: create/update/soft-delete; update системного типа → `false`; пагинация с фильтром
+- [ ] `OrderTransactionCrudTests` — 4 кейса: create/update/soft-delete; `GetOrderTransactionsPagedAsync` исключает удалённые
+- [ ] `CommunicationTaskCrudTests` — 4 кейса: create/read/soft-delete; добавление `CommunicationTaskLog` с навигацией; обновление статуса
+- [ ] `WarehouseCrudTests` — 4 кейса: create/update/soft-delete; `WarehouseStock` с навигацией через `Include`
+- [ ] `ProductCrudTests` — 4 кейса: create; связь с `Manufacturer`; soft-delete; `ProductAttributeValue` с навигацией
+- [ ] `OzonReturnCrudTests` — 4 кейса: create; `GetReturnsCountsAsync` группирует по `Type`; `GetReturnsPageAsync` фильтрует по тексту; счётчик отмен с заказом
+
+- [ ] `OrderTransactionApplyTests` — 4 кейса: E2E ApplyAsync через `OrderTransactionService` с реальным DB
+- [ ] `OrderTransactionHistoryTests` — 3 кейса: пагинация DESC; Dynamic LINQ фильтр; skip/take
+- [ ] `OrderSelectionInfoTests` — 3 кейса: единый статус; смешанные статусы; null статус
+- [ ] `SyncJobTests` — 5 кейсов: CRUD расписания и истории; фильтр по JobType
+- [ ] `BuildAuditValueResolverTests` — 3 кейса: резолвинг StatusId/MarketplaceClientId; пустые логи
+- [ ] `PermissionQueryTests` — 4 кейса: GetPagesWithDetails; GetEntityOptions; GetAvailable; GetById
 
 ## Фаза 5 — Тесты внешних сервисов
 
@@ -94,9 +118,6 @@ tests/
   - Retry при 429 (rate limit)
   - Обработка ошибки 401 → `OzonApiResultDto` с ошибкой
   - Десериализация ответа с датами в UTC
-- [ ] `SmtpEmailServiceTests` — `Unit/Email/SmtpEmailServiceTests.cs`
-  - При пустом `Host` — не бросает исключение, логирует warning
-  - Строится корректный `MimeMessage` (From, To, Subject, HtmlBody)
 
 ## Фаза 6 — Архитектурные тесты
 
