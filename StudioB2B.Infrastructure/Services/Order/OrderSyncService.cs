@@ -37,7 +37,7 @@ public class OrderSyncService : IOrderSyncService
 
         var ozonClients = await query.ToListAsync(ct);
 
-        _logger.LogInformation(
+        _logger.LogWarning(
             "Starting order sync for {Count} Ozon client(s) in FBS/FBO.", ozonClients.Count);
 
         var summary = new OrderSyncSummaryDto();
@@ -96,7 +96,8 @@ public class OrderSyncService : IOrderSyncService
             }
         }
 
-        _logger.LogInformation("Order sync completed.");
+        _logger.LogWarning("Order sync completed: {Clients} client(s) processed.",
+            summary.PerClient.Count);
         return summary;
     }
 
@@ -114,7 +115,7 @@ public class OrderSyncService : IOrderSyncService
 
         var ozonClients = await query.ToListAsync(ct);
 
-        _logger.LogInformation(
+        _logger.LogWarning(
             "Starting status update for {Count} Ozon clients (FBS/FBO), period {From}\u2013{To}.",
             ozonClients.Count, from, to);
 
@@ -183,7 +184,8 @@ public class OrderSyncService : IOrderSyncService
             }
         }
 
-        _logger.LogInformation("Status update completed.");
+        _logger.LogWarning("Status update completed: {Clients} client(s) processed.",
+            summary.PerClient.Count);
         return summary;
     }
 

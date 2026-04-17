@@ -41,9 +41,38 @@
 - [x] `CalculationRuleCrudTests` — 5 кейсов: create/update/soft-delete + `GetActiveRulesAsync` фильтрация inactive/deleted
 - [x] `OrderStatusCrudTests` — 4 кейса: create/update/soft-delete + `IgnoreQueryFilters`
 
+### Фаза 4 — Расширение интеграционных тестов БД (новые сущности)
+
+- [x] `TenantDbContextFixture.SeedReferenceDataAsync()` — идемпотентный метод: `MarketplaceClientType`, `MarketplaceClientMode`, `MarketplaceClient`, два `OrderStatus`. Публичные свойства `DefaultClientTypeId`, `DefaultModeId`, `DefaultClientId`, `DefaultFromStatusId`, `DefaultToStatusId`
+- [x] `DatabaseSeeder` — статический класс-фабрика: `MarketplaceClient`, `Shipment`, `Order`, `OrderTransaction`, `CommunicationTask`, `TaskLog`, `Warehouse`, `WarehouseStock`, `Product`, `Manufacturer`, `PriceType`, `OzonReturn`
+- [x] `MarketplaceClientCrudTests` — 5 кейсов: `GetAllAsync`, `CreateAsync`, `UpdateAsync`, `DeleteAsync`, `GetClientOptionsAsync` с фильтром `allowedIds`
+- [x] `PriceTypeCrudTests` — 5 кейсов: create/update/soft-delete; update системного типа → `false`; пагинация с Dynamic LINQ фильтром
+- [x] `OrderTransactionCrudTests` — 4 кейса: create/update/soft-delete; `GetOrderTransactionsPagedAsync` исключает удалённые
+- [x] `CommunicationTaskCrudTests` — 4 кейса: create; `CommunicationTaskLog` с навигацией; soft-delete; обновление статуса
+- [x] `WarehouseCrudTests` — 4 кейса: create/update/soft-delete; `WarehouseStock` с навигацией через `Include`
+- [x] `ProductCrudTests` — 4 кейса: create; связь с `Manufacturer` через `Include`; soft-delete; `ProductAttributeValue` с навигацией
+- [x] `OzonReturnCrudTests` — 4 кейса: create; `GetReturnsCountsAsync` группирует по `Type`; `GetReturnsPageAsync` фильтрует по тексту; счётчик отмен с `OzonOrderId`
+
+### Фаза 4 — Дополнительные интеграционные тесты БД (расширение покрытия)
+
+- [x] `OrderTransactionRulesTests` — 4 кейса: create с rules+fieldRules; update полностью заменяет правила; `GetOrderTransactionForEditAsync` загружает с правилами; `GetEnabledTransactionsWithStatuses` исключает отключённые; `GetCanvasData` возвращает статусы и транзакции
+- [x] `OrderStatusQueryTests` — 4 кейса: пагинация с фильтром `internal`; фильтр `marketplace`; фильтр `terminal`; `GetOrderStatusInitDataAsync` возвращает корректные счётчики
+- [x] `AuditLogQueryTests` — 5 кейсов: `GetAuditPagedAsync` по EntityName; по ChangeType; по диапазону дат; `GetAuditByEntityAsync` возвращает только нужные записи; `GetAuditEntityNamesAsync` содержит вставленное имя
+- [x] `CommunicationPaymentRateCrudTests` — 5 кейсов: create/update/deactivate/delete; null TaskType = универсальная ставка
+- [x] `ShipmentCrudTests` — 5 кейсов: create; навигация Orders через Include; soft-delete shipment; soft-delete OrderEntity; HasReturn флаг
+- [x] `MarketplaceClientInitDataTests` — 4 кейса: Types содержит сеяный тип; CountsByTypeId; CountsByModeId; Modes содержит сеяный режим
+
+### Фаза 4 — E2E и сервисные интеграционные тесты
+
+- [x] `OrderTransactionApplyTests` — 4 кейса: успешное проведение меняет `SystemStatusId` + записывает историю; неверный статус → `Success=false` + история с ошибкой; отключённая транзакция → `Success=false`; заказ не найден → `Success=false` *(использует `OrderTransactionService` напрямую с реальным DB)*
+- [x] `OrderTransactionHistoryTests` — 3 кейса: пагинация с сортировкой DESC; Dynamic LINQ фильтр по `Success==true`; пагинация (skip/take)
+- [x] `OrderSelectionInfoTests` — 3 кейса: единый статус → список доступных транзакций; смешанные статусы → пустой список; `SystemStatusId=null` → `HasNullStatus=true`
+- [x] `SyncJobTests` — 5 кейсов: create schedule; update cron; create history; update status `Enqueued→Succeeded`; filter by `JobType`
+- [x] `BuildAuditValueResolverTests` — 3 кейса: резолвит `StatusId` → имя `OrderStatus`; резолвит `MarketplaceClientId` → имя клиента; пустые логи → пустой словарь
+- [x] `PermissionQueryTests` — 4 кейса: `GetPagesWithDetailsAsync` после seed; `GetEntityOptionsForPermissionAsync` возвращает все типы сущностей; `GetAvailablePermissionsAsync` содержит созданное право; `GetPermissionByIdAsync` возвращает правильное право
+
 ### Фаза 5 — Тесты внешних сервисов
 - [x] `OzonApiClientTests` — WireMock.Net: success, 401, пустые credentials
-- [x] `SmtpEmailServiceTests` — пустой Host: не бросает исключение, логирует warning (3 кейса) ✅
 
 ### Бэклог — Auth
 - [x] `JwtTokenTests` — 6 кейсов: sub/email/roles/full_access claims, no full_access when false, issuer+audience ✅
