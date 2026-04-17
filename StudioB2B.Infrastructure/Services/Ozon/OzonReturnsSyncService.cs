@@ -36,7 +36,7 @@ public class OzonReturnsSyncService
 
         var clients = await query.ToListAsync(ct);
 
-        _logger.LogInformation("Starting returns sync for {Count} Ozon client(s).", clients.Count);
+        _logger.LogWarning("Starting returns sync for {Count} Ozon client(s).", clients.Count);
 
         var total = new ReturnsSyncResultDto();
 
@@ -57,7 +57,7 @@ public class OzonReturnsSyncService
             }
         }
 
-        _logger.LogInformation(
+        _logger.LogWarning(
             "Returns sync completed: created={Created}, updated={Updated}, linked={Linked}.",
             total.Created, total.Updated, total.Linked);
         return total;
