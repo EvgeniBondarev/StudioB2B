@@ -8,20 +8,20 @@ namespace StudioB2B.Infrastructure.Services.Communication;
 
 public class CommunicationTaskSyncService : ICommunicationTaskSyncService
 {
-    private readonly TenantDbContext _db;
+    private readonly ITenantDbContextFactory _dbContextFactory;
     private readonly IOzonChatService _chatService;
     private readonly IOzonQuestionsService _questionsService;
     private readonly IOzonReviewsService _reviewsService;
     private readonly ILogger<CommunicationTaskSyncService> _logger;
 
     public CommunicationTaskSyncService(
-        TenantDbContext db,
+        ITenantDbContextFactory dbContextFactory,
         IOzonChatService chatService,
         IOzonQuestionsService questionsService,
         IOzonReviewsService reviewsService,
         ILogger<CommunicationTaskSyncService> logger)
     {
-        _db = db;
+        _dbContextFactory = dbContextFactory;
         _chatService = chatService;
         _questionsService = questionsService;
         _reviewsService = reviewsService;
@@ -30,39 +30,39 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
 
     public async Task<int> SyncAsync(CancellationToken ct = default)
     {
-        _db.SuppressAudit = true;
+        using var db = _dbContextFactory.CreateDbContext();
+        db.SuppressAudit = true;
         try
         {
-            var r1 = await SyncChatsAsync(fullSync: true, ct);
-            var r2 = await SyncQuestionsAsync(fullSync: true, ct);
-            var r3 = await SyncReviewsAsync(fullSync: true, ct);
+            var r1 = await SyncChatsAsync(db, fullSync: true, ct);
+            var r2 = await SyncQuestionsAsync(db, fullSync: true, ct);
+            var r3 = await SyncReviewsAsync(db, fullSync: true, ct);
             return r1 + r2 + r3;
         }
         finally
         {
-            _db.ChangeTracker.Clear();
-            _db.SuppressAudit = false;
+            db.SuppressAudit = false;
         }
     }
 
     public async Task<int> SyncRecentAsync(CancellationToken ct = default)
     {
-        _db.SuppressAudit = true;
+        using var db = _dbContextFactory.CreateDbContext();
+        db.SuppressAudit = true;
         try
         {
-            var r1 = await SyncChatsAsync(fullSync: false, ct);
-            var r2 = await SyncQuestionsAsync(fullSync: false, ct);
-            var r3 = await SyncReviewsAsync(fullSync: false, ct);
+            var r1 = await SyncChatsAsync(db, fullSync: false, ct);
+            var r2 = await SyncQuestionsAsync(db, fullSync: false, ct);
+            var r3 = await SyncReviewsAsync(db, fullSync: false, ct);
             return r1 + r2 + r3;
         }
         finally
         {
-            _db.ChangeTracker.Clear();
-            _db.SuppressAudit = false;
+            db.SuppressAudit = false;
         }
     }
 
-    private async Task<int> SyncChatsAsync(bool fullSync, CancellationToken ct)
+    private async Task<int> SyncChatsAsync(TenantDbContext db, bool fullSync, CancellationToken ct)
     {
         try
         {
@@ -81,7 +81,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             if (chats.Count == 0) return 0;
 
             var externalIds = chats.Select(c => c.ChatId).ToList();
-            var existing = await _db.CommunicationTasks
+            var existing = await db.CommunicationTasks
                 .Where(t => t.TaskType == CommunicationTaskType.Chat && externalIds.Contains(t.ExternalId))
                 .ToDictionaryAsync(t => t.ExternalId, ct);
 
@@ -107,7 +107,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                     task.AssignedToUserId = null;
                     task.AssignedAt = null;
 
-                    _db.CommunicationTaskLogs.Add(new Domain.Entities.CommunicationTaskLog
+                    db.CommunicationTaskLogs.Add(new Domain.Entities.CommunicationTaskLog
                     {
                         Id = Guid.NewGuid(),
                         TaskId = task.Id,
@@ -121,26 +121,26 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                 }
             }
 
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             _logger.LogWarning("Synced {Count} existing chat tasks (full={Full}), inline-reopened {Reopened}",
                 existing.Count, fullSync, inlineReopened);
 
-            var deepReopened = await AutoReopenDoneChatsAsync(ct);
+            var deepReopened = await AutoReopenDoneChatsAsync(db, ct);
             return inlineReopened + deepReopened;
         }
         catch (Exception ex)
         {
-            _db.ChangeTracker.Clear();
+            db.ChangeTracker.Clear();
             _logger.LogError(ex, "Failed to sync chats to task board");
             return 0;
         }
     }
 
-    private async Task<int> AutoReopenDoneChatsAsync(CancellationToken ct)
+    private async Task<int> AutoReopenDoneChatsAsync(TenantDbContext db, CancellationToken ct)
     {
         try
         {
-            var doneTasks = await _db.CommunicationTasks
+            var doneTasks = await db.CommunicationTasks
                 .Where(t => t.TaskType == CommunicationTaskType.Chat &&
                             t.Status == CommunicationTaskStatus.Done &&
                             !t.IsDeleted)
@@ -149,7 +149,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             if (doneTasks.Count == 0) return 0;
 
             var sem = new SemaphoreSlim(4);
-            var reopened = 0;
+            var toReopen = new System.Collections.Concurrent.ConcurrentBag<Domain.Entities.CommunicationTask>();
 
             async Task CheckOne(Domain.Entities.CommunicationTask task)
             {
@@ -161,24 +161,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                     var last = history?.Messages.FirstOrDefault();
                     if (last is null) return;
                     if (!IsCustomerUserType(last.User?.Type)) return;
-
-                    task.Status = CommunicationTaskStatus.New;
-                    task.WasPreviouslyCompleted = true;
-                    task.AssignedToUserId = null;
-                    task.AssignedAt = null;
-                    task.UpdatedAt = DateTime.UtcNow;
-
-                    _db.CommunicationTaskLogs.Add(new Domain.Entities.CommunicationTaskLog
-                    {
-                        Id = Guid.NewGuid(),
-                        TaskId = task.Id,
-                        UserId = null,
-                        Action = "AutoReopened",
-                        Details = "Новое сообщение от покупателя после завершения",
-                        CreatedAt = DateTime.UtcNow
-                    });
-
-                    Interlocked.Increment(ref reopened);
+                    toReopen.Add(task);
                 }
                 catch (Exception ex)
                 {
@@ -192,22 +175,44 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
 
             await Task.WhenAll(doneTasks.Select(CheckOne));
 
+            var reopened = 0;
+            foreach (var task in toReopen)
+            {
+                task.Status = CommunicationTaskStatus.New;
+                task.WasPreviouslyCompleted = true;
+                task.AssignedToUserId = null;
+                task.AssignedAt = null;
+                task.UpdatedAt = DateTime.UtcNow;
+
+                db.CommunicationTaskLogs.Add(new Domain.Entities.CommunicationTaskLog
+                {
+                    Id = Guid.NewGuid(),
+                    TaskId = task.Id,
+                    UserId = null,
+                    Action = "AutoReopened",
+                    Details = "Новое сообщение от покупателя после завершения",
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                reopened++;
+            }
+
             if (reopened > 0)
             {
-                await _db.SaveChangesAsync(ct);
+                await db.SaveChangesAsync(ct);
                 _logger.LogWarning("Auto-reopened {Count} done chat tasks with new buyer messages", reopened);
             }
             return reopened;
         }
         catch (Exception ex)
         {
-            _db.ChangeTracker.Clear();
+            db.ChangeTracker.Clear();
             _logger.LogError(ex, "Failed to auto-reopen done chat tasks");
             return 0;
         }
     }
 
-    private async Task<int> SyncQuestionsAsync(bool fullSync, CancellationToken ct)
+    private async Task<int> SyncQuestionsAsync(TenantDbContext db, bool fullSync, CancellationToken ct)
     {
         try
         {
@@ -225,7 +230,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             if (allQuestions.Count == 0) return 0;
 
             var externalIds = allQuestions.Select(q => q.Id).ToList();
-            var existing = await _db.CommunicationTasks
+            var existing = await db.CommunicationTasks
                 .Where(t => t.TaskType == CommunicationTaskType.Question && externalIds.Contains(t.ExternalId))
                 .ToDictionaryAsync(t => t.ExternalId, ct);
 
@@ -239,20 +244,20 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                 task.UpdatedAt = DateTime.UtcNow;
             }
 
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             _logger.LogWarning("Synced {Count} existing question tasks (full={Full})", existing.Count, fullSync);
 
-            return await AutoReopenByStatusChangeAsync(existing.Values, IsTerminalQuestionStatus, ct);
+            return await AutoReopenByStatusChangeAsync(db, existing.Values, IsTerminalQuestionStatus, ct);
         }
         catch (Exception ex)
         {
-            _db.ChangeTracker.Clear();
+            db.ChangeTracker.Clear();
             _logger.LogError(ex, "Failed to sync questions to task board");
             return 0;
         }
     }
 
-    private async Task<int> SyncReviewsAsync(bool fullSync, CancellationToken ct)
+    private async Task<int> SyncReviewsAsync(TenantDbContext db, bool fullSync, CancellationToken ct)
     {
         try
         {
@@ -268,7 +273,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             if (allReviews.Count == 0) return 0;
 
             var externalIds = allReviews.Select(r => r.Id).ToList();
-            var existing = await _db.CommunicationTasks
+            var existing = await db.CommunicationTasks
                 .Where(t => t.TaskType == CommunicationTaskType.Review && externalIds.Contains(t.ExternalId))
                 .ToDictionaryAsync(t => t.ExternalId, ct);
 
@@ -282,20 +287,21 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                 task.UpdatedAt = DateTime.UtcNow;
             }
 
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             _logger.LogWarning("Synced {Count} existing review tasks (full={Full})", existing.Count, fullSync);
 
-            return await AutoReopenByStatusChangeAsync(existing.Values, IsTerminalReviewStatus, ct);
+            return await AutoReopenByStatusChangeAsync(db, existing.Values, IsTerminalReviewStatus, ct);
         }
         catch (Exception ex)
         {
-            _db.ChangeTracker.Clear();
+            db.ChangeTracker.Clear();
             _logger.LogError(ex, "Failed to sync reviews to task board");
             return 0;
         }
     }
 
     private async Task<int> AutoReopenByStatusChangeAsync(
+        TenantDbContext db,
         ICollection<Domain.Entities.CommunicationTask> syncedTasks,
         Func<string?, bool> isTerminalStatus,
         CancellationToken ct)
@@ -313,7 +319,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             task.AssignedAt = null;
             task.UpdatedAt = DateTime.UtcNow;
 
-            _db.CommunicationTaskLogs.Add(new Domain.Entities.CommunicationTaskLog
+            db.CommunicationTaskLogs.Add(new Domain.Entities.CommunicationTaskLog
             {
                 Id = Guid.NewGuid(),
                 TaskId = task.Id,
@@ -328,7 +334,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
 
         if (reopened > 0)
         {
-            await _db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
             _logger.LogWarning("Auto-reopened {Count} tasks based on external status change", reopened);
         }
         return reopened;

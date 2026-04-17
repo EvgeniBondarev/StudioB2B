@@ -14,22 +14,27 @@ namespace StudioB2B.Tests.Unit.Services;
 
 public class CommunicationTaskSyncTests
 {
-    private static TenantDbContext CreateInMemoryContext(string dbName)
-    {
-        var options = new DbContextOptionsBuilder<TenantDbContext>()
+    private static DbContextOptions<TenantDbContext> InMemoryOptions(string dbName) =>
+        new DbContextOptionsBuilder<TenantDbContext>()
             .UseInMemoryDatabase(dbName)
             .Options;
-        return new TenantDbContext(options, currentUserProvider: null);
+
+    private static TenantDbContext CreateInMemoryContext(string dbName) =>
+        new(InMemoryOptions(dbName), currentUserProvider: null);
+
+    private sealed class InMemoryFactory(string dbName) : ITenantDbContextFactory
+    {
+        public TenantDbContext CreateDbContext() => new(InMemoryOptions(dbName), currentUserProvider: null);
     }
 
     private static CommunicationTaskSyncService CreateService(
-        TenantDbContext ctx,
+        string dbName,
         IOzonChatService? chatService = null,
         IOzonQuestionsService? questionsService = null,
         IOzonReviewsService? reviewsService = null)
     {
         return new CommunicationTaskSyncService(
-            ctx,
+            new InMemoryFactory(dbName),
             chatService ?? EmptyChatService(),
             questionsService ?? EmptyQuestionsService(),
             reviewsService ?? EmptyReviewsService(),
@@ -70,8 +75,9 @@ public class CommunicationTaskSyncTests
     [Fact]
     public async Task SyncAsync_AllServicesReturnEmpty_Returns0()
     {
-        await using var ctx = CreateInMemoryContext(nameof(SyncAsync_AllServicesReturnEmpty_Returns0));
-        var svc = CreateService(ctx);
+        var dbName = nameof(SyncAsync_AllServicesReturnEmpty_Returns0);
+        await using var ctx = CreateInMemoryContext(dbName);
+        var svc = CreateService(dbName);
 
         var result = await svc.SyncAsync();
 
@@ -81,7 +87,8 @@ public class CommunicationTaskSyncTests
     [Fact]
     public async Task SyncAsync_ChatServiceReturnsChatsButNoMatchingTasksInDb_Returns0()
     {
-        await using var ctx = CreateInMemoryContext(nameof(SyncAsync_ChatServiceReturnsChatsButNoMatchingTasksInDb_Returns0));
+        var dbName = nameof(SyncAsync_ChatServiceReturnsChatsButNoMatchingTasksInDb_Returns0);
+        await using var ctx = CreateInMemoryContext(dbName);
         ctx.SuppressAudit = true;
 
         // DB has no CommunicationTasks that match the chat external IDs
@@ -97,7 +104,7 @@ public class CommunicationTaskSyncTests
                 It.IsAny<ulong?>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((OzonChatHistoryResponseDto?)null);
 
-        var svc = CreateService(ctx, chatService: chatMock.Object);
+        var svc = CreateService(dbName, chatService: chatMock.Object);
 
         var result = await svc.SyncAsync();
 
@@ -107,7 +114,8 @@ public class CommunicationTaskSyncTests
     [Fact]
     public async Task SyncAsync_DoneTaskWithUnreadMessages_ReopensTask()
     {
-        await using var ctx = CreateInMemoryContext(nameof(SyncAsync_DoneTaskWithUnreadMessages_ReopensTask));
+        var dbName = nameof(SyncAsync_DoneTaskWithUnreadMessages_ReopensTask);
+        await using var ctx = CreateInMemoryContext(dbName);
         ctx.SuppressAudit = true;
 
         const string chatId = "chat-reopened";
@@ -135,7 +143,7 @@ public class CommunicationTaskSyncTests
                 It.IsAny<ulong?>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((OzonChatHistoryResponseDto?)null);
 
-        var svc = CreateService(ctx, chatService: chatMock.Object);
+        var svc = CreateService(dbName, chatService: chatMock.Object);
 
         var result = await svc.SyncAsync();
 
@@ -149,7 +157,8 @@ public class CommunicationTaskSyncTests
     [Fact]
     public async Task SyncAsync_ChatServiceThrows_Returns0AndNoException()
     {
-        await using var ctx = CreateInMemoryContext(nameof(SyncAsync_ChatServiceThrows_Returns0AndNoException));
+        var dbName = nameof(SyncAsync_ChatServiceThrows_Returns0AndNoException);
+        await using var ctx = CreateInMemoryContext(dbName);
 
         var chatMock = new Mock<IOzonChatService>();
         chatMock.Setup(s => s.GetChatsPageAsync(It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(),
@@ -157,7 +166,7 @@ public class CommunicationTaskSyncTests
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("API unavailable"));
 
-        var svc = CreateService(ctx, chatService: chatMock.Object);
+        var svc = CreateService(dbName, chatService: chatMock.Object);
 
         var act = () => svc.SyncAsync();
 
@@ -169,12 +178,12 @@ public class CommunicationTaskSyncTests
     [Fact]
     public async Task SyncRecentAsync_AllServicesReturnEmpty_Returns0()
     {
-        await using var ctx = CreateInMemoryContext(nameof(SyncRecentAsync_AllServicesReturnEmpty_Returns0));
-        var svc = CreateService(ctx);
+        var dbName = nameof(SyncRecentAsync_AllServicesReturnEmpty_Returns0);
+        await using var ctx = CreateInMemoryContext(dbName);
+        var svc = CreateService(dbName);
 
         var result = await svc.SyncRecentAsync();
 
         result.Should().Be(0);
     }
 }
-
