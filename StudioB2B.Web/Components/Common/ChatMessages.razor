@@ -162,6 +162,9 @@
 
     [Parameter] public EventCallback<(List<string> Items, int Index)> OpenGallery { get; set; }
 
+    /// <summary>Maps Ozon MessageId (as string) → employee display name for seller messages sent through the system.</summary>
+    [Parameter] public IReadOnlyDictionary<string, string>? MessageAuthors { get; set; }
+
     /// <summary>
     /// Если true — картинки загружаются немедленно (eager), иначе — лениво (lazy).
     /// Передавайте true, когда компонент находится внутри CSS-анимированного контейнера
@@ -227,8 +230,13 @@
     private static bool IsSellerMessage(OzonChatMessageDto msg) =>
         msg.User?.Type is "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT";
 
-    private static string GetSenderLabel(OzonChatMessageDto msg) =>
-        msg.User?.Type switch
+    private string GetSenderLabel(OzonChatMessageDto msg)
+    {
+        if (IsSellerMessage(msg) && MessageAuthors is not null &&
+            MessageAuthors.TryGetValue(msg.MessageId.ToString(), out var employeeName))
+            return employeeName;
+
+        return msg.User?.Type switch
         {
             "Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT" => "Продавец",
             // Ozon sometimes sends Cyrillic "С" (U+0421) instead of Latin "C"
@@ -236,6 +244,7 @@
             "Support" => "Поддержка Ozon",
             _ => msg.User?.Type ?? "Система"
         };
+    }
 
 
     private static string? ExtractOzonFileUrl(string data)
