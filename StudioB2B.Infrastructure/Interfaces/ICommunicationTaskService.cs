@@ -1,3 +1,4 @@
+using StudioB2B.Domain.Constants;
 using StudioB2B.Shared;
 
 namespace StudioB2B.Infrastructure.Interfaces;
@@ -71,4 +72,24 @@ public interface ICommunicationTaskService
 
     /// <summary>Invalidates the in-memory cache for live Ozon data (chats, questions, reviews).</summary>
     void InvalidateLiveCache();
+
+    /// <summary>
+    /// Records which employee sent an outgoing message/answer/comment.
+    /// externalId = chatId/questionId/reviewId; externalMessageId = Ozon message ID (string) / answerId / commentId.
+    /// </summary>
+    Task RecordOutgoingMessageAsync(
+        string externalId,
+        CommunicationTaskType taskType,
+        string externalMessageId,
+        Guid sentByUserId,
+        string sentByUserName,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns a map of externalMessageId → employeeDisplayName for all outgoing messages of the given item.
+    /// </summary>
+    Task<Dictionary<string, string>> GetOutgoingAuthorsAsync(
+        string externalId,
+        CommunicationTaskType taskType,
+        CancellationToken ct = default);
 }
