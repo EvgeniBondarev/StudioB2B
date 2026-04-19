@@ -407,6 +407,81 @@
     gap: 0.4rem;
 }
 
+/* Done column: creation → payment → completion */
+.task-card-done-summary {
+    margin-top: 0.4rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid var(--rz-base-200);
+    font-size: 0.68rem;
+    color: var(--rz-text-secondary-color);
+    line-height: 1.4;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.2rem 0.35rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.task-card-done-summary .task-card-done-sep {
+    opacity: 0.45;
+    user-select: none;
+}
+
+.task-card-done-summary strong {
+    color: var(--rz-text-color);
+    font-weight: 600;
+}
+
+.col-done .task-card-done-summary {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* Modal: work sessions + audit log */
+.task-chronology-card {
+    border: 1px solid var(--rz-base-200);
+    border-radius: 8px;
+    overflow-x: auto;
+    overflow-y: visible;
+    max-width: 100%;
+    background: var(--rz-base-50);
+}
+
+.task-chronology-card .task-chronology-subtitle {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--rz-text-secondary-color);
+    padding: 0.35rem 0.65rem 0.15rem;
+}
+
+.task-chronology-table {
+    width: 100%;
+    font-size: 0.74rem;
+    border-collapse: collapse;
+}
+
+.task-chronology-table th {
+    text-align: left;
+    padding: 4px 8px;
+    font-weight: 500;
+    color: var(--rz-text-secondary-color);
+    background: var(--rz-base-100);
+    border-top: 1px solid var(--rz-base-200);
+}
+
+.task-chronology-table td {
+    padding: 4px 8px;
+    border-top: 1px solid var(--rz-base-200);
+    vertical-align: top;
+}
+
+.task-chronology-table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
 .task-card-time {
     display: inline-flex;
     align-items: center;
@@ -818,6 +893,50 @@
     min-height: 0;
 }
 
+/* Колонка чата в превью (оверлей «В работе» и боковая модалка) */
+.taskboard-chat-column {
+    margin: -1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.col-inprogress .task-detail-overlay .taskboard-chat-column {
+    flex: 1;
+    min-height: 0;
+}
+
+/* Боковая модалка (Новые / Выполненные): одна прокрутка, блоки без сжатия */
+.task-side-modal-backdrop > .task-detail-overlay {
+    pointer-events: all;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 100svh;
+    overflow: hidden;
+}
+
+.task-detail-body.task-detail-body--modal-scroll {
+    display: block;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+.task-side-modal-backdrop .taskboard-chat-column {
+    flex: none;
+    min-height: auto;
+}
+
+.task-side-modal-backdrop .task-detail-body--modal-scroll .chat-messages-area {
+    flex: none !important;
+    overflow-y: visible !important;
+    min-height: unset !important;
+    max-height: none !important;
+}
+
 /* Earnings hover popup */
 .earnings-popup-wrap {
     position: relative;
@@ -854,10 +973,6 @@
     z-index: 1000;
     background: transparent;
     pointer-events: none;
-}
-
-.task-side-modal-backdrop > .task-detail-overlay {
-    pointer-events: all;
 }
 
 .task-detail-overlay.overlay-col-new {

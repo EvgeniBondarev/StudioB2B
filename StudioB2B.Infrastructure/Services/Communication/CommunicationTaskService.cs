@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -934,13 +935,16 @@ public class CommunicationTaskService : ICommunicationTaskService
 
             task.PaymentAmount = await CalculatePaymentAsync(db, task, ct);
 
+            var ru = CultureInfo.GetCultureInfo("ru-RU");
+            var payStr = (task.PaymentAmount ?? 0m).ToString("N2", ru);
+            var timeStr = string.Format(CultureInfo.InvariantCulture, "{0:hh\\:mm\\:ss}", TimeSpan.FromTicks(totalTicks));
             db.CommunicationTaskLogs.Add(new CommunicationTaskLog
             {
                 Id = Guid.NewGuid(),
                 TaskId = taskId,
                 UserId = userId,
                 Action = "Completed",
-                Details = $"TotalTime: {TimeSpan.FromTicks(totalTicks):hh\\:mm\\:ss}, Payment: {task.PaymentAmount:F2}",
+                Details = $"Время в работе: {timeStr}, начислено: {payStr} ₽",
                 CreatedAt = DateTime.UtcNow
             });
 
