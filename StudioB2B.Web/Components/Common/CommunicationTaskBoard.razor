@@ -1,6 +1,8 @@
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
 @using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.EntityFrameworkCore
+@using System.Globalization
 
 @inject ICommunicationTaskService TaskService
 @inject ICommunicationTaskSyncService SyncService
@@ -19,7 +21,7 @@
 
 @implements IAsyncDisposable
 
-<link rel="stylesheet" href="css/taskboard.css?v=1775729250" />
+<link rel="stylesheet" href="css/taskboard.css?v=1775729400" />
 <link rel="stylesheet" href="css/chats/chatMessages.css" />
 <link rel="stylesheet" href="css/chats/chatComposer.css" />
 <script src="js/taskboard.js?v=1775729247"></script>
@@ -514,7 +516,7 @@
                     }
                     else
                     {
-                        <div style="flex:1;min-height:0;display:flex;flex-direction:column;margin:-1rem;">
+                        <div class="taskboard-chat-column">
                             <ChatMessages Messages="_chatMessages"
                                           SelectedChat="_previewChatVm"
                                           EagerImages="true"
@@ -841,13 +843,43 @@
                             MaxLength="3000"
                             QuickReplies="ReviewQuickReplies" />
                     }
-                    else
+                    else if (_previewTask.Status == CommunicationTaskStatus.New)
                     {
                         <div style="padding:0.6rem 0.9rem;border-radius:8px;
                                    background:var(--rz-base-100);border:1px dashed var(--rz-base-300);
                                    display:flex;align-items:center;gap:0.6rem;color:var(--rz-text-secondary-color);">
                             <span class="rzi" style="font-size:1.15rem;opacity:0.45;">edit_off</span>
                             <span style="font-size:0.82rem;">Чтобы оставить комментарий, нажмите «Взять задачу»</span>
+                        </div>
+                    }
+                    else if (_previewTask.Status == CommunicationTaskStatus.Done)
+                    {
+                        <div class="payment-breakdown-card done" style="margin-top:0.5rem;">
+                            <div class="payment-breakdown-header">
+                                <span class="rzi" style="font-size:0.85rem;">manage_accounts</span>
+                                Обработка
+                            </div>
+                            @if (_previewTask.AssignedToUserName is not null)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Сотрудник</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);font-weight:500;">@_previewTask.AssignedToUserName</span>
+                                </div>
+                            }
+                            @if (_previewTask.AssignedAt.HasValue)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Взят в работу</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);">@_previewTask.AssignedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                </div>
+                            }
+                            @if (_previewTask.CompletedAt.HasValue)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Завершён</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);">@_previewTask.CompletedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                </div>
+                            }
                         </div>
                     }
                 }
@@ -1182,6 +1214,13 @@
                                     }
                                 </div>
                             }
+                            <div class="task-card-done-summary" @onclick:stopPropagation="true">
+                                <span>Создано <strong>@task.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</strong></span>
+                                <span class="task-card-done-sep">·</span>
+                                <span>Заработок <strong>@(task.PaymentAmount is > 0 ? $"+{task.PaymentAmount.Value:F0} ₽" : "—")</strong></span>
+                                <span class="task-card-done-sep">·</span>
+                                <span>@(task.Status == CommunicationTaskStatus.Cancelled ? "Отменён" : task.CompletedAt.HasValue ? "Завершён" : "Обновлён") <strong>@(task.CompletedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? task.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm"))</strong></span>
+                            </div>
                         </div>
                     }
 
@@ -1301,7 +1340,7 @@
                               Click="ClosePreview" />
             </div>
         </div>
-        <div class="task-detail-body" style="@(_previewTask.TaskType == CommunicationTaskType.Chat ? "overflow:hidden;" : "overflow-y:auto;")">
+        <div class="task-detail-body task-detail-body--modal-scroll">
 
             @if (_previewLoading)
             {
@@ -1332,7 +1371,7 @@
                     }
                     else
                     {
-                        <div style="flex:1;min-height:0;display:flex;flex-direction:column;margin:-1rem;">
+                        <div class="taskboard-chat-column">
                             <ChatMessages Messages="_chatMessages"
                                           SelectedChat="_previewChatVm"
                                           EagerImages="true"
@@ -1388,6 +1427,36 @@
                                             QuickReplies="ChatQuickReplies" />
                                     </div>
                                 }
+                            }
+                        </div>
+                    }
+                    @if (_previewTask.Status == CommunicationTaskStatus.Done)
+                    {
+                        <div class="payment-breakdown-card done" style="margin-top:0.5rem;">
+                            <div class="payment-breakdown-header">
+                                <span class="rzi" style="font-size:0.85rem;">manage_accounts</span>
+                                Обработка
+                            </div>
+                            @if (_previewTask.AssignedToUserName is not null)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Сотрудник</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);font-weight:500;">@_previewTask.AssignedToUserName</span>
+                                </div>
+                            }
+                            @if (_previewTask.AssignedAt.HasValue)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Взят в работу</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);">@_previewTask.AssignedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                </div>
+                            }
+                            @if (_previewTask.CompletedAt.HasValue)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Завершён</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);">@_previewTask.CompletedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                </div>
                             }
                         </div>
                     }
@@ -1689,7 +1758,7 @@
                             MaxLength="3000"
                             QuickReplies="ReviewQuickReplies" />
                     }
-                    else
+                    else if (_previewTask.Status == CommunicationTaskStatus.New)
                     {
                         <div style="padding:0.6rem 0.9rem;border-radius:8px;
                                    background:var(--rz-base-100);border:1px dashed var(--rz-base-300);
@@ -1698,6 +1767,106 @@
                             <span style="font-size:0.82rem;">Чтобы оставить комментарий, нажмите «Взять задачу»</span>
                         </div>
                     }
+                    else if (_previewTask.Status == CommunicationTaskStatus.Done)
+                    {
+                        <div class="payment-breakdown-card done" style="margin-top:0.5rem;">
+                            <div class="payment-breakdown-header">
+                                <span class="rzi" style="font-size:0.85rem;">manage_accounts</span>
+                                Обработка
+                            </div>
+                            @if (_previewTask.AssignedToUserName is not null)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Сотрудник</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);font-weight:500;">@_previewTask.AssignedToUserName</span>
+                                </div>
+                            }
+                            @if (_previewTask.AssignedAt.HasValue)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Взят в работу</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);">@_previewTask.AssignedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                </div>
+                            }
+                            @if (_previewTask.CompletedAt.HasValue)
+                            {
+                                <div class="payment-breakdown-row">
+                                    <span class="payment-breakdown-label">Завершён</span>
+                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);">@_previewTask.CompletedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+
+                @if (!_previewLoading &&
+                     _previewTask.Status == CommunicationTaskStatus.Done &&
+                     _taskDetail is not null &&
+                     (_taskDetail.TimeEntries.Count > 0 || _taskDetail.Logs.Count > 0))
+                {
+                    var chronologyEntries = _taskDetail.TimeEntries.OrderBy(e => e.StartedAt).ToList();
+                    var chronologyLogs = _taskDetail.Logs.OrderBy(l => l.CreatedAt).ToList();
+                    var chronologyRu = CultureInfo.GetCultureInfo("ru-RU");
+                    <div class="task-chronology-card" style="margin-top:0.5rem;">
+                        <div class="payment-breakdown-header">
+                            <RadzenIcon Icon="schedule" Style="font-size:0.9rem;margin-right:0.25rem;opacity:0.85;" />
+                            Хронология
+                        </div>
+                        @if (chronologyEntries.Count > 0)
+                        {
+                            <div class="task-chronology-subtitle">Сессии работы</div>
+                            <table class="task-chronology-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:2.2rem;">№</th>
+                                        <th>Начало сессии</th>
+                                        <th>Окончание сессии</th>
+                                        <th class="num" style="width:4.5rem;">Длительность, мин</th>
+                                        <th>Заметка</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (var i = 0; i < chronologyEntries.Count; i++)
+                                    {
+                                        var entry = chronologyEntries[i];
+                                        var n = i + 1;
+                                        <tr>
+                                            <td style="color:var(--rz-text-secondary-color);">@n</td>
+                                            <td>@entry.StartedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss", chronologyRu)</td>
+                                            <td>@(entry.EndedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss", chronologyRu) ?? "—")</td>
+                                            <td class="num">@CommunicationTaskLogUi.FormatSessionMinutesRu(entry.DurationMinutes)</td>
+                                            <td style="color:var(--rz-text-secondary-color);">@(entry.Note ?? "")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        @if (chronologyLogs.Count > 0)
+                        {
+                            <div class="task-chronology-subtitle">@(chronologyEntries.Count > 0 ? "Журнал событий" : "Журнал действий")</div>
+                            <table class="task-chronology-table">
+                                <thead>
+                                    <tr>
+                                        <th>Дата и время</th>
+                                        <th>Событие</th>
+                                        <th>Участник</th>
+                                        <th>Детали</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var log in chronologyLogs)
+                                    {
+                                        <tr>
+                                            <td>@log.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss", chronologyRu)</td>
+                                            <td>@CommunicationTaskLogUi.GetActionRussian(log.Action)</td>
+                                            <td>@(string.IsNullOrEmpty(log.UserName) ? "—" : log.UserName)</td>
+                                            <td style="color:var(--rz-text-secondary-color);word-break:break-word;">@CommunicationTaskLogUi.FormatDetailsRussian(log.Details)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
                 }
 
                 @* Payment breakdown — New: shows applicable rates; Done: shows actual calculation *@
