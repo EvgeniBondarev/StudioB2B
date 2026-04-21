@@ -92,10 +92,11 @@ public static class ServiceExtensions
         }
         else
         {
-            var baseUrl = configuration["App:BaseUrl"]?.TrimEnd('/');
-            client.BaseAddress = !string.IsNullOrEmpty(baseUrl)
-                ? new Uri(baseUrl + "/")
-                : new Uri("http://localhost:5184/");
+            var masterDomain = configuration["MultiTenancy:MasterDomain"]?.TrimEnd('/');
+            var baseUrl = !string.IsNullOrEmpty(masterDomain)
+                ? $"https://{masterDomain}"
+                : "http://localhost:5184";
+            client.BaseAddress = new Uri(baseUrl + "/");
         }
     }
 

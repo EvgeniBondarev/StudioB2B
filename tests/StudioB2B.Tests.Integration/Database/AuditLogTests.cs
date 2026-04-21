@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Domain.Entities;
+using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services.MultiTenancy;
 using Xunit;
 
@@ -13,7 +14,7 @@ public class AuditLogTests : IClassFixture<TenantDbContextFixture>
 
     public AuditLogTests(TenantDbContextFixture fixture) => _fixture = fixture;
 
-    private static async Task SeedAsync(StudioB2B.Infrastructure.Persistence.Tenant.TenantDbContext ctx)
+    private static async Task SeedAsync(TenantDbContext ctx)
     {
         var method = typeof(TenantDatabaseInitializer)
             .GetMethod("SeedPagesColumnsAndFunctionsAsync",
