@@ -2,10 +2,11 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using StudioB2B.Domain.Entities;
+using StudioB2B.Domain.Options;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Shared;
@@ -18,14 +19,14 @@ namespace StudioB2B.Infrastructure.Services;
 public class MasterAuthService
 {
     private readonly MasterDbContext _db;
-    private readonly IConfiguration _configuration;
+    private readonly JwtOptions _jwtOptions;
     private readonly IEmailService _emailService;
     private readonly ILogger<MasterAuthService> _logger;
 
-    public MasterAuthService(MasterDbContext db, IConfiguration configuration, IEmailService emailService, ILogger<MasterAuthService> logger)
+    public MasterAuthService(MasterDbContext db, IOptions<JwtOptions> jwtOptions, IEmailService emailService, ILogger<MasterAuthService> logger)
     {
         _db = db;
-        _configuration = configuration;
+        _jwtOptions = jwtOptions.Value;
         _emailService = emailService;
         _logger = logger;
     }
@@ -259,11 +260,10 @@ public class MasterAuthService
 
     private (string token, DateTime expiresAt) GenerateJwtToken(MasterUser user, IEnumerable<string> roles)
     {
-        var jwtSection = _configuration.GetSection("Jwt");
-        var secret = jwtSection["Secret"]!;
-        var issuer = jwtSection["Issuer"] ?? "StudioB2B";
-        var audience = jwtSection["Audience"] ?? "StudioB2B";
-        var expiresMinutes = jwtSection.GetValue<int?>("ExpiresMinutes") ?? 60;
+        var secret = _jwtOptions.Secret;
+        var issuer = _jwtOptions.Issuer;
+        var audience = _jwtOptions.Audience;
+        var expiresMinutes = _jwtOptions.ExpiresMinutes;
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

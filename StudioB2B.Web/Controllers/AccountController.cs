@@ -3,7 +3,9 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using StudioB2B.Domain.Options;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Shared;
 
@@ -15,18 +17,18 @@ public class AccountController : ControllerBase
 {
     private readonly IAccountService _accountService;
     private readonly ITenantProvider _tenantProvider;
-    private readonly IConfiguration _configuration;
+    private readonly JwtOptions _jwtOptions;
     private readonly ILogger<AccountController> _logger;
 
     public AccountController(
         IAccountService accountService,
         ITenantProvider tenantProvider,
-        IConfiguration configuration,
+        IOptions<JwtOptions> jwtOptions,
         ILogger<AccountController> logger)
     {
         _accountService = accountService;
         _tenantProvider = tenantProvider;
-        _configuration = configuration;
+        _jwtOptions = jwtOptions.Value;
         _logger = logger;
     }
 
@@ -53,7 +55,7 @@ public class AccountController : ControllerBase
             var directToken = GenerateJwtToken(
                 result.DirectLogin.UserId, result.DirectLogin.Email,
                 result.DirectLogin.IsFullAccess, result.DirectLogin.RoleNames);
-            var expiresMinutesDirect = _configuration.GetSection("Jwt").GetValue<int?>("ExpiresMinutes") ?? 60;
+            var expiresMinutesDirect = _jwtOptions.ExpiresMinutes;
             _logger.LogInformation("User {Email} logged in directly (no code required)", request.Email);
             return Ok(new { requiresVerification = false, token = directToken, expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutesDirect) });
         }
@@ -80,7 +82,7 @@ public class AccountController : ControllerBase
         }
 
         var token = GenerateJwtToken(result.UserId, result.Email, result.IsFullAccess, result.RoleNames);
-        var expiresMinutes = _configuration.GetSection("Jwt").GetValue<int?>("ExpiresMinutes") ?? 60;
+        var expiresMinutes = _jwtOptions.ExpiresMinutes;
 
         _logger.LogInformation("User {Email} logged in successfully", result.Email);
         return Ok(new { token, expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes) });
@@ -129,18 +131,17 @@ public class AccountController : ControllerBase
             return Unauthorized(new { error = "User not found or inactive" });
 
         var token = GenerateJwtToken(result.UserId, result.Email, result.IsFullAccess, result.RoleNames);
-        var expiresMinutes = _configuration.GetSection("Jwt").GetValue<int?>("ExpiresMinutes") ?? 60;
+        var expiresMinutes = _jwtOptions.ExpiresMinutes;
 
         return Ok(new { token, expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes) });
     }
 
     private string GenerateJwtToken(Guid userId, string email, bool isFullAccess, IEnumerable<string> roleNames)
     {
-        var jwtSection = _configuration.GetSection("Jwt");
-        var secret = jwtSection["Secret"]!;
-        var issuer = jwtSection["Issuer"] ?? "StudioB2B";
-        var audience = jwtSection["Audience"] ?? "StudioB2B";
-        var expiresMinutes = jwtSection.GetValue<int?>("ExpiresMinutes") ?? 60;
+        var secret = _jwtOptions.Secret;
+        var issuer = _jwtOptions.Issuer;
+        var audience = _jwtOptions.Audience;
+        var expiresMinutes = _jwtOptions.ExpiresMinutes;
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

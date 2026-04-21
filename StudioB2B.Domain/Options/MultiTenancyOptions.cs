@@ -4,9 +4,9 @@ public class MultiTenancyOptions
 {
     public const string SectionName = "MultiTenancy";
 
-    public string MasterDomain { get; set; } = "studiob2b.ru";
+    public string MasterDomain { get; set; } = string.Empty;
 
-    public string[] ReservedSubdomains { get; set; } = ["app", "www", "api", "admin", "master", "minio", "seq", "chat", "matrix", "dimension"];
+    public string[] ReservedSubdomains { get; set; } = [];
 
-    public string TenantDbConnectionTemplate { get; set; } = "Server=localhost;Database={0};User=root;Password=root;Allow User Variables=true;AllowPublicKeyRetrieval=True;";
+    public string TenantDbConnectionTemplate { get; set; } = string.Empty;
 }

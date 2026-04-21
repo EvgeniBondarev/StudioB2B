@@ -47,9 +47,9 @@ public static class ReturnExtensions
             var term = request.SearchText.Trim();
             query = query.Where(r =>
                 (r.PostingNumber != null && r.PostingNumber.Contains(term)) ||
-                (r.OrderNumber   != null && r.OrderNumber.Contains(term))   ||
-                (r.ProductName   != null && r.ProductName.Contains(term))   ||
-                (r.OfferId       != null && r.OfferId.Contains(term)));
+                (r.OrderNumber != null && r.OrderNumber.Contains(term)) ||
+                (r.ProductName != null && r.ProductName.Contains(term)) ||
+                (r.OfferId != null && r.OfferId.Contains(term)));
         }
 
         // Динамический фильтр RadzenDataGrid
