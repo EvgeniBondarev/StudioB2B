@@ -5,25 +5,25 @@ public class BackupOptions
     public const string SectionName = "Backup";
 
     /// <summary>MinIO endpoint, например "minio:9000".</summary>
-    public string Endpoint { get; set; } = "minio:9000";
+    public string Endpoint { get; set; } = string.Empty;
 
     /// <summary>Публичный endpoint для presigned URLs (если MinIO доступен снаружи). Если пусто — используется Endpoint.</summary>
     public string? PublicEndpoint { get; set; }
 
-    public string Bucket { get; set; } = "backups";
+    public string Bucket { get; set; } = string.Empty;
 
-    public string AccessKey { get; set; } = "";
+    public string AccessKey { get; set; } = string.Empty;
 
-    public string SecretKey { get; set; } = "";
+    public string SecretKey { get; set; } = string.Empty;
 
     public bool UseSSL { get; set; }
 
     /// <summary>Количество дней хранения по умолчанию.</summary>
-    public int DefaultRetentionDays { get; set; } = 30;
+    public int DefaultRetentionDays { get; set; }
 
-    /// <summary>Путь к бинарнику mysqldump. По умолчанию "mysqldump" (работает в Docker/Linux).</summary>
-    public string MysqldumpPath { get; set; } = "mysqldump";
+    /// <summary>Путь к бинарнику mysqldump.</summary>
+    public string MysqldumpPath { get; set; } = string.Empty;
 
-    /// <summary>Путь к бинарнику mysql. По умолчанию "mysql" (работает в Docker/Linux).</summary>
-    public string MysqlPath { get; set; } = "mysql";
+    /// <summary>Путь к бинарнику mysql.</summary>
+    public string MysqlPath { get; set; } = string.Empty;
 }

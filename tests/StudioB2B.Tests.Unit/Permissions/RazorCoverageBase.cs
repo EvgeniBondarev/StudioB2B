@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-
 namespace StudioB2B.Tests.Unit.Permissions;
 
 /// <summary>
@@ -7,10 +5,6 @@ namespace StudioB2B.Tests.Unit.Permissions;
 /// </summary>
 public abstract class RazorCoverageBase
 {
-    protected static readonly string RazorRoot =
-        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
-            "StudioB2B.Web", "Components");
-
     /// <summary>Returns all text content from all .razor and .cs files under the Web project.</summary>
     protected static string GetAllSourceText()
     {
@@ -25,7 +19,4 @@ public abstract class RazorCoverageBase
 
         return string.Join("\n", files.Select(File.ReadAllText));
     }
-
-    protected static bool ContainsPattern(string text, string pattern)
-        => Regex.IsMatch(text, Regex.Escape(pattern));
 }

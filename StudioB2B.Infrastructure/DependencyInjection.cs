@@ -33,6 +33,21 @@ public static class DependencyInjection
         services.Configure<MultiTenancyOptions>(
             configuration.GetSection(MultiTenancyOptions.SectionName));
 
+        services.Configure<OzonOptions>(
+            configuration.GetSection(OzonOptions.SectionName));
+
+        services.Configure<EncryptionOptions>(
+            configuration.GetSection(EncryptionOptions.SectionName));
+
+        services.Configure<JwtOptions>(
+            configuration.GetSection(JwtOptions.SectionName));
+
+        services.Configure<SeedOptions>(
+            configuration.GetSection(SeedOptions.SectionName));
+
+        services.Configure<ManufacturersModuleOptions>(
+            configuration.GetSection(ManufacturersModuleOptions.SectionName));
+
         services.AddAutoMapper(cfg => cfg.AddMaps(typeof(DependencyInjection).Assembly));
 
         services.AddDbContext<MasterDbContext>(options =>
@@ -61,14 +76,12 @@ public static class DependencyInjection
         services.AddTransient<RetryHandler>();
         services.AddTransient<RateLimitHandler>();
 
-        var ozonSection = configuration.GetSection("Ozon");
-        var ozonBaseAddress = ozonSection.GetValue<string>("BaseAddress") ?? "https://api-seller.ozon.ru/";
-        var ozonTimeoutSeconds = ozonSection.GetValue<int?>("TimeoutSeconds") ?? 30;
+        var ozonOpts = configuration.GetSection(OzonOptions.SectionName).Get<OzonOptions>() ?? new OzonOptions();
 
         services.AddHttpClient("Ozon", client =>
         {
-            client.BaseAddress = new Uri(ozonBaseAddress);
-            client.Timeout = TimeSpan.FromSeconds(ozonTimeoutSeconds);
+            client.BaseAddress = new Uri(ozonOpts.BaseAddress);
+            client.Timeout = TimeSpan.FromSeconds(ozonOpts.TimeoutSeconds);
         })
         .AddHttpMessageHandler<LoggingHandler>()
         .AddHttpMessageHandler<RetryHandler>()
@@ -118,10 +131,10 @@ public static class DependencyInjection
         // (например OrderSyncJobService, вызываемый параллельно из polling + UI)
         services.AddScoped<ITenantDbContextCreator, TenantDbContextCreator>();
 
-        var jwtSection = configuration.GetSection("Jwt");
-        var secret = jwtSection["Secret"] ?? throw new InvalidOperationException("Jwt:Secret is not configured");
-        var issuer = jwtSection["Issuer"] ?? "StudioB2B";
-        var audience = jwtSection["Audience"] ?? "StudioB2B";
+        var jwtOpts = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
+        var secret = !string.IsNullOrEmpty(jwtOpts.Secret)
+            ? jwtOpts.Secret
+            : throw new InvalidOperationException("Jwt:Secret is not configured");
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
 
         services
@@ -134,8 +147,8 @@ public static class DependencyInjection
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = issuer,
-                    ValidAudience = audience,
+                    ValidIssuer = jwtOpts.Issuer,
+                    ValidAudience = jwtOpts.Audience,
                     IssuerSigningKey = key,
                     ClockSkew = TimeSpan.Zero
                 };

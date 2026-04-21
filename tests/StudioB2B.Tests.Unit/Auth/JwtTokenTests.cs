@@ -2,9 +2,10 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Security.Claims;
 using FluentAssertions;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
+using StudioB2B.Domain.Options;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Web.Controllers;
 using Xunit;
@@ -21,20 +22,18 @@ public class JwtTokenTests
 
     private static AccountController CreateController()
     {
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Jwt:Secret"] = Secret,
-                ["Jwt:Issuer"] = "test-issuer",
-                ["Jwt:Audience"] = "test-audience",
-                ["Jwt:ExpiresMinutes"] = "60"
-            })
-            .Build();
+        var jwtOptions = Options.Create(new JwtOptions
+        {
+            Secret = Secret,
+            Issuer = "test-issuer",
+            Audience = "test-audience",
+            ExpiresMinutes = 60
+        });
 
         return new AccountController(
             Mock.Of<IAccountService>(),
             Mock.Of<ITenantProvider>(),
-            config,
+            jwtOptions,
             NullLogger<AccountController>.Instance);
     }
 

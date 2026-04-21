@@ -3,7 +3,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using StudioB2B.Domain.Entities;
+using StudioB2B.Domain.Options;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
 
@@ -18,14 +20,17 @@ public class DatabaseMigrationService : IHostedService
     private readonly ILogger<DatabaseMigrationService> _logger;
     private readonly IHostEnvironment _environment;
     private readonly IConfiguration _configuration;
+    private readonly SeedOptions _seedOptions;
 
     public DatabaseMigrationService(IServiceProvider serviceProvider, ILogger<DatabaseMigrationService> logger,
-                                    IHostEnvironment environment, IConfiguration configuration)
+                                    IHostEnvironment environment, IConfiguration configuration,
+                                    IOptions<SeedOptions> seedOptions)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _environment = environment;
         _configuration = configuration;
+        _seedOptions = seedOptions.Value;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -106,8 +111,8 @@ public class DatabaseMigrationService : IHostedService
     {
         const string adminRoleName = "Admin";
         const string userRoleName = "User";
-        const string adminEmail = "korol20041@gmail.com";
-        const string adminPassword = "Admin1!";
+        var adminEmail = _seedOptions.AdminEmail;
+        var adminPassword = _seedOptions.AdminPassword;
 
         // Роль Admin
         var adminRole = await db.Roles.FirstOrDefaultAsync(r => r.Name == adminRoleName, ct);

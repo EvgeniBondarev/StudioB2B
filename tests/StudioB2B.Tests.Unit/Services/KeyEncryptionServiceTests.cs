@@ -1,5 +1,6 @@
 using FluentAssertions;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
+using StudioB2B.Domain.Options;
 using StudioB2B.Infrastructure.Services;
 using Xunit;
 
@@ -9,11 +10,8 @@ public class KeyEncryptionServiceTests
 {
     private static KeyEncryptionService Create(string? base64Key = null)
     {
-        var dict = base64Key is null
-            ? new Dictionary<string, string?>()
-            : new Dictionary<string, string?> { ["Encryption:Key"] = base64Key };
-        var config = new ConfigurationBuilder().AddInMemoryCollection(dict).Build();
-        return new KeyEncryptionService(config);
+        var opts = Options.Create(new EncryptionOptions { Key = base64Key ?? "" });
+        return new KeyEncryptionService(opts);
     }
 
     [Theory]

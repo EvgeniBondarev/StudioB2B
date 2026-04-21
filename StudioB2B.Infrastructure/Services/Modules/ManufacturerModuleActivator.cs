@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using StudioB2B.Domain.Constants;
 using StudioB2B.Domain.Entities;
+using StudioB2B.Domain.Options;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Tenant;
 
@@ -11,18 +12,18 @@ namespace StudioB2B.Infrastructure.Services.Modules;
 
 public class ManufacturerModuleActivator : IModuleActivator
 {
-    private readonly IConfiguration _configuration;
+    private readonly ManufacturersModuleOptions _options;
     private readonly IHostEnvironment _hostEnvironment;
     private readonly ILogger<ManufacturerModuleActivator> _logger;
 
     public string ModuleCode => ModuleCodes.Manufacturers;
 
     public ManufacturerModuleActivator(
-        IConfiguration configuration,
+        IOptions<ManufacturersModuleOptions> options,
         IHostEnvironment hostEnvironment,
         ILogger<ManufacturerModuleActivator> logger)
     {
-        _configuration = configuration;
+        _options = options.Value;
         _hostEnvironment = hostEnvironment;
         _logger = logger;
     }
@@ -39,7 +40,7 @@ public class ManufacturerModuleActivator : IModuleActivator
         _logger.LogInformation("Cleared Manufacturers table");
 
         // 3. Import from SQL dump
-        var dumpPath = _configuration["Modules:Manufacturers:SqlDumpPath"];
+        var dumpPath = _options.SqlDumpPath;
         if (string.IsNullOrWhiteSpace(dumpPath))
         {
             _logger.LogWarning("Modules:Manufacturers:SqlDumpPath is not configured, skipping import");
