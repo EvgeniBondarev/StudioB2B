@@ -4,18 +4,17 @@ public class EmailOptions
 {
     public const string SectionName = "Email";
 
-    public string Host { get; set; } = "";
+    public string Host { get; set; } = string.Empty;
 
-    public int Port { get; set; } = 587;
+    public int Port { get; set; }
 
-    public string User { get; set; } = "";
+    public string User { get; set; } = string.Empty;
 
-    public string Password { get; set; } = "";
+    public string Password { get; set; } = string.Empty;
 
-    public string FromAddress { get; set; } = "";
+    public string FromAddress { get; set; } = string.Empty;
 
-    public string FromName { get; set; } = "StudioB2B";
+    public string FromName { get; set; } = string.Empty;
 
-    public bool EnableSsl { get; set; } = true;
+    public bool EnableSsl { get; set; }
 }
-

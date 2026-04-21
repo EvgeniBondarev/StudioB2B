@@ -1,6 +1,7 @@
 using FluentAssertions;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using StudioB2B.Domain.Options;
 using StudioB2B.Infrastructure.Services;
 using StudioB2B.Infrastructure.Services.Ozon;
 using WireMock.RequestBuilders;
@@ -23,10 +24,7 @@ public class OzonApiClientTests : IDisposable
     {
         _server = WireMockServer.Start();
 
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>())
-            .Build();
-        _encryption = new KeyEncryptionService(config);
+        _encryption = new KeyEncryptionService(Options.Create(new EncryptionOptions()));
 
         var httpClientFactory = new TestHttpClientFactory(_server.Url!);
         _client = new OzonApiClient(httpClientFactory, _encryption, NullLogger<OzonApiClient>.Instance);

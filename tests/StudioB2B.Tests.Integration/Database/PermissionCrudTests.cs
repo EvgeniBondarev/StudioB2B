@@ -1,6 +1,8 @@
+using System.Reflection;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Infrastructure.Features;
+using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services.MultiTenancy;
 using StudioB2B.Shared;
 using Xunit;
@@ -14,11 +16,11 @@ public class PermissionCrudTests : IClassFixture<TenantDbContextFixture>
 
     public PermissionCrudTests(TenantDbContextFixture fixture) => _fixture = fixture;
 
-    private static async Task SeedAsync(StudioB2B.Infrastructure.Persistence.Tenant.TenantDbContext ctx)
+    private static async Task SeedAsync(TenantDbContext ctx)
     {
         var method = typeof(TenantDatabaseInitializer)
             .GetMethod("SeedPagesColumnsAndFunctionsAsync",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                BindingFlags.NonPublic | BindingFlags.Static);
         var task = (Task)method!.Invoke(null, [ctx, CancellationToken.None])!;
         await task;
     }

@@ -526,9 +526,6 @@ public class CommunicationTaskService : ICommunicationTaskService
             CreatedAt = t.CreatedAt,
             UpdatedAt = t.UpdatedAt,
             HasActiveTimer = t.TimeEntries.Any(e => e.EndedAt == null),
-            // StartedAt = beginning of the current ACTIVE segment (null when paused).
-            // TotalTimeSpentTicks = sum of all CLOSED segments only.
-            // This way FormatOverlayDuration correctly adds live delta without counting idle time.
             StartedAt = t.TimeEntries
                 .Where(e => e.EndedAt == null)
                 .Select(e => (DateTime?)e.StartedAt)
