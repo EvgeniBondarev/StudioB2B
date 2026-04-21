@@ -1,5 +1,7 @@
 using FluentAssertions;
 using NetArchTest.Rules;
+using StudioB2B.Infrastructure;
+using StudioB2B.Web.Components;
 using Xunit;
 
 namespace StudioB2B.Tests.Unit.Architecture;
@@ -11,10 +13,10 @@ namespace StudioB2B.Tests.Unit.Architecture;
 public class ArchitectureTests
 {
     private static Types WebTypes()
-        => Types.InAssembly(typeof(StudioB2B.Web.Components.App).Assembly);
+        => Types.InAssembly(typeof(App).Assembly);
 
     private static Types InfraTypes()
-        => Types.InAssembly(typeof(StudioB2B.Infrastructure.DependencyInjection).Assembly);
+        => Types.InAssembly(typeof(DependencyInjection).Assembly);
 
     [Fact]
     public void BlazorPages_DoNotDirectlyUse_ITenantDbContextFactory()

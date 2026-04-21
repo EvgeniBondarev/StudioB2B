@@ -86,7 +86,7 @@ public class OrderSyncServiceTests
         ctx.MarketplaceClientModes!.Add(mode);
         ctx.MarketplaceClients!.AddRange(client1, client2);
         ctx.SuppressAudit = true;
-        ctx.SaveChanges();
+        await ctx.SaveChangesAsync();
 
         var adapter = new Mock<IOrderAdapter>();
         adapter.Setup(a => a.ClientModeName).Returns("FBS");
@@ -115,7 +115,7 @@ public class OrderSyncServiceTests
         ctx.MarketplaceClientModes!.Add(mode);
         ctx.MarketplaceClients!.AddRange(client1, client2);
         ctx.SuppressAudit = true;
-        ctx.SaveChanges();
+        await ctx.SaveChangesAsync();
 
         var callCount = 0;
         var adapter = new Mock<IOrderAdapter>();
@@ -151,7 +151,7 @@ public class OrderSyncServiceTests
         ctx.MarketplaceClientModes!.Add(mode);
         ctx.MarketplaceClients!.Add(new MarketplaceClient { Id = Guid.NewGuid(), Name = "WB Client", ApiId = "1", ClientTypeId = type.Id, ClientType = type, ModeId = mode.Id, Mode = mode });
         ctx.SuppressAudit = true;
-        ctx.SaveChanges();
+        await ctx.SaveChangesAsync();
 
         var adapter = MockAdapter("FBS", new OrderSyncResultDto { OrdersCreated = 99 });
         var svc = new OrderSyncService(ctx, [adapter.Object], NullLogger<OrderSyncService>.Instance);

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
+using StudioB2B.Domain.Options;
 using IKeyEncryptionService = StudioB2B.Infrastructure.Interfaces.IKeyEncryptionService;
 
 namespace StudioB2B.Infrastructure.Services;
@@ -14,9 +15,9 @@ public class KeyEncryptionService : IKeyEncryptionService
 {
     private readonly byte[] _key;
 
-    public KeyEncryptionService(IConfiguration configuration)
+    public KeyEncryptionService(IOptions<EncryptionOptions> options)
     {
-        var base64Key = configuration["Encryption:Key"];
+        var base64Key = options.Value.Key;
         byte[]? keyBytes = null;
 
         if (!string.IsNullOrWhiteSpace(base64Key))

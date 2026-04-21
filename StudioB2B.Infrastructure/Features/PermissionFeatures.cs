@@ -136,7 +136,7 @@ public static class PermissionExtensions
     }
 
     // Internal helpers (shared within the assembly)
-    internal static class PermissionMapper
+    private static class PermissionMapper
     {
         internal static PermissionDto ToDto(Permission p) => new(
             p.Id,
@@ -185,7 +185,7 @@ public static class PermissionExtensions
     }
 
     // shared for GetPermissions / GetPermissionById / UpdatePermission
-    internal static class QueryHelper
+    private static class QueryHelper
     {
         internal static IQueryable<Permission> LoadWithRelations(TenantDbContext db) =>
             db.Permissions

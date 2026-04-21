@@ -1,5 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using StudioB2B.Domain.Entities;
+using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services.MultiTenancy;
 using Xunit;
 
@@ -12,7 +14,7 @@ public class SoftDeleteFilterTests : IClassFixture<TenantDbContextFixture>
 
     public SoftDeleteFilterTests(TenantDbContextFixture fixture) => _fixture = fixture;
 
-    private static async Task SeedAsync(StudioB2B.Infrastructure.Persistence.Tenant.TenantDbContext ctx)
+    private static async Task SeedAsync(TenantDbContext ctx)
     {
         var method = typeof(TenantDatabaseInitializer)
             .GetMethod("SeedPagesColumnsAndFunctionsAsync",
@@ -30,7 +32,7 @@ public class SoftDeleteFilterTests : IClassFixture<TenantDbContextFixture>
         ctx.SuppressAudit = true;
 
         // Create a permission
-        var perm = new StudioB2B.Domain.Entities.Permission
+        var perm = new Permission
         {
             Id = Guid.NewGuid(),
             Name = $"SoftDeleteTest_{Guid.NewGuid():N}",
@@ -56,7 +58,7 @@ public class SoftDeleteFilterTests : IClassFixture<TenantDbContextFixture>
 
         ctx.SuppressAudit = true;
 
-        var perm = new StudioB2B.Domain.Entities.Permission
+        var perm = new Permission
         {
             Id = Guid.NewGuid(),
             Name = $"IgnoreFilterTest_{Guid.NewGuid():N}",

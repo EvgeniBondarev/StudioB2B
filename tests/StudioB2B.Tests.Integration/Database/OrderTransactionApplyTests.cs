@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using StudioB2B.Infrastructure.Interfaces;
+using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services;
 using StudioB2B.Infrastructure.Services.Order;
 using Xunit;
@@ -16,8 +17,8 @@ public class OrderTransactionApplyTests : IClassFixture<TenantDbContextFixture>
 
     private static readonly ICurrentUserProvider FakeUser = Mock.Of<ICurrentUserProvider>(u =>
         u.IsAuthenticated == false &&
-        u.UserId == (Guid?)null &&
-        u.Email == (string?)null &&
+        u.UserId == null &&
+        u.Email == null &&
         u.Permissions == Enumerable.Empty<string>());
 
     public OrderTransactionApplyTests(TenantDbContextFixture fixture)
@@ -27,7 +28,7 @@ public class OrderTransactionApplyTests : IClassFixture<TenantDbContextFixture>
     }
 
     private static OrderTransactionService CreateService(
-        StudioB2B.Infrastructure.Persistence.Tenant.TenantDbContext ctx) =>
+        TenantDbContext ctx) =>
         new(ctx, new CalculationEngine(), FakeUser, NullLogger<OrderTransactionService>.Instance);
 
     [Fact]

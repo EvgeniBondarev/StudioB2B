@@ -1,7 +1,9 @@
+using System.Reflection;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using StudioB2B.Domain.Constants;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Infrastructure.Services.MultiTenancy;
 using StudioB2B.Tests.Integration.Database;
 using Xunit;
 
@@ -21,9 +23,9 @@ public class SeedTests : IClassFixture<TenantDbContextFixture>
     private static async Task RunSeedAsync(TenantDbContext ctx)
     {
         // Invoke the private SeedPagesColumnsAndFunctionsAsync via reflection
-        var method = typeof(StudioB2B.Infrastructure.Services.MultiTenancy.TenantDatabaseInitializer)
+        var method = typeof(TenantDatabaseInitializer)
             .GetMethod("SeedPagesColumnsAndFunctionsAsync",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                BindingFlags.NonPublic | BindingFlags.Static);
 
         method.Should().NotBeNull("SeedPagesColumnsAndFunctionsAsync must exist");
 
@@ -92,9 +94,9 @@ public class SeedTests : IClassFixture<TenantDbContextFixture>
 
     private static Dictionary<FunctionEnum, PageEnum> GetFunctionPageMap()
     {
-        var field = typeof(StudioB2B.Infrastructure.Services.MultiTenancy.TenantDatabaseInitializer)
+        var field = typeof(TenantDatabaseInitializer)
             .GetField("FunctionPageMap",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                BindingFlags.NonPublic | BindingFlags.Static);
         return (Dictionary<FunctionEnum, PageEnum>)field!.GetValue(null)!;
     }
 }
