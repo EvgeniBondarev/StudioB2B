@@ -41,7 +41,7 @@ public class MarketplaceClient : IBaseEntity, ISoftDelete
         }
         set
         {
-            var items = value ?? new List<MarketplaceClientMode>(capacity: 0);
+            var items = value ?? [];
 
             Mode = items.Count > 0 ? items[0] : null;
             ModeId = Mode?.Id;

@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using StudioB2B.Domain.Entities;
 using StudioB2B.Infrastructure.Features;
 using Xunit;
@@ -85,7 +84,7 @@ public class OrderTransactionHistoryTests : IClassFixture<TenantDbContextFixture
         ctx.OrderTransactionHistories.AddRange(hOk, hFail);
         await ctx.SaveChangesAsync();
 
-        var (items, total) = await ctx.GetOrderTransactionHistoryPagedAsync("Success == true", null, 0, 1000);
+        var (items, _) = await ctx.GetOrderTransactionHistoryPagedAsync("Success == true", null, 0, 1000);
 
         items.Should().OnlyContain(h => h.Success);
         items.Should().Contain(h => h.Id == hOk.Id);

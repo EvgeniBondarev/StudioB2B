@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using StudioB2B.Infrastructure.Features;
 using Xunit;
 

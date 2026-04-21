@@ -12,10 +12,10 @@ public static class PriceTypeExtensions
     /// </summary>
     public static async Task<(List<PriceType> Items, int TotalCount)> GetPriceTypesPagedAsync(
         this TenantDbContext db,
-        string?           dynamicFilter,
-        string?           orderBy,
-        int               skip,
-        int               take,
+        string? dynamicFilter,
+        string? orderBy,
+        int skip,
+        int take,
         CancellationToken ct = default)
     {
         var query = db.PriceTypes
@@ -38,7 +38,7 @@ public static class PriceTypeExtensions
     /// <summary>Создать новый пользовательский тип цены.</summary>
     public static async Task<PriceType> CreatePriceTypeAsync(
         this TenantDbContext db,
-        PriceType         item,
+        PriceType item,
         CancellationToken ct = default)
     {
         db.PriceTypes.Add(item);
@@ -52,7 +52,7 @@ public static class PriceTypeExtensions
     /// </summary>
     public static async Task<bool> UpdatePriceTypeAsync(
         this TenantDbContext db,
-        PriceType         updatedItem,
+        PriceType updatedItem,
         CancellationToken ct = default)
     {
         var entity = await db.PriceTypes.FindAsync(new object[] { updatedItem.Id }, ct);
@@ -73,7 +73,7 @@ public static class PriceTypeExtensions
     /// </summary>
     public static async Task<bool> SoftDeletePriceTypeAsync(
         this TenantDbContext db,
-        Guid              id,
+        Guid id,
         CancellationToken ct = default)
     {
         var entity = await db.PriceTypes.FindAsync(new object[] { id }, ct);

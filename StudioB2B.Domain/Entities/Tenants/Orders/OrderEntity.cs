@@ -46,7 +46,7 @@ public class OrderEntity : IBaseEntity, ISoftDelete
     /// <summary>Срок доставки (ShipmentDate − InProcessAt). Null если одна из дат отсутствует.</summary>
     [NotMapped]
     public TimeSpan? DeliveryTerm =>
-        Shipment?.ShipmentDate.HasValue == true && Shipment?.InProcessAt.HasValue == true
+        Shipment.ShipmentDate.HasValue && Shipment.InProcessAt.HasValue
             ? Shipment.ShipmentDate!.Value - Shipment.InProcessAt!.Value
             : null;
 

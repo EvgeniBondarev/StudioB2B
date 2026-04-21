@@ -1,7 +1,8 @@
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using StudioB2B.Infrastructure.Features;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Infrastructure.Services.MultiTenancy;
+using StudioB2B.Shared;
 using Xunit;
 
 namespace StudioB2B.Tests.Integration.Database;
@@ -19,11 +20,11 @@ public class PermissionQueryTests : IClassFixture<TenantDbContextFixture>
 
     private static async Task RunSeedAsync(TenantDbContext ctx)
     {
-        var method = typeof(StudioB2B.Infrastructure.Services.MultiTenancy.TenantDatabaseInitializer)
+        var method = typeof(TenantDatabaseInitializer)
             .GetMethod("SeedPagesColumnsAndFunctionsAsync",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
         method.Should().NotBeNull();
-        var task = (System.Threading.Tasks.Task)method!.Invoke(null, [ctx, System.Threading.CancellationToken.None])!;
+        var task = (Task)method.Invoke(null, [ctx, CancellationToken.None])!;
         await task;
     }
 
@@ -58,7 +59,7 @@ public class PermissionQueryTests : IClassFixture<TenantDbContextFixture>
         await using var ctx = _fixture.CreateContext();
         ctx.SuppressAudit = true;
 
-        var dto = new StudioB2B.Shared.CreatePermissionDto(
+        var dto = new CreatePermissionDto(
             $"Perm_{Guid.NewGuid():N}",
             IsFullAccess: false,
             Pages: [],
@@ -80,7 +81,7 @@ public class PermissionQueryTests : IClassFixture<TenantDbContextFixture>
         ctx.SuppressAudit = true;
 
         var name = $"ByIdPerm_{Guid.NewGuid():N}";
-        var dto = new StudioB2B.Shared.CreatePermissionDto(
+        var dto = new CreatePermissionDto(
             name,
             IsFullAccess: false,
             Pages: [],
