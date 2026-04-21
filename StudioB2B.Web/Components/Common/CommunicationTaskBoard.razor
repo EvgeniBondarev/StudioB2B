@@ -1,6 +1,5 @@
 @using StudioB2B.Infrastructure.Interfaces
 @using StudioB2B.Infrastructure.Services
-@using StudioB2B.Domain.Constants
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.EntityFrameworkCore
 @using System.Globalization
@@ -573,36 +572,6 @@
                                             QuickReplies="ChatQuickReplies" />
                                     </div>
                                 }
-                            }
-                        </div>
-                    }
-                    @if (_previewTask.Status == CommunicationTaskStatus.Done)
-                    {
-                        <div class="payment-breakdown-card done" style="margin-top:0.5rem;">
-                            <div class="payment-breakdown-header">
-                                <span class="rzi" style="font-size:0.85rem;">manage_accounts</span>
-                                Обработка
-                            </div>
-                            @if (_previewTask.AssignedToUserName is not null)
-                            {
-                                <div class="payment-breakdown-row">
-                                    <span class="payment-breakdown-label">Сотрудник</span>
-                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);font-weight:500;">@_previewTask.AssignedToUserName</span>
-                                </div>
-                            }
-                            @if (_previewTask.AssignedAt.HasValue)
-                            {
-                                <div class="payment-breakdown-row">
-                                    <span class="payment-breakdown-label">Взят в работу</span>
-                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);">@_previewTask.AssignedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
-                                </div>
-                            }
-                            @if (_previewTask.CompletedAt.HasValue)
-                            {
-                                <div class="payment-breakdown-row">
-                                    <span class="payment-breakdown-label">Завершён</span>
-                                    <span class="payment-breakdown-amount" style="color:var(--rz-text-color);">@_previewTask.CompletedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
-                                </div>
                             }
                         </div>
                     }
