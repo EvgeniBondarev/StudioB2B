@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace StudioB2B.Shared;
 
 /// <summary>Подписи журнала задач и форматирование для интерфейса (ru-RU).</summary>
-public static class CommunicationTaskLogUi
+public static partial class CommunicationTaskLogUi
 {
     private static readonly CultureInfo Russian = CultureInfo.GetCultureInfo("ru-RU");
 
@@ -31,6 +31,9 @@ public static class CommunicationTaskLogUi
     /// <summary>
     /// Локализует текст деталей записи журнала (в т.ч. старый формат TotalTime/Payment на английском).
     /// </summary>
+    [GeneratedRegex(@"^TotalTime:\s*(?<time>[^,]+),\s*Payment:\s*(?<pay>.+)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex TotalTimePaymentRegex();
+
     public static string FormatDetailsRussian(string? details)
     {
         if (string.IsNullOrWhiteSpace(details))
@@ -39,10 +42,7 @@ public static class CommunicationTaskLogUi
         if (details.Contains("начислено:", StringComparison.OrdinalIgnoreCase))
             return details.Trim();
 
-        var m = Regex.Match(
-            details.Trim(),
-            @"^TotalTime:\s*(?<time>[^,]+),\s*Payment:\s*(?<pay>.+)$",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var m = TotalTimePaymentRegex().Match(details.Trim());
         if (!m.Success)
             return details.Trim();
 
