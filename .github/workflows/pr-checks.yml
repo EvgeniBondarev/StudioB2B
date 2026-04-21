@@ -8,6 +8,7 @@ permissions:
   contents: read
   checks: write
   pull-requests: write
+    branches: [ "main", "develop" ]
 
 jobs:
   test:
