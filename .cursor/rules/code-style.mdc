@@ -8,391 +8,100 @@ alwaysApply: true
 
 ## 1. No alignment spaces
 
-Use a single space only. Do **not** add extra spaces anywhere to push symbols into columns. This applies **everywhere**: parameter lists, field declarations, constructor bodies, method bodies, object initialisers, expression-body members (`=>`), and switch expression arms.
-
-**Wrong — parameter list:**
-```csharp
-public record OrderPageRequest(
-    Guid?   ClientId       = null,
-    Guid?   StatusId       = null,
-    Guid?   SystemStatusId = null,
-    bool    HasReturn      = false,
-    int     Skip           = 0,
-    int     Take           = 15);
-```
-
-**Correct — parameter list:**
-```csharp
-public record OrderPageRequest(
-    Guid? ClientId = null,
-    Guid? StatusId = null,
-    Guid? SystemStatusId = null,
-    bool HasReturn = false,
-    int Skip = 0,
-    int Take = 15);
-```
-
-**Wrong — assignments in method body:**
-```csharp
-_filterEntity     = null;
-_filterChangeType = null;
-_filterUser       = null;
-_filterFrom       = null;
-_filterTo         = null;
-```
-
-**Correct — assignments in method body:**
-```csharp
-_filterEntity = null;
-_filterChangeType = null;
-_filterUser = null;
-_filterFrom = null;
-_filterTo = null;
-```
-
-**Wrong — object initialiser:**
-```csharp
-new CalculationRule
-{
-    Id        = Guid.NewGuid(),
-    Name      = _name,
-    Formula   = _formula,
-    IsActive  = true
-}
-```
-
-**Correct — object initialiser:**
-```csharp
-new CalculationRule
-{
-    Id = Guid.NewGuid(),
-    Name = _name,
-    Formula = _formula,
-    IsActive = true
-}
-```
-
-**Wrong — expression-body members:**
-```csharp
-private async Task OnFilterChange(object? _)   => await RefreshGrid();
-private async Task OnDateFilterChange(DateTime? _) => await RefreshGrid();
-private void      SaveRow(PriceType p)         => _grid?.UpdateRow(p);
-```
-
-**Correct — expression-body members:**
-```csharp
-private async Task OnFilterChange(object? _) => await RefreshGrid();
-private async Task OnDateFilterChange(DateTime? _) => await RefreshGrid();
-private void SaveRow(PriceType p) => _grid?.UpdateRow(p);
-```
-
-**Wrong — switch expression arms:**
-```csharp
-var label = type switch
-{
-    CommunicationTaskType.Chat     => "Чат",
-    CommunicationTaskType.Question => "Вопрос",
-    CommunicationTaskType.Review   => "Отзыв",
-    _                              => "—"
-};
-```
-
-**Correct — switch expression arms:**
-```csharp
-var label = type switch
-{
-    CommunicationTaskType.Chat => "Чат",
-    CommunicationTaskType.Question => "Вопрос",
-    CommunicationTaskType.Review => "Отзыв",
-    _ => "—"
-};
-```
-
----
-
-## 2. Blank line between properties in models
-
-Each property in a class or record must be separated from the next by a blank line.
-
-**Wrong:**
-```csharp
-public class ReturnsSyncResultDto
-{
-    public int Created { get; set; }
-    public int Updated { get; set; }
-    /// <summary>Отправлений, которым проставлен HasReturn = true.</summary>
-    public int Linked { get; set; }
-}
-```
-
-**Correct:**
-```csharp
-public class ReturnsSyncResultDto
-{
-    public int Created { get; set; }
-
-    public int Updated { get; set; }
-
-    /// <summary>Отправлений, которым проставлен HasReturn = true.</summary>
-    public int Linked { get; set; }
-}
-```
-
----
-
-## 3. No separator comments
-
-Do **not** use decorative separator comments to divide sections of code.
-
-**Wrong:**
-```csharp
-// ── Label helpers ──────────────────────────────────────────────────────
-```
-
-**Correct:** Use no separator at all, or use a single blank line to visually group related members.
-
----
-
-## 4. Exactly one blank line between methods
-
-Methods must be separated by **exactly one** blank line — no more.
-
-**Wrong:**
-```csharp
-private void TogglePage(string name)
-{
-    if (_model.Pages.Contains(name)) _model.Pages.Remove(name);
-    else _model.Pages.Add(name);
-}
-
-
-private static void ToggleString(List<string> list, string value)
-{
-    if (list.Contains(value)) list.Remove(value);
-    else list.Add(value);
-}
-```
-
-**Correct:**
-```csharp
-private void TogglePage(string name)
-{
-    if (_model.Pages.Contains(name)) _model.Pages.Remove(name);
-    else _model.Pages.Add(name);
-}
-
-private static void ToggleString(List<string> list, string value)
-{
-    if (list.Contains(value)) list.Remove(value);
-    else list.Add(value);
-}
-```
-
----
-
-## 5. One class per file
-
-Each `.cs` file must contain **exactly one** top-level type (class, record, struct, interface, or enum).
-
-**Wrong:**
-```csharp
-// OrderDtos.cs
-public class CreateOrderDto { ... }
-public class UpdateOrderDto { ... }
-public class OrderDto      { ... }
-```
-
-**Correct:**
-```
-CreateOrderDto.cs  → public class CreateOrderDto { ... }
-UpdateOrderDto.cs  → public class UpdateOrderDto { ... }
-OrderDto.cs        → public class OrderDto       { ... }
-```
-
----
-
-## 6. All models belong to the `StudioB2B.Shared` project
-
-- All DTO and model classes must be placed in the **`StudioB2B.Shared`** project.
-- Subdirectories within `StudioB2B.Shared` are used for file organisation only and must **not** introduce additional namespace levels.
-- Every file in `StudioB2B.Shared`, regardless of which subdirectory it resides in, must declare the root project namespace:
+Single space only — never pad to align columns. Applies everywhere: params, assignments, object initialisers, `=>` members, switch arms.
 
 ```csharp
-namespace StudioB2B.Shared;
-```
-
-# Code Style Rules
-
-## 1. No alignment spaces
-
-Use a single space only. Do **not** add extra spaces to push symbols into columns — in parameter lists, field declarations, object initialisers, expression-body members (`=>`), switch expression arms, and assignments.
-
-**Wrong:**
-```csharp
+// Wrong
 Guid?   ClientId       = null,
-bool    HasReturn      = false,
 _filterEntity     = null;
 Id        = Guid.NewGuid(),
-```
+CommunicationTaskType.Chat     => "Чат",
 
-**Correct:**
-```csharp
+// Correct
 Guid? ClientId = null,
-bool HasReturn = false,
 _filterEntity = null;
 Id = Guid.NewGuid(),
+CommunicationTaskType.Chat => "Чат",
 ```
 
----
+## 2. Blank line between properties
 
-## 2. Blank line between properties in models
+Each property in a class/record separated by one blank line.
 
-Each property in a class or record must be separated from the next by a blank line.
+## 3. No decorator separator comments
 
-**Wrong:**
-```csharp
-public int Created { get; set; }
-public int Updated { get; set; }
-```
-
-**Correct:**
-```csharp
-public int Created { get; set; }
-
-public int Updated { get; set; }
-```
-
----
-
-## 3. No separator comments
-
-Do **not** use decorative separator comments (`// ── ... ────`). Use a blank line to visually group members.
-
----
+`// ── Section ────` — forbidden. Use blank line instead.
 
 ## 4. Exactly one blank line between methods
 
-No more than one blank line between methods.
+## 5. One type per file
 
----
+One class/record/struct/interface/enum per `.cs` file.
 
-## 5. One class per file
+## 6. DTOs → `StudioB2B.Shared`
 
-Each `.cs` file must contain exactly one top-level type.
+All DTO/model classes in `StudioB2B.Shared`. Namespace always `namespace StudioB2B.Shared;` regardless of subdirectory.
 
----
-
-## 6. All models in `StudioB2B.Shared`
-
-All DTO and model classes go in `StudioB2B.Shared`. Every file in that project declares `namespace StudioB2B.Shared;` regardless of subdirectory.
-
----
-
-## 7. Layered architecture
+## 6a. Enums → `StudioB2B.Domain/Constants/`, name ends with `Enum`
 
 ```
-UI Layer  (Blazor .razor, Controllers)
-    ↓  @inject / constructor — interfaces only
-Service Layer  (Infrastructure/Services/)
-    ↓  uses extension-methods
-Feature Layer  (Infrastructure/Features/)
-    ↓  EF Core
-Database
+// Wrong: public enum OrderState  (any folder)
+// Correct: StudioB2B.Domain/Constants/OrderStateEnum.cs → public enum OrderStateEnum
 ```
 
-- `.razor` files and controllers must **never** inject `ITenantDbContextFactory` or `IMapper` directly.
-- All database work goes through the Service layer.
+## 6b. Options → `StudioB2B.Domain/Options/`, name ends with `Options`
 
----
+```
+// Wrong: public class JwtConfig
+// Correct: StudioB2B.Domain/Options/JwtOptions.cs → public class JwtOptions
+```
 
-## 8. No unnecessary `using` directives and `@inject` declarations
+## 7. No unused `using` / `@inject`
 
-### C# files
+- C#: only `using` for namespaces actually referenced.
+- Razor: `_Imports.razor` already provides `Radzen`, `Radzen.Blazor`, `StudioB2B.Domain.Constants`, `StudioB2B.Web.Services`, `StudioB2B.Web.Components.Common`, `StudioB2B.Shared`, `Microsoft.AspNetCore.Authorization`, `Microsoft.AspNetCore.Components.Authorization` — never repeat them.
+- `@inject` only for services actually called in the component.
 
-Only add `using` directives for namespaces **actually referenced** in the file.
+## 8. Role & Permission — always `nameof`, never raw strings
 
-**Wrong:**
 ```csharp
-using System.Net.Http;           // not used
-using Microsoft.EntityFrameworkCore; // not used
-```
-
-**Correct:** omit any using not referenced in the file.
-
-### Razor files — `@using`
-
-`Components/_Imports.razor` already imports these globally — **never repeat them** in individual `.razor` files:
-
-- `Radzen`
-- `Radzen.Blazor`
-- `StudioB2B.Domain.Constants`
-- `StudioB2B.Web.Services`
-- `StudioB2B.Web.Components.Common`
-- `StudioB2B.Shared`
-- `Microsoft.AspNetCore.Authorization`
-- `Microsoft.AspNetCore.Components.Authorization`
-- (and all other namespaces in `_Imports.razor`)
-
-**Wrong:**
-```razor
-@using Radzen
-@using StudioB2B.Domain.Constants
-@using StudioB2B.Shared
-```
-
-**Correct:** omit — already globally available.
-
-### Razor files — `@inject`
-
-Only inject services that are **actually called** in the component's markup or `@code` block.
-
-**Wrong:**
-```razor
-@inject DialogService DialogService         @* never called *@
-@inject NavigationManager Navigation        @* never called *@
-```
-
-**Correct:** include only injections the component actually uses.
-
----
-
-## 9. Service pattern for new modules
-
-**Step 1** — Interface `StudioB2B.Infrastructure/Interfaces/I[Module]Service.cs`
-**Step 2** — Implementation `StudioB2B.Infrastructure/Services/[Module]Service.cs`
-**Step 3** — Register in `DependencyInjection.cs`: `services.AddScoped<I[Module]Service, [Module]Service>();`
-**Step 4** — Controller/Razor: inject the interface, never `ITenantDbContextFactory` or `IMapper` directly.
-
----
-
-## 10. Role & Permission System — always use `nameof`
-
-**Wrong:**
-```csharp
-@attribute [Authorize(Roles = "OrdersView")]
+// Wrong
+[Authorize(Roles = "OrdersView")]
 IsInRole("UsersManage")
-```
+Col("OrdersColProduct")
 
-**Correct:**
-```csharp
-@attribute [Authorize(Roles = nameof(PageEnum.OrdersView))]
+// Correct
+[Authorize(Roles = nameof(PageEnum.OrdersView))]
 IsInRole(nameof(FunctionEnum.UsersManage))
+Col(nameof(PageColumnEnum.OrdersColProduct))
+// Razor HTML attr: Roles="@nameof(FunctionEnum.X)"
 ```
 
-`"Admin"` is always a plain string literal — it is not in any enum.
+`"Admin"` — plain string always, not in any enum.
 
-Checklist for new page:
-- `PageEnum` — new value with `[Description]`
-- `NavService.cs` — `NavItem` with `Role = nameof(PageEnum.*)`
-- `.razor` — `@attribute [Authorize(Roles = nameof(PageEnum.*))]`
+### Checklists
 
-Checklist for new function:
-- `FunctionEnum` — new value with `[Description]`
-- `TenantDatabaseInitializer.cs → FunctionPageMap` — new entry
-- Razor — `<AuthorizeView Roles="@nameof(FunctionEnum.*)">` / `IsInRole(nameof(FunctionEnum.*))`
+**New page:** `PageEnum` value + `[Description]` · `NavService.cs` NavItem · `.razor` `[Authorize]`
 
-Checklist for new grid column:
-- `PageColumnEnum` — new value with `[Description]`
-- `TenantDatabaseInitializer.cs → ColumnPageMap` — new entry
-- Razor — `Visible="@Col(nameof(PageColumnEnum.*))"`
+**New function:** `FunctionEnum` value + `[Description]` · `FunctionPageMap` entry · Razor `<AuthorizeView>` / `IsInRole`
 
+**New grid column:** `PageColumnEnum` value + `[Description]` · `ColumnPageMap` entry · `Visible="@Col(nameof(...))"`
+
+## 9. Tests — required for every new feature
+
+| Scope | Project |
+|---|---|
+| Pure logic / services | `StudioB2B.Tests.Unit` |
+| EF Core / CRUD | `StudioB2B.Tests.Integration` |
+| Architecture rules | `StudioB2B.Tests.Unit/Architecture` |
+
+**Unit:** xUnit + FluentAssertions, real objects, name `Method_Scenario_ExpectedResult`, `TheoryData<T>` + `[MemberData]` for params.
+
+**Integration:** `[Collection("Database")]` + `IClassFixture<TenantDbContextFixture>`, `ctx.SuppressAudit = true`, `DatabaseSeeder` helpers, `.AsNoTracking()` on reads, cover Create/Update/SoftDelete/query per Feature file.
+
+**Architecture:** NetArchTest `[Fact]` in `ArchitectureTests.cs`.
+
+**Checklist:**
+- [ ] Unit tests for service/logic
+- [ ] Integration tests for all Feature CRUD/query methods
+- [ ] New enum → `EnumDescriptionTests`, `FunctionEnumMapTests`, `PageColumnEnumMapTests` auto-pick it up
