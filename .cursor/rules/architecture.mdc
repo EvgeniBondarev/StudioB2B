@@ -8,123 +8,106 @@ alwaysApply: true
 
 ## 1. Layered architecture
 
-The project is divided into four layers. Each layer must only communicate with the layer directly below it.
-
 ```
-UI Layer  (Blazor .razor, Controllers)
-    ↓  @inject / constructor — interfaces only
-Service Layer  (Infrastructure/Services/)
-    ↓  uses extension-methods
-Feature Layer  (Infrastructure/Features/)
-    ↓  EF Core
+UI (.razor, Controllers)   — inject interfaces only
+    ↓
+Service Layer (Infrastructure/Services/)
+    ↓
+Feature Layer (Infrastructure/Features/)   — EF Core extension methods, do not rewrite
+    ↓
 Database
 ```
 
-- UI components (`.razor`, controllers) must **never** inject `ITenantDbContextFactory` or `IMapper` directly.
-- All database work goes through the Service layer.
+`.razor` and controllers must **never** inject `ITenantDbContextFactory` or `IMapper` directly. All DB work via Service layer.
 
-**Wrong:**
 ```razor
+// Wrong
 @inject ITenantDbContextFactory Factory
-@inject IMapper Mapper
-
 using var db = Factory.CreateDbContext();
-_users = await db.GetUsersAsync(Mapper, ct);
-```
 
-**Correct:**
-```razor
+// Correct
 @inject IUserService UserService
-
 _users = await UserService.GetAllUsersAsync(ct);
 ```
 
----
+## 2. Service pattern for new module `[Module]`
 
-## 2. Service pattern — adding a new module
+1. **Interface** `Interfaces/I[Module]Service.cs` — GetAll/GetById/Create/Update/Delete signatures
+2. **Implementation** `Services/[Module]Service.cs` — injects `ITenantDbContextFactory` + `IMapper`, delegates to Feature extension methods (`db.[Module]s.GetAllAsync(_mapper, ct)`)
+3. **DI** `DependencyInjection.cs` — `services.AddScoped<I[Module]Service, [Module]Service>();`
+4. **Controller/Razor** — inject `I[Module]Service`, remove direct db/mapper usage
 
-For every new module `[Module]` follow these five steps in order.
+## 3. Feature layer — do not rewrite
 
-### Step 1 — Interface
+`Infrastructure/Features/` — static extension method classes on `TenantDbContext`. Never move or rewrite them. Services are thin wrappers only.
 
-File: `StudioB2B.Infrastructure/Interfaces/I[Module]Service.cs`
+## 4. Enums → `StudioB2B.Domain/Constants/`, name ends with `Enum`
+
+```
+// Wrong: public enum OrderState  (any folder)
+// Correct: StudioB2B.Domain/Constants/OrderStateEnum.cs → public enum OrderStateEnum
+```
+
+## 5. Options → `StudioB2B.Domain/Options/`, name ends with `Options`
+
+```
+// Wrong: public class JwtConfig
+// Correct: StudioB2B.Domain/Options/JwtOptions.cs → public class JwtOptions
+```
+
+## 6. Tests — required for every new feature
+
+| Scope | Project |
+|---|---|
+| Pure logic / services | `StudioB2B.Tests.Unit` |
+| EF Core / CRUD | `StudioB2B.Tests.Integration` |
+| Architecture rules | `StudioB2B.Tests.Unit/Architecture` |
+
+**Unit:** xUnit + FluentAssertions, real objects (no mocking), name `Method_Scenario_ExpectedResult`.
 
 ```csharp
-namespace StudioB2B.Infrastructure.Interfaces;
-
-public interface I[Module]Service
+public class MyServiceTests
 {
-    Task<List<[Module]Dto>> GetAllAsync(CancellationToken ct = default);
+    private readonly MyService _sut = new();
 
-    Task<[Module]Dto?> GetByIdAsync(Guid id, CancellationToken ct = default);
-
-    Task<[Module]Dto> CreateAsync(Create[Module]Dto dto, CancellationToken ct = default);
-
-    Task<[Module]Dto?> UpdateAsync(Update[Module]Dto dto, CancellationToken ct = default);
-
-    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
+    [Fact]
+    public void Method_Scenario_ExpectedResult()
+    {
+        var result = _sut.Method(input);
+        result.Should().Be(expected);
+    }
 }
 ```
 
-### Step 2 — Implementation
-
-File: `StudioB2B.Infrastructure/Services/[Module]Service.cs`
+**Integration:** `[Collection("Database")]` + `IClassFixture<TenantDbContextFixture>`, `ctx.SuppressAudit = true`, `DatabaseSeeder` helpers.
 
 ```csharp
-namespace StudioB2B.Infrastructure.Services;
-
-public class [Module]Service : I[Module]Service
+[Collection("Database")]
+public class MyEntityCrudTests : IClassFixture<TenantDbContextFixture>
 {
-    private readonly ITenantDbContextFactory _dbContextFactory;
-    private readonly IMapper _mapper;
+    private readonly TenantDbContextFixture _fixture;
+    public MyEntityCrudTests(TenantDbContextFixture fixture) => _fixture = fixture;
 
-    public [Module]Service(ITenantDbContextFactory dbContextFactory, IMapper mapper)
+    [Fact]
+    public async Task CreateEntity_Persists()
     {
-        _dbContextFactory = dbContextFactory;
-        _mapper = mapper;
+        await using var ctx = _fixture.CreateContext();
+        ctx.SuppressAudit = true;
+        var entity = DatabaseSeeder.MyEntity();
+        await ctx.CreateMyEntityAsync(entity);
+        var loaded = await ctx.MyEntities.AsNoTracking().FirstOrDefaultAsync(e => e.Id == entity.Id);
+        loaded.Should().NotBeNull();
+        loaded!.Name.Should().Be(entity.Name);
     }
-
-    public async Task<List<[Module]Dto>> GetAllAsync(CancellationToken ct = default)
-    {
-        using var db = _dbContextFactory.CreateDbContext();
-        return await db.[Module]s.GetAllAsync(_mapper, ct);
-    }
-
-    // remaining methods follow the same pattern
 }
 ```
 
-### Step 3 — DI registration
+- Cover Create, Update, SoftDelete/Delete, at least one query/filter per Feature file
+- `.AsNoTracking()` on reads; `.IgnoreQueryFilters()` only for soft-delete/system-row tests
 
-File: `StudioB2B.Infrastructure/DependencyInjection.cs`
+**Architecture:** NetArchTest `[Fact]` in `ArchitectureTests.cs`.
 
-```csharp
-services.AddScoped<I[Module]Service, [Module]Service>();
-```
-
-### Step 4 — Update controller
-
-```csharp
-// Remove: ITenantDbContextFactory, IMapper, direct db.* calls
-// Add constructor injection:
-private readonly I[Module]Service _[module]Service;
-```
-
-### Step 5 — Update Razor component
-
-```razor
-@* Remove: @inject ITenantDbContextFactory, @inject IMapper *@
-@inject I[Module]Service [Module]Service
-```
-
----
-
-## 3. Extension methods in Features stay unchanged
-
-Files in `StudioB2B.Infrastructure/Features/` contain extension methods on `TenantDbContext` that perform actual database queries. **Do not move or rewrite them.** Services are thin wrappers that delegate to these extension methods.
-
-```
-[Module]Service.GetAllAsync()
-    → using var db = _dbContextFactory.CreateDbContext()
-    → db.[Module]s.GetAllAsync(_mapper, ct)   // extension in [Module]Features.cs
-```
+**Checklist:**
+- [ ] Unit tests for service/logic
+- [ ] Integration tests for all Feature CRUD/query methods
+- [ ] New enum → `EnumDescriptionTests`, `FunctionEnumMapTests`, `PageColumnEnumMapTests` auto-pick it up

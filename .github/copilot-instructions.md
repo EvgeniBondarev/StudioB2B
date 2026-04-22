@@ -6,551 +6,210 @@ Fragments OK. Short synonyms. Code unchanged.
 Pattern: [thing] [action] [reason]. [next step].
 Active every response unless user says: "stop caveman" or "normal mode".
 
-# Code Style Instructions
+# Code Style
 
 ## 1. No alignment spaces
 
-Use a single space only. Do **not** add extra spaces anywhere to push symbols into columns. This applies **everywhere**: parameter lists, field declarations, constructor bodies, method bodies, object initialisers, expression-body members (`=>`), and switch expression arms.
+Single space only — never pad to align columns. Applies everywhere: params, assignments, object initialisers, `=>` members, switch arms.
 
-**Wrong — parameter list:**
 ```csharp
-public record OrderPageRequest(
-    Guid?   ClientId       = null,
-    Guid?   StatusId       = null,
-    Guid?   SystemStatusId = null,
-    bool    HasReturn      = false,
-    int     Skip           = 0,
-    int     Take           = 15);
-```
-
-**Correct — parameter list:**
-```csharp
-public record OrderPageRequest(
-    Guid? ClientId = null,
-    Guid? StatusId = null,
-    Guid? SystemStatusId = null,
-    bool HasReturn = false,
-    int Skip = 0,
-    int Take = 15);
-```
-
-**Wrong — assignments in method body:**
-```csharp
+// Wrong
+Guid?   ClientId       = null,
 _filterEntity     = null;
-_filterChangeType = null;
-_filterUser       = null;
-_filterFrom       = null;
-_filterTo         = null;
-```
+Id        = Guid.NewGuid(),
+CommunicationTaskType.Chat     => "Чат",
 
-**Correct — assignments in method body:**
-```csharp
+// Correct
+Guid? ClientId = null,
 _filterEntity = null;
-_filterChangeType = null;
-_filterUser = null;
-_filterFrom = null;
-_filterTo = null;
+Id = Guid.NewGuid(),
+CommunicationTaskType.Chat => "Чат",
 ```
 
-**Wrong — object initialiser:**
-```csharp
-new CalculationRule
-{
-    Id        = Guid.NewGuid(),
-    Name      = _name,
-    Formula   = _formula,
-    IsActive  = true
-}
-```
+## 2. Blank line between properties
 
-**Correct — object initialiser:**
-```csharp
-new CalculationRule
-{
-    Id = Guid.NewGuid(),
-    Name = _name,
-    Formula = _formula,
-    IsActive = true
-}
-```
+Each property in a class/record separated by one blank line.
 
-**Wrong — expression-body members:**
-```csharp
-private async Task OnFilterChange(object? _)   => await RefreshGrid();
-private async Task OnDateFilterChange(DateTime? _) => await RefreshGrid();
-private void      SaveRow(PriceType p)         => _grid?.UpdateRow(p);
-```
+## 3. No decorator separator comments
 
-**Correct — expression-body members:**
-```csharp
-private async Task OnFilterChange(object? _) => await RefreshGrid();
-private async Task OnDateFilterChange(DateTime? _) => await RefreshGrid();
-private void SaveRow(PriceType p) => _grid?.UpdateRow(p);
-```
-
-**Wrong — switch expression arms:**
-```csharp
-var label = type switch
-{
-    CommunicationTaskType.Chat     => "Чат",
-    CommunicationTaskType.Question => "Вопрос",
-    CommunicationTaskType.Review   => "Отзыв",
-    _                              => "—"
-};
-```
-
-**Correct — switch expression arms:**
-```csharp
-var label = type switch
-{
-    CommunicationTaskType.Chat => "Чат",
-    CommunicationTaskType.Question => "Вопрос",
-    CommunicationTaskType.Review => "Отзыв",
-    _ => "—"
-};
-```
-
----
-
-## 2. Blank line between properties in models
-
-Each property in a class or record must be separated from the next by a blank line.
-
-**Wrong:**
-```csharp
-public class ReturnsSyncResultDto
-{
-    public int Created { get; set; }
-    public int Updated { get; set; }
-    /// <summary>Отправлений, которым проставлен HasReturn = true.</summary>
-    public int Linked { get; set; }
-}
-```
-
-**Correct:**
-```csharp
-public class ReturnsSyncResultDto
-{
-    public int Created { get; set; }
-
-    public int Updated { get; set; }
-
-    /// <summary>Отправлений, которым проставлен HasReturn = true.</summary>
-    public int Linked { get; set; }
-}
-```
-
----
-
-## 3. No separator comments
-
-Do **not** use decorative separator comments to divide sections of code.
-
-**Wrong:**
-```csharp
-// ── Label helpers ──────────────────────────────────────────────────────
-```
-
-**Correct:** Use no separator at all, or use a single blank line to visually group related members.
-
----
+`// ── Section ────` — forbidden. Use blank line instead.
 
 ## 4. Exactly one blank line between methods
 
-Methods must be separated by **exactly one** blank line — no more.
+No more, no less.
 
-**Wrong:**
-```csharp
-private void TogglePage(string name)
-{
-    if (_model.Pages.Contains(name)) _model.Pages.Remove(name);
-    else _model.Pages.Add(name);
-}
+## 5. One type per file
 
+One class/record/struct/interface/enum per `.cs` file.
 
-private static void ToggleString(List<string> list, string value)
-{
-    if (list.Contains(value)) list.Remove(value);
-    else list.Add(value);
-}
-```
+## 6. DTOs → `StudioB2B.Shared`
 
-**Correct:**
-```csharp
-private void TogglePage(string name)
-{
-    if (_model.Pages.Contains(name)) _model.Pages.Remove(name);
-    else _model.Pages.Add(name);
-}
+All DTO/model classes in `StudioB2B.Shared`. Namespace always `namespace StudioB2B.Shared;` regardless of subdirectory.
 
-private static void ToggleString(List<string> list, string value)
-{
-    if (list.Contains(value)) list.Remove(value);
-    else list.Add(value);
-}
-```
-
----
-
-## 5. One class per file
-
-Each `.cs` file must contain **exactly one** top-level type (class, record, struct, interface, or enum).
-
-**Wrong:**
-```csharp
-// OrderDtos.cs
-public class CreateOrderDto { ... }
-public class UpdateOrderDto { ... }
-public class OrderDto      { ... }
-```
-
-**Correct:**
-```
-CreateOrderDto.cs  → public class CreateOrderDto { ... }
-UpdateOrderDto.cs  → public class UpdateOrderDto { ... }
-OrderDto.cs        → public class OrderDto       { ... }
-```
-
----
-
-## 6. All models belong to the `StudioB2B.Shared` project
-
-- All DTO and model classes must be placed in the **`StudioB2B.Shared`** project.
-- Subdirectories within `StudioB2B.Shared` are used for file organisation only and must **not** introduce additional namespace levels.
-- Every file in `StudioB2B.Shared`, regardless of which subdirectory it resides in, must declare the root project namespace:
-
-```csharp
-namespace StudioB2B.Shared;
-```
-
----
-
-## 6. Layered architecture
-
-The project is divided into four layers. Each layer must only communicate with the layer directly below it.
+## 6a. Enums → `StudioB2B.Domain/Constants/`, name ends with `Enum`
 
 ```
-UI Layer  (Blazor .razor, Controllers)
-    ↓  @inject / constructor — interfaces only
-Service Layer  (Infrastructure/Services/)
-    ↓  uses extension-methods
-Feature Layer  (Infrastructure/Features/)
-    ↓  EF Core
+// Wrong: public enum OrderState  (any folder)
+// Correct: StudioB2B.Domain/Constants/OrderStateEnum.cs → public enum OrderStateEnum
+```
+
+## 6b. Options → `StudioB2B.Domain/Options/`, name ends with `Options`
+
+```
+// Wrong: public class JwtConfig
+// Correct: StudioB2B.Domain/Options/JwtOptions.cs → public class JwtOptions
+```
+
+## 7. Layered architecture
+
+```
+UI (.razor, Controllers)   — inject interfaces only
+    ↓
+Service Layer (Infrastructure/Services/)
+    ↓
+Feature Layer (Infrastructure/Features/)   — EF Core extension methods, do not rewrite
+    ↓
 Database
 ```
 
-- UI components (`.razor`, controllers) must **never** inject `ITenantDbContextFactory` or `IMapper` directly.
-- All database work goes through the Service layer.
+`.razor` and controllers must **never** inject `ITenantDbContextFactory` or `IMapper` directly.
 
----
+## 8. Service pattern for new module `[Module]`
 
-## 7. Service pattern — adding a new module
+1. `Interfaces/I[Module]Service.cs` — interface with GetAll/GetById/Create/Update/Delete
+2. `Services/[Module]Service.cs` — injects `ITenantDbContextFactory` + `IMapper`, delegates to Feature extension methods
+3. `DependencyInjection.cs` — `services.AddScoped<I[Module]Service, [Module]Service>();`
+4. Controller/Razor — inject `I[Module]Service`, remove direct db/mapper usage
 
-For every new module `[Module]` follow these steps:
+## 9. No unused `using` / `@inject`
 
-**Step 1 — Interface** `StudioB2B.Infrastructure/Interfaces/I[Module]Service.cs`
+- C#: only `using` for namespaces actually referenced.
+- Razor: `_Imports.razor` already provides `Radzen`, `Radzen.Blazor`, `StudioB2B.Domain.Constants`, `StudioB2B.Web.Services`, `StudioB2B.Web.Components.Common`, `StudioB2B.Shared`, `Microsoft.AspNetCore.Authorization`, `Microsoft.AspNetCore.Components.Authorization` — never repeat them.
+- `@inject` only for services actually called in the component.
 
+# Role & Permission System
+
+Three enums in `StudioB2B.Domain/Constants/` control access. JWT role claim = enum member **name** (not int value).
+Every enum value must have `[Description("...")]`.
+
+| Enum | Controls |
+|---|---|
+| `PageEnum` | Pages |
+| `FunctionEnum` | Actions |
+| `PageColumnEnum` | Grid columns |
+
+`SeedPagesColumnsAndFunctionsAsync` auto-seeds from enums. `FunctionEnum` and `PageColumnEnum` also need map entries in `TenantDatabaseInitializer.cs`:
+- `FunctionPageMap[FunctionEnum.X] = PageEnum.Y`
+- `ColumnPageMap[PageColumnEnum.X] = PageEnum.Y`
+
+**Always `nameof` — never raw strings:**
 ```csharp
-namespace StudioB2B.Infrastructure.Interfaces;
-
-public interface I[Module]Service
-{
-    Task<List<[Module]Dto>> GetAllAsync(CancellationToken ct = default);
-    Task<[Module]Dto?> GetByIdAsync(Guid id, CancellationToken ct = default);
-    Task<[Module]Dto> CreateAsync(Create[Module]Dto dto, CancellationToken ct = default);
-    Task<[Module]Dto?> UpdateAsync(Update[Module]Dto dto, CancellationToken ct = default);
-    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
-}
-```
-
-**Step 2 — Implementation** `StudioB2B.Infrastructure/Services/[Module]Service.cs`
-
-```csharp
-namespace StudioB2B.Infrastructure.Services;
-
-public class [Module]Service : I[Module]Service
-{
-    private readonly ITenantDbContextFactory _dbContextFactory;
-    private readonly IMapper _mapper;
-
-    public [Module]Service(ITenantDbContextFactory dbContextFactory, IMapper mapper)
-    {
-        _dbContextFactory = dbContextFactory;
-        _mapper = mapper;
-    }
-
-    public async Task<List<[Module]Dto>> GetAllAsync(CancellationToken ct = default)
-    {
-        using var db = _dbContextFactory.CreateDbContext();
-        return await db.[Module]s.GetAllAsync(_mapper, ct);
-    }
-
-    // ... remaining methods follow the same pattern
-}
-```
-
-**Step 3 — DI registration** in `StudioB2B.Infrastructure/DependencyInjection.cs`
-
-```csharp
-services.AddScoped<I[Module]Service, [Module]Service>();
-```
-
-**Step 4 — Update controller**
-
-```csharp
-// Remove: ITenantDbContextFactory, IMapper, direct db.* calls
-// Add:
-private readonly I[Module]Service _[module]Service;
-```
-
-**Step 5 — Update Razor component**
-
-```razor
-@* Remove: @inject ITenantDbContextFactory, @inject IMapper *@
-@inject I[Module]Service [Module]Service
-```
-
----
-
-## 8. Extension methods in Features stay unchanged
-
-Files in `StudioB2B.Infrastructure/Features/` contain extension methods on `TenantDbContext` that perform actual database queries. **Do not move or rewrite them.** Services are thin wrappers that delegate to these extension methods.
-
-```
-[Module]Service.GetAllAsync()
-    → using var db = _dbContextFactory.CreateDbContext()
-    → db.[Module]s.GetAllAsync(_mapper, ct)   // extension method in [Module]Features.cs
-```
-
----
-
-## 9. Role & Permission System
-
-### Overview
-
-The project uses three enums to control access. All three live in `StudioB2B.Domain/Constants/`.
-
-| Enum | Controls | JWT role claim source |
-|---|---|---|
-| `PageEnum` | Which pages a user can open | `nameof(PageEnum.*)` |
-| `FunctionEnum` | Which actions a user can perform | `nameof(FunctionEnum.*)` |
-| `PageColumnEnum` | Which grid columns a user can see | `nameof(PageColumnEnum.*)` |
-
-The **enum member name** (not the int value, not the description) is used verbatim as the JWT role claim and must match exactly everywhere in the code.
-
-Every enum value **must** have a `[Description("...")]` attribute — this text is shown to the user in the Permissions UI.
-
----
-
-### How TenantDatabaseInitializer seeds the data
-
-`SeedPagesColumnsAndFunctionsAsync` in `TenantDatabaseInitializer.cs` iterates all three enums and automatically creates or updates rows in the `Page`, `PageColumn`, and `Function` tables. **No manual SQL or migration data is needed.**
-
-However, `PageColumnEnum` and `FunctionEnum` also require entries in two static maps in the same file:
-
-- **`ColumnPageMap`** — maps each `PageColumnEnum` value to its parent `PageEnum`
-- **`FunctionPageMap`** — maps each `FunctionEnum` value to its parent `PageEnum`
-
-If you add an enum value without updating the map, the new item **will not be seeded** and will not appear in the Permissions UI.
-
----
-
-### Adding a new page
-
-**Step 1 — Add to `PageEnum`**
-
-```csharp
-// StudioB2B.Domain/Constants/PageEnum.cs
-[Description("Название страницы для UI")]
-NewPageView = 18,   // next sequential integer
-```
-
-**Step 2 — Add to `NavService.cs`**
-
-```csharp
-new NavItem { Path = "/new-page", Role = nameof(PageEnum.NewPageView) }
-```
-
-**Step 3 — Create the Razor page**
-
-```razor
-@page "/new-page"
-@attribute [Authorize(Roles = nameof(PageEnum.NewPageView))]
-```
-
----
-
-### Adding a new function (action)
-
-**Step 1 — Add to `FunctionEnum`**
-
-```csharp
-// StudioB2B.Domain/Constants/FunctionEnum.cs
-[Description("Страница: действие")]
-NewPageManage = 17,   // next sequential integer
-```
-
-**Step 2 — Add to `FunctionPageMap` in `TenantDatabaseInitializer.cs`**
-
-```csharp
-[FunctionEnum.NewPageManage] = PageEnum.NewPageView,
-```
-
-**Step 3 — Use in the Razor page**
-
-Declarative (hide/show a button or section):
-
-```razor
-<AuthorizeView Roles="@nameof(FunctionEnum.NewPageManage)">
-    <Authorized>
-        <RadzenButton Text="Создать" Click="@OpenCreateDialog" />
-    </Authorized>
-</AuthorizeView>
-```
-
-Imperative (in a C# code block):
-
-```csharp
-_canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.NewPageManage));
-```
-
----
-
-### Adding a new grid column
-
-**Step 1 — Add to `PageColumnEnum`**
-
-```csharp
-// StudioB2B.Domain/Constants/PageColumnEnum.cs
-[Description("Страница: колонка «Название»")]
-NewPageColName = 95,   // next sequential integer
-```
-
-**Step 2 — Add to `ColumnPageMap` in `TenantDatabaseInitializer.cs`**
-
-```csharp
-[PageColumnEnum.NewPageColName] = PageEnum.NewPageView,
-```
-
-**Step 3 — Use on the grid column**
-
-```razor
-<RadzenDataGridColumn ... Visible="@Col(nameof(PageColumnEnum.NewPageColName))">
-```
-
----
-
-### Always use `nameof` — never raw strings
-
-**Wrong:**
-```csharp
-@attribute [Authorize(Roles = "OrdersView")]
-<AuthorizeView Roles="UsersManage">
+// Wrong
+[Authorize(Roles = "OrdersView")]
 IsInRole("UsersManage")
 Col("OrdersColProduct")
-new NavItem { Role = "ReturnsView" }
-```
 
-**Correct:**
-```csharp
-@attribute [Authorize(Roles = nameof(PageEnum.OrdersView))]
-<AuthorizeView Roles="@nameof(FunctionEnum.UsersManage)">
+// Correct
+[Authorize(Roles = nameof(PageEnum.OrdersView))]
 IsInRole(nameof(FunctionEnum.UsersManage))
 Col(nameof(PageColumnEnum.OrdersColProduct))
-new NavItem { Role = nameof(PageEnum.ReturnsView) }
+// Razor HTML attr: Roles="@nameof(FunctionEnum.X)"
 ```
 
-Note: inside a Razor HTML attribute use `"@nameof(...)"` (with `@`); inside a C# code block use `nameof(...)` without quotes.
+`"Admin"` — plain string always, not in any enum.
 
----
+### New page checklist
+- [ ] `PageEnum` — value + `[Description]`
+- [ ] `NavService.cs` — `NavItem { Role = nameof(PageEnum.X) }`
+- [ ] `.razor` — `@attribute [Authorize(Roles = nameof(PageEnum.X))]`
 
-### The special "Admin" role
-
-`"Admin"` is a built-in role that bypasses all permission checks. It is **not** in any enum. Always keep it as a plain string literal:
-
-```csharp
-// Correct — Admin is always a plain string
-_canManage = state.User.IsInRole("Admin") || state.User.IsInRole(nameof(FunctionEnum.UsersManage));
-```
-
----
-
-## 10. No unnecessary `using` directives and `@inject` declarations
-
-### C# files — `using` directives
-
-Only add `using` directives for namespaces that are **actually referenced** in the file. Do **not** add a `using` "just in case" or because it was present somewhere else.
-
-**Wrong:**
-```csharp
-using System.Net.Http;          // not used in this file
-using Microsoft.EntityFrameworkCore; // not used in this file
-using StudioB2B.Shared;         // not used in this file
-
-namespace StudioB2B.Infrastructure.Services;
-
-public class PriceTypeService : IPriceTypeService { ... }
-```
-
-**Correct:**
-```csharp
-namespace StudioB2B.Infrastructure.Services;
-
-public class PriceTypeService : IPriceTypeService { ... }
-```
-
-### Razor files — `@using` directives
-
-The file `Components/_Imports.razor` already imports the following namespaces globally — **never repeat them** in individual `.razor` files:
-
-- `Radzen`
-- `Radzen.Blazor`
-- `StudioB2B.Domain.Constants`
-- `StudioB2B.Web.Services`
-- `StudioB2B.Web.Components.Common`
-- `StudioB2B.Shared`
-- `Microsoft.AspNetCore.Authorization`
-- `Microsoft.AspNetCore.Components.Authorization`
-- (and all other namespaces listed in `_Imports.razor`)
-
-**Wrong:**
-```razor
-@using Radzen
-@using StudioB2B.Domain.Constants
-@using StudioB2B.Shared
-@using StudioB2B.Web.Services
-```
-
-**Correct:** omit all of the above — they are already available everywhere.
-
-### Razor files — `@inject` declarations
-
-Only inject services that are **actually used** in the component's markup or `@code` block. Do not carry over injections from templates or copy-paste.
-
-**Wrong:**
-```razor
-@inject DialogService DialogService       @@* never called in this component *@@
-@inject NotificationService NotificationService  @@* never called *@@
-@inject NavigationManager Navigation      @@* never called *@@
-```
-
-**Correct:** include only the injections the component actually calls.
-
----
-
-### Complete checklist
-
-#### New page
-- [ ] `PageEnum` — new value with `[Description]`
-- [ ] `NavService.cs` — `NavItem` with `Role = nameof(PageEnum.*)`
-- [ ] `.razor` file — `@attribute [Authorize(Roles = nameof(PageEnum.*))]`
-
-#### New function
-- [ ] `FunctionEnum` — new value with `[Description]`
+### New function checklist
+- [ ] `FunctionEnum` — value + `[Description]`
 - [ ] `TenantDatabaseInitializer.cs → FunctionPageMap` — new entry
-- [ ] Razor — `<AuthorizeView Roles="@nameof(FunctionEnum.*)">` and/or `IsInRole(nameof(FunctionEnum.*))`
+- [ ] Razor — `<AuthorizeView Roles="@nameof(FunctionEnum.X)">` / `IsInRole(nameof(FunctionEnum.X))`
 
-#### New grid column
-- [ ] `PageColumnEnum` — new value with `[Description]`
+### New grid column checklist
+- [ ] `PageColumnEnum` — value + `[Description]`
 - [ ] `TenantDatabaseInitializer.cs → ColumnPageMap` — new entry
-- [ ] Razor — `Visible="@Col(nameof(PageColumnEnum.*))"`
+- [ ] Razor — `Visible="@Col(nameof(PageColumnEnum.X))"`
+
+# Tests — required for every new feature
+
+| Scope | Project |
+|---|---|
+| Pure logic / services | `StudioB2B.Tests.Unit` |
+| EF Core / CRUD | `StudioB2B.Tests.Integration` |
+| Architecture rules | `StudioB2B.Tests.Unit/Architecture` |
+
+### Unit tests — xUnit + FluentAssertions, real objects (no mocking)
+
+Location: `tests/StudioB2B.Tests.Unit/[Category]/[Subject]Tests.cs`
+
+```csharp
+namespace StudioB2B.Tests.Unit.Services;
+
+public class MyServiceTests
+{
+    private readonly MyService _sut = new();
+
+    [Fact]
+    public void Method_Scenario_ExpectedResult()
+    {
+        var result = _sut.Method(input);
+        result.Should().Be(expected);
+    }
+}
+```
+
+- Name: `Method_Scenario_ExpectedResult`
+- Parameterised: `TheoryData<T>` + `[MemberData]`
+
+### Integration tests — xUnit + FluentAssertions + Testcontainers MySQL 8.0
+
+Location: `tests/StudioB2B.Tests.Integration/Database/[Subject]CrudTests.cs`
+
+```csharp
+[Collection("Database")]
+public class MyEntityCrudTests : IClassFixture<TenantDbContextFixture>
+{
+    private readonly TenantDbContextFixture _fixture;
+
+    public MyEntityCrudTests(TenantDbContextFixture fixture) => _fixture = fixture;
+
+    [Fact]
+    public async Task CreateEntity_Persists()
+    {
+        await using var ctx = _fixture.CreateContext();
+        ctx.SuppressAudit = true;
+
+        var entity = DatabaseSeeder.MyEntity();
+        await ctx.CreateMyEntityAsync(entity);
+
+        var loaded = await ctx.MyEntities.AsNoTracking().FirstOrDefaultAsync(e => e.Id == entity.Id);
+        loaded.Should().NotBeNull();
+        loaded!.Name.Should().Be(entity.Name);
+    }
+}
+```
+
+- Cover: Create, Update, SoftDelete/Delete, at least one query/filter per Feature file
+- `.AsNoTracking()` when reading back; `.IgnoreQueryFilters()` only for soft-delete/system-row tests
+
+### Architecture tests — NetArchTest in `ArchitectureTests.cs`
+
+```csharp
+[Fact]
+public void Rule_Description()
+{
+    var result = InfraTypes()
+        .That().ResideInNamespace("StudioB2B.Infrastructure.Services")
+        .ShouldNot().HaveDependencyOn("Something.Forbidden")
+        .GetResult();
+    result.IsSuccessful.Should().BeTrue(string.Join(", ", result.FailingTypeNames ?? []));
+}
+```
+
+### Feature checklist
+- [ ] Unit tests for service/logic methods
+- [ ] Integration tests for all Feature-layer CRUD/query methods
+- [ ] New enum value → `EnumDescriptionTests`, `FunctionEnumMapTests`, `PageColumnEnumMapTests` auto-pick it up
