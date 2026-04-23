@@ -1,0 +1,227 @@
+<div class="task-card @(IsSelected ? "selected" : "") @(Task.WasPreviouslyCompleted && ShowNewButtons ? "task-card--reopened" : "")"
+     @onclick="@(() => OnClick.InvokeAsync())">
+
+    <div class="task-card-header">
+        <span class="task-type-badge @TaskBoardHelpers.GetTypeClass(Task.TaskType)">@TaskBoardHelpers.GetTypeLabel(Task.TaskType)</span>
+        <span class="task-card-title" title="@Task.Title">@Task.Title</span>
+        @if (Task.TaskType == CommunicationTaskType.Chat && Task.UnreadCount > 0)
+        {
+            <span class="task-unread-badge" title="Непрочитанных сообщений">@Task.UnreadCount</span>
+        }
+        @if (Task.WasPreviouslyCompleted && ShowNewButtons)
+        {
+            <span class="task-was-completed-badge" title="Покупатель написал снова после завершения">Повтор</span>
+        }
+        @if (ShowDoneButtons)
+        {
+            <RadzenButton Icon="replay" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
+                          title="Вернуть в работу"
+                          Click="@(() => OnReopen.InvokeAsync())"
+                          @onclick:stopPropagation="true" />
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(Task.PreviewText))
+    {
+        <div class="task-card-preview">@Task.PreviewText</div>
+    }
+
+    @if (ShowInProgressButtons && Task.HasActiveTimer)
+    {
+        <div class="task-timer-active">
+            <span class="timer-dot"></span>
+            <span class="live-timer"
+                  data-started="@Task.StartedAt?.ToString("o")"
+                  data-accumulated="@Task.TotalTimeSpentTicks">@TaskBoardHelpers.FormatDuration(Task.StartedAt, Task.TotalTimeSpentTicks)</span>
+        </div>
+    }
+
+    <div class="task-card-footer">
+        @if (ShowNewButtons)
+        {
+            <span class="task-card-time">
+                <RadzenIcon Icon="schedule" Style="font-size:0.85rem;" />
+                @TaskBoardHelpers.FormatTimeAgo(Task.CreatedAt)
+            </span>
+            @if (!string.IsNullOrEmpty(Task.ExternalStatus))
+            {
+                <span class="task-external-status">@Task.ExternalStatus</span>
+            }
+            @if (Board.PaymentEstimates.TryGetValue(Task.TaskType, out var cardEst) && cardEst > 0)
+            {
+                <span class="task-estimate-badge" title="Потенциальный заработок за задачу">~@cardEst.ToString("F0") ₽</span>
+            }
+            else if (Board.HourlyEstimates.TryGetValue(Task.TaskType, out var cardHr) && cardHr > 0)
+            {
+                <span class="task-estimate-badge" title="Ставка за час">@cardHr.ToString("F0") ₽/ч</span>
+            }
+        }
+        else if (ShowInProgressButtons)
+        {
+            <span class="task-card-time">
+                <RadzenIcon Icon="schedule" Style="font-size:0.85rem;" />
+                @TaskBoardHelpers.FormatTimeAgo(Task.UpdatedAt)
+            </span>
+            @if (Task.AssignedToUserName is not null)
+            {
+                <span class="task-card-assignee">
+                    <RadzenIcon Icon="person" Style="font-size:0.85rem;" />
+                    @Task.AssignedToUserName
+                </span>
+            }
+            @if (ComputeEstimate() is var inpEst && inpEst > 0)
+            {
+                <span class="task-estimate-badge" title="Ожидаемая оплата по текущим тарифам">~@inpEst.ToString("F0") ₽</span>
+            }
+            else if (Board.PaymentEstimates.TryGetValue(Task.TaskType, out var inpBrdEst) && inpBrdEst > 0)
+            {
+                <span class="task-estimate-badge" title="Потенциальный заработок за задачу">~@inpBrdEst.ToString("F0") ₽</span>
+            }
+            else if (Board.HourlyEstimates.TryGetValue(Task.TaskType, out var inpBrdHr) && inpBrdHr > 0)
+            {
+                <span class="task-estimate-badge" title="Ставка за час">@inpBrdHr.ToString("F0") ₽/ч</span>
+            }
+        }
+        else if (ShowDoneButtons)
+        {
+            @if (Task.AssignedToUserName is not null)
+            {
+                <span class="task-card-assignee">
+                    <RadzenIcon Icon="person" Style="font-size:0.85rem;" />
+                    @Task.AssignedToUserName
+                </span>
+            }
+            @if (Task.PaymentAmount.HasValue && Task.PaymentAmount > 0)
+            {
+                <span class="task-payment-badge task-payment-badge-clickable"
+                      title="@(_expanded ? "Скрыть расшифровку" : "Показать расшифровку")"
+                      @onclick="@(() => _expanded = !_expanded)"
+                      @onclick:stopPropagation="true">
+                    <span class="rzi" style="font-size:0.7rem;margin-right:2px;">@(_expanded ? "expand_less" : "receipt_long")</span>
+                    +@Task.PaymentAmount.Value.ToString("F0") ₽
+                </span>
+            }
+            <span class="task-card-time">
+                @if (Task.TotalTimeSpentTicks > 0)
+                {
+                    @TaskBoardHelpers.FormatTimeSpan(TimeSpan.FromTicks(Task.TotalTimeSpentTicks))
+                }
+            </span>
+        }
+    </div>
+
+    @if (ShowNewButtons)
+    {
+        <div class="task-card-actions">
+            <RadzenButton Text="Взять" Icon="play_arrow"
+                          ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.ExtraSmall"
+                          Click="@(() => OnClaim.InvokeAsync())"
+                          @onclick:stopPropagation="true" />
+        </div>
+    }
+
+    @if (ShowInProgressButtons && Task.AssignedToUserId == CurrentUserId)
+    {
+        <div class="task-card-actions">
+            @if (Task.HasActiveTimer)
+            {
+                <RadzenButton Text="Пауза" Icon="pause"
+                              ButtonStyle="ButtonStyle.Warning" Size="ButtonSize.ExtraSmall"
+                              Click="@(() => OnPause.InvokeAsync())"
+                              @onclick:stopPropagation="true" />
+            }
+            else
+            {
+                <RadzenButton Text="Продолжить" Icon="play_arrow"
+                              ButtonStyle="ButtonStyle.Info" Size="ButtonSize.ExtraSmall"
+                              Click="@(() => OnResume.InvokeAsync())"
+                              @onclick:stopPropagation="true" />
+            }
+            <RadzenButton Text="Готово" Icon="check"
+                          ButtonStyle="ButtonStyle.Success" Size="ButtonSize.ExtraSmall"
+                          Click="@(() => OnComplete.InvokeAsync())"
+                          @onclick:stopPropagation="true" />
+            <RadzenButton Icon="replay" ButtonStyle="ButtonStyle.Danger" Shade="Shade.Lighter" Size="ButtonSize.ExtraSmall"
+                          Click="@(() => OnRelease.InvokeAsync())"
+                          @onclick:stopPropagation="true"
+                          title="Снять с себя" />
+        </div>
+    }
+
+    @if (ShowDoneButtons && _expanded && Board.ActiveRates.Count > 0)
+    {
+        var totalMin = (decimal)TimeSpan.FromTicks(Task.TotalTimeSpentTicks).TotalMinutes;
+        var lines = CommunicationPaymentCalculator.ComputeBreakdownLines(
+            totalMin, Task.TaskType, Task.AssignedToUserId, Board.ActiveRates);
+        <div class="card-breakdown-panel" @onclick:stopPropagation="true">
+            @if (lines.Count > 0)
+            {
+                @foreach (var line in lines)
+                {
+                    <div class="card-breakdown-row">
+                        <span class="card-breakdown-label">@line.Caption</span>
+                        <span class="card-breakdown-amount">+@line.Amount.ToString("F0") ₽</span>
+                    </div>
+                }
+                @if (lines.Count > 1)
+                {
+                    <div class="card-breakdown-total">
+                        <span>Итого</span>
+                        <span>+@lines.Sum(l => l.Amount).ToString("F0") ₽</span>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="card-breakdown-row" style="color:var(--rz-text-secondary-color);font-style:italic;">
+                    Нет совпадающих тарифов
+                </div>
+            }
+        </div>
+    }
+
+    @if (ShowDoneButtons)
+    {
+        <div class="task-card-done-summary" @onclick:stopPropagation="true">
+            <span>Создано <strong>@Task.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</strong></span>
+            <span class="task-card-done-sep">·</span>
+            <span>Заработок <strong>@(Task.PaymentAmount is > 0 ? $"+{Task.PaymentAmount.Value:F0} ₽" : "—")</strong></span>
+            <span class="task-card-done-sep">·</span>
+            <span>@(Task.Status == CommunicationTaskStatus.Cancelled ? "Отменён" : Task.CompletedAt.HasValue ? "Завершён" : "Обновлён") <strong>@(Task.CompletedAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? Task.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm"))</strong></span>
+        </div>
+    }
+
+</div>
+
+@code {
+    [Parameter] public CommunicationTaskDto Task { get; set; } = null!;
+    [Parameter] public TaskBoardDto Board { get; set; } = null!;
+    [Parameter] public Guid? CurrentUserId { get; set; }
+    [Parameter] public bool IsSelected { get; set; }
+    [Parameter] public bool ShowNewButtons { get; set; }
+    [Parameter] public bool ShowInProgressButtons { get; set; }
+    [Parameter] public bool ShowDoneButtons { get; set; }
+
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public EventCallback OnClaim { get; set; }
+    [Parameter] public EventCallback OnPause { get; set; }
+    [Parameter] public EventCallback OnResume { get; set; }
+    [Parameter] public EventCallback OnComplete { get; set; }
+    [Parameter] public EventCallback OnRelease { get; set; }
+    [Parameter] public EventCallback OnReopen { get; set; }
+
+    private bool _expanded;
+
+    private decimal ComputeEstimate()
+    {
+        if (Board.ActiveRates.Count == 0) return 0m;
+        var liveTicks = Task.TotalTimeSpentTicks;
+        if (Task.HasActiveTimer && Task.StartedAt.HasValue)
+            liveTicks += (DateTime.UtcNow - Task.StartedAt.Value).Ticks;
+        var totalMinutes = (decimal)TimeSpan.FromTicks(liveTicks).TotalMinutes;
+        var lines = CommunicationPaymentCalculator.ComputeBreakdownLines(
+            totalMinutes, Task.TaskType, Task.AssignedToUserId, Board.ActiveRates);
+        return lines.Sum(l => l.Amount);
+    }
+}
+
