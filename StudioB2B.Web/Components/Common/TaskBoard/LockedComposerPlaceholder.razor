@@ -1,0 +1,11 @@
+<div style="padding:0.6rem 0.9rem;border-radius:8px;
+           background:var(--rz-base-100);border:1px dashed var(--rz-base-300);
+           display:flex;align-items:center;gap:0.6rem;color:var(--rz-text-secondary-color);">
+    <span class="rzi" style="font-size:1.15rem;opacity:0.45;">edit_off</span>
+    <span style="font-size:0.82rem;">@Text</span>
+</div>
+
+@code {
+    [Parameter] public string Text { get; set; } = string.Empty;
+}
+

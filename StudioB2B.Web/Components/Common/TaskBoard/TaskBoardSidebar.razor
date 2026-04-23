@@ -1,0 +1,181 @@
+@inject NavigationManager Navigation
+
+<div class="taskboard-sidebar @(IsOpen ? "open" : "")">
+
+    <div class="tb-sidebar-handle" @onclick="@(() => IsOpenChanged.InvokeAsync(!IsOpen))" title="Фильтры">
+        <span class="rzi" style="font-size:1.2rem;">@(IsOpen ? "close" : "tune")</span>
+    </div>
+
+    @if (IsOpen)
+    {
+        <div class="tb-sidebar-card">
+            <div class="tb-sidebar-actions">
+                <RadzenButton Text="Обновить" Icon="refresh" ButtonStyle="ButtonStyle.Primary" Shade="Shade.Light"
+                              Size="ButtonSize.Small" Click="OnRefresh" IsBusy="@Loading"
+                              Style="flex:1;" />
+                <RadzenButton Icon="cloud_sync" ButtonStyle="ButtonStyle.Light"
+                              Size="ButtonSize.Small" Click="OnFullSync"
+                              IsBusy="@Syncing" title="Полная синхронизация" />
+            </div>
+        </div>
+
+        <div class="tb-sidebar-card">
+            <div class="tb-sidebar-card-header">
+                <span>Тип задачи</span>
+                @if (FilterTypes.Count > 0)
+                {
+                    <span class="tb-sidebar-clear" @onclick="OnClearTypes" title="Сбросить">
+                        <span class="rzi">close</span>
+                    </span>
+                }
+            </div>
+            <div class="tb-sidebar-card-body">
+                <label class="tb-check-item type-chat">
+                    <input type="checkbox" checked="@FilterTypes.Contains(CommunicationTaskType.Chat)"
+                           @onchange="@(async e => await OnToggleType.InvokeAsync((CommunicationTaskType.Chat, (bool)e.Value!)))" />
+                    <span class="tb-sidebar-dot"></span>
+                    Чаты
+                    <span class="tb-sidebar-count" style="margin-left:auto;">@TypeCounts.GetValueOrDefault(CommunicationTaskType.Chat)</span>
+                </label>
+                <label class="tb-check-item type-question">
+                    <input type="checkbox" checked="@FilterTypes.Contains(CommunicationTaskType.Question)"
+                           @onchange="@(async e => await OnToggleType.InvokeAsync((CommunicationTaskType.Question, (bool)e.Value!)))" />
+                    <span class="tb-sidebar-dot"></span>
+                    Вопросы
+                    <span class="tb-sidebar-count" style="margin-left:auto;">@TypeCounts.GetValueOrDefault(CommunicationTaskType.Question)</span>
+                </label>
+                <label class="tb-check-item type-review">
+                    <input type="checkbox" checked="@FilterTypes.Contains(CommunicationTaskType.Review)"
+                           @onchange="@(async e => await OnToggleType.InvokeAsync((CommunicationTaskType.Review, (bool)e.Value!)))" />
+                    <span class="tb-sidebar-dot"></span>
+                    Отзывы
+                    <span class="tb-sidebar-count" style="margin-left:auto;">@TypeCounts.GetValueOrDefault(CommunicationTaskType.Review)</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="tb-sidebar-card">
+            @{ var dateActive = FilterFrom.HasValue || FilterTo.HasValue; }
+            <div class="tb-sidebar-card-header">
+                <span>Дата</span>
+                @if (dateActive)
+                {
+                    <span class="tb-sidebar-clear" @onclick="OnClearDate" title="Сбросить">
+                        <span class="rzi">close</span>
+                    </span>
+                }
+            </div>
+            <div class="tb-sidebar-card-body" style="padding:0.5rem 0.6rem 0.6rem;">
+                <div class="tb-sidebar-field-label">С</div>
+                <RadzenDatePicker TValue="DateTime?" Value="FilterFrom" ValueChanged="FilterFromChanged"
+                                  DateFormat="dd.MM.yyyy" ShowCalendarWeek="false"
+                                  Placeholder="дд.мм.гггг" Style="width:100%;margin-bottom:0.4rem;" />
+                <div class="tb-sidebar-field-label">По</div>
+                <RadzenDatePicker TValue="DateTime?" Value="FilterTo" ValueChanged="FilterToChanged"
+                                  DateFormat="dd.MM.yyyy" ShowCalendarWeek="false"
+                                  Placeholder="дд.мм.гггг" Style="width:100%;margin-bottom:0.5rem;" />
+                <RadzenButton Text="Применить" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small" Style="width:100%;"
+                              Click="OnApplyDate" />
+            </div>
+        </div>
+
+        @if (ClientOptions.Count > 0)
+        {
+            <div class="tb-sidebar-card">
+                <div class="tb-sidebar-card-header">
+                    <span>Кабинет</span>
+                    @if (FilterClientIds.Count > 0)
+                    {
+                        <span class="tb-sidebar-clear" @onclick="OnClearClients" title="Сбросить">
+                            <span class="rzi">close</span>
+                        </span>
+                    }
+                </div>
+                <div class="tb-sidebar-card-body">
+                    @foreach (var c in ClientOptions)
+                    {
+                        var cCopy = c;
+                        <label class="tb-check-item">
+                            <input type="checkbox" checked="@FilterClientIds.Contains(cCopy.Id)"
+                                   @onchange="@(async e => await OnToggleClient.InvokeAsync((cCopy.Id, (bool)e.Value!)))" />
+                            <span class="tb-sidebar-dot"></span>
+                            @cCopy.Name
+                        </label>
+                    }
+                </div>
+            </div>
+        }
+
+        @if (UserOptions.Count > 0)
+        {
+            <div class="tb-sidebar-card">
+                <div class="tb-sidebar-card-header">
+                    <span>Сотрудник</span>
+                    @if (FilterUserIds.Count > 0)
+                    {
+                        <span class="tb-sidebar-clear" @onclick="OnClearUsers" title="Сбросить">
+                            <span class="rzi">close</span>
+                        </span>
+                    }
+                </div>
+                <div class="tb-sidebar-card-body">
+                    @foreach (var u in UserOptions)
+                    {
+                        var uCopy = u;
+                        var uName = $"{uCopy.FirstName} {uCopy.LastName}".Trim();
+                        <label class="tb-check-item">
+                            <input type="checkbox" checked="@FilterUserIds.Contains(uCopy.Id)"
+                                   @onchange="@(async e => await OnToggleUser.InvokeAsync((uCopy.Id, (bool)e.Value!)))" />
+                            <span class="tb-sidebar-dot"></span>
+                            @uName
+                        </label>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="tb-sidebar-card">
+            <div class="tb-sidebar-card-body tb-sidebar-links" style="padding:0.4rem 0.45rem;">
+                <span class="tb-sidebar-link" @onclick="@(() => Navigation.NavigateTo("/task-board-report"))">
+                    <span class="rzi" style="font-size:1rem;">bar_chart</span>
+                    Отчёт по оплате
+                </span>
+                <span class="tb-sidebar-link" @onclick="@(() => Navigation.NavigateTo("/task-board-settings"))">
+                    <span class="rzi" style="font-size:1rem;">settings</span>
+                    Настройки тарифов
+                </span>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    [Parameter] public HashSet<CommunicationTaskType> FilterTypes { get; set; } = new();
+    [Parameter] public DateTime? FilterFrom { get; set; }
+    [Parameter] public EventCallback<DateTime?> FilterFromChanged { get; set; }
+    [Parameter] public DateTime? FilterTo { get; set; }
+    [Parameter] public EventCallback<DateTime?> FilterToChanged { get; set; }
+    [Parameter] public HashSet<Guid> FilterClientIds { get; set; } = new();
+    [Parameter] public HashSet<Guid> FilterUserIds { get; set; } = new();
+    [Parameter] public List<ClientOptionDto> ClientOptions { get; set; } = new();
+    [Parameter] public List<UserListDto> UserOptions { get; set; } = new();
+    [Parameter] public Dictionary<CommunicationTaskType, int> TypeCounts { get; set; } = new();
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public bool Syncing { get; set; }
+
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback OnFullSync { get; set; }
+    [Parameter] public EventCallback<(CommunicationTaskType, bool)> OnToggleType { get; set; }
+    [Parameter] public EventCallback<(Guid, bool)> OnToggleClient { get; set; }
+    [Parameter] public EventCallback<(Guid, bool)> OnToggleUser { get; set; }
+    [Parameter] public EventCallback OnClearTypes { get; set; }
+    [Parameter] public EventCallback OnClearClients { get; set; }
+    [Parameter] public EventCallback OnClearUsers { get; set; }
+    [Parameter] public EventCallback OnClearDate { get; set; }
+    [Parameter] public EventCallback OnApplyDate { get; set; }
+}
+

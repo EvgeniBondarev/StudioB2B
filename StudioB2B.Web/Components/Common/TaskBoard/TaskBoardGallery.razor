@@ -1,0 +1,94 @@
+@if (_currentIndex >= 0 && _items.Any())
+{
+    <div class="lightbox-overlay" tabindex="0" @ref="_galleryDiv" @onkeydown="GalleryNavigate" @onclick="Close">
+
+        @if (_items.Count > 1)
+        {
+            <RadzenButton Icon="chevron_left" ButtonStyle="ButtonStyle.Primary"
+                          @onclick:stopPropagation="true"
+                          class="lightbox-arrow left"
+                          Click="GalleryPrev" />
+        }
+
+        @if (_isVideo)
+        {
+            <video class="lightbox-image"
+                   src="@_items[_currentIndex]"
+                   controls autoplay
+                   @onclick:stopPropagation="true">
+            </video>
+        }
+        else
+        {
+            <img class="lightbox-image"
+                 src="@_items[_currentIndex]"
+                 alt="изображение"
+                 @onclick:stopPropagation="true" />
+        }
+
+        @if (_items.Count > 1)
+        {
+            <RadzenButton Icon="chevron_right" ButtonStyle="ButtonStyle.Primary"
+                          @onclick:stopPropagation="true"
+                          class="lightbox-arrow right"
+                          Click="GalleryNext" />
+        }
+
+        <button class="lightbox-close" @onclick:stopPropagation="true" @onclick="Close" title="Закрыть (Esc)">
+            <RadzenIcon Icon="close" />
+        </button>
+
+    </div>
+}
+
+@code {
+    private List<string> _items = new();
+    private int _currentIndex = -1;
+    private bool _isVideo;
+    private ElementReference _galleryDiv;
+
+    public void Open(List<string> items, int index, bool isVideo = false)
+    {
+        _items = items;
+        _currentIndex = index;
+        _isVideo = isVideo;
+        StateHasChanged();
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Yield();
+            await _galleryDiv.FocusAsync();
+        });
+    }
+
+    public void Close()
+    {
+        _currentIndex = -1;
+        _isVideo = false;
+        StateHasChanged();
+    }
+
+    private void GalleryNext()
+    {
+        if (_items.Count == 0) return;
+        _currentIndex = (_currentIndex + 1) % _items.Count;
+    }
+
+    private void GalleryPrev()
+    {
+        if (_items.Count == 0) return;
+        _currentIndex = (_currentIndex - 1 + _items.Count) % _items.Count;
+    }
+
+    private void GalleryNavigate(KeyboardEventArgs e)
+    {
+        if (_currentIndex < 0) return;
+        switch (e.Key)
+        {
+            case "ArrowLeft": GalleryPrev(); break;
+            case "ArrowRight": GalleryNext(); break;
+            case "Escape": Close(); break;
+        }
+        StateHasChanged();
+    }
+}
+

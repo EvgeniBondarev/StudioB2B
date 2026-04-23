@@ -1,0 +1,30 @@
+<div class="question-product-card">
+    <RadzenText TextStyle="TextStyle.Subtitle2"
+                Style="font-weight:600;margin-bottom:0.5rem;color:var(--rz-text-secondary-color);">Товар</RadzenText>
+    <div class="question-product-layout">
+        @if (!string.IsNullOrWhiteSpace(Product.PrimaryImage))
+        {
+            <img src="@Product.PrimaryImage"
+                 alt="@Product.Name"
+                 class="question-product-image"
+                 @onclick="@(() => OnImageClick.Invoke(Product.PrimaryImage))"
+                 title="Нажмите для просмотра" />
+        }
+        <div class="question-product-info">
+            <RadzenText TextStyle="TextStyle.Body1" Style="font-weight:600;margin:0;">@Product.Name</RadzenText>
+            <div class="question-product-props">
+                <span><strong>SKU:</strong> @Product.Sku</span>
+                @if (!string.IsNullOrWhiteSpace(Product.OfferId))
+                {
+                    <span><strong>Артикул:</strong> @Product.OfferId</span>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public OzonQuestionProductInfoDto Product { get; set; } = null!;
+    [Parameter] public Action<string> OnImageClick { get; set; } = null!;
+}
+
