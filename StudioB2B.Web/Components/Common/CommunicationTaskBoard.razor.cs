@@ -789,6 +789,23 @@ public partial class CommunicationTaskBoard
         }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
 
+        if (task.TaskType == CommunicationTaskType.Review)
+        {
+            try
+            {
+                var creds = await GetClientCredsAsync(task.MarketplaceClientId);
+                var rVm = new OzonReviewViewModelDto
+                {
+                    Id = task.ExternalId,
+                    MarketplaceClientId = task.MarketplaceClientId,
+                    ApiId = creds.apiId,
+                    ApiKey = creds.apiKey
+                };
+                await ReviewsService.ChangeReviewStatusAsync(rVm, "PROCESSED");
+            }
+            catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка смены статуса отзыва", ex.Message, 5000); }
+        }
+
         await RefreshBoardSilentAsync();
     }
 
@@ -802,6 +819,23 @@ public partial class CommunicationTaskBoard
 
         try { await TaskService.ReleaseTaskAsync(task.Id, userId.Value); }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
+
+        if (task.TaskType == CommunicationTaskType.Review)
+        {
+            try
+            {
+                var creds = await GetClientCredsAsync(task.MarketplaceClientId);
+                var rVm = new OzonReviewViewModelDto
+                {
+                    Id = task.ExternalId,
+                    MarketplaceClientId = task.MarketplaceClientId,
+                    ApiId = creds.apiId,
+                    ApiKey = creds.apiKey
+                };
+                await ReviewsService.ChangeReviewStatusAsync(rVm, "UNPROCESSED");
+            }
+            catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка смены статуса отзыва", ex.Message, 5000); }
+        }
 
         await RefreshBoardSilentAsync();
     }
@@ -903,6 +937,23 @@ public partial class CommunicationTaskBoard
         {
             NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось вернуть задачу в работу");
         }
+
+        if (ok && task.TaskType == CommunicationTaskType.Review)
+        {
+            try
+            {
+                var creds = await GetClientCredsAsync(task.MarketplaceClientId);
+                var rVm = new OzonReviewViewModelDto
+                {
+                    Id = task.ExternalId,
+                    MarketplaceClientId = task.MarketplaceClientId,
+                    ApiId = creds.apiId,
+                    ApiKey = creds.apiKey
+                };
+                await ReviewsService.ChangeReviewStatusAsync(rVm, "UNPROCESSED");
+            }
+            catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка смены статуса отзыва", ex.Message, 5000); }
+        }
     }
 
     private async Task OverlayReopenAsync()
@@ -923,6 +974,24 @@ public partial class CommunicationTaskBoard
                 _previewTask.HasActiveTimer = true;
                 _previewTask.StartedAt = DateTime.UtcNow;
                 _board.InProgressTasks.Insert(0, _previewTask);
+
+                if (_previewTask.TaskType == CommunicationTaskType.Review)
+                {
+                    try
+                    {
+                        var creds = await GetClientCredsAsync(_previewTask.MarketplaceClientId);
+                        var rVm = new OzonReviewViewModelDto
+                        {
+                            Id = _previewTask.ExternalId,
+                            MarketplaceClientId = _previewTask.MarketplaceClientId,
+                            ApiId = creds.apiId,
+                            ApiKey = creds.apiKey
+                        };
+                        await ReviewsService.ChangeReviewStatusAsync(rVm, "UNPROCESSED");
+                    }
+                    catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка смены статуса отзыва", ex.Message, 5000); }
+                }
+
                 ClosePreview();
             }
             else
