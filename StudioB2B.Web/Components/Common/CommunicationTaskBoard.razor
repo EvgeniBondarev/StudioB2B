@@ -836,12 +836,24 @@
                     @* Comment composer or locked placeholder *@
                     @if (_previewTask.Status == CommunicationTaskStatus.InProgress)
                     {
-                        <ChatComposer
-                            OnSendTextOnly="SendOverlayCommentAsync"
-                            EnableAttachments="false"
-                            PlaceHolder="Написать комментарий к отзыву..."
-                            MaxLength="3000"
-                            QuickReplies="ReviewQuickReplies" />
+                        @if (string.IsNullOrWhiteSpace(_reviewDetail?.Review.Text))
+                        {
+                            <div style="padding:0.6rem 0.9rem;border-radius:8px;
+                                       background:var(--rz-warning-lighter);border:1px dashed var(--rz-warning);
+                                       display:flex;align-items:center;gap:0.6rem;color:var(--rz-warning-dark);">
+                                <span class="rzi" style="font-size:1.15rem;">warning</span>
+                                <span style="font-size:0.82rem;">На отзыв без текста нельзя оставить комментарий</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <ChatComposer
+                                OnSendTextOnly="SendOverlayCommentAsync"
+                                EnableAttachments="false"
+                                PlaceHolder="Написать комментарий к отзыву..."
+                                MaxLength="3000"
+                                QuickReplies="ReviewQuickReplies" />
+                        }
                     }
                     else if (_previewTask.Status == CommunicationTaskStatus.New)
                     {
@@ -1751,12 +1763,24 @@
                     @* Comment composer or locked placeholder *@
                     @if (_previewTask.Status == CommunicationTaskStatus.InProgress)
                     {
-                        <ChatComposer
-                            OnSendTextOnly="SendOverlayCommentAsync"
-                            EnableAttachments="false"
-                            PlaceHolder="Написать комментарий к отзыву..."
-                            MaxLength="3000"
-                            QuickReplies="ReviewQuickReplies" />
+                        @if (string.IsNullOrWhiteSpace(_reviewDetail?.Review.Text))
+                        {
+                            <div style="padding:0.6rem 0.9rem;border-radius:8px;
+                                       background:var(--rz-warning-lighter);border:1px dashed var(--rz-warning);
+                                       display:flex;align-items:center;gap:0.6rem;color:var(--rz-warning-dark);">
+                                <span class="rzi" style="font-size:1.15rem;">warning</span>
+                                <span style="font-size:0.82rem;">На отзыв без текста нельзя оставить комментарий</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <ChatComposer
+                                OnSendTextOnly="SendOverlayCommentAsync"
+                                EnableAttachments="false"
+                                PlaceHolder="Написать комментарий к отзыву..."
+                                MaxLength="3000"
+                                QuickReplies="ReviewQuickReplies" />
+                        }
                     }
                     else if (_previewTask.Status == CommunicationTaskStatus.New)
                     {
@@ -3240,6 +3264,11 @@
     private async Task<bool> SendOverlayCommentAsync(string text)
     {
         if (string.IsNullOrWhiteSpace(text) || _previewTask is null) return false;
+        if (string.IsNullOrWhiteSpace(_reviewDetail?.Review.Text))
+        {
+            NotificationService.Notify(NotificationSeverity.Warning, "Невозможно ответить", "На отзыв без текста нельзя оставить комментарий", 5000);
+            return false;
+        }
         try
         {
             var creds = await GetClientCredsAsync(_previewTask.MarketplaceClientId);
