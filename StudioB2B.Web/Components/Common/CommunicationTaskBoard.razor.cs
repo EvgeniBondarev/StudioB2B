@@ -7,6 +7,7 @@ using Microsoft.JSInterop;
 using StudioB2B.Domain.Constants;
 using StudioB2B.Shared;
 using StudioB2B.Web.Components.Common.TaskBoard;
+using System.Text;
 
 namespace StudioB2B.Web.Components.Common;
 
@@ -1367,6 +1368,120 @@ public partial class CommunicationTaskBoard
         }
         catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка", ex.Message, 5000); }
         finally { _overlayDeletingCommentId = null; StateHasChanged(); }
+    }
+
+    private async Task<string?> GenerateAiReplyAsync()
+    {
+        if (_previewTask is null)
+            return null;
+
+        try
+        {
+            var request = new OpenRouterSuggestReplyRequestDto
+            {
+                TaskType = _previewTask.TaskType.ToString(),
+                Context = BuildAiContext(_previewTask.TaskType)
+            };
+
+            var response = await Http.PostAsJsonAsync("/api/open-router/suggest-reply", request);
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                NotificationService.Notify(
+                    NotificationSeverity.Error,
+                    "ИИ",
+                    $"Не удалось сгенерировать ответ: HTTP {(int)response.StatusCode}. {body}",
+                    7000);
+                return null;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<OpenRouterSuggestReplyResponseDto>();
+            if (string.IsNullOrWhiteSpace(result?.SuggestedReply))
+            {
+                NotificationService.Notify(NotificationSeverity.Warning, "ИИ", "Пустой ответ от модели.", 4000);
+                return null;
+            }
+
+            return result.SuggestedReply.Trim();
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "ИИ", ex.Message, 6000);
+            return null;
+        }
+    }
+
+    private string BuildAiContext(CommunicationTaskType taskType)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"Тип задачи: {taskType}");
+        sb.AppendLine($"Кабинет: {_previewTask?.MarketplaceClientName}");
+        sb.AppendLine($"Внешний ID: {_previewTask?.ExternalId}");
+
+        switch (taskType)
+        {
+            case CommunicationTaskType.Chat:
+                sb.AppendLine("История чата:");
+                foreach (var m in _chatMessages.OrderBy(m => m.CreatedAt))
+                {
+                    var author = m.User?.Type ?? "Unknown";
+                    var text = string.Join(" ", m.Data.Where(d => !string.IsNullOrWhiteSpace(d))).Trim();
+                    if (m.IsImage)
+                        text = string.IsNullOrWhiteSpace(text) ? "[image]" : $"[image] {text}";
+                    if (string.IsNullOrWhiteSpace(text))
+                        continue;
+                    sb.AppendLine($"- {m.CreatedAt:dd.MM.yyyy HH:mm} | {author}: {text}");
+                }
+                break;
+
+            case CommunicationTaskType.Question:
+                if (_questionDetail is not null)
+                {
+                    sb.AppendLine("Вопрос клиента:");
+                    sb.AppendLine(_questionDetail.Question.Text);
+                    sb.AppendLine($"SKU: {_questionDetail.Question.Sku}");
+                    if (_questionDetail.Product is not null)
+                    {
+                        sb.AppendLine($"Товар: {_questionDetail.Product.Name}");
+                        sb.AppendLine($"Артикул: {_questionDetail.Product.OfferId}");
+                        if (_questionDetail.Product.Images.Count > 0)
+                            sb.AppendLine($"Фото: {string.Join(", ", _questionDetail.Product.Images)}");
+                    }
+                    if (_questionDetail.Answers.Count > 0)
+                    {
+                        sb.AppendLine("Предыдущие ответы:");
+                        foreach (var a in _questionDetail.Answers)
+                            sb.AppendLine($"- {a.AuthorName}: {a.Text}");
+                    }
+                }
+                break;
+
+            case CommunicationTaskType.Review:
+                if (_reviewDetail is not null)
+                {
+                    sb.AppendLine($"Оценка: {_reviewDetail.Review.Rating}");
+                    sb.AppendLine("Текст отзыва:");
+                    sb.AppendLine(_reviewDetail.Review.Text);
+                    if (_reviewDetail.Product is not null)
+                    {
+                        sb.AppendLine($"Товар: {_reviewDetail.Product.Name}");
+                        sb.AppendLine($"Артикул: {_reviewDetail.Product.OfferId}");
+                    }
+                    if (_reviewDetail.Photos.Count > 0)
+                        sb.AppendLine($"Фото отзыва: {string.Join(", ", _reviewDetail.Photos.Select(p => p.Url))}");
+                    if (_reviewDetail.Comments.Count > 0)
+                    {
+                        sb.AppendLine("Комментарии продавца:");
+                        foreach (var c in _reviewDetail.Comments)
+                            sb.AppendLine($"- {c.Text}");
+                    }
+                }
+                break;
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("Сформируй один готовый вариант ответа для отправки покупателю.");
+        return sb.ToString();
     }
 
     public async ValueTask DisposeAsync()

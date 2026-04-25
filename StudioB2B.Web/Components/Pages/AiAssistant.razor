@@ -1,0 +1,140 @@
+@page "/ai-assistant"
+@attribute [Authorize(Roles = nameof(PageEnum.ChatsView))]
+@using StudioB2B.Infrastructure.Interfaces
+@using StudioB2B.Shared
+
+@inject HttpClient Http
+@inject ITenantProvider TenantProvider
+@inject NotificationService NotificationService
+
+<PageTitle>AI Assistant</PageTitle>
+
+@if (!TenantProvider.IsResolved)
+{
+    <RadzenAlert AlertStyle="AlertStyle.Warning" ShowIcon="true" AllowClose="false" Style="margin-top: 1rem;">
+        Раздел доступен только внутри тенанта
+    </RadzenAlert>
+}
+else
+{
+    <div style="display:flex;flex-direction:column;gap:0.75rem;max-width:980px;">
+        <RadzenCard Style="padding:1rem;">
+            <RadzenStack Gap="0.5rem">
+                <RadzenText TextStyle="TextStyle.H6">AI Assistant</RadzenText>
+                <RadzenText TextStyle="TextStyle.Body2" Style="color:var(--rz-text-secondary-color);">
+                    Отправьте запрос в OpenRouter (`deepseek/deepseek-chat-v3.1` по умолчанию). Для быстрого старта достаточно одного сообщения.
+                </RadzenText>
+            </RadzenStack>
+        </RadzenCard>
+
+        <RadzenCard Style="padding:1rem;">
+            <RadzenStack Gap="0.75rem">
+                <RadzenTextArea @bind-Value="_message"
+                                Rows="5"
+                                Placeholder="Введите вопрос..."
+                                Style="width:100%;"
+                                Disabled="@_sending" />
+
+                <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0.5rem">
+                    <RadzenButton Text="Отправить"
+                                  Icon="send"
+                                  ButtonStyle="ButtonStyle.Primary"
+                                  Disabled="@(_sending || string.IsNullOrWhiteSpace(_message))"
+                                  IsBusy="@_sending"
+                                  Click="SendAsync" />
+
+                    <RadzenButton Text="Очистить"
+                                  Icon="delete_sweep"
+                                  ButtonStyle="ButtonStyle.Light"
+                                  Disabled="@(_sending || _messages.Count == 0)"
+                                  Click="@(() => _messages.Clear())" />
+                </RadzenStack>
+            </RadzenStack>
+        </RadzenCard>
+
+        <RadzenCard Style="padding:1rem;">
+            @if (_messages.Count == 0)
+            {
+                <RadzenText TextStyle="TextStyle.Body2" Style="color:var(--rz-text-secondary-color);">
+                    Пока нет диалога.
+                </RadzenText>
+            }
+            else
+            {
+                <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                    @foreach (var item in _messages)
+                    {
+                        <div style="padding:0.75rem;border-radius:8px;background:var(--rz-base-100);border:1px solid var(--rz-base-300);">
+                            <div style="font-size:0.8rem;color:var(--rz-text-secondary-color);margin-bottom:0.35rem;">
+                                @item.Role
+                            </div>
+                            <div style="white-space:pre-wrap;word-break:break-word;">@item.Text</div>
+                        </div>
+                    }
+                </div>
+            }
+        </RadzenCard>
+    </div>
+}
+
+@code {
+    private string _message = "";
+    private bool _sending;
+    private readonly List<ChatLine> _messages = [];
+
+    private async Task SendAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_message))
+            return;
+
+        var prompt = _message.Trim();
+        _messages.Add(new ChatLine("Вы", prompt));
+        _message = "";
+        _sending = true;
+
+        try
+        {
+            var request = new OpenRouterChatRequestDto
+            {
+                Message = prompt
+            };
+
+            var response = await Http.PostAsJsonAsync("/api/open-router/chat", request);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                var details = string.IsNullOrWhiteSpace(errorBody) ? "Без деталей." : errorBody;
+                NotificationService.Notify(
+                    NotificationSeverity.Error,
+                    "AI Assistant",
+                    $"Ошибка запроса: HTTP {(int)response.StatusCode}. {details}",
+                    9000);
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<OpenRouterChatResponseDto>();
+            if (result is null || string.IsNullOrWhiteSpace(result.Content))
+            {
+                NotificationService.Notify(
+                    NotificationSeverity.Warning,
+                    "AI Assistant",
+                    "Пустой ответ от модели.",
+                    4000);
+                return;
+            }
+
+            var model = string.IsNullOrWhiteSpace(result.Model) ? "model" : result.Model;
+            _messages.Add(new ChatLine($"AI ({model})", result.Content));
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "AI Assistant", ex.Message, 6000);
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+
+    private sealed record ChatLine(string Role, string Text);
+}

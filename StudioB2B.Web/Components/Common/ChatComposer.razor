@@ -25,6 +25,30 @@
         </div>
     }
 
+    @if (!string.IsNullOrWhiteSpace(_aiSuggestion))
+    {
+        <div style="display:flex;flex-direction:column;gap:0.45rem;padding:0.5rem;border-radius:8px;background:var(--rz-info-lighter);border:1px solid var(--rz-info);">
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                <span class="rzi" style="font-size:0.95rem;color:var(--rz-info);">auto_awesome</span>
+                <span style="font-size:0.82rem;flex:1;min-width:220px;color:var(--rz-text-secondary-color);">ИИ подготовил вариант ответа. Вставить в поле?</span>
+                <RadzenButton Text="Вставить" Icon="content_paste" ButtonStyle="ButtonStyle.Info" Size="ButtonSize.Small" Click="@InsertAiSuggestion" />
+                <RadzenButton Text="Скрыть" Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@(() => _aiSuggestion = null)" />
+            </div>
+            <div style="white-space:pre-wrap;word-break:break-word;font-size:0.82rem;padding:0.45rem 0.55rem;border-radius:6px;background:var(--rz-base-0);border:1px solid var(--rz-base-300);max-height:140px;overflow:auto;">
+                @_aiSuggestion
+            </div>
+        </div>
+    }
+    else if (_aiGenerating)
+    {
+        <div class="ai-gen-banner">
+            <span class="rzi">auto_awesome</span>
+            <span style="font-size:0.82rem;color:var(--rz-text-secondary-color);">
+                ИИ готовит ответ<span class="ai-gen-dots"></span>
+            </span>
+        </div>
+    }
+
     <div class="chat-input-row">
         @if (EnableAttachments)
         {
@@ -40,10 +64,28 @@
                   class="comment-textarea"
                   placeholder="@PlaceHolder"
                   value="@MessageText"
+                  style="min-height:56px;resize:vertical;"
                   @oninput="OnInput"
                   @onkeydown="HandleKeyDown"
                   disabled="@_sending">
         </textarea>
+
+        @if (OnGenerateAiReply is not null)
+        {
+            <RadzenButton Icon="auto_awesome"
+                          ButtonStyle="ButtonStyle.Secondary"
+                          Size="ButtonSize.Small"
+                          Click="@GenerateAiReplyAsync"
+                          Disabled="@_sending"
+                          Title="Сгенерировать ответ ИИ" />
+            @if (_aiGenerating)
+            {
+                <span class="ai-gen-chip">
+                    <span class="rzi">auto_awesome</span>
+                    Генерация<span class="ai-gen-dots"></span>
+                </span>
+            }
+        }
 
         <RadzenButton Icon="send" ButtonStyle="ButtonStyle.Primary"
                       Size="ButtonSize.Small"
@@ -108,6 +150,7 @@
     [Parameter] public int MaxLength { get; set; } = 1000;
     [Parameter] public string PlaceHolder { get; set; } = "Напишите сообщение...";
     [Parameter] public string[] QuickReplies { get; set; } = Array.Empty<string>();
+    [Parameter] public Func<Task<string?>>? OnGenerateAiReply { get; set; }
     [Parameter] public string MessageText { get; set; } = string.Empty;
     [Parameter] public IBrowserFile? AttachedFile { get; set; }
     [Parameter] public string? AttachedBase64 { get; set; }
@@ -117,6 +160,8 @@
 
     private ElementReference _quickRepliesRef;
     private bool _sending;
+    private bool _aiGenerating;
+    private string? _aiSuggestion;
 
     private void ApplyTemplate(string text) => MessageText = text;
 
@@ -179,6 +224,41 @@
             // подгоняем высоту textarea
             await Js.InvokeVoidAsync("resizeTextarea", _commentArea);
         }
+    }
+
+    private async Task GenerateAiReplyAsync()
+    {
+        if (OnGenerateAiReply is null || _aiGenerating || _sending)
+            return;
+
+        _aiGenerating = true;
+        StateHasChanged();
+        try
+        {
+            _aiSuggestion = await OnGenerateAiReply.Invoke();
+            if (string.IsNullOrWhiteSpace(_aiSuggestion))
+            {
+                NotificationService.Notify(NotificationSeverity.Warning, "ИИ", "Не удалось сгенерировать ответ.", 3000);
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "ИИ", ex.Message, 5000);
+        }
+        finally
+        {
+            _aiGenerating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task InsertAiSuggestion()
+    {
+        if (string.IsNullOrWhiteSpace(_aiSuggestion))
+            return;
+        MessageText = _aiSuggestion;
+        await Js.InvokeVoidAsync("resizeTextarea", _commentArea);
+        StateHasChanged();
     }
 
     private async Task OnFileSelected(InputFileChangeEventArgs e)

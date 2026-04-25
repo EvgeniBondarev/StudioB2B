@@ -20,6 +20,7 @@ public class PageRegistry
             ["/audit"] = ("Журнал", "history"),
             ["/roles"] = ("Роли", "security"),
             ["/communication"] = ("Коммуникации", "communication"),
+            ["/ai-assistant"] = ("AI Assistant", "smart_toy"),
             ["/chats"] = ("Чаты", "chat"),
             ["/questions"] = ("Вопросы", "help"),
             ["/reviews"] = ("Отзывы", "star"),

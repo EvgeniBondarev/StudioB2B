@@ -36,6 +36,9 @@ public static class DependencyInjection
         services.Configure<OzonOptions>(
             configuration.GetSection(OzonOptions.SectionName));
 
+        services.Configure<OpenRouterOptions>(
+            configuration.GetSection(OpenRouterOptions.SectionName));
+
         services.Configure<EncryptionOptions>(
             configuration.GetSection(EncryptionOptions.SectionName));
 
@@ -87,6 +90,13 @@ public static class DependencyInjection
         .AddHttpMessageHandler<RetryHandler>()
         .AddHttpMessageHandler<RateLimitHandler>();
 
+        var openRouterOpts = configuration.GetSection(OpenRouterOptions.SectionName).Get<OpenRouterOptions>() ?? new OpenRouterOptions();
+        services.AddHttpClient("OpenRouter", client =>
+        {
+            client.BaseAddress = new Uri(openRouterOpts.BaseAddress);
+            client.Timeout = TimeSpan.FromSeconds(openRouterOpts.TimeoutSeconds);
+        });
+
         services.AddScoped<IOzonApiClient, OzonApiClient>();
         services.AddScoped<IOrderAdapter, OzonFbsOrderAdapter>();
         services.AddScoped<IOrderAdapter, OzonFboOrderAdapter>();
@@ -95,6 +105,7 @@ public static class DependencyInjection
         services.AddScoped<IOzonQuestionsService, OzonQuestionsService>();
         services.AddScoped<IOzonReviewsService, OzonReviewsService>();
         services.AddScoped<IOzonPushNotificationService, OzonPushNotificationService>();
+        services.AddScoped<IOpenRouterService, OpenRouterService>();
 
         services.AddScoped<TenantProvider>();
         services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<TenantProvider>());
