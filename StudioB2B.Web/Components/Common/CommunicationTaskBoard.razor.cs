@@ -488,6 +488,28 @@ public partial class CommunicationTaskBoard
 
     private async Task ShowPreviewAsync(CommunicationTaskDto task)
     {
+        #region agent log
+        _ = System.IO.File.AppendAllTextAsync(
+            "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
+            System.Text.Json.JsonSerializer.Serialize(new
+            {
+                sessionId = "3f5ec5",
+                runId = "pre-fix-5",
+                hypothesisId = "H11",
+                location = "CommunicationTaskBoard.razor.cs:ShowPreviewAsync",
+                message = "ShowPreviewAsync start",
+                data = new
+                {
+                    taskId = task.Id,
+                    taskType = task.TaskType.ToString(),
+                    externalId = task.ExternalId,
+                    status = task.Status.ToString(),
+                    marketplaceClientName = task.MarketplaceClientName
+                },
+                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            }) + Environment.NewLine,
+            CancellationToken.None);
+        #endregion
         _previewTask = task;
         _previewLoading = true;
         _taskDetail = null;
@@ -512,15 +534,85 @@ public partial class CommunicationTaskBoard
                         MarketplaceClientName = task.MarketplaceClientName,
                         ChatId = task.ExternalId
                     };
+                    #region agent log
+                    _ = System.IO.File.AppendAllTextAsync(
+                        "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
+                        System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            sessionId = "3f5ec5",
+                            runId = "pre-fix-4",
+                            hypothesisId = "H10",
+                            location = "CommunicationTaskBoard.razor.cs:ShowPreviewAsync",
+                            message = "Chat preview open requested",
+                            data = new
+                            {
+                                chatId = task.ExternalId,
+                                marketplaceClientId = task.MarketplaceClientId,
+                                marketplaceClientName = task.MarketplaceClientName
+                            },
+                            timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                        }) + Environment.NewLine,
+                        CancellationToken.None);
+                    #endregion
                     try
                     {
                         var history = await ChatService.GetChatHistoryAsync(
                             task.MarketplaceClientId, task.ExternalId, limit: 50);
                         if (history is not null)
+                        {
                             _chatMessages = history.Messages.OrderBy(m => m.CreatedAt).ToList();
+                            #region agent log
+                            _ = System.IO.File.AppendAllTextAsync(
+                                "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
+                                System.Text.Json.JsonSerializer.Serialize(new
+                                {
+                                    sessionId = "3f5ec5",
+                                    runId = "pre-fix-4",
+                                    hypothesisId = "H10",
+                                    location = "CommunicationTaskBoard.razor.cs:ShowPreviewAsync",
+                                    message = "Chat history loaded into preview",
+                                    data = new
+                                    {
+                                        chatId = task.ExternalId,
+                                        marketplaceClientId = task.MarketplaceClientId,
+                                        marketplaceClientName = task.MarketplaceClientName,
+                                        messagesCount = _chatMessages.Count
+                                    },
+                                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                                }) + Environment.NewLine,
+                                CancellationToken.None);
+                            #endregion
+                        }
                     }
-                    catch (UnauthorizedAccessException)
+                    catch (UnauthorizedAccessException ex)
                     {
+                        #region agent log
+                        _ = System.IO.File.AppendAllTextAsync(
+                            "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
+                            System.Text.Json.JsonSerializer.Serialize(new
+                            {
+                                sessionId = "3f5ec5",
+                                runId = "pre-fix-3",
+                                hypothesisId = "H9",
+                                location = "CommunicationTaskBoard.razor.cs:ShowPreviewAsync",
+                                message = "Chat preview switched to fallback URL due UnauthorizedAccessException",
+                                data = new
+                                {
+                                    chatId = task.ExternalId,
+                                    marketplaceClientId = task.MarketplaceClientId
+                                },
+                                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                            }) + Environment.NewLine,
+                            CancellationToken.None);
+                        #endregion
+                        var detail = string.IsNullOrWhiteSpace(ex.Message)
+                            ? "Нет доступа к истории чата через Ozon API."
+                            : ex.Message;
+                        NotificationService.Notify(
+                            NotificationSeverity.Warning,
+                            "Нет доступа к истории чата",
+                            $"Кабинет \"{task.MarketplaceClientName}\", chatId: {task.ExternalId}. {detail}",
+                            9000);
                         _chatFallbackUrl = $"https://seller.ozon.ru/app/messenger/?group=customers_v2&id={task.ExternalId}";
                     }
                     _chatMessageAuthors = await TaskService.GetOutgoingAuthorsAsync(task.ExternalId, CommunicationTaskType.Chat);
@@ -564,12 +656,54 @@ public partial class CommunicationTaskBoard
         }
         catch (Exception ex)
         {
+            #region agent log
+            _ = System.IO.File.AppendAllTextAsync(
+                "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
+                System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    sessionId = "3f5ec5",
+                    runId = "pre-fix-5",
+                    hypothesisId = "H11",
+                    location = "CommunicationTaskBoard.razor.cs:ShowPreviewAsync",
+                    message = "ShowPreviewAsync caught exception",
+                    data = new
+                    {
+                        externalId = task.ExternalId,
+                        taskType = task.TaskType.ToString(),
+                        error = ex.Message
+                    },
+                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                }) + Environment.NewLine,
+                CancellationToken.None);
+            #endregion
             NotificationService.Notify(NotificationSeverity.Error, "Ошибка предпросмотра", ex.Message, 5000);
         }
         finally
         {
             _previewLoading = false;
             StateHasChanged();
+            #region agent log
+            _ = System.IO.File.AppendAllTextAsync(
+                "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
+                System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    sessionId = "3f5ec5",
+                    runId = "pre-fix-5",
+                    hypothesisId = "H11",
+                    location = "CommunicationTaskBoard.razor.cs:ShowPreviewAsync",
+                    message = "ShowPreviewAsync final state",
+                    data = new
+                    {
+                        previewIsNull = _previewTask is null,
+                        previewExternalId = _previewTask?.ExternalId,
+                        previewStatus = _previewTask?.Status.ToString(),
+                        loading = _previewLoading,
+                        chatMessagesCount = _chatMessages.Count
+                    },
+                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                }) + Environment.NewLine,
+                CancellationToken.None);
+            #endregion
             if (_previewTask?.TaskType == CommunicationTaskType.Chat)
             {
                 await Js.InvokeVoidAsync("scrollChatOverlayToBottom");
@@ -582,6 +716,26 @@ public partial class CommunicationTaskBoard
 
     private void ClosePreview()
     {
+        #region agent log
+        _ = System.IO.File.AppendAllTextAsync(
+            "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
+            System.Text.Json.JsonSerializer.Serialize(new
+            {
+                sessionId = "3f5ec5",
+                runId = "pre-fix-5",
+                hypothesisId = "H11",
+                location = "CommunicationTaskBoard.razor.cs:ClosePreview",
+                message = "ClosePreview invoked",
+                data = new
+                {
+                    currentPreviewExternalId = _previewTask?.ExternalId,
+                    currentPreviewStatus = _previewTask?.Status.ToString(),
+                    currentTaskType = _previewTask?.TaskType.ToString()
+                },
+                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            }) + Environment.NewLine,
+            CancellationToken.None);
+        #endregion
         StopChatPolling();
         _previewTask = null;
         _taskDetail = null;
