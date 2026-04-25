@@ -564,9 +564,21 @@ public class OzonApiClient : IOzonApiClient
             if (!response.IsSuccessStatusCode)
             {
                 string? errorBody = null;
+                string? ozonErrorCode = null;
+                string? ozonErrorMessage = null;
                 try
                 {
                     errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(errorBody))
+                    {
+                        using var doc = JsonDocument.Parse(errorBody);
+                        if (doc.RootElement.TryGetProperty("code", out var codeEl))
+                            ozonErrorCode = codeEl.ValueKind == JsonValueKind.String
+                                ? codeEl.GetString()
+                                : codeEl.GetRawText();
+                        if (doc.RootElement.TryGetProperty("message", out var msgEl))
+                            ozonErrorMessage = msgEl.GetString();
+                    }
                 }
                 catch
                 {
@@ -576,8 +588,14 @@ public class OzonApiClient : IOzonApiClient
                 _logger.LogWarning("Ozon API call to {Path} failed with status {StatusCode}. Body: {Body}",
                                    path, (int)response.StatusCode, errorBody);
 
-                return OzonApiResultDto<TResponse>.Failure((int)response.StatusCode,
-                                                           $"Ozon API call failed with status {(int)response.StatusCode}.");
+                var detailedMessage = !string.IsNullOrWhiteSpace(ozonErrorMessage)
+                    ? ozonErrorMessage
+                    : $"Ozon API call failed with status {(int)response.StatusCode}.";
+
+                return OzonApiResultDto<TResponse>.Failure(
+                    (int)response.StatusCode,
+                    detailedMessage,
+                    ozonErrorCode);
             }
 
             var data = await response.ReadFromJsonAsync<TResponse>(cancellationToken);

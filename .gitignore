@@ -192,3 +192,7 @@ dist/
 # OS generated
 $RECYCLE.BIN/
 *.lnk
+
+# Local agent artifacts
+skills-lock.json
+.agents/skills/caveman/SKILL.md
