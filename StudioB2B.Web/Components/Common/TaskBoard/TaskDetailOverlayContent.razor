@@ -178,6 +178,7 @@
                             <div style="flex-shrink:0;">
                                 <ChatComposer
                                     OnSendWithFile="OnSendChatMessage"
+                                    OnGenerateAiReply="OnGenerateAiReply"
                                     PlaceHolder="Написать сообщение..."
                                     EnableAttachments="true"
                                     QuickReplies="ChatQuickReplies" />
@@ -244,13 +245,52 @@
                             <button type="button" class="chat-quick-reply-chip" @onclick="@(() => _localAnswerText = qrText)">@qrText</button>
                         }
                     </div>
+                    @if (!string.IsNullOrWhiteSpace(_questionAiSuggestion))
+                    {
+                        <div style="display:flex;flex-direction:column;gap:0.45rem;padding:0.5rem;border-radius:8px;background:var(--rz-info-lighter);border:1px solid var(--rz-info);margin:0.25rem 0;">
+                            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                                <span class="rzi" style="font-size:0.95rem;color:var(--rz-info);">auto_awesome</span>
+                                <span style="font-size:0.82rem;flex:1;min-width:220px;color:var(--rz-text-secondary-color);">ИИ подготовил вариант ответа. Вставить в поле?</span>
+                                <RadzenButton Text="Вставить" Icon="content_paste" ButtonStyle="ButtonStyle.Info" Size="ButtonSize.Small" Click="@InsertQuestionSuggestion" />
+                                <RadzenButton Text="Скрыть" Icon="close" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.Small" Click="@(() => _questionAiSuggestion = null)" />
+                            </div>
+                            <div style="white-space:pre-wrap;word-break:break-word;font-size:0.82rem;padding:0.45rem 0.55rem;border-radius:6px;background:var(--rz-base-0);border:1px solid var(--rz-base-300);max-height:140px;overflow:auto;">
+                                @_questionAiSuggestion
+                            </div>
+                        </div>
+                    }
+                    else if (_questionAiGenerating)
+                    {
+                        <div class="ai-gen-banner" style="margin:0.25rem 0;">
+                            <span class="rzi">auto_awesome</span>
+                            <span style="font-size:0.82rem;color:var(--rz-text-secondary-color);">
+                                ИИ анализирует вопрос и готовит ответ<span class="ai-gen-dots"></span>
+                            </span>
+                        </div>
+                    }
                     <div class="question-answer-input-row">
                         <RadzenTextArea @bind-Value="_localAnswerText"
                                         Rows="1"
                                         Placeholder="Напишите ответ…"
-                                        Style="flex:1;resize:none;padding:2px 10px;max-height:140px;"
+                                        Style="flex:1;resize:vertical;padding:2px 10px;min-height:56px;"
                                         Disabled="@SendingAnswer"
                                         oninput="this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,200)+'px';" />
+                        @if (OnGenerateAiReply is not null)
+                        {
+                            <RadzenButton Icon="auto_awesome"
+                                          ButtonStyle="ButtonStyle.Secondary"
+                                          Size="ButtonSize.Small"
+                                          Click="HandleGenerateQuestionReply"
+                                          Disabled="@SendingAnswer"
+                                          Title="Сгенерировать ответ ИИ" />
+                            @if (_questionAiGenerating)
+                            {
+                                <span class="ai-gen-chip">
+                                    <span class="rzi">auto_awesome</span>
+                                    Генерация<span class="ai-gen-dots"></span>
+                                </span>
+                            }
+                        }
                         <RadzenButton Icon="send" ButtonStyle="ButtonStyle.Primary" Size="ButtonSize.Small"
                                       IsBusy="@SendingAnswer"
                                       Disabled="@(string.IsNullOrWhiteSpace(_localAnswerText) || _localAnswerText.Length < 2 || _localAnswerText.Length > 3000)"
@@ -409,6 +449,7 @@
                 {
                     <ChatComposer
                         OnSendTextOnly="OnSendComment"
+                        OnGenerateAiReply="OnGenerateAiReply"
                         EnableAttachments="false"
                         PlaceHolder="Написать комментарий к отзыву..."
                         MaxLength="3000"
@@ -642,11 +683,37 @@
 @code {
     // ── private razor helpers ──────────────────────────────────────────────
     private string _localAnswerText = string.Empty;
+    private bool _questionAiGenerating;
+    private string? _questionAiSuggestion;
 
     private async Task HandleSendAnswer()
     {
         var ok = await OnSendAnswer(_localAnswerText);
         if (ok) _localAnswerText = string.Empty;
+    }
+
+    private async Task HandleGenerateQuestionReply()
+    {
+        if (OnGenerateAiReply is null || _questionAiGenerating)
+            return;
+
+        _questionAiGenerating = true;
+        StateHasChanged();
+        try
+        {
+            _questionAiSuggestion = await OnGenerateAiReply.Invoke();
+        }
+        finally
+        {
+            _questionAiGenerating = false;
+            StateHasChanged();
+        }
+    }
+
+    private void InsertQuestionSuggestion()
+    {
+        if (!string.IsNullOrWhiteSpace(_questionAiSuggestion))
+            _localAnswerText = _questionAiSuggestion;
     }
 
     private List<CommunicationPaymentRateDto> GetApplicableRates()
@@ -695,6 +762,7 @@
     [Parameter] public Func<string, IBrowserFile?, string?, Task<bool>> OnSendChatMessage { get; set; } = null!;
     [Parameter] public Func<string, Task<bool>> OnSendAnswer { get; set; } = null!;
     [Parameter] public Func<string, Task<bool>> OnSendComment { get; set; } = null!;
+    [Parameter] public Func<Task<string?>>? OnGenerateAiReply { get; set; }
     [Parameter] public EventCallback<OzonQuestionAnswerDto> OnDeleteAnswer { get; set; }
     [Parameter] public EventCallback<OzonReviewCommentDto> OnDeleteComment { get; set; }
 
