@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using Serilog;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
@@ -28,6 +29,40 @@ public static class PipelineExtensions
         app.UseMiddleware<TenantMiddleware>();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.Use(async (ctx, next) =>
+        {
+            await next();
+
+            if (!ctx.Request.Path.StartsWithSegments("/api"))
+                return;
+
+            if (ctx.Response.StatusCode is not (StatusCodes.Status401Unauthorized or StatusCodes.Status403Forbidden))
+                return;
+
+            // #region agent log
+            _ = System.IO.File.AppendAllTextAsync(
+                "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
+                System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    sessionId = "3f5ec5",
+                    runId = "pre-fix-2",
+                    hypothesisId = "H7",
+                    location = "PipelineExtensions.cs:UnauthorizedApiMiddleware",
+                    message = "API returned 401/403",
+                    data = new
+                    {
+                        path = ctx.Request.Path.Value,
+                        method = ctx.Request.Method,
+                        status = ctx.Response.StatusCode,
+                        endpoint = ctx.GetEndpoint()?.DisplayName,
+                        hasAuthHeader = ctx.Request.Headers.ContainsKey("Authorization"),
+                        isAuthenticated = ctx.User.Identity?.IsAuthenticated ?? false
+                    },
+                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                }) + Environment.NewLine,
+                CancellationToken.None);
+            // #endregion
+        });
         // Обязателен для Blazor Interactive Server.
         // IAntiforgery заменён на NoOpAntiforgery — реальная валидация отключена.
         app.UseAntiforgery();

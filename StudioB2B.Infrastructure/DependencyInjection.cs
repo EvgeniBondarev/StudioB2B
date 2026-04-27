@@ -36,6 +36,9 @@ public static class DependencyInjection
         services.Configure<OzonOptions>(
             configuration.GetSection(OzonOptions.SectionName));
 
+        services.Configure<OpenRouterOptions>(
+            configuration.GetSection(OpenRouterOptions.SectionName));
+
         services.Configure<EncryptionOptions>(
             configuration.GetSection(EncryptionOptions.SectionName));
 
@@ -87,6 +90,13 @@ public static class DependencyInjection
         .AddHttpMessageHandler<RetryHandler>()
         .AddHttpMessageHandler<RateLimitHandler>();
 
+        var openRouterOpts = configuration.GetSection(OpenRouterOptions.SectionName).Get<OpenRouterOptions>() ?? new OpenRouterOptions();
+        services.AddHttpClient("OpenRouter", client =>
+        {
+            client.BaseAddress = new Uri(openRouterOpts.BaseAddress);
+            client.Timeout = TimeSpan.FromSeconds(openRouterOpts.TimeoutSeconds);
+        });
+
         services.AddScoped<IOzonApiClient, OzonApiClient>();
         services.AddScoped<IOrderAdapter, OzonFbsOrderAdapter>();
         services.AddScoped<IOrderAdapter, OzonFboOrderAdapter>();
@@ -95,6 +105,7 @@ public static class DependencyInjection
         services.AddScoped<IOzonQuestionsService, OzonQuestionsService>();
         services.AddScoped<IOzonReviewsService, OzonReviewsService>();
         services.AddScoped<IOzonPushNotificationService, OzonPushNotificationService>();
+        services.AddScoped<IOpenRouterService, OpenRouterService>();
 
         services.AddScoped<TenantProvider>();
         services.AddScoped<ITenantProvider>(sp => sp.GetRequiredService<TenantProvider>());
@@ -151,6 +162,80 @@ public static class DependencyInjection
                     ValidAudience = jwtOpts.Audience,
                     IssuerSigningKey = key,
                     ClockSkew = TimeSpan.Zero
+                };
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = ctx =>
+                    {
+                        // #region agent log
+                        _ = System.IO.File.AppendAllTextAsync(
+                            "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
+                            System.Text.Json.JsonSerializer.Serialize(new
+                            {
+                                sessionId = "3f5ec5",
+                                runId = "pre-fix-2",
+                                hypothesisId = "H5",
+                                location = "DependencyInjection.cs:JwtBearerEvents.OnMessageReceived",
+                                message = "JWT message received",
+                                data = new
+                                {
+                                    path = ctx.Request.Path.Value,
+                                    hasAuthorizationHeader = ctx.Request.Headers.ContainsKey("Authorization"),
+                                    headerPrefix = ctx.Request.Headers.Authorization.ToString().Split(' ').FirstOrDefault()
+                                },
+                                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                            }) + Environment.NewLine,
+                            CancellationToken.None);
+                        // #endregion
+                        return Task.CompletedTask;
+                    },
+                    OnTokenValidated = ctx =>
+                    {
+                        // #region agent log
+                        _ = System.IO.File.AppendAllTextAsync(
+                            "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
+                            System.Text.Json.JsonSerializer.Serialize(new
+                            {
+                                sessionId = "3f5ec5",
+                                runId = "pre-fix-2",
+                                hypothesisId = "H6",
+                                location = "DependencyInjection.cs:JwtBearerEvents.OnTokenValidated",
+                                message = "JWT token validated",
+                                data = new
+                                {
+                                    path = ctx.Request.Path.Value,
+                                    userId = ctx.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                                        ?? ctx.Principal?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                                },
+                                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                            }) + Environment.NewLine,
+                            CancellationToken.None);
+                        // #endregion
+                        return Task.CompletedTask;
+                    },
+                    OnAuthenticationFailed = ctx =>
+                    {
+                        // #region agent log
+                        _ = System.IO.File.AppendAllTextAsync(
+                            "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
+                            System.Text.Json.JsonSerializer.Serialize(new
+                            {
+                                sessionId = "3f5ec5",
+                                runId = "pre-fix-2",
+                                hypothesisId = "H6",
+                                location = "DependencyInjection.cs:JwtBearerEvents.OnAuthenticationFailed",
+                                message = "JWT authentication failed",
+                                data = new
+                                {
+                                    path = ctx.Request.Path.Value,
+                                    error = ctx.Exception.Message
+                                },
+                                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                            }) + Environment.NewLine,
+                            CancellationToken.None);
+                        // #endregion
+                        return Task.CompletedTask;
+                    }
                 };
             });
 

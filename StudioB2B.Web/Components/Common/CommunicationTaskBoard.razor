@@ -12,6 +12,7 @@
 @inject ITenantProvider TenantProvider
 @inject ICurrentUserProvider CurrentUser
 @inject NotificationService NotificationService
+@inject HttpClient Http
 @inject NavigationManager Navigation
 @inject IJSRuntime Js
 @inject TaskBoardStateService BoardState
@@ -170,7 +171,7 @@
                         CurrentUserId="@(_myTenantId ?? CurrentUser.UserId)"
                         ChatMessages="_chatMessages"
                         ChatVm="_previewChatVm"
-                        ChatFallbackUrl="_chatFallbackUrl"
+                        ChatFallbackUrl="@_chatFallbackUrl"
                         QuestionDetail="_questionDetail"
                         ReviewDetail="_reviewDetail"
                         ChatAuthors="_chatMessageAuthors"
@@ -193,6 +194,7 @@
                         OnSendChatMessage="OverlaySendChatMessageAsync"
                         OnSendAnswer="OverlaySendAnswerAsync"
                         OnSendComment="OverlaySendCommentAsync"
+                        OnGenerateAiReply="GenerateAiReplyAsync"
                         OnDeleteAnswer="@(ans => OverlayDeleteAnswerAsync(ans))"
                         OnDeleteComment="@(c => OverlayDeleteCommentAsync(c))"
                         OnOpenGallery="OpenOverlayGallery" />
@@ -300,7 +302,7 @@
                 CurrentUserId="@(_myTenantId ?? CurrentUser.UserId)"
                 ChatMessages="_chatMessages"
                 ChatVm="_previewChatVm"
-                ChatFallbackUrl="_chatFallbackUrl"
+                ChatFallbackUrl="@_chatFallbackUrl"
                 QuestionDetail="_questionDetail"
                 ReviewDetail="_reviewDetail"
                 ChatAuthors="_chatMessageAuthors"
@@ -323,6 +325,7 @@
                 OnSendChatMessage="OverlaySendChatMessageAsync"
                 OnSendAnswer="OverlaySendAnswerAsync"
                 OnSendComment="OverlaySendCommentAsync"
+                OnGenerateAiReply="GenerateAiReplyAsync"
                 OnDeleteAnswer="@(ans => OverlayDeleteAnswerAsync(ans))"
                 OnDeleteComment="@(c => OverlayDeleteCommentAsync(c))"
                 OnOpenGallery="OpenOverlayGallery" />

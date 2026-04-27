@@ -5,5 +5,7 @@ public class PaymentBreakdownLineDto
 {
     public string Caption { get; set; } = string.Empty;
 
+    public string Details { get; set; } = string.Empty;
+
     public decimal Amount { get; set; }
 }

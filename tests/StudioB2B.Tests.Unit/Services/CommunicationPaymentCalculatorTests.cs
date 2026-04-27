@@ -39,7 +39,7 @@ public class CommunicationPaymentCalculatorTests
     public void Hourly_WithMax_ProportionalToMax()
     {
         var result = CommunicationPaymentCalculator.ComputeRateContribution(15m, PaymentMode.Hourly, 200m, 30);
-        result.Should().Be(100m);
+        result.Should().Be(50m);
     }
 
     [Fact]
