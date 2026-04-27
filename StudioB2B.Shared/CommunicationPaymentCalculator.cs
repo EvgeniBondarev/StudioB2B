@@ -26,7 +26,6 @@ public static class CommunicationPaymentCalculator
         return mode switch
         {
             PaymentMode.PerTask => rate,
-            PaymentMode.Hourly when maxDurationMinutes.HasValue => rate * (effectiveMinutes / maxDurationMinutes.Value),
             PaymentMode.Hourly => rate * (effectiveMinutes / 60m),
             _ => 0m
         };
@@ -75,6 +74,7 @@ public static class CommunicationPaymentCalculator
             lines.Add(new PaymentBreakdownLineDto
             {
                 Caption = BuildBreakdownCaption(rate, effectiveMinutes, amount, atFloor, atCeiling),
+                Details = BuildBreakdownDetails(rate, totalMinutes, effectiveMinutes, amount, atFloor, atCeiling),
                 Amount = amount
             });
         }
@@ -119,12 +119,35 @@ public static class CommunicationPaymentCalculator
         if (r.MaxDurationMinutes.HasValue)
         {
             var em = (int)Math.Round(effectiveMinutes, MidpointRounding.AwayFromZero);
-            return $"Почасовая{boundNote} · {typeScope}{who}{tier}{note} · {r.Rate:F0} ₽/{r.MaxDurationMinutes} мин × {em} мин = {amount:F2} ₽";
+            return $"Почасовая{boundNote} · {typeScope}{who}{tier}{note} · {r.Rate:F0} ₽/ч × {em} мин = {amount:F2} ₽";
         }
 
         var hh = (int)effectiveMinutes / 60;
         var mm = (int)Math.Round(effectiveMinutes % 60, MidpointRounding.AwayFromZero);
         var timeStr = hh > 0 ? $"{hh} ч {mm} мин" : $"{mm} мин";
         return $"Почасовая{boundNote} · {typeScope}{who}{note} · {r.Rate:F0} ₽/ч × {timeStr} = {amount:F2} ₽";
+    }
+
+    private static string BuildBreakdownDetails(
+        CommunicationPaymentRateDto r,
+        decimal totalMinutes,
+        decimal effectiveMinutes,
+        decimal amount,
+        bool atFloor,
+        bool atCeiling)
+    {
+        var factRounded = (int)Math.Round(totalMinutes, MidpointRounding.AwayFromZero);
+        var effRounded = (int)Math.Round(effectiveMinutes, MidpointRounding.AwayFromZero);
+        var minStr = r.MinDurationMinutes?.ToString() ?? "—";
+        var maxStr = r.MaxDurationMinutes?.ToString() ?? "—";
+        var clampMark = atFloor ? "min" : atCeiling ? "max" : "ok";
+
+        if (r.PaymentMode == PaymentMode.PerTask)
+        {
+            return $"PerTask | факт {factRounded}м | диапазон {minStr}-{maxStr}м ({clampMark}) | сумма {r.Rate:F2} ₽";
+        }
+
+        var minuteRate = r.Rate / 60m;
+        return $"Hourly | {r.Rate:F2} ₽/ч ({minuteRate:F4} ₽/м) | факт {factRounded}м -> оплачено {effRounded}м | диапазон {minStr}-{maxStr}м ({clampMark}) | {r.Rate:F2}/60×{effRounded}={amount:F2} ₽";
     }
 }
