@@ -1656,6 +1656,51 @@
     line-height: 1.35;
 }
 
+.calc-info-icon {
+    font-size: 0.85rem;
+    color: var(--rz-text-secondary-color);
+    line-height: 1.2;
+}
+
+.calc-info-details {
+    margin-top: 4px;
+}
+
+.calc-info-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
+    color: var(--rz-text-secondary-color);
+    font-size: 0.72rem;
+    user-select: none;
+}
+
+.calc-info-summary::-webkit-details-marker {
+    display: none;
+}
+
+.calc-info-tooltip {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--rz-base-300);
+    background: var(--rz-base-0);
+    color: var(--rz-text-color);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+    font-size: 0.7rem;
+    line-height: 1.2;
+    white-space: normal;
+    font-family: inherit;
+    font-weight: 500;
+}
+
+.calc-info-details:not([open]) .calc-info-tooltip {
+    display: none;
+}
+
 .payment-breakdown-amount {
     font-weight: 700;
     white-space: nowrap;

@@ -61,11 +61,14 @@ public class OpenRouterService : IOpenRouterService
 
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogWarning(
+            _logger.LogError(
                 "OpenRouter request failed with status {Status}. Body: {Body}",
                 (int)response.StatusCode,
                 body);
-            throw new InvalidOperationException($"OpenRouter request failed with status {(int)response.StatusCode}.");
+
+            var errorBody = string.IsNullOrWhiteSpace(body) ? "<empty>" : body;
+            throw new InvalidOperationException(
+                $"OpenRouter request failed with status {(int)response.StatusCode}. Body: {errorBody}");
         }
 
         var completion = System.Text.Json.JsonSerializer.Deserialize<OpenRouterChatCompletionsResponse>(body);

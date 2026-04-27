@@ -583,7 +583,19 @@
                             @foreach (var line in doneLines)
                             {
                                 <div class="payment-breakdown-row">
-                                    <span class="payment-breakdown-label">@line.Caption</span>
+                                    <div class="payment-breakdown-label">
+                                        <div>@line.Caption</div>
+                                        @if (!string.IsNullOrWhiteSpace(line.Details))
+                                        {
+                                            <details class="calc-info-details">
+                                                <summary class="calc-info-summary" aria-label="Показать подробности расчёта">
+                                                    <span class="rzi calc-info-icon">info</span>
+                                                    <span>Как рассчитано</span>
+                                                </summary>
+                                                <div class="calc-info-tooltip">@line.Details</div>
+                                            </details>
+                                        }
+                                    </div>
                                     <span class="payment-breakdown-amount">+@line.Amount.ToString("F0") ₽</span>
                                 </div>
                             }
