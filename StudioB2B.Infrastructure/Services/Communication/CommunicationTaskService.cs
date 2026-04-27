@@ -1316,12 +1316,18 @@ public class CommunicationTaskService : ICommunicationTaskService
 
             foreach (var task in done)
             {
+                // Rebuild total worked time from closed segments so legacy/inconsistent values
+                // do not affect recalculation by the new payment formula.
+                task.TotalTimeSpentTicks = task.TimeEntries
+                    .Where(e => e.EndedAt.HasValue)
+                    .Sum(e => (e.EndedAt!.Value - e.StartedAt).Ticks);
                 task.PaymentAmount = await CalculatePaymentAsync(db, task, ct);
                 task.UpdatedAt = DateTime.UtcNow;
             }
 
             await db.SaveChangesAsync(ct);
             _logger.LogInformation("RecalculatePayments: updated {Count} tasks", done.Count);
+            await NotifyBoardChangedAsync(ct);
             return done.Count;
         }
         finally
