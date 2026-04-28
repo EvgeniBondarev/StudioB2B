@@ -3,7 +3,6 @@
 @using StudioB2B.Web.Components.Common.TaskBoard
 
 @inject ICommunicationTaskService TaskService
-@inject ICommunicationTaskSyncService SyncService
 @inject IOzonChatService ChatService
 @inject IOzonQuestionsService QuestionsService
 @inject IOzonReviewsService ReviewsService
@@ -92,15 +91,10 @@
             <div class="taskboard-column-header">
                 <span>Новые</span>
                 <span class="taskboard-column-count">@FilteredNew.Count</span>
-                @if (_loadingNew)
-                {
-                    <RadzenProgressBarCircular ShowValue="false" Mode="ProgressBarMode.Indeterminate"
-                                              Size="ProgressBarCircularSize.ExtraSmall"
-                                              Style="margin-left:auto;" />
-                }
+
             </div>
             <div class="taskboard-column-body">
-                @if (_loadingNew && FilteredNew.Count == 0)
+                @if (_loading && FilteredNew.Count == 0)
                 {
                     @for (var i = 0; i < 3; i++)
                     {

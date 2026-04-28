@@ -1,6 +1,5 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StudioB2B.Domain.Options;
@@ -28,7 +27,7 @@ public class OpenRouterService : IOpenRouterService
     public async Task<OpenRouterChatResponseDto> ChatAsync(OpenRouterChatRequestDto request, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.Message))
-            throw new ArgumentException("Message is required.", nameof(request.Message));
+            throw new ArgumentException("Message is required.", nameof(request));
 
         if (string.IsNullOrWhiteSpace(_options.ApiKey))
             throw new InvalidOperationException("OpenRouter:ApiKey is not configured.");
@@ -88,7 +87,7 @@ public class OpenRouterService : IOpenRouterService
     public async Task<OpenRouterSuggestReplyResponseDto> SuggestReplyAsync(OpenRouterSuggestReplyRequestDto request, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.Context))
-            throw new ArgumentException("Context is required.", nameof(request.Context));
+            throw new ArgumentException("Context is required.", nameof(request));
 
         var systemPrompt = ResolvePromptByTaskType(request.TaskType);
         var chatResponse = await ChatAsync(new OpenRouterChatRequestDto
@@ -134,55 +133,5 @@ public class OpenRouterService : IOpenRouterService
         });
 
         return messages;
-    }
-
-    private class OpenRouterChatCompletionsRequest
-    {
-        [JsonPropertyName("model")]
-        public string? Model { get; set; }
-
-        [JsonPropertyName("messages")]
-        public List<OpenRouterChatMessage> Messages { get; set; } = [];
-
-        [JsonPropertyName("temperature")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public decimal? Temperature { get; set; }
-
-        [JsonPropertyName("max_tokens")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public int? MaxTokens { get; set; }
-    }
-
-    private class OpenRouterChatMessage
-    {
-        [JsonPropertyName("role")]
-        public string Role { get; set; } = "";
-
-        [JsonPropertyName("content")]
-        public string Content { get; set; } = "";
-    }
-
-    private class OpenRouterChatCompletionsResponse
-    {
-        [JsonPropertyName("id")]
-        public string? Id { get; set; }
-
-        [JsonPropertyName("model")]
-        public string? Model { get; set; }
-
-        [JsonPropertyName("choices")]
-        public List<OpenRouterChoice>? Choices { get; set; }
-    }
-
-    private class OpenRouterChoice
-    {
-        [JsonPropertyName("message")]
-        public OpenRouterResponseMessage? Message { get; set; }
-    }
-
-    private class OpenRouterResponseMessage
-    {
-        [JsonPropertyName("content")]
-        public string? Content { get; set; }
     }
 }

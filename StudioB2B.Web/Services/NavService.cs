@@ -58,18 +58,9 @@ public class NavService
             Items = new()
             {
                 new NavItem { Path = "/communication", Role = nameof(PageEnum.ChatsView) },
-                new NavItem { Path = "/ai-assistant", Role = nameof(PageEnum.ChatsView) }
-            }
-        },
-        new NavGroup
-        {
-            Title = "Доска задач",
-            Icon = "view_kanban",
-            Items = new()
-            {
-                new NavItem { Path = "/task-board", Role = nameof(PageEnum.TaskBoardView) },
-                new NavItem { Path = "/task-board-settings", Role = nameof(PageEnum.TaskBoardAdmin) },
-                new NavItem { Path = "/task-board-report", Role = nameof(PageEnum.TaskBoardAdmin) }
+                new NavItem { Path = "/ai-assistant", Role = nameof(PageEnum.ChatsView) },
+                new NavItem { Path = "/task-board-settings", Role = nameof(PageEnum.ChatsView) },
+                new NavItem { Path = "/task-board-report", Role = nameof(PageEnum.ChatsView) }
             }
         },
         new NavGroup

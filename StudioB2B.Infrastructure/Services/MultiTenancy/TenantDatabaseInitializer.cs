@@ -99,7 +99,7 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         if (await ctx.Permissions.AnyAsync(p => p.Name == permName && !p.IsDeleted, ct))
             return;
 
-        var pages = new[] { PageEnum.TaskBoardView, PageEnum.ChatsView };
+        var pages = new[] { PageEnum.ChatsView };
 
         var perm = new Permission { Id = Guid.NewGuid(), Name = permName, IsFullAccess = false };
         ctx.Permissions.Add(perm);

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using StudioB2B.Infrastructure.Persistence.Master;
 using StudioB2B.Infrastructure.Persistence.Tenant;
+using StudioB2B.Infrastructure.Services.Communication;
 using StudioB2B.Infrastructure.Services.Order;
 
 namespace StudioB2B.Infrastructure.Services.MultiTenancy;
@@ -137,6 +138,14 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
             {
                 _logger.LogDebug("TenantHangfireManager: server registered for tenant {TenantId} ({Subdomain}).",
                                  tenantId, subdomain);
+
+                var commSyncJob = Hangfire.Common.Job.FromExpression<CommunicationTaskSyncJob>(
+                    j => j.ExecuteAsync(tenantId, connectionString, CancellationToken.None));
+                recurringManager.AddOrUpdate(
+                    $"comm-sync-{tenantId:N}",
+                    commSyncJob,
+                    "*/5 * * * *",
+                    new RecurringJobOptions());
             }
         }
         catch (Exception ex)

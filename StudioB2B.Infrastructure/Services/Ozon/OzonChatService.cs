@@ -27,29 +27,6 @@ public class OzonChatService : IOzonChatService
                                                          Guid? marketplaceClientId = null, bool withLastMessageInfo = true,
                                                          CancellationToken ct = default)
     {
-        #region agent log
-        _ = System.IO.File.AppendAllTextAsync(
-            "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
-            System.Text.Json.JsonSerializer.Serialize(new
-            {
-                sessionId = "3f5ec5",
-                runId = "pre-fix-3",
-                hypothesisId = "H8",
-                location = "OzonChatService.cs:GetChatsPageAsync",
-                message = "GetChatsPage start",
-                data = new
-                {
-                    pageSize,
-                    cursor,
-                    chatStatus,
-                    chatType,
-                    unreadOnly,
-                    marketplaceClientId
-                },
-                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-            }) + Environment.NewLine,
-            CancellationToken.None);
-        #endregion
         var clients = await GetOzonClientsAsync(marketplaceClientId, ct);
         var viewModels = new List<OzonChatViewModelDto>();
         string? nextCursor = null;
@@ -90,27 +67,6 @@ public class OzonChatService : IOzonChatService
                 var apiResult = await _ozonApi.GetChatListAsync(client.ApiId, client.EncryptedApiKey, request, ct);
                 if (!apiResult.IsSuccess || apiResult.Data is null)
                 {
-                    #region agent log
-                    _ = System.IO.File.AppendAllTextAsync(
-                        "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
-                        System.Text.Json.JsonSerializer.Serialize(new
-                        {
-                            sessionId = "3f5ec5",
-                            runId = "pre-fix-3",
-                            hypothesisId = "H8",
-                            location = "OzonChatService.cs:GetChatsPageAsync",
-                            message = "GetChatList failed",
-                            data = new
-                            {
-                                clientId = client.Id,
-                                clientName = client.Name,
-                                statusCode = apiResult.StatusCode,
-                                error = apiResult.ErrorMessage
-                            },
-                            timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                        }) + Environment.NewLine,
-                        CancellationToken.None);
-                    #endregion
                     _logger.LogWarning("GetChatsPage failed for client {Name}: {Error}", client.Name, apiResult.ErrorMessage);
                     continue;
                 }
@@ -156,27 +112,6 @@ public class OzonChatService : IOzonChatService
                     });
                 }
 
-                #region agent log
-                _ = System.IO.File.AppendAllTextAsync(
-                    "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
-                    System.Text.Json.JsonSerializer.Serialize(new
-                    {
-                        sessionId = "3f5ec5",
-                        runId = "pre-fix-3",
-                        hypothesisId = "H8",
-                        location = "OzonChatService.cs:GetChatsPageAsync",
-                        message = "GetChatList success",
-                        data = new
-                        {
-                            clientId = client.Id,
-                            clientName = client.Name,
-                            returnedByApi = apiResult.Data.Chats.Count,
-                            afterTypeFilter = items.Count
-                        },
-                        timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                    }) + Environment.NewLine,
-                    CancellationToken.None);
-                #endregion
 
                 remaining -= items.Count;
 
@@ -321,27 +256,6 @@ public class OzonChatService : IOzonChatService
         var result = await _ozonApi.GetChatHistoryAsync(client.ApiId, client.EncryptedApiKey, request, ct);
         if (!result.IsSuccess)
         {
-            #region agent log
-            _ = System.IO.File.AppendAllTextAsync(
-                "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
-                System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    sessionId = "3f5ec5",
-                    runId = "pre-fix-3",
-                    hypothesisId = "H9",
-                    location = "OzonChatService.cs:GetChatHistoryAsync",
-                    message = "GetChatHistory failed",
-                    data = new
-                    {
-                        chatId,
-                        marketplaceClientId,
-                        statusCode = result.StatusCode,
-                        error = result.ErrorMessage
-                    },
-                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                }) + Environment.NewLine,
-                CancellationToken.None);
-            #endregion
             _logger.LogWarning("GetChatHistory failed for chat {ChatId}: {Error}", chatId, result.ErrorMessage);
             if (result.StatusCode == 403)
             {
