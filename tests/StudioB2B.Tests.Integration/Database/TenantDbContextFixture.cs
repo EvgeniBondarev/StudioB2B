@@ -27,6 +27,7 @@ public sealed class TenantDbContextFixture : IAsyncLifetime
     public Guid DefaultClientId { get; private set; }
     public Guid DefaultFromStatusId { get; private set; }
     public Guid DefaultToStatusId { get; private set; }
+    public Guid DefaultUserId { get; private set; }
 
     public async Task InitializeAsync()
     {
@@ -137,5 +138,25 @@ public sealed class TenantDbContextFixture : IAsyncLifetime
             await ctx.SaveChangesAsync();
         }
         DefaultToStatusId = toStatus.Id;
+
+        // TenantUser
+        var user = await ctx.Users
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Email == "test@test.local");
+        if (user == null)
+        {
+            user = new TenantUser
+            {
+                Id = Guid.NewGuid(),
+                Email = "test@test.local",
+                FirstName = "Test",
+                LastName = "User",
+                HashPassword = "",
+                IsActive = true
+            };
+            ctx.Users.Add(user);
+            await ctx.SaveChangesAsync();
+        }
+        DefaultUserId = user.Id;
     }
 }

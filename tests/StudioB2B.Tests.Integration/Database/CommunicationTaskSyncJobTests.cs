@@ -125,7 +125,7 @@ public class CommunicationTaskSyncJobTests : IClassFixture<TenantDbContextFixtur
         ctx.SuppressAudit = true;
 
         var chatId = $"chat-active-{Guid.NewGuid():N}";
-        var userId = Guid.NewGuid();
+        var userId = _fixture.DefaultUserId;
         var task = new CommunicationTask
         {
             Id = Guid.NewGuid(),
