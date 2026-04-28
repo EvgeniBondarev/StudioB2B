@@ -146,21 +146,21 @@
             @if (_previewTask is not null && _previewTask.Status == CommunicationTaskStatus.InProgress)
             {
                 var inpToShow = FilteredInProgress;
-                @if (inpToShow.Count > 0)
-                {
-                    <div class="taskboard-pinned-card">
-                        @{ var pinnedTask = inpToShow[0]; }
-                        <TaskCard Task="pinnedTask" Board="_board"
+                <div class="taskboard-column-body col-inprogress-cards-above">
+                    @foreach (var task in inpToShow)
+                    {
+                        var t = task;
+                        <TaskCard Task="t" Board="_board"
                                   CurrentUserId="@(_myTenantId ?? CurrentUser.UserId)"
-                                  IsSelected="@(_previewTask?.Id == pinnedTask.Id)"
+                                  IsSelected="@(_previewTask?.Id == t.Id)"
                                   ShowInProgressButtons="true"
-                                  OnClick="@(() => OnCardClick(pinnedTask))"
-                                  OnPause="@(() => PauseAsync(pinnedTask))"
-                                  OnResume="@(() => ResumeAsync(pinnedTask))"
-                                  OnComplete="@(() => CompleteAsync(pinnedTask))"
-                                  OnRelease="@(() => ReleaseAsync(pinnedTask))" />
-                    </div>
-                }
+                                  OnClick="@(() => OnCardClick(t))"
+                                  OnPause="@(() => PauseAsync(t))"
+                                  OnResume="@(() => ResumeAsync(t))"
+                                  OnComplete="@(() => CompleteAsync(t))"
+                                  OnRelease="@(() => ReleaseAsync(t))" />
+                    }
+                </div>
 
                 <div class="task-detail-overlay @TaskBoardHelpers.GetPreviewTypeClass(_previewTask!.TaskType)">
                     <TaskDetailOverlayContent
@@ -199,25 +199,6 @@
                         OnDeleteComment="@(c => OverlayDeleteCommentAsync(c))"
                         OnOpenGallery="OpenOverlayGallery" />
                 </div>
-
-                @if (inpToShow.Count > 1)
-                {
-                    <div class="taskboard-column-body col-inprogress-others">
-                        @foreach (var task in inpToShow.Skip(1))
-                        {
-                            var t = task;
-                            <TaskCard Task="t" Board="_board"
-                                      CurrentUserId="@(_myTenantId ?? CurrentUser.UserId)"
-                                      IsSelected="@(_previewTask?.Id == t.Id)"
-                                      ShowInProgressButtons="true"
-                                      OnClick="@(() => OnCardClick(t))"
-                                      OnPause="@(() => PauseAsync(t))"
-                                      OnResume="@(() => ResumeAsync(t))"
-                                      OnComplete="@(() => CompleteAsync(t))"
-                                      OnRelease="@(() => ReleaseAsync(t))" />
-                        }
-                    </div>
-                }
             }
             else
             {

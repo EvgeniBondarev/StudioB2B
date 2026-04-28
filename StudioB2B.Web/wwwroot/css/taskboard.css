@@ -1076,23 +1076,32 @@
     padding: 0.5rem;
 }
 
-/* Pinned selected card above overlay */
-.taskboard-pinned-card {
+/* Cards above overlay — take remaining space, scroll if overflow */
+.col-inprogress .col-inprogress-cards-above {
+    flex: 1 1 0;
+    overflow-y: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.col-inprogress .col-inprogress-cards-above::-webkit-scrollbar {
+    display: none;
+}
+
+.col-inprogress .col-inprogress-cards-above .task-card {
     flex-shrink: 0;
-    padding: 0.25rem 0.5rem;
 }
 
-/* Other cards below overlay — don't steal height from overlay */
-.col-inprogress .col-inprogress-others {
-    flex: 0 0 auto;
-    max-height: 35%;
-}
-
-/* Overlay fills all remaining viewport height */
+/* Overlay pinned at bottom — fixed height */
 .col-inprogress .task-detail-overlay {
     width: 100%;
-    flex: 1 1 0;
-    height: auto;
+    flex: 0 0 500px;
+    height: 500px;
     min-height: 0;
     border-radius: 12px;
     border: 1px solid var(--rz-base-300);
