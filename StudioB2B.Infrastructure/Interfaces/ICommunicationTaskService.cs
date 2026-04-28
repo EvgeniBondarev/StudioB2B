@@ -73,6 +73,9 @@ public interface ICommunicationTaskService
     /// <summary>Invalidates the in-memory cache for live Ozon data (chats, questions, reviews).</summary>
     void InvalidateLiveCache();
 
+    /// <summary>Runs a full sync of chats/questions/reviews from Ozon into the DB for the current tenant.</summary>
+    Task SyncNowAsync(CancellationToken ct = default);
+
     /// <summary>
     /// Records which employee sent an outgoing message/answer/comment.
     /// externalId = chatId/questionId/reviewId; externalMessageId = Ozon message ID (string) / answerId / commentId.

@@ -1,5 +1,5 @@
 @page "/task-board"
-@attribute [Authorize(Roles = nameof(PageEnum.TaskBoardView) + "," + nameof(PageEnum.TaskBoardAdmin))]
+@attribute [Authorize(Roles = nameof(PageEnum.ChatsView))]
 @using StudioB2B.Infrastructure.Interfaces
 
 @inject ITenantProvider TenantProvider

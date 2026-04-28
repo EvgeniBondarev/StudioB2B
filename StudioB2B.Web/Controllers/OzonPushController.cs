@@ -1,10 +1,13 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Hangfire;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudioB2B.Domain.Constants;
 using StudioB2B.Infrastructure.Interfaces;
+using StudioB2B.Infrastructure.Services.Communication;
+using StudioB2B.Infrastructure.Services.MultiTenancy;
 using StudioB2B.Shared;
 
 namespace StudioB2B.Web.Controllers;
@@ -35,17 +38,20 @@ public class OzonPushController : ControllerBase
     private readonly IOzonPushNotificationService _pushService;
     private readonly IOzonPushNotificationSender _pushSender;
     private readonly ITenantProvider _tenantProvider;
+    private readonly TenantHangfireManager _hangfireManager;
     private readonly ILogger<OzonPushController> _logger;
 
     public OzonPushController(
         IOzonPushNotificationService pushService,
         IOzonPushNotificationSender pushSender,
         ITenantProvider tenantProvider,
+        TenantHangfireManager hangfireManager,
         ILogger<OzonPushController> logger)
     {
         _pushService = pushService;
         _pushSender = pushSender;
         _tenantProvider = tenantProvider;
+        _hangfireManager = hangfireManager;
         _logger = logger;
     }
 
@@ -131,6 +137,28 @@ public class OzonPushController : ControllerBase
 
             if (_tenantProvider.TenantId.HasValue)
                 await _pushSender.SendPushAsync(_tenantProvider.TenantId.Value.ToString(), dto, ct);
+
+            // Enqueue targeted chat upsert for chat-type notifications
+            if (OzonPushMessageType.ChatTypes.Contains(messageType) &&
+                chatId is not null &&
+                _tenantProvider.TenantId.HasValue &&
+                _tenantProvider.ConnectionString is not null)
+            {
+                try
+                {
+                    var jobClient = _hangfireManager.GetClient(_tenantProvider.TenantId.Value);
+                    jobClient.Enqueue<CommunicationTaskSyncJob>(j => j.UpsertChatTaskAsync(
+                        _tenantProvider.TenantId.Value,
+                        _tenantProvider.ConnectionString,
+                        chatId,
+                        messageType,
+                        CancellationToken.None));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "OzonPush: failed to enqueue chat upsert for chat {ChatId}", chatId);
+                }
+            }
 
             _logger.LogInformation(
                 "OzonPush: saved {MessageType} for seller {SellerId}, tenant {TenantId}.",

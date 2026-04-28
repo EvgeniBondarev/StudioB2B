@@ -35,21 +35,18 @@
                            @onchange="@(async e => await OnToggleType.InvokeAsync((CommunicationTaskType.Chat, (bool)e.Value!)))" />
                     <span class="tb-sidebar-dot"></span>
                     Чаты
-                    <span class="tb-sidebar-count" style="margin-left:auto;">@TypeCounts.GetValueOrDefault(CommunicationTaskType.Chat)</span>
                 </label>
                 <label class="tb-check-item type-question">
                     <input type="checkbox" checked="@FilterTypes.Contains(CommunicationTaskType.Question)"
                            @onchange="@(async e => await OnToggleType.InvokeAsync((CommunicationTaskType.Question, (bool)e.Value!)))" />
                     <span class="tb-sidebar-dot"></span>
                     Вопросы
-                    <span class="tb-sidebar-count" style="margin-left:auto;">@TypeCounts.GetValueOrDefault(CommunicationTaskType.Question)</span>
                 </label>
                 <label class="tb-check-item type-review">
                     <input type="checkbox" checked="@FilterTypes.Contains(CommunicationTaskType.Review)"
                            @onchange="@(async e => await OnToggleType.InvokeAsync((CommunicationTaskType.Review, (bool)e.Value!)))" />
                     <span class="tb-sidebar-dot"></span>
                     Отзывы
-                    <span class="tb-sidebar-count" style="margin-left:auto;">@TypeCounts.GetValueOrDefault(CommunicationTaskType.Review)</span>
                 </label>
             </div>
         </div>
