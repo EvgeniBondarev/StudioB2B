@@ -325,7 +325,7 @@ public class CommunicationTaskSyncJob
                 task.ExternalStatus = q.Status.ToString();
                 task.UpdatedAt = now;
 
-                if (task.Status == CommunicationTaskStatus.Done && !IsTerminalQuestion(q.Status.ToString()))
+                if (task.Status == CommunicationTaskStatus.Done && !IsTerminalQuestion(q.Status.ToString()) && q.AnswersCount == 0)
                 {
                     task.Status = CommunicationTaskStatus.New;
                     task.WasPreviouslyCompleted = true;
@@ -413,14 +413,6 @@ public class CommunicationTaskSyncJob
                 var prevStatus = task.ExternalStatus;
                 task.ExternalStatus = r.Status ?? "";
                 task.UpdatedAt = now;
-
-                if (task.Status == CommunicationTaskStatus.Done && !IsTerminalReview(r.Status ?? ""))
-                {
-                    task.Status = CommunicationTaskStatus.New;
-                    task.WasPreviouslyCompleted = true;
-                    task.AssignedToUserId = null;
-                    task.AssignedAt = null;
-                }
 
                 if (prevStatus != task.ExternalStatus) changed = true;
             }
