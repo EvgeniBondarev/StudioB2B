@@ -100,7 +100,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                 // Last message info is already fetched (withLastMessageInfo: true) — reopen Done tasks
                 // that have unread messages or whose last message is from a customer.
                 if (task.Status == CommunicationTaskStatus.Done &&
-                    (chat.UnreadCount > 0 || IsCustomerUserType(chat.LastMessageUserType)))
+                    IsCustomerUserType(chat.LastMessageUserType))
                 {
                     task.Status = CommunicationTaskStatus.New;
                     task.WasPreviouslyCompleted = true;
@@ -290,7 +290,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             await db.SaveChangesAsync(ct);
             _logger.LogWarning("Synced {Count} existing review tasks (full={Full})", existing.Count, fullSync);
 
-            return await AutoReopenByStatusChangeAsync(db, existing.Values, IsTerminalReviewStatus, ct);
+            return 0;
         }
         catch (Exception ex)
         {
@@ -347,12 +347,6 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
         return t is not ("Seller" or "seller" or "Seller_Support" or "SELLER_SUPPORT" or "Support");
     }
 
-    private static bool IsTerminalChatStatus(string? status) =>
-        string.Equals(status, "CLOSED", StringComparison.OrdinalIgnoreCase);
-
     private static bool IsTerminalQuestionStatus(string? status) =>
-        string.Equals(status, "PROCESSED", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsTerminalReviewStatus(string? status) =>
         string.Equals(status, "PROCESSED", StringComparison.OrdinalIgnoreCase);
 }

@@ -553,6 +553,7 @@ public partial class CommunicationTaskBoard
             StateHasChanged();
             if (_previewTask?.TaskType == CommunicationTaskType.Chat)
             {
+                await Task.Delay(100);
                 await Js.InvokeVoidAsync("scrollChatOverlayToBottom");
                 StartChatPolling();
             }

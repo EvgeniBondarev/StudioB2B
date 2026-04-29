@@ -46,6 +46,13 @@ window.taskBoardEsc = {
 };
 
 window.scrollChatOverlayToBottom = function () {
+    // Side modal (New / Done panels): task-detail-body--modal-scroll is the scroll container
+    const modalBody = document.querySelector('.task-detail-body--modal-scroll');
+    if (modalBody) {
+        modalBody.scrollTop = modalBody.scrollHeight;
+        return;
+    }
+    // In-progress overlay: chat-messages-area is the scroll container
     const el = document.querySelector('.task-detail-overlay .chat-messages-area');
     if (el) el.scrollTop = el.scrollHeight;
 };

@@ -136,7 +136,7 @@ public class CommunicationTaskSyncTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new OzonChatPageDto
             {
-                Chats = [new OzonChatViewModelDto { ChatId = chatId, ChatStatus = "OPENED", UnreadCount = 3 }]
+                Chats = [new OzonChatViewModelDto { ChatId = chatId, ChatStatus = "OPENED", UnreadCount = 3, LastMessageUserType = "Customer" }]
             });
         // GetChatHistoryAsync for AutoReopenDoneChatsAsync — no unread from buyer (return null)
         chatMock.Setup(s => s.GetChatHistoryAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(),
