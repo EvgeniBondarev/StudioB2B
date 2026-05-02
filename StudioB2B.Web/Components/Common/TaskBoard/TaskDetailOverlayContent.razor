@@ -677,15 +677,12 @@
             }
             else if (Task.Status == CommunicationTaskStatus.Done)
             {
-                <RadzenButton Text="Вернуть в работу" Icon="replay" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small"
-                              Click="@(() => OnReopen.InvokeAsync())" IsBusy="@OverlayBusy" Style="margin-left:auto;" />
+                @* задача выполнена — действий нет *@
             }
         }
         else
         {
-            @* Chat + Done *@
-            <RadzenButton Text="Вернуть в работу" Icon="replay" ButtonStyle="ButtonStyle.Secondary" Size="ButtonSize.Small"
-                          Click="@(() => OnReopen.InvokeAsync())" IsBusy="@OverlayBusy" Style="margin-left:auto;" />
+            @* Chat + Done — действий нет *@
         }
     </div>
 }
@@ -767,8 +764,9 @@
     [Parameter] public EventCallback OnPause { get; set; }
     [Parameter] public EventCallback OnResume { get; set; }
     [Parameter] public EventCallback OnComplete { get; set; }
+
     [Parameter] public EventCallback OnRelease { get; set; }
-    [Parameter] public EventCallback OnReopen { get; set; }
+
     [Parameter] public EventCallback<string> OnOpenExternalUrl { get; set; }
 
     [Parameter] public Func<string, IBrowserFile?, string?, Task<bool>> OnSendChatMessage { get; set; } = null!;

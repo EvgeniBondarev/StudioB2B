@@ -43,8 +43,6 @@ public class CommunicationTask : IBaseEntity, ISoftDelete
     /// <summary>Calculated on completion based on payment rate.</summary>
     public decimal? PaymentAmount { get; set; }
 
-    /// <summary>True if this task was previously completed and was auto-reopened because the buyer sent a new message.</summary>
-    public bool WasPreviouslyCompleted { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

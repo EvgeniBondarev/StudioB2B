@@ -111,7 +111,6 @@ public class CommunicationTaskSyncJob
             if (existing.Status == CommunicationTaskStatus.Done)
             {
                 existing.Status = CommunicationTaskStatus.New;
-                existing.WasPreviouslyCompleted = true;
                 existing.AssignedToUserId = null;
                 existing.AssignedAt = null;
                 db.CommunicationTaskLogs.Add(new CommunicationTaskLog
@@ -169,6 +168,8 @@ public class CommunicationTaskSyncJob
             return;
         }
 
+        var preview = await FetchChatPreviewAsync(api, owner, chatId, null, logger, ct);
+
         db.CommunicationTasks.Add(new CommunicationTask
         {
             Id = Guid.NewGuid(),
@@ -179,6 +180,7 @@ public class CommunicationTaskSyncJob
             Title = $"Чат {owner.Name}",
             ExternalStatus = chatInfo.ChatStatus ?? "",
             ChatType = chatInfo.ChatType,
+            PreviewText = preview,
             CreatedAt = chatInfo.CreatedAt,
             UpdatedAt = now
         });
@@ -193,7 +195,7 @@ public class CommunicationTaskSyncJob
         List<OzonChatClientInfoDto> clients,
         ILogger logger, CancellationToken ct)
     {
-        var allChats = new List<(Guid ClientId, string ClientName, OzonChatDto Chat)>();
+        var allChats = new List<(Guid ClientId, string ClientName, OzonChatDto Chat, ulong? LastMessageId)>();
 
         foreach (var client in clients)
         {
@@ -211,7 +213,7 @@ public class CommunicationTaskSyncJob
                     foreach (var item in result.Data.Chats)
                     {
                         if (item.Chat is not null)
-                            allChats.Add((client.Id, client.Name, item.Chat));
+                            allChats.Add((client.Id, client.Name, item.Chat, item.LastMessageId));
                     }
                 }
             }
@@ -228,21 +230,26 @@ public class CommunicationTaskSyncJob
             .Where(t => t.TaskType == CommunicationTaskType.Chat && chatIds.Contains(t.ExternalId))
             .ToDictionaryAsync(t => t.ExternalId, ct);
 
+        // Build client lookup for preview fetching
+        var clientById = clients.ToDictionary(c => c.Id);
+
         var now = DateTime.UtcNow;
         var changed = false;
 
-        foreach (var (clientId, clientName, chat) in allChats)
+        foreach (var (clientId, clientName, chat, lastMessageId) in allChats)
         {
+            var client = clientById[clientId];
+
             if (existing.TryGetValue(chat.ChatId, out var task))
             {
                 var prevStatus = task.ExternalStatus;
                 task.ExternalStatus = chat.ChatStatus ?? "";
                 task.UpdatedAt = now;
+                task.PreviewText = await FetchChatPreviewAsync(api, client, chat.ChatId, lastMessageId, logger, ct);
 
                 if (task.Status == CommunicationTaskStatus.Done && !IsTerminalChat(chat.ChatStatus ?? ""))
                 {
                     task.Status = CommunicationTaskStatus.New;
-                    task.WasPreviouslyCompleted = true;
                     task.AssignedToUserId = null;
                     task.AssignedAt = null;
                     db.CommunicationTaskLogs.Add(new CommunicationTaskLog
@@ -259,6 +266,7 @@ public class CommunicationTaskSyncJob
             }
             else if (!IsTerminalChat(chat.ChatStatus ?? ""))
             {
+                var preview = await FetchChatPreviewAsync(api, client, chat.ChatId, lastMessageId, logger, ct);
                 db.CommunicationTasks.Add(new CommunicationTask
                 {
                     Id = Guid.NewGuid(),
@@ -269,6 +277,7 @@ public class CommunicationTaskSyncJob
                     Title = $"Чат {clientName}",
                     ExternalStatus = chat.ChatStatus ?? "",
                     ChatType = chat.ChatType,
+                    PreviewText = preview,
                     CreatedAt = chat.CreatedAt,
                     UpdatedAt = now
                 });
@@ -287,7 +296,7 @@ public class CommunicationTaskSyncJob
         List<OzonChatClientInfoDto> clients,
         ILogger logger, CancellationToken ct)
     {
-        var allQuestions = new List<(Guid ClientId, string ClientName, OzonQuestionItemDto Question)>();
+        var allQuestions = new List<(Guid ClientId, string ClientName, OzonQuestionItemDto Question, OzonChatClientInfoDto Client)>();
 
         foreach (var client in clients)
         {
@@ -298,7 +307,7 @@ public class CommunicationTaskSyncJob
                 if (result.IsSuccess && result.Data?.Questions is not null)
                 {
                     foreach (var q in result.Data.Questions)
-                        allQuestions.Add((client.Id, client.Name, q));
+                        allQuestions.Add((client.Id, client.Name, q, client));
                 }
             }
             catch (Exception ex)
@@ -317,18 +326,20 @@ public class CommunicationTaskSyncJob
         var now = DateTime.UtcNow;
         var changed = false;
 
-        foreach (var (clientId, clientName, q) in allQuestions)
+        foreach (var (clientId, clientName, q, client) in allQuestions)
         {
+            var preview = await FetchQuestionPreviewAsync(api, client, q, logger, ct);
+
             if (existing.TryGetValue(q.Id, out var task))
             {
                 var prevStatus = task.ExternalStatus;
                 task.ExternalStatus = q.Status.ToString();
                 task.UpdatedAt = now;
+                task.PreviewText = preview;
 
                 if (task.Status == CommunicationTaskStatus.Done && !IsTerminalQuestion(q.Status.ToString()) && q.AnswersCount == 0)
                 {
                     task.Status = CommunicationTaskStatus.New;
-                    task.WasPreviouslyCompleted = true;
                     task.AssignedToUserId = null;
                     task.AssignedAt = null;
                 }
@@ -349,7 +360,7 @@ public class CommunicationTaskSyncJob
                     MarketplaceClientId = clientId,
                     Status = CommunicationTaskStatus.New,
                     Title = title,
-                    PreviewText = q.Text.Length > 0 ? q.Text[..Math.Min(2000, q.Text.Length)] : null,
+                    PreviewText = preview,
                     ExternalStatus = q.Status.ToString(),
                     ExternalUrl = q.QuestionLink,
                     CreatedAt = q.PublishedAt,
@@ -370,7 +381,7 @@ public class CommunicationTaskSyncJob
         List<OzonChatClientInfoDto> clients,
         ILogger logger, CancellationToken ct)
     {
-        var allReviews = new List<(Guid ClientId, string ClientName, OzonReviewListItemDto Review)>();
+        var allReviews = new List<(Guid ClientId, string ClientName, OzonReviewListItemDto Review, OzonChatClientInfoDto Client)>();
 
         foreach (var client in clients)
         {
@@ -379,15 +390,14 @@ public class CommunicationTaskSyncJob
                 var request = new OzonReviewListRequestDto
                 {
                     Limit = 100,
-                    SortDir = "DESC",
-                    Status = "ALL"
+                    SortDir = "DESC"
                 };
 
                 var result = await api.GetReviewListAsync(client.ApiId, client.EncryptedApiKey, request, ct);
                 if (result.IsSuccess && result.Data?.Reviews is not null)
                 {
                     foreach (var r in result.Data.Reviews)
-                        allReviews.Add((client.Id, client.Name, r));
+                        allReviews.Add((client.Id, client.Name, r, client));
                 }
             }
             catch (Exception ex)
@@ -406,13 +416,16 @@ public class CommunicationTaskSyncJob
         var now = DateTime.UtcNow;
         var changed = false;
 
-        foreach (var (clientId, clientName, r) in allReviews)
+        foreach (var (clientId, clientName, r, client) in allReviews)
         {
+            var preview = await FetchReviewPreviewAsync(api, client, r.Id, r.Text, logger, ct);
+
             if (existing.TryGetValue(r.Id, out var task))
             {
                 var prevStatus = task.ExternalStatus;
                 task.ExternalStatus = r.Status ?? "";
                 task.UpdatedAt = now;
+                task.PreviewText = preview;
 
                 if (prevStatus != task.ExternalStatus) changed = true;
             }
@@ -423,7 +436,6 @@ public class CommunicationTaskSyncJob
                     ? $"Отзыв {clientName}"
                     : $"{ratingStr}{r.Text}";
                 var title = rawTitle.Length > 500 ? rawTitle[..497] + "..." : rawTitle;
-                var preview = r.Text.Length > 0 ? r.Text[..Math.Min(2000, r.Text.Length)] : null;
 
                 db.CommunicationTasks.Add(new CommunicationTask
                 {
@@ -446,6 +458,89 @@ public class CommunicationTaskSyncJob
         logger.LogInformation("TaskBoardSync: processed {Total} reviews, changed: {Changed}",
             allReviews.Count, changed);
         return changed;
+    }
+
+    private static async Task<string?> FetchChatPreviewAsync(
+        OzonApiClient api, OzonChatClientInfoDto client,
+        string chatId, ulong? fromMessageId,
+        ILogger logger, CancellationToken ct)
+    {
+        try
+        {
+            var req = new OzonChatHistoryRequestDto
+            {
+                ChatId = chatId,
+                Direction = "Backward",
+                Limit = 1,
+                FromMessageId = fromMessageId
+            };
+            var result = await api.GetChatHistoryAsync(client.ApiId, client.EncryptedApiKey, req, ct);
+            if (!result.IsSuccess || result.Data?.Messages.Count == 0) return null;
+
+            var msg = result.Data!.Messages[0];
+            if (msg.IsImage) return "[Изображение]";
+            return msg.Data.Count > 0 ? msg.Data[0][..Math.Min(2000, msg.Data[0].Length)] : null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "FetchChatPreview failed for chat {ChatId}", chatId);
+            return null;
+        }
+    }
+
+    private static async Task<string?> FetchReviewPreviewAsync(
+        OzonApiClient api, OzonChatClientInfoDto client,
+        string reviewId, string fallbackText,
+        ILogger logger, CancellationToken ct)
+    {
+        try
+        {
+            var req = new OzonReviewCommentListRequestDto
+            {
+                ReviewId = reviewId,
+                Limit = 20,
+                SortDir = "DESC"
+            };
+            var result = await api.GetReviewCommentListAsync(client.ApiId, client.EncryptedApiKey, req, ct);
+            if (result.IsSuccess && result.Data?.Comments.Count > 0)
+            {
+                var text = result.Data.Comments[0].Text;
+                if (!string.IsNullOrWhiteSpace(text))
+                    return text[..Math.Min(2000, text.Length)];
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "FetchReviewPreview failed for review {ReviewId}", reviewId);
+        }
+
+        return string.IsNullOrWhiteSpace(fallbackText) ? null : fallbackText[..Math.Min(2000, fallbackText.Length)];
+    }
+
+    private static async Task<string?> FetchQuestionPreviewAsync(
+        OzonApiClient api, OzonChatClientInfoDto client,
+        OzonQuestionItemDto q,
+        ILogger logger, CancellationToken ct)
+    {
+        if (q.AnswersCount > 0)
+        {
+            try
+            {
+                var result = await api.GetQuestionAnswersAsync(client.ApiId, client.EncryptedApiKey, q.Id, q.Sku, ct);
+                if (result.IsSuccess && result.Data?.Answers.Count > 0)
+                {
+                    var lastAnswer = result.Data.Answers[^1];
+                    if (!string.IsNullOrWhiteSpace(lastAnswer.Text))
+                        return lastAnswer.Text[..Math.Min(2000, lastAnswer.Text.Length)];
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "FetchQuestionPreview failed for question {QuestionId}", q.Id);
+            }
+        }
+
+        return string.IsNullOrWhiteSpace(q.Text) ? null : q.Text[..Math.Min(2000, q.Text.Length)];
     }
 
     private static TenantDbContext CreateDbContext(string connectionString)

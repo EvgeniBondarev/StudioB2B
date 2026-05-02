@@ -508,7 +508,7 @@ public class OzonApiClient : IOzonApiClient
     }
 
     public Task<OzonApiResultDto<OzonReviewCommentDeleteResponseDto>> DeleteReviewCommentAsync(
-        string clientId, string apiKey, string commentId, CancellationToken ct = default)
+        string clientId, string apiKey, string commentId, long sku, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(clientId))
             throw new ArgumentException("ClientId must be provided.", nameof(clientId));
@@ -517,7 +517,7 @@ public class OzonApiClient : IOzonApiClient
 
         var plainApiKey = _encryption.Decrypt(apiKey);
         return SendPostAsync<OzonReviewCommentDeleteResponseDto>(OzonEndpoints.ReviewCommentDelete, clientId, plainApiKey,
-            new OzonReviewCommentDeleteRequestDto { CommentId = commentId }, ct);
+            new OzonReviewCommentDeleteRequestDto { CommentId = commentId, Sku = sku }, ct);
     }
 
     public async Task<(Stream? Content, string ContentType, bool Success)> DownloadChatFileAsync(string clientId, string apiKey, string fileUrl, CancellationToken ct = default)

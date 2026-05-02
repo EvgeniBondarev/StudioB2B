@@ -217,6 +217,9 @@
 
         _ozonPushHub.On<OzonPushNotificationDto>("OzonPush", notification =>
         {
+            if (notification.MessageType == OzonPushMessageType.UpdateMessage)
+                return;
+
             var label = GetMessageTypeLabel(notification.MessageType);
             var isChatType = OzonPushMessageType.ChatTypes.Contains(notification.MessageType);
 

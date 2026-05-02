@@ -5,9 +5,11 @@ namespace StudioB2B.Shared;
 /// </summary>
 public class OzonReviewCountAggregateDto
 {
-    public int Processed { get; set; }
+    public int New { get; set; }
 
-    public int Unprocessed { get; set; }
+    public int Viewed { get; set; }
+
+    public int Processed { get; set; }
 
     public int Total { get; set; }
 }

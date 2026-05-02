@@ -4,15 +4,18 @@ namespace StudioB2B.Shared;
 
 public class OzonReviewListRequestDto
 {
+    [JsonPropertyName("filters")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OzonReviewListFiltersDto? Filters { get; set; }
+
     [JsonPropertyName("last_id")]
-    public string LastId { get; set; } = string.Empty;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LastId { get; set; }
 
     [JsonPropertyName("limit")]
     public int Limit { get; set; } = 20;
 
     [JsonPropertyName("sort_dir")]
-    public string SortDir { get; set; } = "DESC";
-
-    [JsonPropertyName("status")]
-    public string Status { get; set; } = "ALL";
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SortDir { get; set; }
 }

@@ -113,8 +113,7 @@ public class CommunicationTaskSyncJobTests : IClassFixture<TenantDbContextFixtur
             .FirstOrDefaultAsync(t => t.ExternalId == chatId);
 
         updated.Should().NotBeNull();
-        updated!.Status.Should().Be(CommunicationTaskStatus.New);
-        updated.WasPreviouslyCompleted.Should().BeTrue();
+        updated.Status.Should().Be(CommunicationTaskStatus.New);
         updated.AssignedToUserId.Should().BeNull();
     }
 
