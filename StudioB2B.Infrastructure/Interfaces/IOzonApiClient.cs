@@ -183,9 +183,9 @@ public interface IOzonApiClient
         OzonReviewCommentCreateRequestDto request,
         CancellationToken ct = default);
 
-    /// <summary>Deletes a comment on a review via /v1/review/comment/delete.</summary>
+    /// <summary>Deletes a comment on a review via /v2/review/comment/delete.</summary>
     Task<OzonApiResultDto<OzonReviewCommentDeleteResponseDto>> DeleteReviewCommentAsync(
         string clientId, string apiKey,
-        string commentId,
+        string commentId, long sku,
         CancellationToken ct = default);
 }

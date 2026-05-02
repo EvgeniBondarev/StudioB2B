@@ -53,8 +53,5 @@ public class CommunicationTaskDto
 
     /// <summary>Чат: последнее сообщение в переписке от покупателя (нужен ответ продавца). Для остальных типов — false.</summary>
     public bool LastMessageFromCustomer { get; set; }
-
-    /// <summary>Задача была авто-переоткрыта после завершения из-за нового сообщения покупателя.</summary>
-    public bool WasPreviouslyCompleted { get; set; }
 }
 

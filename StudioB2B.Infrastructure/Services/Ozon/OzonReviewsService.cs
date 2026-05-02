@@ -49,7 +49,7 @@ public class OzonReviewsService : IOzonReviewsService
         }
 
         var remaining = pageSize;
-        var ozonStatus = string.IsNullOrWhiteSpace(status) ? "ALL" : status;
+        var ozonStatus = string.IsNullOrWhiteSpace(status) ? null : status;
 
         for (var ci = startClientIndex; ci < clients.Count && remaining > 0; ci++)
         {
@@ -59,9 +59,9 @@ public class OzonReviewsService : IOzonReviewsService
                 var request = new OzonReviewListRequestDto
                 {
                     Limit = Math.Min(remaining + 1, 100), // fetch slightly more to detect has_next
-                    LastId = ci == startClientIndex && lastId is not null ? lastId : string.Empty,
+                    LastId = ci == startClientIndex && lastId is not null ? lastId : null,
                     SortDir = "DESC",
-                    Status = ozonStatus
+                    Filters = ozonStatus is not null ? new OzonReviewListFiltersDto { Status = ozonStatus } : null
                 };
 
                 var apiResult = await _ozonApi.GetReviewListAsync(client.ApiId, client.EncryptedApiKey, request, ct);
@@ -286,8 +286,9 @@ public class OzonReviewsService : IOzonReviewsService
                 var result = await _ozonApi.GetReviewCountAsync(client.ApiId, client.EncryptedApiKey, ct);
                 if (result.IsSuccess && result.Data is not null)
                 {
+                    totals.New += result.Data.New;
+                    totals.Viewed += result.Data.Viewed;
                     totals.Processed += result.Data.Processed;
-                    totals.Unprocessed += result.Data.Unprocessed;
                     totals.Total += result.Data.Total;
                 }
                 else
@@ -345,7 +346,7 @@ public class OzonReviewsService : IOzonReviewsService
         try
         {
             var result = await _ozonApi.DeleteReviewCommentAsync(
-                review.ApiId, review.ApiKey, commentId, ct);
+                review.ApiId, review.ApiKey, commentId, review.Sku, ct);
 
             if (result.IsSuccess) return true;
 

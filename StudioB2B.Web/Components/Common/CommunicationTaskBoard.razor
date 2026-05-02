@@ -183,7 +183,6 @@
                         OnResume="OverlayResumeAsync"
                         OnComplete="OverlayCompleteAsync"
                         OnRelease="OverlayReleaseAsync"
-                        OnReopen="OverlayReopenAsync"
                         OnOpenExternalUrl="@(url => Js.InvokeVoidAsync("open", url, "_blank"))"
                         OnSendChatMessage="OverlaySendChatMessageAsync"
                         OnSendAnswer="OverlaySendAnswerAsync"
@@ -240,8 +239,7 @@
                         <TaskCard Task="t" Board="_board"
                                   CurrentUserId="@(_myTenantId ?? CurrentUser.UserId)"
                                   ShowDoneButtons="true"
-                                  OnClick="@(() => OnCardClick(t))"
-                                  OnReopen="@(() => CardReopenAsync(t))" />
+                                  OnClick="@(() => OnCardClick(t))" />
                     }
 
                     @if (_loadingMore)
@@ -295,7 +293,6 @@
                 OnResume="OverlayResumeAsync"
                 OnComplete="OverlayCompleteAsync"
                 OnRelease="OverlayReleaseAsync"
-                OnReopen="OverlayReopenAsync"
                 OnOpenExternalUrl="@(url => Js.InvokeVoidAsync("open", url, "_blank"))"
                 OnSendChatMessage="OverlaySendChatMessageAsync"
                 OnSendAnswer="OverlaySendAnswerAsync"

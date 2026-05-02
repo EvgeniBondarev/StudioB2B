@@ -37,7 +37,6 @@ public static class OzonPushMessageType
     public static readonly HashSet<string> ChatTypes =
     [
         NewMessage,
-        UpdateMessage,
         MessageRead,
         ChatClosed
     ];

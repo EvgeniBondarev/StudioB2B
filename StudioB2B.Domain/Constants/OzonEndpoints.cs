@@ -27,11 +27,11 @@ public class OzonEndpoints
     public const string ChatSendFile = "v1/chat/send/file";
     public const string ChatRead = "v2/chat/read";
 
-    public const string ReviewList = "v1/review/list";
-    public const string ReviewInfo = "v1/review/info";
-    public const string ReviewCount = "v1/review/count";
-    public const string ReviewChangeStatus = "v1/review/change-status";
+    public const string ReviewList = "v2/review/list";
+    public const string ReviewInfo = "v2/review/info";
+    public const string ReviewCount = "v2/review/count";
+    public const string ReviewChangeStatus = "v2/review/change-status";
     public const string ReviewCommentList = "v1/review/comment/list";
     public const string ReviewCommentCreate = "v1/review/comment/create";
-    public const string ReviewCommentDelete = "v1/review/comment/delete";
+    public const string ReviewCommentDelete = "v2/review/comment/delete";
 }

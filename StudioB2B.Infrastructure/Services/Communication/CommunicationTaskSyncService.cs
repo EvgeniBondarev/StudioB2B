@@ -103,7 +103,6 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                     IsCustomerUserType(chat.LastMessageUserType))
                 {
                     task.Status = CommunicationTaskStatus.New;
-                    task.WasPreviouslyCompleted = true;
                     task.AssignedToUserId = null;
                     task.AssignedAt = null;
 
@@ -179,7 +178,6 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             foreach (var task in toReopen)
             {
                 task.Status = CommunicationTaskStatus.New;
-                task.WasPreviouslyCompleted = true;
                 task.AssignedToUserId = null;
                 task.AssignedAt = null;
                 task.UpdatedAt = DateTime.UtcNow;
@@ -314,7 +312,6 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             if (isTerminalStatus(task.ExternalStatus)) continue;
 
             task.Status = CommunicationTaskStatus.New;
-            task.WasPreviouslyCompleted = true;
             task.AssignedToUserId = null;
             task.AssignedAt = null;
             task.UpdatedAt = DateTime.UtcNow;

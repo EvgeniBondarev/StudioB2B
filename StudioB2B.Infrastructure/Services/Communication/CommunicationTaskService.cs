@@ -303,7 +303,7 @@ public class CommunicationTaskService : ICommunicationTaskService
 
         var doneTotalCount = await doneQuery.CountAsync(ct);
         var doneItems = await doneQuery
-            .OrderByDescending(t => t.CreatedAt)
+            .OrderByDescending(t => t.CompletedAt ?? t.UpdatedAt)
             .Take(filter.DoneTake)
             .Select(ProjectToCardDto())
             .ToListAsync(ct);
@@ -510,8 +510,7 @@ public class CommunicationTaskService : ICommunicationTaskService
                 .Select(e => (DateTime?)e.StartedAt)
                 .FirstOrDefault(),
             TotalTimeSpentTicks = t.TotalTimeSpentTicks,
-            LastMessageFromCustomer = false,
-            WasPreviouslyCompleted = t.WasPreviouslyCompleted
+            LastMessageFromCustomer = false
         };
     }
 
@@ -1645,7 +1644,6 @@ public class CommunicationTaskService : ICommunicationTaskService
         dto.UpdatedAt = t.UpdatedAt;
         dto.HasActiveTimer = t.TimeEntries?.Any(e => e.EndedAt == null) ?? false;
         dto.LastMessageFromCustomer = false;
-        dto.WasPreviouslyCompleted = t.WasPreviouslyCompleted;
     }
 
     private static async Task<HashSet<(CommunicationTaskType TaskType, string ExternalId, Guid MarketplaceClientId)>>

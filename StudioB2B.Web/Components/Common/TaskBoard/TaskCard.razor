@@ -1,4 +1,4 @@
-<div class="task-card @(IsSelected ? "selected" : "") @(Task.WasPreviouslyCompleted && ShowNewButtons ? "task-card--reopened" : "")"
+<div class="task-card @(IsSelected ? "selected" : "")"
      @onclick="@(() => OnClick.InvokeAsync())">
 
     <div class="task-card-header">
@@ -7,17 +7,6 @@
         @if (Task.TaskType == CommunicationTaskType.Chat && Task.UnreadCount > 0)
         {
             <span class="task-unread-badge" title="Непрочитанных сообщений">@Task.UnreadCount</span>
-        }
-        @if (Task.WasPreviouslyCompleted && ShowNewButtons)
-        {
-            <span class="task-was-completed-badge" title="Покупатель написал снова после завершения">Повтор</span>
-        }
-        @if (ShowDoneButtons)
-        {
-            <RadzenButton Icon="replay" ButtonStyle="ButtonStyle.Light" Size="ButtonSize.ExtraSmall"
-                          title="Вернуть в работу"
-                          Click="@(() => OnReopen.InvokeAsync())"
-                          @onclick:stopPropagation="true" />
         }
     </div>
 
@@ -207,8 +196,8 @@
     [Parameter] public EventCallback OnPause { get; set; }
     [Parameter] public EventCallback OnResume { get; set; }
     [Parameter] public EventCallback OnComplete { get; set; }
+
     [Parameter] public EventCallback OnRelease { get; set; }
-    [Parameter] public EventCallback OnReopen { get; set; }
 
     private bool _expanded;
 

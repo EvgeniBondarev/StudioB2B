@@ -94,8 +94,7 @@ public partial class CommunicationTaskBoard
                 ? _board.NewTasks.AsEnumerable()
                 : _board.NewTasks.Where(t => _filterTypes.Contains(t.TaskType));
             return src
-                .OrderByDescending(t => t.WasPreviouslyCompleted)
-                .ThenByDescending(t => t.CreatedAt)
+                .OrderByDescending(t => t.CreatedAt)
                 .ToList();
         }
     }
@@ -104,7 +103,12 @@ public partial class CommunicationTaskBoard
     {
         get
         {
-            var list = ApplyTypeFilter(_board.InProgressTasks);
+            var filtered = _filterTypes.Count == 0
+                ? _board.InProgressTasks.AsEnumerable()
+                : _board.InProgressTasks.Where(t => _filterTypes.Contains(t.TaskType));
+            var list = filtered
+                .OrderByDescending(t => t.AssignedAt ?? t.UpdatedAt)
+                .ToList();
             if (_previewTask is not null)
             {
                 var idx = list.FindIndex(t => t.Id == _previewTask.Id);
@@ -674,6 +678,7 @@ public partial class CommunicationTaskBoard
             t.MarketplaceClientId == task.MarketplaceClientId);
         task.Status = CommunicationTaskStatus.InProgress;
         task.AssignedToUserId = _myTenantId ?? userId;
+        task.AssignedAt = DateTime.UtcNow;
         task.HasActiveTimer = true;
         task.StartedAt = DateTime.UtcNow;
         _board.InProgressTasks.Insert(0, task);
@@ -900,90 +905,6 @@ public partial class CommunicationTaskBoard
         finally { _overlayBusy = false; }
     }
 
-    private async Task CardReopenAsync(CommunicationTaskDto task)
-    {
-        var userId = await GetUserIdAsync();
-        if (userId is null) return;
-        var ok = await TaskService.ReopenTaskAsync(task.Id, userId.Value);
-        if (ok)
-        {
-            _board.DoneTasks.RemoveAll(t => t.Id == task.Id);
-            task.Status = CommunicationTaskStatus.InProgress;
-            task.AssignedToUserId = _myTenantId ?? userId;
-            task.HasActiveTimer = true;
-            task.StartedAt = DateTime.UtcNow;
-            _board.InProgressTasks.Insert(0, task);
-            StateHasChanged();
-        }
-        else
-        {
-            NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось вернуть задачу в работу");
-        }
-
-        if (ok && task.TaskType == CommunicationTaskType.Review)
-        {
-            try
-            {
-                var creds = await GetClientCredsAsync(task.MarketplaceClientId);
-                var rVm = new OzonReviewViewModelDto
-                {
-                    Id = task.ExternalId,
-                    MarketplaceClientId = task.MarketplaceClientId,
-                    ApiId = creds.apiId,
-                    ApiKey = creds.apiKey
-                };
-                await ReviewsService.ChangeReviewStatusAsync(rVm, "UNPROCESSED");
-            }
-            catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка смены статуса отзыва", ex.Message, 5000); }
-        }
-    }
-
-    private async Task OverlayReopenAsync()
-    {
-        if (_previewTask is null) return;
-        var userId = await GetUserIdAsync();
-        if (userId is null) return;
-        _overlayBusy = true;
-        StateHasChanged();
-        try
-        {
-            var ok = await TaskService.ReopenTaskAsync(_previewTask.Id, userId.Value);
-            if (ok)
-            {
-                _board.DoneTasks.RemoveAll(t => t.Id == _previewTask.Id);
-                _previewTask.Status = CommunicationTaskStatus.InProgress;
-                _previewTask.AssignedToUserId = _myTenantId ?? userId;
-                _previewTask.HasActiveTimer = true;
-                _previewTask.StartedAt = DateTime.UtcNow;
-                _board.InProgressTasks.Insert(0, _previewTask);
-
-                if (_previewTask.TaskType == CommunicationTaskType.Review)
-                {
-                    try
-                    {
-                        var creds = await GetClientCredsAsync(_previewTask.MarketplaceClientId);
-                        var rVm = new OzonReviewViewModelDto
-                        {
-                            Id = _previewTask.ExternalId,
-                            MarketplaceClientId = _previewTask.MarketplaceClientId,
-                            ApiId = creds.apiId,
-                            ApiKey = creds.apiKey
-                        };
-                        await ReviewsService.ChangeReviewStatusAsync(rVm, "UNPROCESSED");
-                    }
-                    catch (Exception ex) { NotificationService.Notify(NotificationSeverity.Error, "Ошибка смены статуса отзыва", ex.Message, 5000); }
-                }
-
-                ClosePreview();
-            }
-            else
-            {
-                NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось вернуть задачу в работу");
-            }
-        }
-        finally { _overlayBusy = false; StateHasChanged(); }
-    }
-
     private async Task<bool> OverlaySendChatMessageAsync(string text, IBrowserFile? file, string? base64)
     {
         if (_previewChatVm is null) return false;
@@ -1179,7 +1100,8 @@ public partial class CommunicationTaskBoard
                 MarketplaceClientId = _previewTask.MarketplaceClientId,
                 MarketplaceClientName = _previewTask.MarketplaceClientName,
                 ApiId = creds.apiId,
-                ApiKey = creds.apiKey
+                ApiKey = creds.apiKey,
+                Sku = _reviewDetail?.Review.Sku ?? 0
             };
             var ok = await ReviewsService.DeleteReviewCommentAsync(rVm, comment.Id);
             if (ok)
