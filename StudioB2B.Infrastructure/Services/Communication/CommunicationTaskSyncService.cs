@@ -102,6 +102,19 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             return;
         }
 
+        // TYPE_MESSAGE_READ — only update timestamp, never reopen Done task, never insert new
+        if (messageType == OzonPushMessageType.MessageRead)
+        {
+            if (existing is not null && !existing.IsDeleted)
+            {
+                existing.UpdatedAt = now;
+                await db.SaveChangesAsync(ct);
+                if (_tenantProvider.TenantId.HasValue)
+                    await _notificationSender.SendBoardUpdatedAsync(_tenantProvider.TenantId.Value, ct);
+            }
+            return;
+        }
+
         if (existing is not null)
         {
             if (existing.IsDeleted)
