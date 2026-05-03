@@ -273,7 +273,8 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                     task.PreviewText = preview;
 
                     if (task.Status == CommunicationTaskStatus.Done &&
-                        IsCustomerUserType(chat.LastMessageUserType))
+                        IsCustomerUserType(chat.LastMessageUserType) &&
+                        (!task.CompletedAt.HasValue || chat.LastMessageAt > task.CompletedAt.Value))
                     {
                         task.Status = CommunicationTaskStatus.New;
                         task.AssignedToUserId = null;
@@ -355,6 +356,8 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                     var last = history?.Messages.FirstOrDefault();
                     if (last is null) return;
                     if (!IsCustomerUserType(last.User?.Type)) return;
+                    // Only reopen if buyer's message was sent AFTER task completion
+                    if (task.CompletedAt.HasValue && last.CreatedAt <= task.CompletedAt.Value) return;
                     toReopen.Add(task);
                 }
                 catch (Exception ex)
