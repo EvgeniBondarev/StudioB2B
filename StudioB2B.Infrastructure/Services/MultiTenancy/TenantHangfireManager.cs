@@ -11,6 +11,7 @@ using StudioB2B.Infrastructure.Persistence.Tenant;
 using StudioB2B.Infrastructure.Services.Communication;
 using StudioB2B.Infrastructure.Services.Order;
 
+
 namespace StudioB2B.Infrastructure.Services.MultiTenancy;
 
 /// <summary>
@@ -139,8 +140,8 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
                 _logger.LogDebug("TenantHangfireManager: server registered for tenant {TenantId} ({Subdomain}).",
                                  tenantId, subdomain);
 
-                var commSyncJob = Hangfire.Common.Job.FromExpression<CommunicationTaskSyncJob>(
-                    j => j.ExecuteAsync(tenantId, connectionString, CancellationToken.None));
+                var commSyncJob = Hangfire.Common.Job.FromExpression<CommunicationSyncHangfireJob>(
+                    j => j.RunAsync(tenantId, connectionString, CancellationToken.None));
                 recurringManager.AddOrUpdate(
                     $"comm-sync-{tenantId:N}",
                     commSyncJob,
@@ -175,6 +176,7 @@ public sealed class TenantHangfireManager : IHostedService, IDisposable
                 DELETE FROM Hangfire_Job
                 WHERE InvocationData LIKE '%IJobCancellationToken%'
                    OR Arguments LIKE '%IJobCancellationToken%'
+                   OR InvocationData LIKE '%CommunicationTaskSyncJob%'
                 """, ct);
 
             if (deleted > 0)

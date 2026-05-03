@@ -17,7 +17,7 @@ public class OzonReviewCommentDto
     public string ParentCommentId { get; set; } = string.Empty;
 
     [JsonPropertyName("published_at")]
-    public DateTime PublishedAt { get; set; }
+    public DateTime? PublishedAt { get; set; }
 
     [JsonPropertyName("text")]
     public string Text { get; set; } = string.Empty;

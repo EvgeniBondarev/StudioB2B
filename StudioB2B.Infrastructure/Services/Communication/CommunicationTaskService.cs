@@ -22,7 +22,7 @@ public class CommunicationTaskService : ICommunicationTaskService
     private readonly IMemoryCache _cache;
     private readonly ITenantProvider _tenantProvider;
     private readonly ITaskBoardNotificationSender _notificationSender;
-    private readonly CommunicationTaskSyncJob _syncJob;
+    private readonly ICommunicationTaskSyncService _syncService;
     private readonly HashSet<string> _liveCacheKeys = new();
 
     public CommunicationTaskService(
@@ -35,7 +35,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         IMemoryCache cache,
         ITenantProvider tenantProvider,
         ITaskBoardNotificationSender notificationSender,
-        CommunicationTaskSyncJob syncJob)
+        ICommunicationTaskSyncService syncService)
     {
         _dbContextFactory = dbContextFactory;
         _logger = logger;
@@ -46,7 +46,7 @@ public class CommunicationTaskService : ICommunicationTaskService
         _cache = cache;
         _tenantProvider = tenantProvider;
         _notificationSender = notificationSender;
-        _syncJob = syncJob;
+        _syncService = syncService;
     }
 
     public async Task<Guid?> GetCurrentUserTenantIdAsync(CancellationToken ct = default)
@@ -67,7 +67,7 @@ public class CommunicationTaskService : ICommunicationTaskService
     {
         if (!_tenantProvider.IsResolved)
             throw new InvalidOperationException("Tenant not resolved");
-        await _syncJob.ExecuteAsync(_tenantProvider.TenantId!.Value, _tenantProvider.ConnectionString!, ct);
+        await _syncService.SyncAsync(ct);
     }
 
     /// <summary>
