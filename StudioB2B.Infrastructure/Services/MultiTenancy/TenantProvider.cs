@@ -26,4 +26,10 @@ public class TenantProvider : ITenantProvider
         RequireLoginCode = tenantEntity.RequireLoginCode;
         RequireEmailActivation = tenantEntity.RequireEmailActivation;
     }
+
+    public void SetTenant(Guid tenantId, string connectionString)
+    {
+        TenantId = tenantId;
+        ConnectionString = connectionString;
+    }
 }

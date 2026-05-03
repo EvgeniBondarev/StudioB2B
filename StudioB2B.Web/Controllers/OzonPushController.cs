@@ -147,7 +147,7 @@ public class OzonPushController : ControllerBase
                 try
                 {
                     var jobClient = _hangfireManager.GetClient(_tenantProvider.TenantId.Value);
-                    jobClient.Enqueue<CommunicationTaskSyncJob>(j => j.UpsertChatTaskAsync(
+                    jobClient.Enqueue<CommunicationSyncHangfireJob>(j => j.UpsertChatAsync(
                         _tenantProvider.TenantId.Value,
                         _tenantProvider.ConnectionString,
                         chatId,

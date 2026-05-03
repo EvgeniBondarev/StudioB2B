@@ -285,7 +285,8 @@ public static class DependencyInjection
         services.AddScoped<IModuleActivator, ManufacturerModuleActivator>();
 
         services.AddScoped<ICommunicationTaskService, CommunicationTaskService>();
-        services.AddTransient<CommunicationTaskSyncJob>();
+        services.AddScoped<ICommunicationTaskSyncService, CommunicationTaskSyncService>();
+        services.AddTransient<CommunicationSyncHangfireJob>();
 
         services.AddScoped<ITenantBackupService, TenantBackupService>();
 

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StudioB2B.Infrastructure.Interfaces;
-using StudioB2B.Infrastructure.Services.Communication;
 
 namespace StudioB2B.Web.Controllers;
 
@@ -10,12 +9,12 @@ namespace StudioB2B.Web.Controllers;
 [Authorize]
 public class CommunicationSyncController : ControllerBase
 {
-    private readonly CommunicationTaskSyncJob _syncJob;
+    private readonly ICommunicationTaskSyncService _syncService;
     private readonly ITenantProvider _tenantProvider;
 
-    public CommunicationSyncController(CommunicationTaskSyncJob syncJob, ITenantProvider tenantProvider)
+    public CommunicationSyncController(ICommunicationTaskSyncService syncService, ITenantProvider tenantProvider)
     {
-        _syncJob = syncJob;
+        _syncService = syncService;
         _tenantProvider = tenantProvider;
     }
 
@@ -25,7 +24,7 @@ public class CommunicationSyncController : ControllerBase
         if (!_tenantProvider.IsResolved)
             return BadRequest(new { error = "Tenant not resolved" });
 
-        await _syncJob.ExecuteAsync(_tenantProvider.TenantId!.Value, _tenantProvider.ConnectionString!, ct);
+        await _syncService.SyncAsync(ct);
         return Ok(new { success = true });
     }
 }
