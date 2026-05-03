@@ -487,20 +487,30 @@ public partial class CommunicationTaskBoard
                         MarketplaceClientName = task.MarketplaceClientName,
                         ChatId = task.ExternalId
                     };
-                    try
+
+                    Exception? chatHistoryEx = null;
+                    OzonChatHistoryResponseDto? chatHistory = null;
+
+                    async Task LoadChatHistoryAsync()
                     {
-                        var history = await ChatService.GetChatHistoryAsync(
-                            task.MarketplaceClientId, task.ExternalId, limit: 50);
-                        if (history is not null)
-                        {
-                            _chatMessages = history.Messages.OrderBy(m => m.CreatedAt).ToList();
-                        }
+                        try { chatHistory = await ChatService.GetChatHistoryAsync(task.MarketplaceClientId, task.ExternalId, limit: 50); }
+                        catch (Exception ex) { chatHistoryEx = ex; }
                     }
-                    catch (UnauthorizedAccessException ex)
+
+                    var tChatHistory = LoadChatHistoryAsync();
+                    var tChatAuthors = TaskService.GetOutgoingAuthorsAsync(task.ExternalId, CommunicationTaskType.Chat);
+                    var tChatDetail = task.Id != Guid.Empty ? TaskService.GetTaskDetailAsync(task.Id) : Task.FromResult<CommunicationTaskDetailDto?>(null);
+
+                    await Task.WhenAll(tChatHistory, tChatAuthors, tChatDetail);
+
+                    if (chatHistory is not null)
+                        _chatMessages = chatHistory.Messages.OrderBy(m => m.CreatedAt).ToList();
+
+                    if (chatHistoryEx is UnauthorizedAccessException uaEx)
                     {
-                        var detail = string.IsNullOrWhiteSpace(ex.Message)
+                        var detail = string.IsNullOrWhiteSpace(uaEx.Message)
                             ? "Нет доступа к истории чата через Ozon API."
-                            : ex.Message;
+                            : uaEx.Message;
                         NotificationService.Notify(
                             NotificationSeverity.Warning,
                             "Нет доступа к истории чата",
@@ -508,7 +518,9 @@ public partial class CommunicationTaskBoard
                             9000);
                         _chatFallbackUrl = $"https://seller.ozon.ru/app/messenger/?group=customers_v2&id={task.ExternalId}";
                     }
-                    _chatMessageAuthors = await TaskService.GetOutgoingAuthorsAsync(task.ExternalId, CommunicationTaskType.Chat);
+
+                    _chatMessageAuthors = tChatAuthors.Result;
+                    _taskDetail = tChatDetail.Result;
                     break;
 
                 case CommunicationTaskType.Question:
@@ -544,7 +556,7 @@ public partial class CommunicationTaskBoard
                 }
             }
 
-            if (task.Id != Guid.Empty)
+            if (task.Id != Guid.Empty && task.TaskType != CommunicationTaskType.Chat)
                 _taskDetail = await TaskService.GetTaskDetailAsync(task.Id);
         }
         catch (Exception ex)
