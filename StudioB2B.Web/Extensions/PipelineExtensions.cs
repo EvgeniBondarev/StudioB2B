@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Http;
 using Serilog;
 using StudioB2B.Infrastructure.Interfaces;
 using StudioB2B.Infrastructure.Persistence.Master;
@@ -9,7 +8,7 @@ using StudioB2B.Web.Hubs;
 
 namespace StudioB2B.Web.Extensions;
 
-public static class PipelineExtensions
+public static partial class PipelineExtensions
 {
     public static WebApplication ConfigurePipeline(this WebApplication app)
     {
@@ -38,31 +37,26 @@ public static class PipelineExtensions
 
             if (ctx.Response.StatusCode is not (StatusCodes.Status401Unauthorized or StatusCodes.Status403Forbidden))
                 return;
-
-            // #region agent log
-            _ = System.IO.File.AppendAllTextAsync(
-                "/Users/evgen/RiderProjects/StudioB2B/.cursor/debug-3f5ec5.log",
-                System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    sessionId = "3f5ec5",
-                    runId = "pre-fix-2",
-                    hypothesisId = "H7",
-                    location = "PipelineExtensions.cs:UnauthorizedApiMiddleware",
-                    message = "API returned 401/403",
-                    data = new
-                    {
-                        path = ctx.Request.Path.Value,
-                        method = ctx.Request.Method,
-                        status = ctx.Response.StatusCode,
-                        endpoint = ctx.GetEndpoint()?.DisplayName,
-                        hasAuthHeader = ctx.Request.Headers.ContainsKey("Authorization"),
-                        isAuthenticated = ctx.User.Identity?.IsAuthenticated ?? false
-                    },
-                    timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
-                }) + Environment.NewLine,
-                CancellationToken.None);
-            // #endregion
         });
+
+        app.Use((ctx, next) =>
+        {
+            var ct = ctx.Request.ContentType;
+            if (ct != null && ct.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))
+            {
+                var match = BoundaryRegex().Match(ct);
+                if (match.Success)
+                {
+                    var raw = match.Groups[1].Value.TrimEnd(';');
+                    // tspecials per RFC 2045: ()<>@,;:\"/[]?=
+                    if (raw.IndexOfAny(['(', ')', '<', '>', '@', ',', ';', ':', '\\', '"', '/', '[', ']', '?', '=', ' ']) >= 0)
+                        ctx.Request.ContentType = ct.Replace($"boundary={raw}", $"boundary=\"{raw}\"");
+                }
+            }
+
+            return next(ctx);
+        });
+
         // Обязателен для Blazor Interactive Server.
         // IAntiforgery заменён на NoOpAntiforgery — реальная валидация отключена.
         app.UseAntiforgery();
@@ -120,4 +114,7 @@ public static class PipelineExtensions
             logger.LogError(ex, "Startup: tenant migration runner failed.");
         }
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"boundary=(?!"")(\S+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase, "en-BY")]
+    private static partial System.Text.RegularExpressions.Regex BoundaryRegex();
 }

@@ -93,7 +93,6 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             if (existing is not null)
             {
                 existing.ExternalStatus = "CLOSED";
-                existing.UpdatedAt = now;
                 await db.SaveChangesAsync(ct);
                 if (_tenantProvider.TenantId.HasValue)
                     await _notificationSender.SendBoardUpdatedAsync(_tenantProvider.TenantId.Value, ct);
@@ -102,18 +101,9 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             return;
         }
 
-        // TYPE_MESSAGE_READ — only update timestamp, never reopen Done task, never insert new
+        // TYPE_MESSAGE_READ — never reopen Done task, never insert new
         if (messageType == OzonPushMessageType.MessageRead)
-        {
-            if (existing is not null && !existing.IsDeleted)
-            {
-                existing.UpdatedAt = now;
-                await db.SaveChangesAsync(ct);
-                if (_tenantProvider.TenantId.HasValue)
-                    await _notificationSender.SendBoardUpdatedAsync(_tenantProvider.TenantId.Value, ct);
-            }
             return;
-        }
 
         if (existing is not null)
         {
@@ -138,7 +128,6 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                     CreatedAt = now
                 });
             }
-            existing.UpdatedAt = now;
             await db.SaveChangesAsync(ct);
             if (_tenantProvider.TenantId.HasValue)
                 await _notificationSender.SendBoardUpdatedAsync(_tenantProvider.TenantId.Value, ct);
@@ -191,10 +180,50 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             UpdatedAt = now
         });
 
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+            _logger.LogInformation("UpsertChatAsync: created new task for chat {ChatId}", chatId);
+        }
+        catch (DbUpdateException ex) when (IsDuplicateKeyException(ex))
+        {
+            // Race: parallel job already inserted the same chat — switch to update
+            _logger.LogWarning("UpsertChatAsync: duplicate key for chat {ChatId}, falling back to update", chatId);
+            db.ChangeTracker.Clear();
+
+            var race = await db.CommunicationTasks
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(t => t.TaskType == CommunicationTaskType.Chat && t.ExternalId == chatId, ct);
+
+            if (race is not null)
+            {
+                if (race.IsDeleted)
+                {
+                    race.IsDeleted = false;
+                    race.Status = CommunicationTaskStatus.New;
+                    race.AssignedToUserId = null;
+                    race.AssignedAt = null;
+                }
+                else if (race.Status == CommunicationTaskStatus.Done)
+                {
+                    race.Status = CommunicationTaskStatus.New;
+                    race.AssignedToUserId = null;
+                    race.AssignedAt = null;
+                    db.CommunicationTaskLogs.Add(new CommunicationTaskLog
+                    {
+                        Id = Guid.NewGuid(),
+                        TaskId = race.Id,
+                        Action = "AutoReopened",
+                        Details = "Новое сообщение (push notification)",
+                        CreatedAt = now
+                    });
+                }
+                await db.SaveChangesAsync(ct);
+            }
+        }
+
         if (_tenantProvider.TenantId.HasValue)
             await _notificationSender.SendBoardUpdatedAsync(_tenantProvider.TenantId.Value, ct);
-        _logger.LogInformation("UpsertChatAsync: created new task for chat {ChatId}", chatId);
     }
 
     private async Task<int> SyncChatsAsync(TenantDbContext db, bool fullSync, CancellationToken ct)
@@ -269,7 +298,6 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                     task.ExternalStatus = chat.ChatStatus;
                     task.ChatType ??= chat.ChatType;
                     task.UnreadCount = chat.UnreadCount;
-                    task.UpdatedAt = now;
                     task.PreviewText = preview;
 
                     if (task.Status == CommunicationTaskStatus.Done &&
@@ -378,7 +406,6 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
                 task.Status = CommunicationTaskStatus.New;
                 task.AssignedToUserId = null;
                 task.AssignedAt = null;
-                task.UpdatedAt = DateTime.UtcNow;
 
                 db.CommunicationTaskLogs.Add(new CommunicationTaskLog
                 {
@@ -472,7 +499,6 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
 
                     var prevStatus = task.ExternalStatus;
                     task.ExternalStatus = q.Status;
-                    task.UpdatedAt = now;
                     task.PreviewText = preview;
                     if (prevStatus != task.ExternalStatus) changed++;
                 }
@@ -577,7 +603,6 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
 
                     var prevStatus = task.ExternalStatus;
                     task.ExternalStatus = r.Status;
-                    task.UpdatedAt = now;
                     task.PreviewText = preview;
                     if (prevStatus != task.ExternalStatus) changed++;
                 }
@@ -633,7 +658,6 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
             task.Status = CommunicationTaskStatus.New;
             task.AssignedToUserId = null;
             task.AssignedAt = null;
-            task.UpdatedAt = DateTime.UtcNow;
 
             db.CommunicationTaskLogs.Add(new CommunicationTaskLog
             {
@@ -739,4 +763,7 @@ public class CommunicationTaskSyncService : ICommunicationTaskSyncService
 
     private static bool IsTerminalReviewStatus(string? s) =>
         string.Equals(s, "PROCESSED", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsDuplicateKeyException(DbUpdateException ex) =>
+        ex.InnerException?.Message.Contains("Duplicate entry", StringComparison.Ordinal) == true;
 }
