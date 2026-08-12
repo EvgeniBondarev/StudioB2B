@@ -1,0 +1,60 @@
+name: Deploy production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Configure deploy SSH key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' \
+            '178.253.53.2 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCyUBgB1oxAetbFStAVHuVufg3ufobc72fKhVtbs0QfF/pXm+YZfaCgXknop2h6MakIT+HNMsXaBMW5Z8KJeqMdCnU/ntpGLbc1yM+jxVaMZTJkbeCSd34QV+uoGGv5yNTgiwvA31TqyVt1K+tg97U0unaBfHsCbmp1Of6iU4O8GtspQuZSrXO3Ffv2Smy+6KUZo+qL5zPHV4seFxibHz1nykJsGIYKXPxJpIfknT402Ut5lISY7wc/VfnumdjR++rTGNGPAZ9D6SnolPrm23/dy+zAqTqjoVd+yYb5Zkz5AewpPplozTcoNFb5p4Mu872ezwZ7Joke7K5MxRtYEfrgRP3OrQUeEx+Z776doIcyzagYw8ElwSUylis/0MInVyDIr96E11GqC2/k2ONMJxejOZJYMIwjPWYa79wSCZO4dxsLjN8xBCUb3624pw/jDBuwfCylDUUvvxTKDOBshVrt86B7iA+nZDkx0x3MPTRRffZ7xYDe5yxk86QqsQ6V7Ss=' \
+            '192.168.1.130 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHP0ztcwWJLvoa7TOO5jjC8ChhYz1ulbTUSscAuB+5mR' \
+            > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload and start StudioB2B
+        env:
+          TARGET: volna@192.168.1.130
+          PROXY: github-deploy-proxy@178.253.53.2
+        run: |
+          ssh_opts=(-i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes)
+          proxy_cmd="ssh ${ssh_opts[*]} $PROXY -W %h:%p"
+          tar \
+            --exclude=.git \
+            --exclude='**/.DS_Store' \
+            --exclude='**/._*' \
+            --exclude='**/__pycache__' \
+            -czf - . \
+          | ssh "${ssh_opts[@]}" -o "ProxyCommand=$proxy_cmd" "$TARGET" \
+              'mkdir -p /home/volna/studiob2b && tar -xzf - -C /home/volna/studiob2b && cd /home/volna/studiob2b && docker compose -f deploy/docker-compose.production.yml --env-file deploy/.env.production up -d --build --remove-orphans'
+
+      - name: Verify application health
+        env:
+          TARGET: volna@192.168.1.130
+          PROXY: github-deploy-proxy@178.253.53.2
+        run: |
+          ssh_opts=(-i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes)
+          proxy_cmd="ssh ${ssh_opts[*]} $PROXY -W %h:%p"
+          ssh "${ssh_opts[@]}" -o "ProxyCommand=$proxy_cmd" "$TARGET" \
+            'for attempt in $(seq 1 24); do curl -fsS http://127.0.0.1:5184/ >/dev/null && exit 0; sleep 5; done; exit 1'
