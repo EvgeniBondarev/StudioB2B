@@ -196,3 +196,5 @@ $RECYCLE.BIN/
 # Local agent artifacts
 skills-lock.json
 .agents/skills/caveman/SKILL.md
+__pycache__/
+*.py[cod]

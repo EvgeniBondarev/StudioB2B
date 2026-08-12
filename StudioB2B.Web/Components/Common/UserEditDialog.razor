@@ -18,12 +18,7 @@ else
             <RadzenRow Gap="1rem">
                 <RadzenColumn Size="12" SizeMD="4">
                     <RadzenFormField Text="Фамилия" Style="width: 100%;">
-                        <ChildContent>
-                            <RadzenTextBox @bind-Value="_model.LastName" Name="LastName" Style="width: 100%;" />
-                        </ChildContent>
-                        <Helper>
-                            <RadzenRequiredValidator Component="LastName" Text="Обязательное поле" />
-                        </Helper>
+                        <RadzenTextBox @bind-Value="_model.LastName" Name="LastName" Style="width: 100%;" />
                     </RadzenFormField>
                 </RadzenColumn>
                 <RadzenColumn Size="12" SizeMD="4">
@@ -230,4 +225,3 @@ else
         public List<Guid> Permissions { get; set; } = [];
     }
 }
-
