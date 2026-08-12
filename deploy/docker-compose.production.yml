@@ -1,0 +1,57 @@
+services:
+  db:
+    image: mariadb:11.4
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_ROOT_HOST: "%"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5184
+      ConnectionStrings__MasterDb: Server=db;Port=3306;Database=StudioB2B_Master;User=root;Password=${MARIADB_ROOT_PASSWORD};AllowUserVariables=True;AllowPublicKeyRetrieval=True;
+      MultiTenancy__MasterDomain: studiob2b.mpsuper.ru
+      MultiTenancy__TenantDbConnectionTemplate: Server=db;Port=3306;Database={0};User=root;Password=${MARIADB_ROOT_PASSWORD};AllowUserVariables=True;AllowPublicKeyRetrieval=True;
+      Jwt__Secret: ${JWT_SECRET}
+      Jwt__Issuer: StudioB2B
+      Jwt__Audience: StudioB2B
+      Encryption__Key: ${ENCRYPTION_KEY}
+      Seed__AdminEmail: ${SEED_ADMIN_EMAIL}
+      Seed__AdminPassword: ${SEED_ADMIN_PASSWORD}
+      Email__Host: ${SMTP_HOST}
+      Email__Port: ${SMTP_PORT}
+      Email__User: ${SMTP_USER}
+      Email__Password: ${SMTP_PASSWORD}
+      Email__FromAddress: ${SMTP_FROM_ADDRESS}
+      Email__FromName: ${SMTP_FROM_NAME}
+      Email__EnableSsl: ${SMTP_ENABLE_SSL}
+    ports:
+      - 10.8.0.6:5184:5184
+      - 127.0.0.1:5184:5184
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:5184/ > /dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+
+volumes:
+  mariadb-data:

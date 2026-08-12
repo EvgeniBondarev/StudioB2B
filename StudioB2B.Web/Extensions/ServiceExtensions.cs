@@ -58,7 +58,7 @@ public static class ServiceExtensions
         services.AddSingleton<NavService>();
         services.AddSingleton<PageRegistry>();
 
-        ConfigureCors(services, environment);
+        ConfigureCors(services, environment, configuration);
 
         services.Configure<ForwardedHeadersOptions>(options =>
         {
@@ -100,7 +100,10 @@ public static class ServiceExtensions
         }
     }
 
-    private static void ConfigureCors(IServiceCollection services, IWebHostEnvironment environment)
+    private static void ConfigureCors(
+        IServiceCollection services,
+        IWebHostEnvironment environment,
+        IConfiguration configuration)
     {
         services.AddCors(options =>
         {
@@ -119,10 +122,17 @@ public static class ServiceExtensions
                 }
                 else
                 {
+                    var masterDomain = configuration["MultiTenancy:MasterDomain"]
+                        ?.Trim()
+                        .TrimEnd('.')
+                        .ToLowerInvariant();
+
                     policy.SetIsOriginAllowed(origin =>
                     {
                         var uri = new Uri(origin);
-                        return uri.Host == "studiob2b.ru" || uri.Host.EndsWith(".studiob2b.ru");
+                        return !string.IsNullOrEmpty(masterDomain) &&
+                               (uri.Host.Equals(masterDomain, StringComparison.OrdinalIgnoreCase) ||
+                                uri.Host.EndsWith($".{masterDomain}", StringComparison.OrdinalIgnoreCase));
                     })
                     .AllowCredentials()
                     .AllowAnyHeader()

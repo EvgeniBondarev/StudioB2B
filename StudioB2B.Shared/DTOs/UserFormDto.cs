@@ -8,7 +8,6 @@ public class UserFormDto
     [EmailAddress(ErrorMessage = "Некорректный email")]
     public string Email { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Введите фамилию")]
     public string LastName { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Введите имя")]
@@ -22,4 +21,3 @@ public class UserFormDto
 
     public List<string> SelectedRoles { get; set; } = [];
 }
-

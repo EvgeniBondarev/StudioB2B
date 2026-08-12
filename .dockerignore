@@ -15,6 +15,7 @@ docs/
 .vscode/
 *.user
 .DS_Store
+**/._*
 
 # Git
 .git/
@@ -27,4 +28,3 @@ appsettings.Development.json
 # Dumps and temp files
 **/dumps/
 *.log
-
