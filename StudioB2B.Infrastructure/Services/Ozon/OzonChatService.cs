@@ -318,7 +318,7 @@ public class OzonChatService : IOzonChatService
         if (statusCode == 403)
         {
             var hint = message?.Contains("access period has expired", StringComparison.OrdinalIgnoreCase) == true
-                ? "Срок ответа на этот чат истёк. Ozon больше не разрешает отправлять сообщения в этот чат."
+                ? "Нельзя отправить сообщение повторно: сначала покупатель должен ответить в этом чате. Возможность отправки восстановится после нового сообщения покупателя."
                 : message?.Contains("only replies are allowed", StringComparison.OrdinalIgnoreCase) == true
                     ? "В этом чате разрешены только ответы на сообщения поддержки."
                     : "Ozon отклонил отправку: у API-ключа нет нужного доступа к чатам либо этот чат недоступен для ответа.";
