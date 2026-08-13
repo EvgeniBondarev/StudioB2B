@@ -255,14 +255,6 @@ public class OzonReviewsService : IOzonReviewsService
         string status,
         CancellationToken ct = default)
     {
-        if (text.Length > MaxReviewCommentLength)
-        {
-            var excess = text.Length - MaxReviewCommentLength;
-            return (null,
-                $"Комментарий слишком длинный: {text.Length:N0} из {MaxReviewCommentLength:N0} символов. " +
-                $"Сократите текст на {excess:N0} симв.");
-        }
-
         try
         {
             var result = await _ozonApi.ChangeReviewStatusAsync(
@@ -321,6 +313,14 @@ public class OzonReviewsService : IOzonReviewsService
         bool markAsProcessed = true,
         CancellationToken ct = default)
     {
+        if (text.Length > MaxReviewCommentLength)
+        {
+            var excess = text.Length - MaxReviewCommentLength;
+            return (null,
+                $"Комментарий слишком длинный: {text.Length:N0} из {MaxReviewCommentLength:N0} символов. " +
+                $"Сократите текст на {excess:N0} симв.");
+        }
+
         try
         {
             var result = await _ozonApi.CreateReviewCommentAsync(
