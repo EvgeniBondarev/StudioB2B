@@ -306,7 +306,7 @@ public class OzonReviewsService : IOzonReviewsService
         return totals;
     }
 
-    public async Task<string?> CreateReviewCommentAsync(
+    public async Task<(string? CommentId, string? Error)> CreateReviewCommentAsync(
         OzonReviewViewModelDto review,
         string text,
         bool markAsProcessed = true,
@@ -325,17 +325,34 @@ public class OzonReviewsService : IOzonReviewsService
                 ct);
 
             if (result.IsSuccess && !string.IsNullOrEmpty(result.Data?.CommentId))
-                return result.Data.CommentId;
+                return (result.Data.CommentId, null);
 
             _logger.LogWarning("CreateReviewComment failed for review {Id}: {Error}",
                 review.Id, result.ErrorMessage);
-            return null;
+            return (null, FormatOzonError(result.StatusCode, result.ErrorCode, result.ErrorMessage));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "CreateReviewComment exception for review {Id}", review.Id);
-            return null;
+            return (null, $"Ошибка при обращении к Ozon: {ex.Message}");
         }
+    }
+
+    private static string FormatOzonError(int? statusCode, string? errorCode, string? message)
+    {
+        var details = new List<string>();
+        if (statusCode.HasValue)
+            details.Add($"HTTP {statusCode.Value}");
+        if (!string.IsNullOrWhiteSpace(errorCode))
+            details.Add($"код Ozon: {errorCode}");
+        if (!string.IsNullOrWhiteSpace(message))
+            details.Add(message);
+
+        var exactError = details.Count > 0 ? string.Join("; ", details) : "Ozon не передал описание ошибки.";
+        var hint = statusCode == 403
+            ? "Ozon отклонил комментарий: у API-ключа нет нужного доступа к отзывам либо отзыв недоступен для ответа."
+            : "Не удалось отправить комментарий.";
+        return $"{hint} Точная ошибка: {exactError}";
     }
 
     public async Task<bool> DeleteReviewCommentAsync(
@@ -408,4 +425,3 @@ public class OzonReviewsService : IOzonReviewsService
             .ToListAsync(ct);
     }
 }
-
