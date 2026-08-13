@@ -1029,6 +1029,17 @@ public partial class CommunicationTaskBoard
     private async Task<bool> OverlaySendCommentAsync(string text)
     {
         if (string.IsNullOrWhiteSpace(text) || _previewTask is null) return false;
+        const int maxCommentLength = 2000;
+        if (text.Length > maxCommentLength)
+        {
+            var excess = text.Length - maxCommentLength;
+            NotificationService.Notify(
+                NotificationSeverity.Warning,
+                "Комментарий слишком длинный",
+                $"В Ozon можно отправить не более {maxCommentLength:N0} символов. Сейчас: {text.Length:N0}. Сократите на {excess:N0} симв.",
+                7000);
+            return false;
+        }
         if (string.IsNullOrWhiteSpace(_reviewDetail?.Review.Text))
         {
             NotificationService.Notify(NotificationSeverity.Warning, "Невозможно ответить", "На отзыв без текста нельзя оставить комментарий", 5000);

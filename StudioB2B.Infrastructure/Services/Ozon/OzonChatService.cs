@@ -317,9 +317,11 @@ public class OzonChatService : IOzonChatService
         var exactError = details.Count > 0 ? string.Join("; ", details) : "Ozon не передал описание ошибки.";
         if (statusCode == 403)
         {
-            var hint = message?.Contains("only replies are allowed", StringComparison.OrdinalIgnoreCase) == true
-                ? "В этом чате разрешены только ответы на сообщения поддержки."
-                : "Ozon отклонил отправку: у API-ключа нет нужного доступа к чатам либо этот чат недоступен для ответа.";
+            var hint = message?.Contains("access period has expired", StringComparison.OrdinalIgnoreCase) == true
+                ? "Нельзя отправить сообщение повторно: сначала покупатель должен ответить в этом чате. Возможность отправки восстановится после нового сообщения покупателя."
+                : message?.Contains("only replies are allowed", StringComparison.OrdinalIgnoreCase) == true
+                    ? "В этом чате разрешены только ответы на сообщения поддержки."
+                    : "Ozon отклонил отправку: у API-ключа нет нужного доступа к чатам либо этот чат недоступен для ответа.";
             return $"{hint} Точная ошибка: {exactError}";
         }
         if (statusCode == 429)
