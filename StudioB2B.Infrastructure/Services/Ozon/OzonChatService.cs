@@ -282,7 +282,7 @@ public class OzonChatService : IOzonChatService
         if (!result.IsSuccess)
         {
             _logger.LogWarning("SendMessage failed for chat {ChatId}: {Error}", chatId, result.ErrorMessage);
-            return (false, GetFriendlyError(result.StatusCode, result.ErrorMessage));
+            return (false, FormatOzonError(result.StatusCode, result.ErrorCode, result.ErrorMessage));
         }
 
         return (result.Data?.Result == "success", null);
@@ -298,23 +298,33 @@ public class OzonChatService : IOzonChatService
         if (!result.IsSuccess)
         {
             _logger.LogWarning("SendFile failed for chat {ChatId}: {Error}", chatId, result.ErrorMessage);
-            return (false, GetFriendlyError(result.StatusCode, result.ErrorMessage));
+            return (false, FormatOzonError(result.StatusCode, result.ErrorCode, result.ErrorMessage));
         }
 
         return (result.Data?.Result == "success", null);
     }
 
-    private static string GetFriendlyError(int? statusCode, string? message)
+    private static string FormatOzonError(int? statusCode, string? errorCode, string? message)
     {
+        var details = new List<string>();
+        if (statusCode.HasValue)
+            details.Add($"HTTP {statusCode.Value}");
+        if (!string.IsNullOrWhiteSpace(errorCode))
+            details.Add($"код Ozon: {errorCode}");
+        if (!string.IsNullOrWhiteSpace(message))
+            details.Add(message);
+
+        var exactError = details.Count > 0 ? string.Join("; ", details) : "Ozon не передал описание ошибки.";
         if (statusCode == 403)
         {
-            if (message != null && message.Contains("only replies are allowed"))
-                return "В этом чате разрешены только ответы на сообщения поддержки.";
-            return "Нет прав для отправки сообщения в этот чат.";
+            var hint = message?.Contains("only replies are allowed", StringComparison.OrdinalIgnoreCase) == true
+                ? "В этом чате разрешены только ответы на сообщения поддержки."
+                : "Ozon отклонил отправку: у API-ключа нет нужного доступа к чатам либо этот чат недоступен для ответа.";
+            return $"{hint} Точная ошибка: {exactError}";
         }
         if (statusCode == 429)
-            return "Слишком много запросов. Попробуйте позже.";
-        return message ?? "Неизвестная ошибка";
+            return $"Слишком много запросов. Попробуйте позже. Точная ошибка: {exactError}";
+        return $"Не удалось отправить сообщение. Точная ошибка Ozon: {exactError}";
     }
 
     public async Task<int> MarkReadAsync(Guid marketplaceClientId, string chatId, ulong? fromMessageId = null, CancellationToken ct = default)
@@ -370,4 +380,3 @@ public class OzonChatService : IOzonChatService
             .FirstOrDefaultAsync(ct);
     }
 }
-

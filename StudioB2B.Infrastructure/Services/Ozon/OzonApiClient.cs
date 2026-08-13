@@ -590,6 +590,8 @@ public class OzonApiClient : IOzonApiClient
 
                 var detailedMessage = !string.IsNullOrWhiteSpace(ozonErrorMessage)
                     ? ozonErrorMessage
+                    : !string.IsNullOrWhiteSpace(errorBody)
+                        ? errorBody
                     : $"Ozon API call failed with status {(int)response.StatusCode}.";
 
                 return OzonApiResultDto<TResponse>.Failure(

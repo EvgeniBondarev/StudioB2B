@@ -33,9 +33,9 @@ public interface IOzonReviewsService
 
     /// <summary>
     /// Создаёт комментарий на отзыв.
-    /// Возвращает идентификатор созданного комментария или null при ошибке.
+    /// Вместе с идентификатором возвращает текст ошибки Ozon, если комментарий не создан.
     /// </summary>
-    Task<string?> CreateReviewCommentAsync(
+    Task<(string? CommentId, string? Error)> CreateReviewCommentAsync(
         OzonReviewViewModelDto review,
         string text,
         bool markAsProcessed = true,
@@ -47,4 +47,3 @@ public interface IOzonReviewsService
         string commentId,
         CancellationToken ct = default);
 }
-

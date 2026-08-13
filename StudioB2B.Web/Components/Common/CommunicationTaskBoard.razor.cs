@@ -1045,7 +1045,7 @@ public partial class CommunicationTaskBoard
                 ApiId = creds.apiId,
                 ApiKey = creds.apiKey
             };
-            var commentId = await ReviewsService.CreateReviewCommentAsync(rVm, text);
+            var (commentId, error) = await ReviewsService.CreateReviewCommentAsync(rVm, text);
             if (commentId is not null)
             {
                 NotificationService.Notify(NotificationSeverity.Success, "Комментарий отправлен", "", 2000);
@@ -1064,7 +1064,7 @@ public partial class CommunicationTaskBoard
             }
             else
             {
-                NotificationService.Notify(NotificationSeverity.Error, "Ошибка", "Не удалось отправить комментарий", 5000);
+                NotificationService.Notify(NotificationSeverity.Error, "Ошибка", error ?? "Не удалось отправить комментарий", 9000);
                 return false;
             }
         }
@@ -1260,4 +1260,3 @@ public partial class CommunicationTaskBoard
             await _hubConnection.DisposeAsync();
     }
 }
-
