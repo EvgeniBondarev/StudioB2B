@@ -8,6 +8,7 @@ namespace StudioB2B.Infrastructure.Services.Ozon;
 
 public class OzonReviewsService : IOzonReviewsService
 {
+    private const int MaxReviewCommentLength = 2000;
     private readonly ITenantDbContextFactory _dbFactory;
     private readonly IOzonApiClient _ozonApi;
     private readonly ILogger<OzonReviewsService> _logger;
@@ -254,6 +255,14 @@ public class OzonReviewsService : IOzonReviewsService
         string status,
         CancellationToken ct = default)
     {
+        if (text.Length > MaxReviewCommentLength)
+        {
+            var excess = text.Length - MaxReviewCommentLength;
+            return (null,
+                $"Комментарий слишком длинный: {text.Length:N0} из {MaxReviewCommentLength:N0} символов. " +
+                $"Сократите текст на {excess:N0} симв.");
+        }
+
         try
         {
             var result = await _ozonApi.ChangeReviewStatusAsync(
@@ -349,9 +358,11 @@ public class OzonReviewsService : IOzonReviewsService
             details.Add(message);
 
         var exactError = details.Count > 0 ? string.Join("; ", details) : "Ozon не передал описание ошибки.";
-        var hint = statusCode == 403
-            ? "Ozon отклонил комментарий: у API-ключа нет нужного доступа к отзывам либо отзыв недоступен для ответа."
-            : "Не удалось отправить комментарий.";
+        var hint = message?.Contains("text > 2000", StringComparison.OrdinalIgnoreCase) == true
+            ? $"Комментарий превышает лимит Ozon — не более {MaxReviewCommentLength:N0} символов."
+            : statusCode == 403
+                ? "Ozon отклонил комментарий: у API-ключа нет нужного доступа к отзывам либо отзыв недоступен для ответа."
+                : "Не удалось отправить комментарий.";
         return $"{hint} Точная ошибка: {exactError}";
     }
 
