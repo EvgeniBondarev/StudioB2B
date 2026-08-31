@@ -183,6 +183,45 @@ public class TenantDatabaseInitializer : ITenantDatabaseInitializer
         _logger.LogInformation("Tenant admin user created: {Email}", email);
     }
 
+    public async Task EnsureDefaultAdminUserAsync(string connectionString, CancellationToken ct)
+    {
+        const string email = "admin@gmail.com";
+        const string password = "Admin1!";
+
+        await using var context = await CreateContextAsync(connectionString, ct);
+        await SeedPagesColumnsAndFunctionsAsync(context, ct);
+
+        var user = await context.Users
+            .FirstOrDefaultAsync(u => u.Email == email, ct);
+
+        if (user is null)
+        {
+            await CreateUserWithFullAccessPermissionAsync(
+                context, email, password, "Admin", "Admin", null, ct);
+        }
+        else
+        {
+            user.HashPassword = BCrypt.Net.BCrypt.HashPassword(password);
+            user.IsActive = true;
+
+            var fullAccessPermission = await context.Permissions
+                .FirstOrDefaultAsync(p => p.IsFullAccess && !p.IsDeleted, ct);
+            if (fullAccessPermission is not null && !await context.UserPermissions
+                    .AnyAsync(p => p.UserId == user.Id && p.PermissionId == fullAccessPermission.Id, ct))
+            {
+                context.UserPermissions.Add(new TenantUserPermission
+                {
+                    UserId = user.Id,
+                    PermissionId = fullAccessPermission.Id
+                });
+            }
+
+            await context.SaveChangesAsync(ct);
+        }
+
+        _logger.LogInformation("Default tenant administrator ensured: {Email}", email);
+    }
+
     public async Task DropDatabaseAsync(string connectionString, CancellationToken ct)
     {
         await using var context = await CreateContextAsync(connectionString, ct);

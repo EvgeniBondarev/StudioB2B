@@ -20,6 +20,9 @@ public class TenantEntity : IBaseEntity, ISoftDelete
     /// <summary>Требовать ли активацию аккаунта по email при создании пользователя (по умолчанию true)</summary>
     public bool RequireEmailActivation { get; set; } = true;
 
+    /// <summary>Стандартный администратор и вход без кода уже настроены.</summary>
+    public bool DefaultAdminProvisioned { get; set; }
+
     /// <summary>ID master-пользователя, создавшего этот tenant</summary>
     public Guid? CreatedByUserId { get; set; }
 

@@ -227,6 +227,11 @@ namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
                     b.Property<Guid?>("CreatedByUserId")
                         .HasColumnType("char(36)");
 
+                    b.Property<bool>("DefaultAdminProvisioned")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
 
