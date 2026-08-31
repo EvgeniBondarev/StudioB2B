@@ -7,5 +7,6 @@ public interface ITenantDatabaseInitializer
     Task MigrateOnlyAsync(string connectionString, string tenantSubdomain, CancellationToken ct);
     Task CreateAdminUserAsync(string connectionString, string email, string password,
         string firstName, string lastName, string? middleName, CancellationToken ct);
+    Task EnsureDefaultAdminUserAsync(string connectionString, CancellationToken ct);
     Task DropDatabaseAsync(string connectionString, CancellationToken ct);
 }

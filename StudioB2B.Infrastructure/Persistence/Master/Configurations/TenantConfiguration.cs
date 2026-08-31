@@ -33,6 +33,9 @@ public class TenantConfiguration : IEntityTypeConfiguration<TenantEntity>
         builder.Property(t => t.RequireEmailActivation)
             .HasDefaultValue(true);
 
+        builder.Property(t => t.DefaultAdminProvisioned)
+            .HasDefaultValue(false);
+
         builder.Property(t => t.CreatedByUserId)
             .IsRequired(false);
 
