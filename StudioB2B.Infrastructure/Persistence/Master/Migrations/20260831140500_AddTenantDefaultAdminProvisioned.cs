@@ -1,10 +1,15 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using StudioB2B.Infrastructure.Persistence.Master;
 
 #nullable disable
 
 namespace StudioB2B.Infrastructure.Persistence.Master.Migrations
 {
     /// <inheritdoc />
+    [DbContext(typeof(MasterDbContext))]
+    [Migration("20260831140500_AddTenantDefaultAdminProvisioned")]
     public partial class AddTenantDefaultAdminProvisioned : Migration
     {
         /// <inheritdoc />
