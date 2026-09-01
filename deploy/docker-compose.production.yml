@@ -2,6 +2,8 @@ services:
   db:
     image: mariadb:11.4
     restart: always
+    mem_limit: 1024m
+    memswap_limit: 1536m
     environment:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
       MARIADB_ROOT_HOST: "%"
@@ -21,6 +23,8 @@ services:
       context: ..
       dockerfile: Dockerfile
     restart: always
+    mem_limit: 1024m
+    memswap_limit: 1536m
     depends_on:
       db:
         condition: service_healthy
